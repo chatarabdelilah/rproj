@@ -99,6 +99,9 @@ pub const PACKAGES: &[PackageSpec] = &[
         primary_choice: true,
     },
     // --- State management ---
+    // (ripple/remo used to be listed here too - verified against their own
+    // repos and they are not state management: ripple is an animation
+    // library and remo is a networking wrapper. Moved to Utilities below.)
     PackageSpec {
         key: "reflex",
         source: "littensy/reflex@4.3.1",
@@ -118,30 +121,12 @@ pub const PACKAGES: &[PackageSpec] = &[
         primary_choice: false,
     },
     PackageSpec {
-        key: "ripple",
-        source: "littensy/ripple@0.10.2",
-        description: "Fine-grained reactive state library",
-        maintenance: Maintenance::Active,
-        category: Category::StateManagement,
-        docs_url: "https://ripple.littens.dev/",
-        primary_choice: true,
-    },
-    PackageSpec {
-        key: "reactRipple",
-        source: "littensy/react-ripple@3.0.1",
-        description: "React bindings for Ripple",
-        maintenance: Maintenance::Active,
-        category: Category::StateManagement,
-        docs_url: "https://ripple.littens.dev/",
-        primary_choice: false,
-    },
-    PackageSpec {
         key: "charm",
         source: "littensy/charm@0.11.0",
         description: "Atom-based state management, inspired by Jotai/Nanostores",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
-        docs_url: "https://charm.littens.dev/",
+        docs_url: "https://github.com/littensy/charm",
         primary_choice: true,
     },
     PackageSpec {
@@ -150,7 +135,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         description: "Client/server atom synchronization for Charm",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
-        docs_url: "https://charm.littens.dev/",
+        docs_url: "https://github.com/littensy/charm",
         primary_choice: false,
     },
     PackageSpec {
@@ -159,7 +144,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         description: "React bindings for Charm",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
-        docs_url: "https://charm.littens.dev/",
+        docs_url: "https://github.com/littensy/charm",
         primary_choice: false,
     },
     PackageSpec {
@@ -168,26 +153,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         description: "Bridge between Vide and Charm, for using Charm atoms in Vide UI",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
-        docs_url: "https://charm.littens.dev/",
+        docs_url: "https://github.com/littensy/charm",
         primary_choice: false,
-    },
-    PackageSpec {
-        key: "videRipple",
-        source: "littensy/vide-ripple@0.10.2",
-        description: "Bridge between Vide and Ripple, for using Ripple stores in Vide UI",
-        maintenance: Maintenance::Active,
-        category: Category::StateManagement,
-        docs_url: "https://ripple.littens.dev/",
-        primary_choice: false,
-    },
-    PackageSpec {
-        key: "remo",
-        source: "littensy/remo@1.5.3",
-        description: "Type-safe remote event/networking wrapper",
-        maintenance: Maintenance::Active,
-        category: Category::StateManagement,
-        docs_url: "https://littensy.github.io/remo/",
-        primary_choice: true,
     },
     // --- Data & profiles ---
     PackageSpec {
@@ -212,8 +179,8 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "testez",
         source: "roblox/testez@0.4.1",
-        description: "Roblox's own unit testing framework",
-        maintenance: Maintenance::CommunityStable,
+        description: "Roblox's own BDD-style unit testing framework - archived by Roblox in Sept 2024, no longer receiving updates upstream, but still the most common Wally-installable test framework in existing projects",
+        maintenance: Maintenance::Legacy,
         category: Category::Testing,
         docs_url: "https://roblox.github.io/testez/",
         primary_choice: true,
@@ -226,6 +193,42 @@ pub const PACKAGES: &[PackageSpec] = &[
         maintenance: Maintenance::Active,
         category: Category::Utility,
         docs_url: "https://howmanysmall.github.io/Janitor/",
+        primary_choice: true,
+    },
+    PackageSpec {
+        key: "ripple",
+        source: "littensy/ripple@0.10.2",
+        description: "Spring/tween-based animation library for Roblox UI, inspired by react-spring",
+        maintenance: Maintenance::Active,
+        category: Category::Utility,
+        docs_url: "https://github.com/littensy/ripple",
+        primary_choice: true,
+    },
+    PackageSpec {
+        key: "reactRipple",
+        source: "littensy/react-ripple@3.0.1",
+        description: "React bindings for Ripple's animation primitives",
+        maintenance: Maintenance::Active,
+        category: Category::Utility,
+        docs_url: "https://github.com/littensy/ripple",
+        primary_choice: false,
+    },
+    PackageSpec {
+        key: "videRipple",
+        source: "littensy/vide-ripple@0.10.2",
+        description: "Vide bindings for Ripple's animation primitives",
+        maintenance: Maintenance::Active,
+        category: Category::Utility,
+        docs_url: "https://github.com/littensy/ripple",
+        primary_choice: false,
+    },
+    PackageSpec {
+        key: "remo",
+        source: "littensy/remo@1.5.3",
+        description: "Type-safe remote event/networking wrapper",
+        maintenance: Maintenance::Active,
+        category: Category::Utility,
+        docs_url: "https://github.com/littensy/remo",
         primary_choice: true,
     },
     PackageSpec {
@@ -246,7 +249,39 @@ pub const PACKAGES: &[PackageSpec] = &[
         docs_url: "https://github.com/corecii/greentea",
         primary_choice: true,
     },
+    PackageSpec {
+        key: "t",
+        source: "osyrisrblx/t@3.1.1",
+        description: "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions",
+        maintenance: Maintenance::CommunityStable,
+        category: Category::Utility,
+        docs_url: "https://github.com/osyrisrblx/t",
+        primary_choice: true,
+    },
+    PackageSpec {
+        key: "sift",
+        source: "csqrl/sift@0.0.11",
+        description: "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used",
+        maintenance: Maintenance::CommunityStable,
+        category: Category::Utility,
+        docs_url: "https://cxmeel.github.io/sift",
+        primary_choice: true,
+    },
 ];
+
+impl PackageSpec {
+    /// The wally author/org, parsed from `source` (e.g. "littensy" out of
+    /// "littensy/reflex@4.3.1"). Used for the compact `rproj info` listing.
+    pub fn author(&self) -> &'static str {
+        self.source.split('/').next().unwrap_or(self.source)
+    }
+
+    /// The pinned version, parsed from `source` (e.g. "4.3.1" out of
+    /// "littensy/reflex@4.3.1"). Used for the compact `rproj info` listing.
+    pub fn version(&self) -> &'static str {
+        self.source.rsplit('@').next().unwrap_or("")
+    }
+}
 
 pub fn find(key: &str) -> Option<&'static PackageSpec> {
     PACKAGES.iter().find(|p| p.key == key)
