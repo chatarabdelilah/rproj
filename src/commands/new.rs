@@ -123,7 +123,9 @@ fn pick_expert() -> Result<BTreeSet<String>> {
         })
         .collect();
 
-    let selected = MultiSelect::new("Pick every package this project needs", options).prompt()?;
+    let selected = MultiSelect::new("Pick every package this project needs", options)
+        .with_help_message("↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter")
+        .prompt()?;
 
     Ok(wally_packages::PACKAGES
         .iter()

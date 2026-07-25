@@ -47,42 +47,46 @@ pub fn download_latest_plugin_zip() -> Result<PathBuf> {
     Ok(dest)
 }
 
-/// Installs the addon zip into Blender and enables it, run headlessly, unless
-/// `known_module` (the module name discovered by an earlier successful
-/// install - see `GlobalConfig::blender_plugin_module`) is already present
-/// in Blender's addons folder, in which case this is a no-op. The module
-/// name can't be known in advance on a first-ever install (it's discovered
-/// by diffing Blender's addons folder before/after), so the caller re-runs
-/// with `known_module: None` the first time and persists whatever this
-/// returns for next time.
-pub fn install_addon(zip_path: &Path, known_module: Option<&str>) -> Result<Option<String>> {
+/// Installs the addon zip into Blender and enables it, run headlessly.
+/// Idempotent: the expected module name is read directly out of the zip's
+/// own top-level entry (via Python's stdlib `zipfile`, no extraction needed)
+/// rather than inferred by diffing Blender's addons folder before/after -
+/// that diffing approach only ever detects a change the first time the
+/// addon doesn't already exist on disk, so it silently stops finding
+/// anything the moment the addon has been installed once (including from
+/// before this idempotency check existed), which is exactly what caused
+/// `rproj setup` to look like it was reinstalling on every run.
+pub fn install_addon(zip_path: &Path) -> Result<()> {
     let zip_path_str = zip_path.to_string_lossy().replace('\\', "/");
-    let known_repr = match known_module {
-        Some(m) => format!("\"{m}\""),
-        None => "None".to_string(),
-    };
     let script = format!(
         r#"
-import bpy, os
+import bpy, os, zipfile
+
+zip_path = r"{zip_path_str}"
+names = zipfile.ZipFile(zip_path).namelist()
+candidates = sorted({{
+    n.split('/')[0] for n in names
+    if n.strip('/') and not n.startswith('__MACOSX') and '.' not in n.split('/')[0]
+}})
+module = candidates[0] if candidates else None
+
 addons_dir = bpy.utils.user_resource('SCRIPTS', path="addons")
-known = {known_repr}
-already_installed = bool(known) and (
-    os.path.isdir(os.path.join(addons_dir, known)) or os.path.isfile(os.path.join(addons_dir, known + ".py"))
+already_installed = bool(module) and (
+    os.path.isdir(os.path.join(addons_dir, module)) or os.path.isfile(os.path.join(addons_dir, module + ".py"))
 )
+
 if already_installed:
-    print("RPROJ_ALREADY_INSTALLED:" + known)
+    print("RPROJ_ALREADY_INSTALLED:" + module)
 else:
-    before = set(os.listdir(addons_dir)) if os.path.isdir(addons_dir) else set()
-    bpy.ops.preferences.addon_install(filepath=r"{zip_path_str}")
-    after = set(os.listdir(addons_dir)) if os.path.isdir(addons_dir) else set()
-    new_items = [n for n in (after - before) if not n.startswith('__')]
-    for name in new_items:
-        module = name[:-3] if name.endswith('.py') else name
+    bpy.ops.preferences.addon_install(filepath=zip_path)
+    if module:
         try:
             bpy.ops.preferences.addon_enable(module=module)
             print("RPROJ_ENABLED:" + module)
         except Exception as e:
             print("RPROJ_ENABLE_FAILED:" + module + ":" + str(e))
+    else:
+        print("RPROJ_UNKNOWN_MODULE")
     bpy.ops.wm.save_userpref()
 "#
     );
@@ -90,9 +94,8 @@ else:
 
     if let Some(module) = stdout.lines().find_map(|l| l.strip_prefix("RPROJ_ALREADY_INSTALLED:")) {
         println!("check: Roblox Blender plugin already installed ({module})");
-        return Ok(Some(module.to_string()));
     }
-    Ok(stdout.lines().find_map(|l| l.strip_prefix("RPROJ_ENABLED:")).map(str::to_string))
+    Ok(())
 }
 
 pub fn print_account_link_instructions() {

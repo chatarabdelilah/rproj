@@ -65,11 +65,7 @@ pub fn run() -> Result<()> {
 
     if picked.system_apps.iter().any(|k| k == "blender") {
         let zip_path = blender::download_latest_plugin_zip()?;
-        if let Some(module) =
-            blender::install_addon(&zip_path, config.blender_plugin_module.as_deref())?
-        {
-            config.blender_plugin_module = Some(module);
-        }
+        blender::install_addon(&zip_path)?;
         blender::print_account_link_instructions();
     }
 
@@ -142,6 +138,7 @@ fn pick_from_catalog(
 
     let selected = MultiSelect::new(prompt, options)
         .with_default(&default_indices)
+        .with_help_message("↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter")
         .prompt()?;
 
     Ok(entries
