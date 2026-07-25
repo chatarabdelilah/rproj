@@ -134,9 +134,10 @@ fn pick_expert() -> Result<BTreeSet<String>> {
 
 fn add_companions(packages: &mut BTreeSet<String>) {
     let primaries: Vec<String> = packages.iter().cloned().collect();
+    let snapshot = packages.clone();
     for key in primaries {
-        for companion in companions_for(&key) {
-            packages.insert((*companion).to_string());
+        for companion in companions_for(&key, |k| snapshot.contains(k)) {
+            packages.insert(companion.to_string());
         }
     }
 }

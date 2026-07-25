@@ -50,13 +50,28 @@ pub struct PackageSpec {
 /// (e.g. picking `react` also needs `react-roblox` to actually render).
 /// Guided mode and presets apply this; expert mode lists everything
 /// individually so an experienced dev can opt out of a companion.
-pub fn companions_for(key: &str) -> &'static [&'static str] {
+///
+/// `has` reports whether a given package key is already in the selection -
+/// used to pick the right UI-specific binding (e.g. `charm` pulls in
+/// `reactCharm` alongside React but `videCharm` alongside Vide) instead of
+/// always assuming React, which would staple a React binding onto a
+/// Vide/Fusion project.
+pub fn companions_for(key: &str, has: impl Fn(&str) -> bool) -> Vec<&'static str> {
     match key {
-        "react" => &["reactRoblox"],
-        "reflex" => &["reactReflex"],
-        "ripple" => &["reactRipple"],
-        "charm" => &["charmSync", "reactCharm"],
-        _ => &[],
+        "react" => vec!["reactRoblox"],
+        "reflex" if has("react") => vec!["reactReflex"],
+        "charm" => {
+            let mut companions = vec!["charmSync"];
+            if has("react") {
+                companions.push("reactCharm");
+            } else if has("vide") {
+                companions.push("videCharm");
+            }
+            companions
+        }
+        "ripple" if has("react") => vec!["reactRipple"],
+        "ripple" if has("vide") => vec!["videRipple"],
+        _ => vec![],
     }
 }
 
