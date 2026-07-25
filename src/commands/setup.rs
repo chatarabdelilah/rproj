@@ -65,7 +65,11 @@ pub fn run() -> Result<()> {
 
     if picked.system_apps.iter().any(|k| k == "blender") {
         let zip_path = blender::download_latest_plugin_zip()?;
-        blender::install_addon(&zip_path)?;
+        if let Some(module) =
+            blender::install_addon(&zip_path, config.blender_plugin_module.as_deref())?
+        {
+            config.blender_plugin_module = Some(module);
+        }
         blender::print_account_link_instructions();
     }
 

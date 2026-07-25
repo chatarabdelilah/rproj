@@ -47,31 +47,52 @@ pub fn download_latest_plugin_zip() -> Result<PathBuf> {
     Ok(dest)
 }
 
-/// Installs the addon zip into Blender and enables it, run headlessly.
-/// The module name to enable is discovered at runtime (by diffing Blender's
-/// addons folder before/after install) rather than hardcoded, since it's
-/// not something we can reliably know in advance from outside Blender.
-pub fn install_addon(zip_path: &Path) -> Result<()> {
+/// Installs the addon zip into Blender and enables it, run headlessly, unless
+/// `known_module` (the module name discovered by an earlier successful
+/// install - see `GlobalConfig::blender_plugin_module`) is already present
+/// in Blender's addons folder, in which case this is a no-op. The module
+/// name can't be known in advance on a first-ever install (it's discovered
+/// by diffing Blender's addons folder before/after), so the caller re-runs
+/// with `known_module: None` the first time and persists whatever this
+/// returns for next time.
+pub fn install_addon(zip_path: &Path, known_module: Option<&str>) -> Result<Option<String>> {
     let zip_path_str = zip_path.to_string_lossy().replace('\\', "/");
+    let known_repr = match known_module {
+        Some(m) => format!("\"{m}\""),
+        None => "None".to_string(),
+    };
     let script = format!(
         r#"
 import bpy, os
 addons_dir = bpy.utils.user_resource('SCRIPTS', path="addons")
-before = set(os.listdir(addons_dir)) if os.path.isdir(addons_dir) else set()
-bpy.ops.preferences.addon_install(filepath=r"{zip_path_str}")
-after = set(os.listdir(addons_dir)) if os.path.isdir(addons_dir) else set()
-new_items = [n for n in (after - before) if not n.startswith('__')]
-for name in new_items:
-    module = name[:-3] if name.endswith('.py') else name
-    try:
-        bpy.ops.preferences.addon_enable(module=module)
-        print("RPROJ_ENABLED:" + module)
-    except Exception as e:
-        print("RPROJ_ENABLE_FAILED:" + module + ":" + str(e))
-bpy.ops.wm.save_userpref()
+known = {known_repr}
+already_installed = bool(known) and (
+    os.path.isdir(os.path.join(addons_dir, known)) or os.path.isfile(os.path.join(addons_dir, known + ".py"))
+)
+if already_installed:
+    print("RPROJ_ALREADY_INSTALLED:" + known)
+else:
+    before = set(os.listdir(addons_dir)) if os.path.isdir(addons_dir) else set()
+    bpy.ops.preferences.addon_install(filepath=r"{zip_path_str}")
+    after = set(os.listdir(addons_dir)) if os.path.isdir(addons_dir) else set()
+    new_items = [n for n in (after - before) if not n.startswith('__')]
+    for name in new_items:
+        module = name[:-3] if name.endswith('.py') else name
+        try:
+            bpy.ops.preferences.addon_enable(module=module)
+            print("RPROJ_ENABLED:" + module)
+        except Exception as e:
+            print("RPROJ_ENABLE_FAILED:" + module + ":" + str(e))
+    bpy.ops.wm.save_userpref()
 "#
     );
-    run_headless_script(&script)
+    let stdout = run_headless_script(&script)?;
+
+    if let Some(module) = stdout.lines().find_map(|l| l.strip_prefix("RPROJ_ALREADY_INSTALLED:")) {
+        println!("check: Roblox Blender plugin already installed ({module})");
+        return Ok(Some(module.to_string()));
+    }
+    Ok(stdout.lines().find_map(|l| l.strip_prefix("RPROJ_ENABLED:")).map(str::to_string))
 }
 
 pub fn print_account_link_instructions() {
@@ -120,7 +141,8 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
 /// output doesn't reliably flow through to an inherited parent console -
 /// so a bare `Command::status()` can report a failure with nothing useful
 /// printed above it. This guarantees whatever Blender wrote is visible.
-fn run_headless_script(script: &str) -> Result<()> {
+/// Returns the captured stdout so callers can parse `RPROJ_*:` markers.
+fn run_headless_script(script: &str) -> Result<String> {
     let script_path = std::env::temp_dir().join(format!("rproj-blender-{}.py", std::process::id()));
     fs::write(&script_path, script)?;
 
@@ -153,7 +175,7 @@ fn run_headless_script(script: &str) -> Result<()> {
             output.status
         );
     }
-    Ok(())
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 /// Finds blender.exe even when it's not on PATH. winget installs Blender

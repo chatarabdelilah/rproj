@@ -20,6 +20,12 @@ pub struct GlobalConfig {
     pub selected_studio_plugins: Vec<String>,
     #[serde(default)]
     pub selected_vscode_extensions: Vec<String>,
+    /// The addon module name discovered the first time the Roblox Blender
+    /// plugin was installed (its zip's internal folder name isn't known in
+    /// advance) - lets later `rproj setup` runs check it's already present
+    /// instead of unconditionally re-downloading and re-installing it.
+    #[serde(default)]
+    pub blender_plugin_module: Option<String>,
     #[serde(default)]
     pub last_checked: Option<String>,
 }
