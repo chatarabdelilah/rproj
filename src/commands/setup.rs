@@ -49,6 +49,9 @@ pub fn run() -> Result<()> {
     if picked.studio_plugins.iter().any(|k| k == "hoarcekat") {
         studio_plugin::install_from_latest_release("Kampfkarren/hoarcekat", ".rbxmx")?;
     }
+    if picked.studio_plugins.iter().any(|k| k == "luau-lsp-plugin") {
+        studio_plugin::install_from_latest_release("JohnnyMorganz/luau-lsp", ".rbxm")?;
+    }
 
     if picked.system_apps.iter().any(|k| k == "vscode") {
         vscode::ensure_extensions(

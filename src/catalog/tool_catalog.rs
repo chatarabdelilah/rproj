@@ -187,6 +187,15 @@ pub const STUDIO_PLUGINS: &[ToolEntry] = &[
         default_selected: false,
         docs_url: "https://github.com/Kampfkarren/hoarcekat",
     },
+    ToolEntry {
+        key: "luau-lsp-plugin",
+        description: "Companion for the Luau language server - exposes Studio's live DataModel (instances not in your Rojo files) for better autocomplete",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::StudioPlugin { github_repo: "JohnnyMorganz/luau-lsp", asset_suffix: ".rbxm" },
+        family: "Luau Language Server",
+        default_selected: true,
+        docs_url: "https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md",
+    },
 ];
 
 pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[

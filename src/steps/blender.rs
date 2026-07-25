@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
-use crate::steps::run;
-
 const PLUGIN_REPO: &str = "Roblox/roblox-blender-plugin";
 /// Roblox's stud scale: 1 stud = 0.28 meters. Setting Blender's scene unit
 /// scale to this means 1 Blender unit lines up with 1 Roblox stud.
@@ -76,11 +74,14 @@ bpy.ops.wm.save_userpref()
 
 pub fn print_account_link_instructions() {
     println!(
-        "\nBlender is set up, but linking your Roblox account is a manual, one-time step\n\
-         (it needs a browser sign-in, so it can't be scripted):\n\
+        "\nBlender is set up, but two one-time steps still need to happen inside Blender\n\
+         itself (they need a UI/browser, so they can't be scripted):\n\
          1. Open Blender\n\
-         2. Edit > Preferences > Add-ons > find \"Roblox\"\n\
-         3. Follow the sign-in prompt to connect your Roblox account via Open Cloud\n\
+         2. Edit > Preferences > Add-ons > find \"Roblox\" and expand it\n\
+         3. Open the N-panel in a 3D viewport (press N) > \"Roblox\" tab > click\n\
+         \"Install Dependencies\", then restart Blender when it finishes\n\
+         4. After restarting, follow the sign-in prompt to connect your Roblox\n\
+         account via Open Cloud\n\
          See: https://create.roblox.com/docs/art/modeling/roblox-blender-plugin"
     );
 }
@@ -111,20 +112,39 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
     Ok(())
 }
 
+/// Runs `blender --background --python <script>` with stdout/stderr
+/// captured explicitly (rather than only inherited) and always printed,
+/// since Blender is a Windows GUI-subsystem executable and its console
+/// output doesn't reliably flow through to an inherited parent console -
+/// so a bare `Command::status()` can report a failure with nothing useful
+/// printed above it. This guarantees whatever Blender wrote is visible.
 fn run_headless_script(script: &str) -> Result<()> {
     let script_path = std::env::temp_dir().join(format!("rproj-blender-{}.py", std::process::id()));
     fs::write(&script_path, script)?;
-    let result = run(
-        "blender",
-        &[
-            "--background",
-            "--python",
-            script_path.to_string_lossy().as_ref(),
-        ],
-    );
+
+    println!("\n> blender --background --python {}", script_path.display());
+    let output = std::process::Command::new("blender")
+        .args(["--background", "--python", &script_path.to_string_lossy()])
+        .output()
+        .context("failed to spawn `blender`");
     let _ = fs::remove_file(&script_path);
-    if result.is_err() {
-        bail!("headless Blender script failed - see output above");
+    let output = output?;
+
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
     }
-    result
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    if !output.status.success() {
+        bail!(
+            "blender exited with {} (see output above - if it just says \
+             \"Python script failed, check the message in the system console\", \
+             the addon zip may be corrupt or Blender is older than the 3.2+ this \
+             plugin requires)",
+            output.status
+        );
+    }
+    Ok(())
 }
