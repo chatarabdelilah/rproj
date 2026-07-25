@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
+use crate::steps::probe;
+
 const PLUGIN_REPO: &str = "Roblox/roblox-blender-plugin";
 /// Roblox's stud scale: 1 stud = 0.28 meters. Setting Blender's scene unit
 /// scale to this means 1 Blender unit lines up with 1 Roblox stud.
@@ -122,11 +124,16 @@ fn run_headless_script(script: &str) -> Result<()> {
     let script_path = std::env::temp_dir().join(format!("rproj-blender-{}.py", std::process::id()));
     fs::write(&script_path, script)?;
 
-    println!("\n> blender --background --python {}", script_path.display());
-    let output = std::process::Command::new("blender")
+    let blender_exe = locate_blender_exe()?;
+    println!(
+        "\n> {} --background --python {}",
+        blender_exe.display(),
+        script_path.display()
+    );
+    let output = std::process::Command::new(&blender_exe)
         .args(["--background", "--python", &script_path.to_string_lossy()])
         .output()
-        .context("failed to spawn `blender`");
+        .with_context(|| format!("failed to spawn `{}`", blender_exe.display()));
     let _ = fs::remove_file(&script_path);
     let output = output?;
 
@@ -147,4 +154,36 @@ fn run_headless_script(script: &str) -> Result<()> {
         );
     }
     Ok(())
+}
+
+/// Finds blender.exe even when it's not on PATH. winget installs Blender
+/// but doesn't reliably put it on PATH for an already-running shell (or at
+/// all, depending on the installer) - the same PATH gotcha this project's
+/// own dev setup hit with cargo/rustc. Falls back to scanning the standard
+/// winget/installer location under Program Files.
+fn locate_blender_exe() -> Result<PathBuf> {
+    if probe("blender", &["--version"]) {
+        return Ok(PathBuf::from("blender"));
+    }
+
+    let program_files = std::env::var_os("ProgramFiles")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
+    let base = program_files.join("Blender Foundation");
+
+    let mut candidates: Vec<PathBuf> = fs::read_dir(&base)
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path().join("blender.exe"))
+        .filter(|p| p.is_file())
+        .collect();
+    candidates.sort();
+
+    candidates.pop().with_context(|| {
+        format!(
+            "blender isn't on PATH and no install was found under {} - is Blender installed?",
+            base.display()
+        )
+    })
 }
