@@ -1,0 +1,30 @@
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "rproj", version, about = "Guided bootstrap-to-game-dev CLI for Roblox projects")]
+pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Command>,
+}
+
+#[derive(Subcommand)]
+pub enum Command {
+    /// Install and configure every tool rproj knows about (Git, VS Code, Roblox Studio,
+    /// Blender, Rojo, Wally, Selene, StyLua, Studio plugins, editor extensions...)
+    Setup,
+    /// Scaffold a new Roblox project under your RobloxProjects folder
+    New {
+        /// Project name / folder name under RobloxProjects
+        name: String,
+    },
+    /// Resume the dev loop in the current project: install anything missing,
+    /// then start the Rojo sourcemap watcher
+    Watch,
+    /// Copy every file under src/ (with relative-path headers) to the clipboard
+    Copy,
+    /// Show what a catalog entry does, or list the whole catalog
+    Info {
+        /// Package/tool key to look up. Omit to list everything.
+        key: Option<String>,
+    },
+}
