@@ -16,6 +16,7 @@ use serde_json::{json, Value};
 use crate::catalog::tool_settings::{
     self, ConfigTarget, ConfigurableTool, SettingKind, SettingSpec, CONFIGURABLE_TOOLS,
 };
+use crate::ui;
 
 pub fn run(key: Option<&str>) -> Result<()> {
     let project_dir = std::env::current_dir()?;
@@ -51,14 +52,12 @@ pub fn run(key: Option<&str>) -> Result<()> {
 fn pick_tool() -> Result<&'static ConfigurableTool> {
     let options: Vec<String> = CONFIGURABLE_TOOLS
         .iter()
-        .map(|t| format!("{} - {}", t.key, t.display_name))
+        .map(|t| format!("{}{}{}", t.key, ui::OPTION_SEPARATOR, t.display_name))
         .collect();
     let picked = Select::new("Which tool do you want to configure?", options)
-        .with_formatter(&|o: inquire::list_option::ListOption<&String>| {
-            o.value.split(" - ").next().unwrap_or(o.value).to_string()
-        })
+        .with_formatter(&ui::compact_select_answer)
         .prompt()?;
-    let key = picked.split(" - ").next().unwrap_or(&picked);
+    let key = ui::option_key(&picked);
     tool_settings::find(key).context("internal: picked an unknown tool")
 }
 
@@ -86,15 +85,13 @@ fn ask(setting: &SettingSpec) -> Result<Value> {
         }
         SettingKind::Choice { default, options } => {
             let labels: Vec<String> =
-                options.iter().map(|o| format!("{} - {}", o.value, o.explanation)).collect();
+                options.iter().map(|o| format!("{}{}{}", o.value, ui::OPTION_SEPARATOR, o.explanation)).collect();
             let start = options.iter().position(|o| o.value == *default).unwrap_or(0);
             let picked = Select::new("  Value:", labels)
                 .with_starting_cursor(start)
-                .with_formatter(&|o: inquire::list_option::ListOption<&String>| {
-                    o.value.split(" - ").next().unwrap_or(o.value).to_string()
-                })
+                .with_formatter(&ui::compact_select_answer)
                 .prompt()?;
-            json!(picked.split(" - ").next().unwrap_or(&picked))
+            json!(ui::option_key(&picked))
         }
     };
 
@@ -102,37 +99,14 @@ fn ask(setting: &SettingSpec) -> Result<Value> {
     Ok(value)
 }
 
-/// Writes a TOML file, grouping `section`-tagged settings into their table.
-/// Top-level keys have to be emitted before any `[table]` header, since in
-/// TOML every key after a header belongs to that table.
+/// Writes the answers as TOML, rendered by the catalog so this file and
+/// the one `rproj new` scaffolds stay identical for equal answers.
 fn write_toml(project_dir: &Path, filename: &str, answers: &[(&SettingSpec, Value)]) -> Result<()> {
-    let mut out = String::new();
-
-    for (setting, value) in answers.iter().filter(|(s, _)| s.section.is_none()) {
-        out.push_str(&format!("{} = {}\n", setting.key, toml_value(value)));
-    }
-
-    let mut sections: Vec<&str> =
-        answers.iter().filter_map(|(s, _)| s.section).collect();
-    sections.dedup();
-    for section in sections {
-        out.push_str(&format!("\n[{section}]\n"));
-        for (setting, value) in answers.iter().filter(|(s, _)| s.section == Some(section)) {
-            out.push_str(&format!("{} = {}\n", setting.key, toml_value(value)));
-        }
-    }
-
     let path = project_dir.join(filename);
-    fs::write(&path, out).with_context(|| format!("failed to write {}", path.display()))?;
-    println!("wrote {filename}");
+    fs::write(&path, tool_settings::render_toml(answers))
+        .with_context(|| format!("failed to write {}", path.display()))?;
+    ui::ok(&format!("wrote {filename}"));
     Ok(())
-}
-
-fn toml_value(value: &Value) -> String {
-    match value {
-        Value::String(s) => format!("\"{s}\""),
-        other => other.to_string(),
-    }
 }
 
 /// Merges into `.vscode/settings.json` rather than overwriting it - the
@@ -168,6 +142,6 @@ fn write_vscode_settings(project_dir: &Path, answers: &[(&SettingSpec, Value)]) 
 
     fs::write(&path, serde_json::to_string_pretty(&Value::Object(settings))?)
         .with_context(|| format!("failed to write {}", path.display()))?;
-    println!("wrote .vscode/settings.json");
+    ui::ok("wrote .vscode/settings.json");
     Ok(())
 }

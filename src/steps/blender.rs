@@ -94,17 +94,17 @@ else:
     Ok(())
 }
 
+/// Two setup steps need a UI and a browser sign-in, so they can't be
+/// scripted. Shown as indented detail under a warning rather than a
+/// top-level wall of text: it's guidance, not an outcome, and it reappears
+/// on every single run.
 pub fn print_account_link_instructions() {
-    println!(
-        "\nBlender is set up, but two one-time steps still need to happen inside Blender\n\
-         itself (they need a UI/browser, so they can't be scripted):\n\
-         1. Open Blender\n\
-         2. Edit > Preferences > Add-ons > find \"Roblox\" and expand it\n\
-         3. Open the N-panel in a 3D viewport (press N) > \"Roblox\" tab > click\n\
-         \"Install Dependencies\", then restart Blender when it finishes\n\
-         4. After restarting, follow the sign-in prompt to connect your Roblox\n\
-         account via Open Cloud\n\
-         See: https://create.roblox.com/docs/art/modeling/roblox-blender-plugin"
+    ui::warn("Blender add-on needs two one-time manual steps (they need a UI, so can't be scripted)");
+    ui::detail(
+        "1. Blender > Edit > Preferences > Add-ons > find \"Roblox\", expand it\n\
+         2. In a 3D viewport press N > \"Roblox\" tab > Install Dependencies, then restart\n\
+         3. Follow the sign-in prompt to connect your account via Open Cloud\n\
+         Docs: https://create.roblox.com/docs/art/modeling/roblox-blender-plugin",
     );
 }
 
@@ -146,10 +146,9 @@ fn run_headless_script(script: &str) -> Result<String> {
     fs::write(&script_path, script)?;
 
     let blender_exe = locate_blender_exe()?;
-    println!(
-        "\n> {} --background --python {}",
-        blender_exe.display(),
-        script_path.display()
+    ui::command(
+        &blender_exe.to_string_lossy(),
+        &["--background", "--python", &script_path.to_string_lossy()],
     );
     let output = std::process::Command::new(&blender_exe)
         .args(["--background", "--python", &script_path.to_string_lossy()])
@@ -160,14 +159,14 @@ fn run_headless_script(script: &str) -> Result<String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    if ui::is_verbose() {
+    // Blender is a Windows GUI-subsystem executable, so this captured
+    // output is the only place its diagnostics appear at all. Shown once,
+    // on failure or when verbose.
+    if !output.status.success() || ui::is_verbose() {
         ui::passthrough(&stdout, &stderr);
     }
 
     if !output.status.success() {
-        // Blender is a Windows GUI-subsystem executable, so this captured
-        // output is the only place its diagnostics appear at all.
-        ui::passthrough(&stdout, &stderr);
         bail!(
             "blender exited with {} (see output above - if it just says \
              \"Python script failed, check the message in the system console\", \

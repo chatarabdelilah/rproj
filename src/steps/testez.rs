@@ -6,6 +6,11 @@
 //! - `selene.toml` must use `std = "roblox+testez"`, or every `describe`/
 //!   `it`/`expect` is reported as an undefined global. (Handled by
 //!   `steps::toolchain::ensure_selene_config`.)
+//! - ...and that `+testez` half has to *resolve*, which means a
+//!   `testez.yml` standard-library file next to `selene.toml`. Without it
+//!   selene doesn't fall back or warn - it refuses to run at all
+//!   ("Could not find all standard library files"), so selecting TestEZ
+//!   silently disabled linting for the whole project.
 //! - The TestEZ Companion Studio plugin needs a `testez-companion.toml`
 //!   telling it which DataModel locations hold `.spec` files.
 
@@ -44,6 +49,82 @@ pub fn companion_config() -> String {
     )
 }
 
+/// Selene's TestEZ globals, in its standard-library format.
+///
+/// Taken from rojo-rbx/rojo's own `testez.yml` rather than written from
+/// memory - it covers the modifier variants (`itFOCUS`, `describeSKIP`,
+/// `FIXME`...) that are easy to forget and that would each be reported as
+/// an undefined global.
+///
+/// Must be `.yml`: selene does not recognise a `.yaml` extension when
+/// resolving standard libraries.
+const TESTEZ_STD: &str = r#"---
+globals:
+  FIXME:
+    args:
+      - required: false
+        type: string
+  FOCUS:
+    args: []
+  SKIP:
+    args: []
+  afterAll:
+    args:
+      - type: function
+  afterEach:
+    args:
+      - type: function
+  beforeAll:
+    args:
+      - type: function
+  beforeEach:
+    args:
+      - type: function
+  describe:
+    args:
+      - type: string
+      - type: function
+  describeFOCUS:
+    args:
+      - type: string
+      - type: function
+  describeSKIP:
+    args:
+      - type: string
+      - type: function
+  expect:
+    args:
+      - type: any
+  it:
+    args:
+      - type: string
+      - type: function
+  itFIXME:
+    args:
+      - type: string
+      - type: function
+  itFOCUS:
+    args:
+      - type: string
+      - type: function
+  itSKIP:
+    args:
+      - type: string
+      - type: function
+"#;
+
+/// Writes `testez.yml` so `std = "roblox+testez"` resolves.
+pub fn ensure_selene_std(project_dir: &Path) -> Result<()> {
+    let path = project_dir.join("testez.yml");
+    if path.exists() {
+        ui::ok("testez.yml already exists");
+        return Ok(());
+    }
+    fs::write(&path, TESTEZ_STD).with_context(|| format!("failed to write {}", path.display()))?;
+    ui::ok("wrote testez.yml (selene standard library)");
+    Ok(())
+}
+
 pub fn ensure_companion_config(project_dir: &Path) -> Result<()> {
     let path = project_dir.join("testez-companion.toml");
     if path.exists() {
@@ -72,6 +153,16 @@ mod tests {
         }
         assert!(config.starts_with('#'), "config should explain itself");
         assert!(config.contains("roots = ["));
+    }
+
+    /// selene refuses to run at all when a chained std can't be resolved,
+    /// so the globals TestEZ projects rely on must all be declared.
+    #[test]
+    fn testez_std_declares_the_globals_selene_would_otherwise_reject() {
+        for global in ["describe", "it", "expect", "beforeEach", "afterAll", "itFOCUS", "describeSKIP"] {
+            assert!(TESTEZ_STD.contains(&format!("  {global}:")), "{global} missing from testez.yml");
+        }
+        assert!(TESTEZ_STD.starts_with("---"), "selene std files are YAML documents");
     }
 
     /// The roots have to name the same instances default.project.json

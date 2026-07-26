@@ -173,22 +173,24 @@ fn pick_guided() -> Result<BTreeSet<String>> {
 
         if category.allows_multiple() {
             let selected = MultiSelect::new(&prompt, options)
-                .with_help_message(
-                    "↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter",
-                )
-                .with_formatter(&compact_multi_answer)
+                .with_help_message(ui::MULTISELECT_HELP)
+                .with_formatter(&ui::compact_multi_answer)
                 .prompt()?;
             for spec in &choices {
-                if selected.iter().any(|s| s.starts_with(&format!("{} - ", spec.key))) {
+                if selected.iter().any(|s| ui::option_is(s, spec.key)) {
                     packages.insert(spec.key.to_string());
                 }
             }
         } else {
             let mut options = options;
             options.push("none".to_string());
-            let picked = Select::new(&prompt, options).with_formatter(&compact_select_answer).prompt()?;
+            let picked = Select::new(&prompt, options).with_formatter(&ui::compact_select_answer).prompt()?;
             if picked != "none"
-                && let Some(spec) = choices.iter().find(|p| picked.starts_with(p.key))
+                // Matched on the full "key - " prefix, not a bare
+                // starts_with: two keys where one prefixes the other
+                // (react/reactRoblox, charm/charmSync) would otherwise
+                // resolve to whichever the catalog happened to list first.
+                && let Some(spec) = choices.iter().find(|p| ui::option_is(&picked, p.key))
             {
                 packages.insert(spec.key.to_string());
             }
@@ -214,32 +216,17 @@ fn pick_expert() -> Result<BTreeSet<String>> {
         .collect();
 
     let selected = MultiSelect::new("Pick every package this project needs", options)
-        .with_help_message("↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter")
-        .with_formatter(&compact_multi_answer)
+        .with_help_message(ui::MULTISELECT_HELP)
+        .with_formatter(&ui::compact_multi_answer)
         .prompt()?;
 
     Ok(wally_packages::PACKAGES
         .iter()
-        .filter(|p| selected.iter().any(|s| s.starts_with(&format!("{} - ", p.key))))
+        .filter(|p| selected.iter().any(|s| ui::option_is(s, p.key)))
         .map(|p| p.key.to_string())
         .collect())
 }
 
-/// Post-answer summaries for the package pickers above - same reasoning as
-/// `commands::provision`'s formatters: inquire's defaults echo back the
-/// full "key - description (badge)" text, which is fine while choosing but
-/// unreadable once printed as a single confirmed-answer line.
-fn compact_multi_answer(opts: &[inquire::list_option::ListOption<&String>]) -> String {
-    if opts.is_empty() {
-        return "none".to_string();
-    }
-    let keys: Vec<&str> = opts.iter().map(|o| o.value.split(" - ").next().unwrap_or(o.value)).collect();
-    format!("{} selected: {}", keys.len(), keys.join(", "))
-}
-
-fn compact_select_answer(opt: inquire::list_option::ListOption<&String>) -> String {
-    opt.value.split(" - ").next().unwrap_or(opt.value).to_string()
-}
 
 fn add_companions(packages: &mut BTreeSet<String>) {
     let primaries: Vec<String> = packages.iter().cloned().collect();
@@ -272,7 +259,7 @@ fn scaffold(
 
     rojo::scaffold_project_json(project_dir, name, package_workflow)?;
 
-    // default.project.json maps a $path (packages/ or Modules/) that has to
+    // default.project.json maps a $path (packages/ or modules/) that has to
     // exist before rojo will touch it at all - generating a sourcemap while
     // that folder is missing fails outright ("could not be turned into a
     // Roblox Instance"), not just incompletely. So the package install has
@@ -321,11 +308,17 @@ fn scaffold(
     // project actually selected, so it never invokes something that was
     // never installed; CI only lands if there's a script for it to run.
     if packages.contains("testez") {
+        // Both are required: selene.toml already says roblox+testez, and
+        // without testez.yml to resolve it selene refuses to run at all.
+        testez::ensure_selene_std(project_dir)?;
         testez::ensure_companion_config(project_dir)?;
     }
 
     quality::ensure_luaurc(project_dir)?;
-    if quality::ensure_check_script(project_dir, &config.selected_rokit_tools)? {
+    // The same filtered list the project's rokit.toml got: a check script
+    // must only invoke tools this project actually pins, or CI fails on a
+    // command that isn't installed.
+    if quality::ensure_check_script(project_dir, &tools_for_workflow(config, package_workflow))? {
         quality::ensure_ci_workflow(project_dir)?;
         quality::lute_setup(project_dir)?;
     }
@@ -364,8 +357,43 @@ fn tools_for_workflow(config: &GlobalConfig, workflow: PackageWorkflow) -> Vec<S
 /// Resolves `--like`, failing with the list of what *is* available rather
 /// than a bare "not found" - the names are user-chosen, so a typo is the
 /// likely cause and the correction is right there.
+///
+/// Also re-applies the workflow guard that `pick_package_workflow` would
+/// have applied interactively. A saved setup records an answer given at
+/// some earlier point; a package can stop being vendorable since (or the
+/// file can be edited by hand), and scaffolding a submodule project around
+/// a package that has no vendorable source produces a broken tree.
 fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
-    if let Some(setup) = SavedSetup::load(name)? {
+    if let Some(mut setup) = SavedSetup::load(name)? {
+        let unvendorable: Vec<&str> = setup
+            .packages
+            .iter()
+            .filter_map(|k| wally_packages::find(k))
+            .filter(|p| p.submodule.is_none())
+            .map(|p| p.key)
+            .collect();
+        if setup.package_workflow == PackageWorkflow::GitSubmodules && !unvendorable.is_empty() {
+            ui::warn(&format!(
+                "setup `{name}` asks for git submodules, but {} can't be vendored that way - using Wally",
+                unvendorable.join(", ")
+            ));
+            setup.package_workflow = PackageWorkflow::Wally;
+        }
+
+        let unknown: Vec<&str> = setup
+            .packages
+            .iter()
+            .filter(|k| wally_packages::find(k).is_none())
+            .map(String::as_str)
+            .collect();
+        if !unknown.is_empty() {
+            ui::warn(&format!(
+                "setup `{name}` names packages no longer in the catalog, skipping them: {}",
+                unknown.join(", ")
+            ));
+            setup.packages.retain(|k| wally_packages::find(k).is_some());
+        }
+
         return Ok((name.to_string(), setup));
     }
     let available = SavedSetup::list();

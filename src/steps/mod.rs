@@ -33,11 +33,13 @@ pub fn run(program: &str, args: &[&str]) -> Result<()> {
 
 pub fn run_in(program: &str, args: &[&str], dir: Option<&Path>) -> Result<()> {
     let output = capture(program, args, dir)?;
-    if ui::is_verbose() {
+    // Shown once: on failure it's the explanation, under --verbose it's
+    // what was asked for. Checking both conditions separately printed it
+    // twice for a failure during a verbose run.
+    if !output.success || ui::is_verbose() {
         ui::passthrough(&output.stdout, &output.stderr);
     }
     if !output.success {
-        ui::passthrough(&output.stdout, &output.stderr);
         bail!("`{program} {}` failed", args.join(" "));
     }
     Ok(())

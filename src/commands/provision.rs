@@ -1,5 +1,4 @@
 use anyhow::Result;
-use inquire::list_option::ListOption;
 use inquire::MultiSelect;
 
 use crate::catalog::tool_catalog::{
@@ -9,11 +8,12 @@ use crate::config::GlobalConfig;
 use crate::steps::{blender, bootstrap, rojo, studio_plugin, toolchain, vscode};
 use crate::ui::{self, Tally};
 
-/// Everything `rproj setup` used to do standalone, now shared so `rproj new`
-/// can run the same tool/plugin/extension selection inline instead of
-/// requiring `setup` as a prerequisite - the vision is `rproj new` being
-/// self-sufficient, with things like the Blender add-on question appearing
-/// contextually in the plugins step right after Blender itself is picked.
+/// Machine-wide provisioning: system apps, global CLI tools, Studio
+/// plugins and editor extensions. This is `rproj setup`'s whole job, and
+/// `rproj new` runs it inline *only* on a machine that has never been
+/// provisioned (or with `--reconfigure`) - it's a once-per-PC concern, not
+/// a per-project one. Some questions are contextual: picking Blender here
+/// is what surfaces its add-on in the plugins step.
 ///
 /// Mutates `config` in place with the resulting selections and installs
 /// everything picked (idempotently - nothing already present gets
@@ -144,12 +144,12 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     config.selected_rokit_tools = rokit_tools;
     config.selected_studio_plugins = plugins;
     config.selected_vscode_extensions = vscode_extensions;
-    config.last_checked = Some(chrono_now());
+    config.last_checked = Some(now_unix_seconds());
     Ok(())
 }
 
 fn warn_and_continue(what: &str, err: &anyhow::Error) {
-    eprintln!("warning: {what} failed, continuing without it - {err:#}\n");
+    ui::warn(&format!("{what} skipped - {err}"));
 }
 
 fn studio_plugin_repo(key: &str) -> Option<(&'static str, &'static str)> {
@@ -206,31 +206,22 @@ fn pick_from_catalog(
 
     let selected = MultiSelect::new(prompt, options)
         .with_default(&default_indices)
-        .with_help_message("↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter")
-        .with_formatter(&compact_answer)
+        .with_help_message(ui::MULTISELECT_HELP)
+        .with_formatter(&ui::compact_multi_answer)
         .prompt()?;
 
     Ok(entries
         .iter()
-        .filter(|e| selected.iter().any(|s| s.starts_with(&format!("{} - ", e.key))))
+        .filter(|e| selected.iter().any(|s| ui::option_is(s, e.key)))
         .map(|e| e.key.to_string())
         .collect())
 }
 
-/// Post-answer summary shown after submitting a MultiSelect - inquire's
-/// default joins every option's full "key - description (badge)" text,
-/// which turns into an unreadable wall of text once more than a couple of
-/// entries are selected. This prints just the keys instead.
-fn compact_answer(opts: &[ListOption<&String>]) -> String {
-    if opts.is_empty() {
-        return "none".to_string();
-    }
-    let keys: Vec<&str> = opts.iter().map(|o| o.value.split(" - ").next().unwrap_or(o.value)).collect();
-    format!("{} selected: {}", keys.len(), keys.join(", "))
-}
 
-fn chrono_now() -> String {
-    // Avoids pulling in a datetime crate just for a cache-staleness marker.
+/// Unix seconds, as a string. Doubles as the "has this machine been
+/// provisioned" marker (`GlobalConfig::machine_configured`).
+fn now_unix_seconds() -> String {
+    // Avoids pulling in a datetime crate just for a marker.
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs().to_string())

@@ -5,9 +5,9 @@ use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 
-/// Everything `rproj setup` decided, machine-wide. `rproj new` reads this
-/// and never re-asks about tools - see the plan's "setup does everything,
-/// new just uses what's there" decision.
+/// Everything provisioning decided, machine-wide. `rproj new` reads this
+/// and re-asks only on a machine with nothing recorded, or with
+/// `--reconfigure`.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GlobalConfig {
     #[serde(default)]
@@ -64,6 +64,36 @@ impl GlobalConfig {
     pub fn blender_enabled(&self) -> bool {
         self.selected_system_apps.iter().any(|k| k == "blender")
     }
+
+    /// Whether this machine has been through provisioning at least once.
+    ///
+    /// Keyed on having recorded *any* selection rather than on a flag, so
+    /// a config written by an older version still counts and someone who
+    /// deliberately selected nothing isn't asked again every time.
+    pub fn machine_configured(&self) -> bool {
+        self.last_checked.is_some()
+    }
+
+    /// One-line description of what provisioning last set up, for the
+    /// summary `rproj new` prints when it skips the questions.
+    pub fn machine_summary(&self) -> String {
+        let parts = [
+            (self.selected_system_apps.len(), "apps"),
+            (self.selected_rokit_tools.len(), "tools"),
+            (self.selected_studio_plugins.len(), "plugins"),
+            (self.selected_vscode_extensions.len(), "extensions"),
+        ];
+        let listed: Vec<String> = parts
+            .iter()
+            .filter(|(n, _)| *n > 0)
+            .map(|(n, label)| format!("{n} {label}"))
+            .collect();
+        if listed.is_empty() {
+            "nothing selected".to_string()
+        } else {
+            listed.join(", ")
+        }
+    }
 }
 
 fn dirs_documents() -> Result<PathBuf> {
@@ -72,8 +102,8 @@ fn dirs_documents() -> Result<PathBuf> {
 }
 
 /// How a project's packages get pulled in. Wally is the default; git
-/// submodules clone each selected package's own repo into `Modules/`
-/// instead of writing a `wally.toml`.
+/// submodules clone each selected package's repo into `modules/submodules/`
+/// instead of writing a `wally.toml`. See `steps::modules`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PackageWorkflow {
@@ -84,6 +114,8 @@ pub enum PackageWorkflow {
 /// Per-project record, written by `rproj new` into the project root.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectConfig {
+    /// How the packages were chosen: "guided", "expert", or
+    /// "like:<setup>" when reused from a saved setup.
     pub mode: String,
     pub package_workflow: PackageWorkflow,
     pub packages: Vec<String>,
@@ -176,34 +208,3 @@ impl SavedSetup {
     }
 }
 
-impl GlobalConfig {
-    /// Whether this machine has been through provisioning at least once.
-    ///
-    /// Keyed on having recorded *any* selection rather than on a flag, so
-    /// a config written by an older version still counts and someone who
-    /// deliberately selected nothing isn't asked again every time.
-    pub fn machine_configured(&self) -> bool {
-        self.last_checked.is_some()
-    }
-
-    /// One-line description of what provisioning last set up, for the
-    /// summary `rproj new` prints when it skips the questions.
-    pub fn machine_summary(&self) -> String {
-        let parts = [
-            (self.selected_system_apps.len(), "apps"),
-            (self.selected_rokit_tools.len(), "tools"),
-            (self.selected_studio_plugins.len(), "plugins"),
-            (self.selected_vscode_extensions.len(), "extensions"),
-        ];
-        let listed: Vec<String> = parts
-            .iter()
-            .filter(|(n, _)| *n > 0)
-            .map(|(n, label)| format!("{n} {label}"))
-            .collect();
-        if listed.is_empty() {
-            "nothing selected".to_string()
-        } else {
-            listed.join(", ")
-        }
-    }
-}

@@ -38,7 +38,7 @@ fn install_winget(winget_id: &str) -> Result<()> {
         "--accept-package-agreements",
     ];
     let output = capture("winget", &args, None)?;
-    if ui::is_verbose() {
+    if !output.success || ui::is_verbose() {
         ui::passthrough(&output.stdout, &output.stderr);
     }
     if output.success {
@@ -51,7 +51,6 @@ fn install_winget(winget_id: &str) -> Result<()> {
     if output.combined().contains("Installer hash does not match") {
         bail!("winget's pinned installer hash is stale (an upstream winget-pkgs issue, not rproj)");
     }
-    ui::passthrough(&output.stdout, &output.stderr);
     bail!("winget install failed");
 }
 

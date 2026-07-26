@@ -124,11 +124,10 @@ pub fn generate_sourcemap(project_dir: &Path) -> Result<()> {
         &["sourcemap", "default.project.json", "-o", "sourcemap.json"],
         Some(project_dir),
     )?;
-    if ui::is_verbose() {
+    if !output.success || ui::is_verbose() {
         ui::passthrough(&output.stdout, &output.stderr);
     }
     if !output.success {
-        ui::passthrough(&output.stdout, &output.stderr);
         bail!("rojo could not generate a sourcemap (see above)");
     }
     ui::ok("generated sourcemap.json");

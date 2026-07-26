@@ -11,6 +11,8 @@
 //! docs, the luau-lsp extension's own `package.json` contributions), not
 //! from memory.
 
+use serde_json::{json, Value};
+
 /// One accepted value of a `Choice` setting, with what picking it does.
 pub struct ChoiceOption {
     pub value: &'static str,
@@ -373,4 +375,132 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
 
 pub fn find(key: &str) -> Option<&'static ConfigurableTool> {
     CONFIGURABLE_TOOLS.iter().find(|t| t.key == key)
+}
+
+impl SettingKind {
+    /// The value this setting takes when nobody has chosen one.
+    pub fn default_value(&self) -> Value {
+        match self {
+            SettingKind::Bool { default } => json!(default),
+            SettingKind::Integer { default } => json!(default),
+            SettingKind::Choice { default, .. } => json!(default),
+        }
+    }
+}
+
+/// Renders `(setting, value)` pairs as TOML.
+///
+/// Top-level keys must come before any `[table]` header: in TOML every key
+/// after a header belongs to that table, so emitting them in declaration
+/// order would silently nest a top-level key under whatever section
+/// preceded it.
+pub fn render_toml(answers: &[(&SettingSpec, Value)]) -> String {
+    let mut out = String::new();
+    for (setting, value) in answers.iter().filter(|(s, _)| s.section.is_none()) {
+        out.push_str(&format!("{} = {}\n", setting.key, toml_value(value)));
+    }
+
+    let mut sections: Vec<&str> = answers.iter().filter_map(|(s, _)| s.section).collect();
+    sections.dedup();
+    for section in sections {
+        out.push_str(&format!("\n[{section}]\n"));
+        for (setting, value) in answers.iter().filter(|(s, _)| s.section == Some(section)) {
+            out.push_str(&format!("{} = {}\n", setting.key, toml_value(value)));
+        }
+    }
+    out
+}
+
+fn toml_value(value: &Value) -> String {
+    match value {
+        Value::String(s) => format!("\"{s}\""),
+        other => other.to_string(),
+    }
+}
+
+/// The config file a tool gets at scaffold time: every setting at its
+/// documented default, with `overrides` applied by key.
+///
+/// This exists so the scaffolded file and `rproj configure` can't disagree.
+/// They used to: the scaffold hardcoded `indent_type = "Spaces"` and no
+/// `syntax`, while configure's defaults were `Tabs` and `Luau` - so
+/// running configure and accepting every default silently reformatted the
+/// whole project. One table now feeds both.
+pub fn default_toml(tool_key: &str, overrides: &[(&str, &str)]) -> Option<String> {
+    let tool = find(tool_key)?;
+    if !matches!(tool.target, ConfigTarget::ProjectToml { .. }) {
+        return None;
+    }
+    let answers: Vec<(&SettingSpec, Value)> = tool
+        .settings
+        .iter()
+        .map(|setting| {
+            let value = overrides
+                .iter()
+                .find(|(key, _)| *key == setting.key)
+                .map(|(_, v)| json!(v))
+                .unwrap_or_else(|| setting.kind.default_value());
+            (setting, value)
+        })
+        .collect();
+    Some(render_toml(&answers))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The scaffolded file and `rproj configure` accepting every default
+    /// must produce the same thing, or configure silently reformats the
+    /// project the first time it's run.
+    #[test]
+    fn scaffolded_defaults_match_configure_defaults() {
+        for tool in CONFIGURABLE_TOOLS {
+            let ConfigTarget::ProjectToml { .. } = tool.target else { continue };
+            let scaffolded = default_toml(tool.key, &[]).expect("project-toml tool renders");
+            let answers: Vec<(&SettingSpec, Value)> =
+                tool.settings.iter().map(|s| (s, s.kind.default_value())).collect();
+            assert_eq!(scaffolded, render_toml(&answers), "{} diverged", tool.key);
+        }
+    }
+
+    /// Luau type annotations are a parse error under StyLua's default
+    /// `syntax = "All"`, so the scaffolded config has to set it.
+    #[test]
+    fn stylua_defaults_select_luau_syntax() {
+        let toml = default_toml("stylua", &[]).unwrap();
+        assert!(toml.contains(r#"syntax = "Luau""#), "{toml}");
+    }
+
+    /// Selene reports every Roblox global as undefined without the right
+    /// std, and TestEZ projects need its globals too.
+    #[test]
+    fn selene_std_can_be_overridden_for_testez() {
+        let plain = default_toml("selene", &[]).unwrap();
+        assert!(plain.contains(r#"std = "roblox""#), "{plain}");
+
+        let testez = default_toml("selene", &[("std", "roblox+testez")]).unwrap();
+        assert!(testez.contains(r#"std = "roblox+testez""#), "{testez}");
+    }
+
+    /// A top-level key emitted after a [table] header silently becomes
+    /// part of that table.
+    #[test]
+    fn top_level_keys_precede_any_section_header() {
+        let toml = default_toml("selene", &[]).unwrap();
+        let first_header = toml.find('[').expect("selene has a [rules] section");
+        assert!(
+            toml[..first_header].contains("std ="),
+            "std must appear before the first header:\n{toml}"
+        );
+    }
+
+    /// Every tool's key must be resolvable, or `rproj configure <key>` and
+    /// the `rproj info` cross-link point at nothing.
+    #[test]
+    fn every_configurable_tool_is_findable_by_key() {
+        for tool in CONFIGURABLE_TOOLS {
+            assert!(find(tool.key).is_some(), "{} not findable", tool.key);
+        }
+    }
 }

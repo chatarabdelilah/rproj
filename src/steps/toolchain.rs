@@ -1,18 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
+use crate::catalog::tool_settings;
 use crate::steps::{capture, run_in};
 use crate::ui::{self, Tally};
-
-const STYLUA_CONFIG: &str = r#"column_width = 120
-indent_type = "Spaces"
-indent_width = 4
-quote_style = "AutoPreferDouble"
-call_parentheses = "Always"
-"#;
 
 /// Syncs installed tool binaries to match an existing rokit.toml - the
 /// idempotent operation for a project whose manifest already exists
@@ -121,9 +115,12 @@ fn run_rokit_add(
         ));
     } else if combined.contains("403 Forbidden") || combined.to_lowercase().contains("rate limit") {
         ui::warn(&format!("{key} skipped - GitHub API rate limit reached"));
+        // Written as one line per output line: `ui::detail` indents each
+        // line it's given, so a wrapped string literal would arrive with
+        // its own source indentation baked in on top.
         ui::detail(
-            "GitHub allows 60 unauthenticated API requests per hour per IP, shared across
-             every call rproj and rokit make. Wait for it to reset, or run
+            "GitHub allows 60 unauthenticated API requests/hour per IP, shared across\n\
+             every call rproj and rokit make. Wait for it to reset, or run\n\
              `rokit authenticate github` with a token to raise the limit.",
         );
     } else {
@@ -133,19 +130,30 @@ fn run_rokit_add(
     Ok(())
 }
 
+/// Both configs below are rendered from `catalog::tool_settings` defaults
+/// rather than written out here, so the file `rproj new` scaffolds and the
+/// file `rproj configure` produces when you accept every default are the
+/// same file. They previously weren't: the scaffold hardcoded
+/// `indent_type = "Spaces"` and omitted `syntax`, while configure defaulted
+/// to `Tabs` and `Luau` - so running configure and pressing enter through
+/// it silently reformatted the entire project.
+///
 /// `std` needs "roblox+testez" instead of plain "roblox" when the project
 /// includes TestEZ, so selene understands its `describe`/`it` globals
 /// instead of flagging them as unknown globals.
 pub fn ensure_selene_config(project_dir: &Path, testez_selected: bool) -> Result<()> {
     let std_value = if testez_selected { "roblox+testez" } else { "roblox" };
-    let config = format!("std = \"{std_value}\"\n");
+    let config = tool_settings::default_toml("selene", &[("std", std_value)])
+        .context("selene is missing from the configurable-tools catalog")?;
     ensure_config_file(project_dir, "selene.toml", &config, |content| {
         content.lines().any(|l| l.trim() == format!(r#"std = "{std_value}""#))
     })
 }
 
 pub fn ensure_stylua_config(project_dir: &Path) -> Result<()> {
-    ensure_config_file(project_dir, "stylua.toml", STYLUA_CONFIG, |_| true)
+    let config = tool_settings::default_toml("stylua", &[])
+        .context("stylua is missing from the configurable-tools catalog")?;
+    ensure_config_file(project_dir, "stylua.toml", &config, |_| true)
 }
 
 fn ensure_config_file(
@@ -166,4 +174,5 @@ fn ensure_config_file(
     ui::ok(&format!("wrote {filename}"));
     Ok(())
 }
+
 
