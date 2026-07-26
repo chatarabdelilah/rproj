@@ -45,7 +45,7 @@ pub const USAGE: &[Usage] = &[
     },
     Usage {
         key: "wally",
-        what: "Package manager for Roblox, like npm or cargo. Downloads libraries listed in wally.toml into packages/.",
+        what: "Package manager for Roblox, like npm or cargo. Downloads libraries listed in wally.toml into Packages/.",
         when: "Whenever you want a third-party library and you picked the Wally workflow.",
         commands: &[
             ("wally install", "Install everything in wally.toml. Run after cloning, or after editing dependencies."),
@@ -54,8 +54,8 @@ pub const USAGE: &[Usage] = &[
         ],
         notes: &[
             "Commit wally.lock (like Cargo.lock) so everyone resolves identical versions.",
-            "packages/ is generated - it's gitignored and rebuilt by `wally install`.",
-            "Every install rewrites packages/ *without* type information, so a plain `wally install` \
+            "Packages/ is generated - it's gitignored and rebuilt by `wally install`.",
+            "Every install rewrites Packages/ *without* type information, so a plain `wally install` \
              silently turns all your package types back into `any`. Follow it with wally-package-types \
              - or just use `rproj watch`, which does both.",
         ],
@@ -65,11 +65,14 @@ pub const USAGE: &[Usage] = &[
         what: "Fixes the Luau types of Wally packages. Wally installs small redirect files that lose the real type information; this rewrites them so autocomplete and type checking work.",
         when: "Every time after `wally install` or `wally update`. `rproj new` and `rproj watch` both run it for you; you only need it by hand after installing manually.",
         commands: &[
-            ("wally-package-types --sourcemap sourcemap.json packages", "Restore types in packages/ (needs a current sourcemap)."),
+            ("wally-package-types --sourcemap sourcemap.json Packages", "Restore types in Packages/ (needs a current sourcemap)."),
         ],
         notes: &[
             "Generate the sourcemap first - `rojo sourcemap -o sourcemap.json` - or it has nothing to work from.",
             "Not a one-off: the next `wally install` undoes it, because wally regenerates those redirect files from scratch.",
+            "Known bug in the current release (1.6.2): for a package whose generic has a default followed by one \
+             that doesn't, it emits Luau that doesn't parse - `remo` is affected. Fixed upstream in PR #28 but not \
+             yet released, so the fix needs a build from source until then.",
         ],
     },
     Usage {
