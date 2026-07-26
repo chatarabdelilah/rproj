@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
-use crate::steps::run_in;
+use crate::steps::{run, run_in};
 
 const STYLUA_CONFIG: &str = r#"column_width = 120
 indent_type = "Spaces"
@@ -39,6 +39,31 @@ pub fn add_selected_tools(project_dir: &Path, selected: &[String]) -> Result<()>
             continue;
         };
         run_in("rokit", &["add", rokit_source], Some(project_dir))?;
+    }
+    Ok(())
+}
+
+/// Installs every rokit tool key in `selected` into rokit's *global* manifest
+/// (`rokit add --global`, which lives at `~/.rokit/rokit.toml`) so each tool
+/// is resolvable from any directory, not just inside a project that has
+/// already run `rokit add` for it locally. This has to happen before
+/// anything tries to invoke one of these tools outside a project context -
+/// e.g. `rojo plugin install`, which otherwise fails with "Failed to find
+/// tool 'rojo' in any project manifest file" the first time, before any
+/// project's own rokit.toml exists yet. Per-project `add_selected_tools`
+/// still runs separately so each project also pins its own exact versions.
+pub fn add_global_tools(selected: &[String]) -> Result<()> {
+    for key in selected {
+        let Some(entry) = ROKIT_TOOLS.iter().find(|t| t.key == key) else {
+            continue;
+        };
+        let ToolKind::RokitTool { rokit_source } = entry.kind else {
+            continue;
+        };
+        // `rokit add` is itself idempotent (it's a no-op if this exact
+        // source/version is already in the global manifest), so no separate
+        // "already installed" probe is needed here.
+        run("rokit", &["add", "--global", rokit_source])?;
     }
     Ok(())
 }
