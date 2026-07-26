@@ -22,8 +22,9 @@ This version is Windows-only (installs go through `winget`).
 | `rproj configure [key]` | Walks through one tool's settings, printing what each does before prompting, then writes them to that tool's config file relative to the current directory (see §8.4). With no key, prompts to pick a tool from the configurable list; with an unknown key, errors and lists the valid ones. |
 | `rproj watch` | Must be run from inside an existing project directory (one containing `default.project.json`); otherwise errors. Syncs the project's own tools/packages, then starts and blocks on Rojo's sourcemap watcher until interrupted (Ctrl+C). |
 | `rproj copy` | Recursively walks `./src`, concatenates every file's contents (each prefixed with a `// --- relative/path ---` header) and copies the result to the system clipboard. Prints a message and exits cleanly (not an error) if `src/` doesn't exist or contains no readable files. |
-| `rproj info` (no key) | Prints a terse, categorized listing of the entire catalog: wally packages grouped by category (name/author/version only), tools grouped by family (name/provider/kind only). No descriptions or maintenance badges — intentionally compact. |
-| `rproj info <key>` | Prints full detail for one catalog entry (wally package or tool): description, maintenance status, source/provider, docs link. Checks wally packages first, then tools; prints a "not found" message if `<key>` matches neither. |
+| `rproj info` (no key) | Prints a terse, categorized listing: wally packages by category, tools by family, what's configurable, the place template, and the available topics. No descriptions or badges — intentionally compact. |
+| `rproj info <key>` | Prints full detail for one catalog entry: description, maintenance status, source/provider, docs link, then — where one exists — its usage notes (§8.6): what it's for, when to reach for it, the commands to type, and the gotchas. Resolves wally packages first, then tools, then topics (`ci`, `check`), so `rproj info ci` works even though CI isn't an installable thing. |
+| `--verbose` / `-v` | Global flag on every command. Prints each sub-process command and all of its output. Without it, sub-process output is shown only when a step fails (§2.4). |
 
 ### 2.2 Machine provisioning (shared by `rproj setup` and the inline step in `rproj new`)
 
@@ -56,7 +57,7 @@ Rules that hold regardless of which command triggered provisioning:
    - `rokit init` + `rokit add` (project-local) for every globally-selected rokit tool.
    - Write `selene.toml` (`std = "roblox+testez"` if `testez` is among the selected packages, else `std = "roblox"`).
    - Write `stylua.toml`.
-   - Write `default.project.json` from scratch with a conventional Server/Client/Shared tree, the place template's services and properties (§8.3), and matching `src/shared`, `src/server`, `src/client` starter files.
+   - Write `default.project.json` from scratch with a conventional server/client/shared tree, the place template's services and properties (§8.3), and create `src/shared`, `src/server`, `src/client` — each holding only a `.gitkeep` (see §7 for why there are no `init.*` files, and why the directories can't simply be left empty).
    - Install packages per the chosen workflow — Wally: `wally init` + write `wally.toml` + `wally install`, then ensure `packages/` exists regardless of whether `wally install` created it (it doesn't, with zero dependencies); git submodules: module resolution per §8.2/§6.5, which clones each repo once and generates the `modules/` tree.
    - Generate an initial `sourcemap.json` (briefly starts and kills `rojo sourcemap --watch`).
    - Run `wally-package-types` (Wally workflow only).
@@ -64,6 +65,16 @@ Rules that hold regardless of which command triggered provisioning:
    - Update `.gitignore`.
    - Scaffold a Blender starter scene if Blender was enabled during provisioning.
 5. Write `rproj.toml` recording the composition mode, package workflow, resulting package list, and which tool keys were active at creation time.
+
+### 2.4 Terminal output
+
+The rule is **one line per thing that happened**. Sub-processes rproj shells out to are chatty in ways that are noise to the person running it, and the volume hides the outcome: `rokit add --global` prints a five-line ERROR block for a tool that is simply already installed, and across nine tools that alone was 60+ lines saying nothing.
+
+- Sub-process output is **captured, not inherited** (`steps::capture`). It is printed only when the step fails — where it is the entire explanation — or under `--verbose`.
+- Steps report outcomes through `ui::ok` / `skip` / `warn`, one line each, indented under a `ui::section` heading.
+- Repetitive per-item outcomes are collapsed with `ui::Tally`: it names up to four items and counts beyond that, so "9 rokit tools already present" replaces nine paragraphs. Anything that actually needed attention still gets its own line.
+- Long guidance (the winget hash-mismatch recovery options, Blender's manual account-link steps) is `ui::detail` under its warning, not top-level prose — it's guidance, not an outcome, and it reappears on every run.
+- `rojo sourcemap --watch`'s stdout is discarded outright: it reprints on every write, and the scaffold moves on while it is still running.
 
 ## 3. Data Model / State Shape
 
@@ -197,12 +208,14 @@ rproj/
     ├── main.rs                  clap dispatch to commands::*
     ├── cli.rs                   clap derive: Cli, Command (Setup | New{name} | Configure{key} | Watch | Copy | Info{key})
     ├── config.rs                GlobalConfig, PackageWorkflow, ProjectConfig
+    ├── ui.rs                    terminal output: section/ok/skip/warn/detail, Tally, verbosity
     ├── catalog/
     │   ├── mod.rs               Maintenance enum
     │   ├── tool_catalog.rs      ToolKind, ToolEntry, FAMILY_ORDER, SYSTEM_APPS, ROKIT_TOOLS, PLUGINS, VSCODE_EXTENSIONS
     │   ├── place_template.rs    PropValue, PropertySpec, InstanceSpec, PLACE_TEMPLATE, render()  [+ 3 tests]
     │   ├── quality_checks.rs    CheckStep, CHECK_STEPS, render_check(), CI_WORKFLOW  [+ 7 tests]
     │   ├── tool_settings.rs     SettingKind, SettingSpec, ConfigTarget, ConfigurableTool, CONFIGURABLE_TOOLS
+    │   ├── tool_usage.rs        Usage, USAGE, TOPICS - what each tool is for and the commands to use it
     │   └── wally_packages.rs    Category, Submodule, PackageSpec, PACKAGES, companions_for()
     ├── commands/
     │   ├── mod.rs               module declarations only
@@ -230,7 +243,7 @@ rproj/
         └── notify.rs            desktop toast notification wrapper
 ```
 
-30 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9.
+32 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9.
 
 ## 5. Subsystem Map
 
@@ -427,6 +440,8 @@ Each of these was learned from an actual reproduced failure during this project'
 - **`rokit add --global <tool>` errors instead of silently no-op'ing when the tool is already in the global manifest** ("Tool already exists and can't be added"), unlike a project-local `rokit add`, which is idempotent. `steps::toolchain::run_rokit_add` detects this specific message and treats it as success.
 - **`rokit add --global` refuses a tool rokit has never installed before** — "The following tool has not been marked as trusted" — while a project-local `rokit add` trusts implicitly as it installs. Because rproj does the global adds *first*, on a machine that has never installed the tool every global add fails this way: precisely the fresh-PC case this tool exists for, and invisible on a development machine where everything is already trusted. `steps::toolchain::run_rokit_add` runs `rokit trust <source>` before each global add. That isn't extra exposure — these are catalog tools the user explicitly selected, and the project-local add that follows would trust them anyway.
 - **Lute's standard library was renamed between the version the reference projects pin and current lute.** `fs.writestringtofile` → `fs.writeStringToFile`, and `net.request` → `net.client.request` (`net` became a namespace over `client`/`server`). Both old spellings fail at *runtime* with "attempt to call a nil value" — `lute check` type-checks the script clean either way, so a generated check script copied from an existing project passes every static check and then dies on first run. The generated script's API names were read out of the installed `~/.lute/typedefs/<version>` rather than copied from a reference repo. For the same reason, `.luaurc` does not hardcode `~/.lute/typedefs/0.1.0/...` alias paths: that version is whatever lute is installed (1.0.0 at time of writing), so `lute setup --with-luaurc` is left to write them.
+- **A directory containing `init.luau` becomes a *script*, not a folder.** Rojo collapses `src/shared/init.luau` into a ModuleScript named `shared`, and `src/server/init.server.luau` into a Script named `server` — so scaffolding those as "starter files" silently changed the shape of the DataModel: `ReplicatedStorage.shared` was a ModuleScript with children instead of a Folder. Verified both ways from the sourcemap's `className`. The source directories are therefore created empty. They still can't be *actually* empty, because git doesn't track empty directories and a fresh clone would be missing the very paths `default.project.json` maps — hence a `.gitkeep` in each, which Rojo ignores (`rojo build` succeeds and emits a plain Folder).
+- **Instance names in `default.project.json` mirror the folder they map, lowercase** (`shared`, `server`, `client`, `packages`, `modules`). Roblox's own service names (`ReplicatedStorage`, `ServerScriptService`, `StarterPlayer`) keep their real casing — those aren't ours to rename, and Rojo matches services by name.
 - **Rokit resolves tools by walking up the directory tree looking for a `rokit.toml`**, with `~/.rokit/rokit.toml` (`rokit add --global`) as the machine-wide fallback. Any tool invocation that happens outside a project directory (e.g. `rojo plugin install` during provisioning, before any project exists) needs the tool registered *globally* first — a project-local `rokit add` alone does not make the tool resolvable from an arbitrary working directory.
 - **GitHub's unauthenticated REST API rate limit is 60 requests/hour per IP**, and it is shared across every GitHub-touching call `rproj` makes *and* every call rokit itself makes internally (e.g. for each `rokit add`). This is easy to exhaust during rapid iterative testing — surfaced as `ureq::Error::StatusCode(403)` in `rproj`'s own calls (`steps::github_get_text`) and as literal `"403 Forbidden"`/"rate limit" text in rokit's own CLI output (`steps::toolchain::run_rokit_add`). Both are detected and explained rather than left as a bare status code.
 - **Every real wally-catalog package's GitHub repo ships its own `default.project.json`**, and Rojo auto-detects *any* `default.project.json` inside a `$path`-included folder tree, substituting it as a nested project definition. Several of those vendored project files declare `$path`s into `node_modules/...` for their own monorepo test harness (`littensy/charm`, `littensy/ripple`), which only exist after an `npm`/`pnpm` install that never runs here — a hard sync error, not an incomplete sync. Two things that do **not** fix this, both empirically disproven rather than theorized: `globIgnorePaths` does not suppress nested-project auto-detection (it only filters plain files), and naming the mounted instances after catalog keys breaks the packages' own cross-requires. The mechanism that does work is §8.2 — never let Rojo see a vendored repo's root at all.
@@ -555,7 +570,25 @@ Generated alongside it:
 | `.luaurc` | `languageMode: "strict"` | Deliberately does *not* pin `~/.lute/typedefs/<version>` aliases — that version is whatever lute is installed (`1.0.0` here, `0.1.0` in the reference project). `lute setup --with-luaurc` writes them and **merges**, preserving `languageMode`. Written merge-safely, and left alone entirely if it exists but can't be parsed. |
 | `.github/workflows/ci.yml` | checkout (with submodules) → `setup-rokit` → `lute setup --with-luaurc` → `lute run check` → `lute test` | Uses `lute test`, not `lute run tests`: the latter needs a `tests` script and hard-errors without one, which a fresh project has no reason to have. `lute test` discovers `.test.luau`/`.spec.luau` and exits 0 when there are none. |
 
-### 8.6 Catalog contents
+### 8.6 Tool usage notes (data-driven)
+
+`catalog::tool_usage` answers "how do I actually use this", which the catalog's one-line `description` cannot. Each entry carries what the tool is for, when to reach for it, the commands to type, and the gotchas; `rproj info <key>` renders it.
+
+| Field | Purpose |
+| --- | --- |
+| `key` | Catalog key, or a topic name for entries that aren't installable |
+| `what` | The problem it solves, assuming no prior knowledge of the ecosystem |
+| `when` | When you'd reach for it during real work |
+| `commands` | `(command, what it does)`, ordered by how often you'd run them |
+| `notes` | Genuine gotchas only |
+
+Covered: `rojo`, `wally`, `wally-package-types`, `selene`, `stylua`, `lute`, `luau-lsp-cli`, `tarmac`, `mantle`, `hoarcekat`, `rokit`. `TOPICS` covers the non-tool concepts a scaffolded project still requires understanding — `ci` (GitHub Actions) and `check` (the quality gate).
+
+Every command was checked against the tool's own `--help` on an installed binary rather than recalled; several of these CLIs have changed subcommands over time.
+
+**Adding usage notes for a tool requires only a `USAGE` entry — no code changes.**
+
+### 8.7 Catalog contents
 
 **System apps** (`SYSTEM_APPS`, all family `"System apps"`):
 
@@ -652,7 +685,7 @@ Generated alongside it:
 | t | osyrisrblx/t@3.1.1 | osyrisrblx/t | t | t / lib | CommunityStable | true |
 | sift | csqrl/sift@0.0.11 | csqrl/sift | Sift | sift / src | CommunityStable (no longer actively maintained upstream, not archived) | true |
 
-### 8.7 Companion rules (`companions_for`)
+### 8.8 Companion rules (`companions_for`)
 
 Guided mode applies these automatically after the category prompts finish; expert mode does not (it shows every entry individually).
 
@@ -683,6 +716,7 @@ These deliberately encode §7's landmines rather than the happy path — each on
 - **No test covers `commands::configure`** — neither the TOML writer's table ordering nor the `.vscode/settings.json` merge/refuse-on-unparseable behaviour. Both are described in §8.4 and both are currently only manually verified.
 - **No test covers any step that shells out** (`winget`, `rokit`, `git`, `rojo`, `code`, `blender`) or touches the network. Every bug in §7 that involved one of those was found by a live manual run, and would be again.
 - **Nothing exercises the interactive pickers**; all prompt flows are manual-only.
+- **The output layer (§2.4) has no tests.** It was verified by running the real global-add path against nine already-installed tools: 60+ lines of rokit ERROR blocks collapsed to one `9 rokit tools (global) already present`, and `--verbose` still showed every command and its full output.
 - **The generated check script is verified manually, not automatically.** The tests cover what `render_check` emits; they cannot catch a lute stdlib rename, because that only fails at runtime (see §7). It was verified by generating a project and running `lute run check` against it: green on clean code, exit 1 on a formatting violation, a selene error and a type error, reporting all of them in one run rather than stopping at the first, and deleting the fetched `roblox.d.luau` afterwards. Re-run that by hand after any lute upgrade.
 - **The end-to-end claim in §8.2 is not automated.** It was verified by cloning all six underlying repos and running both `rojo sourcemap` and `rojo build` against a tree generated by the real code path, confirming each package appears twice in the sourcemap (once as `modules.<Name>`, once as `modules.submodules.<Name>`) and that Lighting properties serialize with correct types. That check requires network and a real `rojo` binary, so it is a manual procedure, not a test.
 
