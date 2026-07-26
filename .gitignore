@@ -1,3 +1,4 @@
 /target
-.claude/settings.local.json
-.claude/settings.json
+# Local Claude Code settings and any backups of them - per-machine,
+# not project configuration.
+.claude/
