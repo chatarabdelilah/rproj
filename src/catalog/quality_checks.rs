@@ -7,6 +7,8 @@
 //! exactly the modules those steps use, and aggregates their results.
 //! Adding a check is a `CHECK_STEPS` entry — no code changes.
 
+use crate::config::PackageWorkflow;
+
 /// One command in the quality gate.
 pub struct CheckStep {
     /// Catalog key of the rokit tool this step invokes. The step is only
@@ -50,7 +52,7 @@ local analyze = process.run({
 	-- not this project's to fix, and submodules in particular are pinned
 	-- checkouts we don't control.
 	"--ignore=**/submodules/**",
-	"--ignore=**/packages/**",
+	"--ignore=**/Packages/**",
 	"--base-luaurc=.luaurc",
 	"--definitions=roblox.d.luau",
 	"--flag:LuauSolverV2=true",
@@ -149,6 +151,30 @@ pub fn render_check(selected_tools: &[String]) -> Option<String> {
     Some(out)
 }
 
+/// The step that puts this project's dependencies on disk in CI.
+///
+/// Wally's `Packages/` is gitignored, so a fresh checkout doesn't have it -
+/// and `default.project.json` maps that path, which means rojo refuses to
+/// generate a sourcemap and *every* step of the gate fails before it runs.
+/// Nothing installed them, so the workflow was broken for every Wally
+/// project from the moment it was written; it went unnoticed because
+/// Windows resolves the mapped `packages` to wally's `Packages` anyway and
+/// nobody had run the gate on the Linux runner.
+///
+/// Submodule projects need no equivalent - `submodules: true` on the
+/// checkout already brings their packages in.
+const WALLY_CI_STEP: &str = r#"
+      # Packages/ is gitignored, so it has to be installed here. The
+      # retyping step matters as much as the install: wally rewrites every
+      # link file without type information, so skipping it would have the
+      # type checker see `any` for every package.
+      - name: Install packages
+        run: |
+          wally install
+          rojo sourcemap default.project.json --output sourcemap.json
+          wally-package-types --sourcemap sourcemap.json Packages
+"#;
+
 /// The GitHub Actions workflow that runs the gate on every push and PR.
 ///
 /// `lute test` rather than `lute run tests`: the latter needs a `tests`
@@ -157,7 +183,13 @@ pub fn render_check(selected_tools: &[String]) -> Option<String> {
 /// `.test.luau`/`.spec.luau` files and exits 0 when there are none, so
 /// this workflow is green on a new project and still runs tests once
 /// there are some.
-pub const CI_WORKFLOW: &str = r#"name: CI
+pub fn ci_workflow(workflow: PackageWorkflow) -> String {
+    let install = match workflow {
+        PackageWorkflow::Wally => WALLY_CI_STEP,
+        PackageWorkflow::GitSubmodules => "",
+    };
+    format!(
+        r#"name: CI
 
 on: [push, pull_request]
 
@@ -173,7 +205,7 @@ jobs:
       # Installs every tool pinned in rokit.toml (rojo, luau-lsp, selene,
       # stylua, lute...) at the exact versions this project uses.
       - uses: CompeyDev/setup-rokit@v0.2.1
-
+{install}
       # Writes the ~/.lute typedef aliases into .luaurc. Merges into the
       # committed file rather than replacing it, so languageMode survives.
       - name: Set up Lute
@@ -184,7 +216,9 @@ jobs:
 
       - name: Run tests
         run: lute test
-"#;
+"#
+    )
+}
 
 #[cfg(test)]
 mod tests {
@@ -266,9 +300,41 @@ mod tests {
     /// without a tests script - `lute test` exits 0 when none are found.
     #[test]
     fn ci_workflow_runs_the_gate_and_tolerates_no_tests() {
-        assert!(CI_WORKFLOW.contains("lute run check"));
-        assert!(CI_WORKFLOW.contains("lute test"));
-        assert!(!CI_WORKFLOW.contains("lute run tests"));
-        assert!(CI_WORKFLOW.contains("submodules: true"));
+        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
+            let ci = ci_workflow(workflow);
+            assert!(ci.contains("lute run check"));
+            assert!(ci.contains("lute test"));
+            assert!(!ci.contains("lute run tests"));
+            assert!(ci.contains("submodules: true"));
+        }
+    }
+
+    /// Packages/ is gitignored, so without an install step the gate's very
+    /// first action - generating a sourcemap over a mapped $path that
+    /// doesn't exist - fails, and every Wally project's CI is red.
+    #[test]
+    fn wally_ci_installs_packages_and_restores_their_types() {
+        let ci = ci_workflow(PackageWorkflow::Wally);
+        assert!(ci.contains("wally install"), "{ci}");
+        assert!(ci.contains("wally-package-types"), "{ci}");
+        // The install must come before the gate, or it's pointless.
+        assert!(
+            ci.find("wally install") < ci.find("lute run check"),
+            "packages must be installed before the gate runs:\n{ci}"
+        );
+
+        // Submodule projects get their packages from `submodules: true` and
+        // don't pin wally at all - invoking it would fail on a missing
+        // binary.
+        let submodules = ci_workflow(PackageWorkflow::GitSubmodules);
+        assert!(!submodules.contains("wally"), "{submodules}");
+    }
+
+    /// Wally hardcodes `Packages`; the lowercase spelling only resolves on
+    /// a case-insensitive filesystem, which the Linux runner is not.
+    #[test]
+    fn vendored_paths_use_wallys_real_capitalisation() {
+        assert!(ANALYZE_BODY.contains("**/Packages/**"), "{ANALYZE_BODY}");
+        assert!(ci_workflow(PackageWorkflow::Wally).contains("sourcemap.json Packages"));
     }
 }

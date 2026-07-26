@@ -13,8 +13,23 @@ use crate::ui;
 // are project source and must be committed (the submodule *contents*
 // are tracked by git as submodule pointers, not as ignorable files).
 const ENTRIES: &[&str] = &[
-    "packages/",
+    // Capitalised because that's the folder wally actually creates. Git on
+    // a case-sensitive filesystem wouldn't ignore it under any other
+    // spelling, so a Linux contributor would be committing every vendored
+    // package.
+    "Packages/",
     "sourcemap.json",
+    // Local editor state. Note the tradeoff: rproj writes luau-lsp's
+    // ignoreGlobs here for submodule projects, so a teammate cloning the
+    // repo won't inherit them and will see the vendored modules/ folder
+    // linted until they run rproj themselves.
+    ".vscode/",
+    // Records how *this* checkout was scaffolded (mode, packages, the tools
+    // present at creation). Useful locally, but it's a snapshot of one
+    // machine's choices rather than something the project needs to agree
+    // on - wally.toml, rokit.toml and default.project.json are what
+    // actually define the project for everyone.
+    "rproj.toml",
     // Fetched fresh by .lute/check.luau each run and deleted afterwards;
     // listed so an interrupted run can't leave it staged.
     "roblox.d.luau",

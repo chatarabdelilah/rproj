@@ -55,17 +55,22 @@ pub const USAGE: &[Usage] = &[
         notes: &[
             "Commit wally.lock (like Cargo.lock) so everyone resolves identical versions.",
             "packages/ is generated - it's gitignored and rebuilt by `wally install`.",
-            "After installing, run wally-package-types or your Luau types will all be `any`.",
+            "Every install rewrites packages/ *without* type information, so a plain `wally install` \
+             silently turns all your package types back into `any`. Follow it with wally-package-types \
+             - or just use `rproj watch`, which does both.",
         ],
     },
     Usage {
         key: "wally-package-types",
         what: "Fixes the Luau types of Wally packages. Wally installs small redirect files that lose the real type information; this rewrites them so autocomplete and type checking work.",
-        when: "Every time after `wally install` or `wally update`. rproj runs it during scaffolding.",
+        when: "Every time after `wally install` or `wally update`. `rproj new` and `rproj watch` both run it for you; you only need it by hand after installing manually.",
         commands: &[
             ("wally-package-types --sourcemap sourcemap.json packages", "Restore types in packages/ (needs a current sourcemap)."),
         ],
-        notes: &["Generate the sourcemap first - `rojo sourcemap -o sourcemap.json` - or it has nothing to work from."],
+        notes: &[
+            "Generate the sourcemap first - `rojo sourcemap -o sourcemap.json` - or it has nothing to work from.",
+            "Not a one-off: the next `wally install` undoes it, because wally regenerates those redirect files from scratch.",
+        ],
     },
     Usage {
         key: "selene",

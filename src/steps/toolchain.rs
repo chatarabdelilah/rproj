@@ -151,16 +151,18 @@ pub fn ensure_selene_config(
     let mut config = tool_settings::default_toml("selene", &[("std", std_value)])
         .context("selene is missing from the configurable-tools catalog")?;
 
-    // Vendored submodules are third-party checkouts we don't control, and
-    // linting them produces hundreds of findings that aren't this
-    // project's to fix. Wally's workflow needs no equivalent: its vendored
-    // code lands under `packages/`, which is gitignored and not linted.
-    if workflow == PackageWorkflow::GitSubmodules {
-        config = tool_settings::insert_top_level(
-            &config,
-            r#"exclude = ["modules/submodules/**"]"#,
-        );
-    }
+    // Vendored packages are third-party code we don't control, and linting
+    // them produces thousands of findings that aren't this project's to
+    // fix. Both workflows need this - the Wally half was missing on the
+    // theory that `Packages/` being gitignored kept it out of the lint,
+    // which isn't true: selene doesn't read .gitignore, and `selene .` on
+    // a freshly scaffolded Wally project reported 2335 errors, every one
+    // of them from inside Packages/_Index.
+    let vendored = match workflow {
+        PackageWorkflow::Wally => r#"exclude = ["Packages/**"]"#,
+        PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
+    };
+    config = tool_settings::insert_top_level(&config, vendored);
     ensure_config_file(project_dir, "selene.toml", &config, |content| {
         content.lines().any(|l| l.trim() == format!(r#"std = "{std_value}""#))
     })

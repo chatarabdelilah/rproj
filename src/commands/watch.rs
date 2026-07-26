@@ -23,8 +23,12 @@ pub fn run() -> Result<()> {
     if project_dir.join("rokit.toml").exists() {
         toolchain::sync_installed_tools(&project_dir)?;
     }
+    // `sync`, never a bare `wally install`: an install rewrites every link
+    // file in packages/ without the `export type` lines, so watching used
+    // to silently strip the types off every package on each run. See
+    // `steps::wally::sync`.
     if project_dir.join("wally.toml").exists() {
-        wally::wally_install(&project_dir)?;
+        wally::sync(&project_dir)?;
     }
 
     println!("\nWatching for changes - press Ctrl+C to stop.");

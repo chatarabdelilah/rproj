@@ -267,17 +267,18 @@ fn scaffold(
     // exist before rojo will touch it at all - generating a sourcemap while
     // that folder is missing fails outright ("could not be turned into a
     // Roblox Instance"), not just incompletely. So the package install has
-    // to happen, and the folder has to exist, before sourcemap generation.
+    // to happen, and the folder has to exist, before sourcemap generation -
+    // which is why each workflow generates its own sourcemap at the end of
+    // its own branch rather than sharing one call afterwards.
     match package_workflow {
         PackageWorkflow::Wally => {
             let package_name = format!("rproj/{}", slugify(name));
             let package_list: Vec<String> = packages.iter().cloned().collect();
             wally::ensure_wally_init(project_dir)?;
             wally::write_wally_toml(project_dir, &package_name, &package_list)?;
-            wally::wally_install(project_dir)?;
-            // wally install may not create the folder at all when there are
-            // zero dependencies - ensure it exists regardless.
-            std::fs::create_dir_all(project_dir.join("packages"))?;
+            // Installs, generates the sourcemap, and re-adds the exported
+            // types a plain `wally install` leaves off. See `wally::sync`.
+            wally::sync(project_dir)?;
         }
         PackageWorkflow::GitSubmodules => {
             // Dedupe by target directory, not by package: monorepos like
@@ -296,25 +297,22 @@ fn scaffold(
             // what project code actually requires.
             modules::write_submodules_project(project_dir, packages)?;
             modules::write_link_files(project_dir, packages)?;
+            // Now that modules/ exists, an initial sourcemap.json for
+            // luau-lsp. (The Wally branch got its own inside `wally::sync`,
+            // which needs it for wally-package-types.)
+            rojo::generate_sourcemap(project_dir)?;
         }
-    }
-
-    // Generate an initial sourcemap.json now that the packages/modules
-    // folder actually exists - useful on its own for luau-lsp, and
-    // wally-package-types additionally needs it below when using Wally.
-    rojo::generate_sourcemap(project_dir)?;
-
-    if package_workflow == PackageWorkflow::Wally {
-        wally::wally_package_types(project_dir)?;
     }
 
     // Quality gate. The check script is generated from the tools this
     // project actually selected, so it never invokes something that was
     // never installed; CI only lands if there's a script for it to run.
     if testez_selected {
-        // Both are required: selene.toml already says roblox+testez, and
-        // without testez.yml to resolve it selene refuses to run at all.
+        // All three: selene.toml already says roblox+testez, and without
+        // testez.yml to resolve it selene refuses to run at all; luau-lsp
+        // ignores both of those and needs tests/.luaurc of its own.
         testez::ensure_selene_std(project_dir)?;
+        testez::ensure_tests_luaurc(project_dir)?;
         testez::ensure_companion_config(project_dir)?;
     }
 
@@ -328,7 +326,7 @@ fn scaffold(
     // must only invoke tools this project actually pins, or CI fails on a
     // command that isn't installed.
     if quality::ensure_check_script(project_dir, &tools_for_workflow(config, package_workflow))? {
-        quality::ensure_ci_workflow(project_dir)?;
+        quality::ensure_ci_workflow(project_dir, package_workflow)?;
         quality::lute_setup(project_dir)?;
     }
 

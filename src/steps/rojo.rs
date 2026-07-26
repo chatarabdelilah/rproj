@@ -72,7 +72,14 @@ pub fn scaffold_project_json(
 
     match package_workflow {
         PackageWorkflow::Wally => {
-            replicated_storage.insert("packages".to_string(), json!({ "$path": "packages" }));
+            // Instance name lowercase (it's ours), $path capitalised
+            // (it isn't): `Packages` is hardcoded in wally and is the
+            // folder it actually creates. Writing `packages` here works
+            // on Windows purely because the filesystem is
+            // case-insensitive - on the ubuntu-latest runner the CI
+            // workflow uses, rojo can't find the path at all and every
+            // step of the gate fails before it starts.
+            replicated_storage.insert("packages".to_string(), json!({ "$path": "Packages" }));
         }
         PackageWorkflow::GitSubmodules => {
             // Mapped wholesale, which is safe *because* of the nested

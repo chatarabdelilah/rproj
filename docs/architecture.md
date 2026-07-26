@@ -62,10 +62,9 @@ Rules that hold regardless of which command triggered provisioning:
    - Write `selene.toml` (`std = "roblox+testez"` if `testez` is among the selected packages, else `std = "roblox"`).
    - Write `stylua.toml`.
    - Write `default.project.json` from scratch with a conventional server/client/shared tree, the place template's services and properties (§8.3), and create `src/shared`, `src/server`, `src/client` each holding one `hello.*` starter file (see §7 for why they are not named `init.*`, and why the directories can't be left empty). If TestEZ was selected, also create `tests/{shared,server,client}` with a starter spec in each and mount them as `test` alongside the matching source folder.
-   - Install packages per the chosen workflow — Wally: `wally init` + write `wally.toml` + `wally install`, then ensure `packages/` exists regardless of whether `wally install` created it (it doesn't, with zero dependencies); git submodules: module resolution per §8.2/§6.5, which clones each repo once and generates the `modules/` tree.
-   - Generate an initial `sourcemap.json` (briefly starts and kills `rojo sourcemap --watch`).
-   - Run `wally-package-types` (Wally workflow only).
-   - Write the quality gate: `.luaurc`, and — if any selected tool has a check step — `.lute/check.luau`, the CI workflow, and `lute setup --with-luaurc` (§8.5).
+   - Install packages per the chosen workflow, each branch ending in its own `sourcemap.json` (the sourcemap can only be generated once the folder the project file maps exists) — Wally: `wally init` + write `wally.toml` + `steps::wally::sync`, which installs, re-creates `Packages/` (`wally install` *deletes* it with zero dependencies), generates the sourcemap and runs `wally-package-types`; git submodules: module resolution per §8.2/§6.5, which clones each repo once, generates the `modules/` tree, then the sourcemap.
+   - If TestEZ was selected, write `testez.yml` (selene's standard library), `tests/.luaurc` (luau-lsp's copy of the same globals) and `testez-companion.toml`.
+   - Write the quality gate: `.luaurc`, and — if any selected tool has a check step — `.lute/check.luau`, the CI workflow (which for Wally projects includes the install step CI needs, since `Packages/` is gitignored), and `lute setup --with-luaurc` (§8.5).
    - Update `.gitignore`.
    - Scaffold a Blender starter scene if Blender was enabled during provisioning.
 5. Write `rproj.toml` recording the composition mode, package workflow, resulting package list, and which tool keys were active at creation time.
@@ -359,18 +358,18 @@ flowchart TD
     C --> D[write stylua.toml]
     D --> E["write default.project.json\n+ src/shared, src/server, src/client starters"]
     E --> F{Package workflow}
-    F -- Wally --> G["wally init, write wally.toml,\nwally install"]
-    G --> H["ensure packages/ folder exists\n(wally install may not create it\nwith zero dependencies)"]
+    F -- Wally --> G["wally init, write wally.toml"]
+    G --> H["wally::sync:\nwally install →\nre-create Packages/ →\nrojo sourcemap →\nwally-package-types"]
     F -- GitSubmodules --> I["module resolution\n(see 6.5)"]
-    H --> K["generate sourcemap.json\n(start rojo sourcemap --watch,\nkill after first write)"]
-    I --> K
-    K --> L{Wally workflow?}
-    L -- yes --> M[wally-package-types]
-    L -- no --> N[skip]
-    M --> QG["write .luaurc; if any selected tool
+    I --> J["generate sourcemap.json"]
+    H --> TZ{TestEZ selected?}
+    J --> TZ
+    TZ -- yes --> TW["write testez.yml,\ntests/.luaurc,\ntestez-companion.toml"]
+    TZ -- no --> QG
+    TW --> QG["write .luaurc; if any selected tool
 has a check step, also .lute/check.luau,
-CI workflow, and lute setup"]
-    N --> QG
+CI workflow (Wally projects get an
+install step), and lute setup"]
     QG --> O[update .gitignore]
     O --> P{Blender enabled\nin GlobalConfig?}
     P -- yes --> Q[scaffold blender/scene.blend]
@@ -421,7 +420,7 @@ flowchart TD
     E -- yes --> F[rokit install]
     E -- no --> G
     F --> G{wally.toml exists?}
-    G -- yes --> H[wally install]
+    G -- yes --> H["wally::sync\n(install, sourcemap, retype —\nnever a bare wally install,\nwhich strips the types)"]
     G -- no --> I
     H --> I["Start rojo sourcemap --watch"]
     I --> J(["Block until Ctrl+C"])
@@ -472,7 +471,14 @@ Each of these was learned from an actual reproduced failure during this project'
 - **A single item's failure inside a loop over multiple items must never propagate with a bare `?`.** Every install loop in this codebase (system apps, rokit tools — both global and per-project, Studio plugins, Blender add-on, VS Code extensions) is written to catch, warn, and continue per item, specifically because an early version that didn't do this let one flaky item (a rate-limited GitHub call, a winget hash mismatch) abort everything downstream, including the entire project scaffold.
 - **Wally's lockfile (`wally.lock`) should be committed, not gitignored** — the same convention as `Cargo.lock`, for reproducible installs across a team. An earlier version of `steps::gitignore` had this backwards.
 - **Polling for a file as a proxy for "did that work?" turns every failure into the same timeout.** Sourcemap generation used to run `rojo sourcemap --watch`, poll for `sourcemap.json` with a 10s deadline, then kill the child. Any rojo failure surfaced as `timed out waiting for sourcemap.json` while rojo's actual explanation sat unread in a captured pipe — and the timeout path bailed *without* killing the child, leaving a watcher process behind. The scaffold now runs `rojo sourcemap` once and reads the exit status, so failures report what rojo said. (`rproj watch` still needs a long-lived watcher and keeps one, in the foreground with inherited stdio.)
-- **`rojo sourcemap --watch` requires its `$path` target folder to already exist on disk** — attempting to generate a sourcemap before the package-install step has created `packages/`/`modules/` fails outright ("could not be turned into a Roblox Instance"), not just incompletely. Package installation (and an explicit `create_dir_all` safety net, since `wally install` may not create `packages/` at all with zero dependencies) must run before sourcemap generation, never after.
+- **`wally install` doesn't just fail to add types — it removes them.** Wally regenerates every link file in `Packages/` from scratch on each install, and what it writes is a bare `return require(script.Parent._Index[...])` with no `export type` lines. So an install *undoes* whatever `wally-package-types` did on the previous run, and every package silently degrades to `any`. This made `rproj watch` destructive: it installed and went straight to watching, so the first thing a new project's own success message tells you to run undid the scaffold's retyping, and the only way back was typing `wally-package-types -s sourcemap.json Packages` by hand — which is exactly what happened to a real user. Both `rproj new` and `rproj watch` now go through `steps::wally::sync` (install → re-create the folder → sourcemap → retype); a bare `wally_install` should never be called directly. The ordering inside `sync` is fixed by how `wally-package-types` works: it resolves each link file's require *through the sourcemap*, so the packages must exist before the sourcemap is generated and the sourcemap must exist before the retyping runs.
+- **`wally install` deletes an empty `Packages/`**, it doesn't merely skip creating it — verified. Since `default.project.json` maps that path and rojo refuses to generate a sourcemap when a mapped `$path` is missing, a zero-dependency project breaks unless the folder is re-created *after* the install.
+- **Wally's output folder is `Packages`, capitalised, and that is not rproj's to rename.** rproj wrote `$path: "packages"`, gitignored `packages/`, passed `packages/` to `wally-package-types` and ignored `**/packages/**` in the type check — all of which worked only because Windows filesystems are case-insensitive. On the `ubuntu-latest` runner the generated CI workflow uses, rojo cannot resolve the mapped path at all, git would not ignore the folder under that spelling, and every step of the gate fails before it starts. The instance *name* stays lowercase (`packages`) because that one is ours; the `$path` and every tool argument use `Packages`. `steps::wally::PACKAGES_DIR` is the single source.
+- **CI never installed the Wally packages it was about to check.** `Packages/` is gitignored, so a fresh checkout has none, and the gate's first action is generating a sourcemap over a `$path` that isn't there. The workflow was therefore red for every Wally project from the moment it was written — invisible locally, because a developer's working copy always has `Packages/` already. `catalog::quality_checks::ci_workflow` now takes the `PackageWorkflow` and emits `wally install` + `rojo sourcemap` + `wally-package-types` for Wally projects; submodule projects need nothing, since `submodules: true` on the checkout already brings their packages in (and they don't pin wally, so invoking it would fail on a missing binary).
+- **selene does not read `.gitignore`.** The Wally workflow was left without a vendored-code `exclude` on the theory that `Packages/` being gitignored kept it out of the lint. It does not: `selene .` on a freshly scaffolded three-package Wally project reported **2335 errors**, every one from inside `Packages/_Index` (chiefly vendored copies of TestEZ and lemur). It went unnoticed because the generated gate lints `src` only — but `rproj info selene` tells users to run `selene .`, and the editor extension lints the workspace. Both workflows now get an `exclude`: `Packages/**` or `modules/submodules/**`.
+- **Each tool needs its own copy of TestEZ's globals; none of them read each other's config.** `selene.toml`'s `std = "roblox+testez"` plus `testez.yml` satisfies selene and does nothing at all for luau-lsp, which keeps its own idea of what globals exist — so under `languageMode: "strict"` every generated spec file opened with three errors ("Unknown global 'describe'; consider assigning to it first") in a brand new project. The fix is a `tests/.luaurc` declaring them, and `steps::testez::tests::luau_lsp_globals_match_the_selene_standard_library` parses `testez.yml` to keep the two lists from drifting apart.
+- **Luau layers `.luaurc` files down the directory tree rather than replacing them**, which is what makes scoping the TestEZ globals to `tests/` safe: the nested file adds `globals` while the root's `languageMode: "strict"` and lute aliases still apply, and `describe` stays an unknown global in `src/` where calling it really would be a mistake. All four halves of that were verified with `luau-lsp analyze` (globals resolve in `tests/`; a root-level global still resolves there too; an undeclared global still errors there, proving strict was inherited and not silently reset; and `describe` still errors in `src/`) rather than assumed from the merge semantics.
+- **`rojo sourcemap --watch` requires its `$path` target folder to already exist on disk** — attempting to generate a sourcemap before the package-install step has created `Packages/`/`modules/` fails outright ("could not be turned into a Roblox Instance"), not just incompletely. Package installation (and the `create_dir_all` safety net described above) must run before sourcemap generation, never after — which is why each workflow branch of `scaffold()` ends with its own sourcemap call rather than sharing one afterwards.
 
 ## 8. Data-Driven Matrices
 
@@ -587,7 +593,8 @@ Generated alongside it:
 | File | Contents | Notes |
 | --- | --- | --- |
 | `.luaurc` | `languageMode: "strict"` | Deliberately does *not* pin `~/.lute/typedefs/<version>` aliases — that version is whatever lute is installed (`1.0.0` here, `0.1.0` in the reference project). `lute setup --with-luaurc` writes them and **merges**, preserving `languageMode`. Written merge-safely, and left alone entirely if it exists but can't be parsed. |
-| `.github/workflows/ci.yml` | checkout (with submodules) → `setup-rokit` → `lute setup --with-luaurc` → `lute run check` → `lute test` | Uses `lute test`, not `lute run tests`: the latter needs a `tests` script and hard-errors without one, which a fresh project has no reason to have. `lute test` discovers `.test.luau`/`.spec.luau` and exits 0 when there are none. |
+| `tests/.luaurc` | `globals: [...]` — TestEZ's injected globals | TestEZ projects only. luau-lsp ignores selene's `testez.yml` entirely and needs its own declaration, or every spec file opens with unknown-global errors. Scoped to `tests/` so `describe` stays unknown in `src/`; nested `.luaurc` files layer over the root rather than replacing it, so `languageMode` and the lute aliases survive (§7). |
+| `.github/workflows/ci.yml` | checkout (with submodules) → `setup-rokit` → *(Wally only: `wally install` + `rojo sourcemap` + `wally-package-types`)* → `lute setup --with-luaurc` → `lute run check` → `lute test` | Rendered by `ci_workflow(workflow)`. The Wally install step is not optional: `Packages/` is gitignored, so without it the gate's first action fails on a missing `$path` (§7). Uses `lute test`, not `lute run tests`: the latter needs a `tests` script and hard-errors without one, which a fresh project has no reason to have. `lute test` discovers `.test.luau`/`.spec.luau` and exits 0 when there are none. |
 
 ### 8.6 Tool usage notes (data-driven)
 
@@ -720,19 +727,19 @@ Guided mode applies these automatically after the category prompts finish; exper
 
 ## 9. Testing Strategy
 
-40 automated tests exist, all inline `#[cfg(test)]` unit tests run by `cargo test`. There is no CI configuration for rproj itself and `Cargo.toml` declares no dev-dependencies (nothing beyond `std` assertions is needed).
+43 automated tests exist, all inline `#[cfg(test)]` unit tests run by `cargo test`. There is no CI configuration for rproj itself and `Cargo.toml` declares no dev-dependencies (nothing beyond `std` assertions is needed).
 
 | Test file | Covers |
 | --- | --- |
 | `src/steps/modules.rs` (5 tests) | Every row of §8.2's requirement matrix: no mapped path is a repo root; monorepo siblings are mounted under the names their own source requires; unvendorable packages are excluded; link files require the name the package is mounted under; packages sharing a repo share one clone dir. |
 | `src/catalog/place_template.rs` (3 tests) | Studio 0–255 colours convert to Rojo's 0–1 floats and stay in range; child instances nest under their declared parent rather than leaking to top level; every declared parent actually exists in the table (otherwise `render` silently drops the child). |
-| `src/steps/testez.rs` (4 tests) | TestEZ Companion roots are service-rooted (not `game/`-prefixed) and name the same lowercase instances the project file creates — a mismatched root finds no tests, which is indistinguishable from every test passing; the bundled `testez.yml` declares every global selene would otherwise reject; and the starter spec has no stray leading spaces, which would fail the project's own formatter check. |
+| `src/steps/testez.rs` (5 tests) | TestEZ Companion roots are service-rooted (not `game/`-prefixed) and name the same lowercase instances the project file creates — a mismatched root finds no tests, which is indistinguishable from every test passing; the bundled `testez.yml` declares every global selene would otherwise reject; `tests/.luaurc`'s globals are parsed back out of `testez.yml` and compared, since the two tools don't read each other's config and would otherwise drift; and the starter spec has no stray leading spaces, which would fail the project's own formatter check. |
 | `src/catalog/mod.rs` (6 tests) | Catalog integrity: keys are unique across tools *and* packages (a duplicate makes `find` return one and orphan the other); every tool's `family` appears in `FAMILY_ORDER` (a missing one never prints in `rproj info`); companion rules name real packages; every entry has a non-empty description and an `https://` docs URL; every package `source` parses as `scope/name@version`; usage notes key onto something that exists. |
 | `src/catalog/tool_settings.rs` (7 tests) | The scaffolded config and `rproj configure`'s defaults render identically; StyLua's scaffolded config selects `Luau` syntax; Selene's `std` is overridable for TestEZ; top-level TOML keys precede any `[table]` header; an inserted top-level key lands above the first section (appending would make `exclude` become `rules.exclude` and do nothing) and still works in a file with no sections; every configurable tool is findable by key. |
 | `src/steps/vscode.rs` (1 test) | The vendored-code globs extend luau-lsp's defaults rather than replacing them, so Wally's `_Index` stays covered for projects using both workflows. |
 | `src/ui.rs` (3 tests) | Option matching uses the full `key - ` prefix, so `react` doesn't match `reactRoblox`; `option_key` survives labels with no separator; the multi-select help mentions enter-to-confirm. |
 | `src/commands/new.rs` (4 tests) | A submodule project doesn't pin Wally tools it can't use; a Wally project keeps all of them; a fresh machine is provisioned but an already-provisioned one isn't re-asked; the machine summary describes what's set up and omits empty groups. |
-| `src/catalog/quality_checks.rs` (7 tests) | Every rule in §8.5: steps are emitted only for selected tools; imports are exactly what the emitted steps use; result vars are both declared and aggregated; no dangling exit check when nothing can fail; nothing rendered when no step applies; every declared import resolves; CI runs the gate and uses `lute test` rather than the `lute run tests` that hard-errors without a tests script. |
+| `src/catalog/quality_checks.rs` (9 tests) | Every rule in §8.5: steps are emitted only for selected tools; imports are exactly what the emitted steps use; result vars are both declared and aggregated; no dangling exit check when nothing can fail; nothing rendered when no step applies; every declared import resolves; CI runs the gate and uses `lute test` rather than the `lute run tests` that hard-errors without a tests script; Wally CI installs packages *before* the gate and restores their types, while submodule CI never mentions wally at all (it doesn't pin the binary); and vendored paths use wally's real `Packages` capitalisation, which is the difference between the gate running and not running on Linux. |
 
 These deliberately encode §7's landmines rather than the happy path — each one fails loudly if a specific past bug is reintroduced, including two failure modes (a wrong mount name, a dropped child) that would otherwise surface only as a runtime nil inside Studio, with no build error anywhere.
 
@@ -743,6 +750,8 @@ These deliberately encode §7's landmines rather than the happy path — each on
 - **Nothing exercises the interactive pickers**; all prompt flows are manual-only.
 - **The output layer (§2.4) has no tests.** It was verified by running the real global-add path against nine already-installed tools: 60+ lines of rokit ERROR blocks collapsed to one `9 rokit tools (global) already present`, and `--verbose` still showed every command and its full output.
 - **The generated check script is verified manually, not automatically.** The tests cover what `render_check` emits; they cannot catch a lute stdlib rename, because that only fails at runtime (see §7). It was verified by generating a project and running `lute run check` against it: green on clean code, exit 1 on a formatting violation, a selene error and a type error, reporting all of them in one run rather than stopping at the first, and deleting the fetched `roblox.d.luau` afterwards. Re-run that by hand after any lute upgrade.
+- **The generated CI workflow has never actually been run.** No rproj-scaffolded project has been pushed to GitHub, so `.github/workflows/ci.yml` is verified only by the tests over its text and by running the same commands locally on Windows. In particular, the case-sensitivity reasoning in §7 (`Packages` vs `packages` on `ubuntu-latest`) is derived from wally hardcoding the folder name and Linux filesystems being case-sensitive — it is sound, but it is inference, not an observed green build. The first real push of a scaffolded project is the check that closes this.
+- **The gate lints and type-checks `src` only, never `tests`.** A TestEZ project's specs are excluded from `selene`, `stylua --check` and `luau-lsp analyze`, so a broken or unformatted spec passes the gate and only fails once someone runs the tests. Now that `tests/` is a first-class part of the scaffold with its own `.luaurc`, extending the check steps to cover it is a deliberate open decision rather than an oversight — it would need `render_check` to know whether TestEZ was selected.
 - **The end-to-end claim in §8.2 is not automated.** It was verified by cloning all six underlying repos and running both `rojo sourcemap` and `rojo build` against a tree generated by the real code path, confirming each package appears twice in the sourcemap (once as `modules.<Name>`, once as `modules.submodules.<Name>`) and that Lighting properties serialize with correct types. That check requires network and a real `rojo` binary, so it is a manual procedure, not a test.
 
 Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` are kept clean after every change.

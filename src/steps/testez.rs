@@ -13,11 +13,16 @@
 //!   silently disabled linting for the whole project.
 //! - The TestEZ Companion Studio plugin needs a `testez-companion.toml`
 //!   telling it which DataModel locations hold `.spec` files.
+//! - ...and selene's standard library says nothing to *luau-lsp*, which
+//!   keeps its own idea of what globals exist and reports every
+//!   `describe`/`it`/`expect` as `Unknown global` under `languageMode:
+//!   strict`. That needs a `tests/.luaurc`.
 
 use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use serde_json::{json, Value};
 
 use crate::ui;
 
@@ -175,6 +180,75 @@ pub fn ensure_selene_std(project_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// The globals TestEZ injects into a spec file, for luau-lsp.
+///
+/// Same set as `TESTEZ_STD` above, which is selene's copy - the two tools
+/// don't read each other's configuration, so both need telling and a test
+/// below keeps them from drifting apart.
+const TESTEZ_GLOBALS: &[&str] = &[
+    "FIXME",
+    "FOCUS",
+    "SKIP",
+    "afterAll",
+    "afterEach",
+    "beforeAll",
+    "beforeEach",
+    "describe",
+    "describeFOCUS",
+    "describeSKIP",
+    "expect",
+    "it",
+    "itFIXME",
+    "itFOCUS",
+    "itSKIP",
+];
+
+/// Writes `tests/.luaurc` declaring TestEZ's globals to luau-lsp.
+///
+/// Without it, every spec file the scaffold generates opens with three red
+/// errors ("Unknown global 'describe'; consider assigning to it first") in
+/// a brand new project - TestEZ injects these at runtime, so nothing in the
+/// source ever declares them and `languageMode: strict` is right to
+/// complain.
+///
+/// Scoped to `tests/` rather than added to the project's root `.luaurc` on
+/// purpose. Luau resolves configuration by walking from the root down to
+/// the file, with nearer files layered *over* the ones above rather than
+/// replacing them, so this one keeps the root's `languageMode` and lute
+/// aliases while adding the globals - and `describe` stays an unknown
+/// global in `src/`, where calling it really would be a mistake. (All four
+/// halves of that verified with `luau-lsp analyze`.)
+pub fn ensure_tests_luaurc(project_dir: &Path) -> Result<()> {
+    let path = project_dir.join("tests").join(".luaurc");
+
+    let mut config = if path.exists() {
+        let text = fs::read_to_string(&path)?;
+        match serde_json::from_str::<Value>(&text) {
+            Ok(Value::Object(map)) => map,
+            // .luaurc allows comments, which serde_json rejects - leave a
+            // file we can't parse alone rather than discarding it.
+            _ => {
+                ui::skip("tests/.luaurc exists but couldn't be parsed, leaving it alone");
+                return Ok(());
+            }
+        }
+    } else {
+        serde_json::Map::new()
+    };
+
+    if config.contains_key("globals") {
+        ui::ok("tests/.luaurc already configured");
+        return Ok(());
+    }
+    config.insert("globals".to_string(), json!(TESTEZ_GLOBALS));
+
+    fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
+    fs::write(&path, format!("{}\n", serde_json::to_string_pretty(&Value::Object(config))?))
+        .with_context(|| format!("failed to write {}", path.display()))?;
+    ui::ok("wrote tests/.luaurc (TestEZ globals)");
+    Ok(())
+}
+
 pub fn ensure_companion_config(project_dir: &Path) -> Result<()> {
     let path = project_dir.join("testez-companion.toml");
     if path.exists() {
@@ -222,6 +296,25 @@ mod tests {
         assert_eq!(
             TEST_ROOTS,
             ["ReplicatedStorage/test", "ServerScriptService/test", "StarterPlayer/StarterPlayerScripts/test"]
+        );
+    }
+
+    /// selene and luau-lsp each need their own copy of TestEZ's globals and
+    /// neither reads the other's config, so the two lists can drift apart
+    /// and leave one tool flagging a global the other accepts.
+    #[test]
+    fn luau_lsp_globals_match_the_selene_standard_library() {
+        let declared_to_selene: Vec<&str> = TESTEZ_STD
+            .lines()
+            // Globals are the two-space-indented keys under `globals:`;
+            // their `args:`/`type:`/`required:` children are deeper.
+            .filter(|l| l.starts_with("  ") && !l.starts_with("   ") && l.trim_end().ends_with(':'))
+            .map(|l| l.trim().trim_end_matches(':'))
+            .collect();
+        assert!(!declared_to_selene.is_empty(), "parsed nothing out of testez.yml");
+        assert_eq!(
+            declared_to_selene, TESTEZ_GLOBALS,
+            "selene's testez.yml and luau-lsp's tests/.luaurc must declare the same globals"
         );
     }
 

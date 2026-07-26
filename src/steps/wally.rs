@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 use crate::catalog::wally_packages;
-use crate::steps::run_in;
+use crate::steps::{rojo, run_in};
 use crate::ui;
 
 pub fn ensure_wally_init(project_dir: &Path) -> Result<()> {
@@ -50,10 +50,45 @@ pub fn wally_install(project_dir: &Path) -> Result<()> {
     run_in("wally", &["install"], Some(project_dir))
 }
 
+/// `Packages/` with a capital P - the name wally hardcodes for the shared
+/// realm. Every other spelling only works by accident on Windows.
+pub const PACKAGES_DIR: &str = "Packages";
+
 pub fn wally_package_types(project_dir: &Path) -> Result<()> {
     run_in(
         "wally-package-types",
-        &["-s", "sourcemap.json", "packages/"],
+        &["-s", "sourcemap.json", PACKAGES_DIR],
         Some(project_dir),
     )
+}
+
+/// Installs this project's Wally dependencies and restores the types on the
+/// generated link files. Always use this rather than `wally_install` alone.
+///
+/// `wally install` rewrites every link file in `packages/` from scratch, and
+/// what it writes is a bare `return require(script.Parent._Index[...])` with
+/// no `export type` lines at all. So an install doesn't just *fail to add*
+/// types - it actively strips the ones `wally-package-types` put there on
+/// the previous run, and every package silently degrades to `any`.
+///
+/// That made `rproj watch` destructive: it installed and went straight to
+/// watching, so the documented first thing to run after `rproj new` undid
+/// the scaffold's own retyping, and the only way back was typing
+/// `wally-package-types -s sourcemap.json packages/` by hand.
+///
+/// The order is fixed by how wally-package-types works: it resolves each
+/// link file's require through the sourcemap to find the real module, so
+/// the packages have to be on disk before the sourcemap is generated, and
+/// the sourcemap has to exist before the retyping runs.
+pub fn sync(project_dir: &Path) -> Result<()> {
+    wally_install(project_dir)?;
+    // With zero dependencies `wally install` doesn't just skip creating
+    // Packages/ - it *removes* an existing empty one (verified). The
+    // project file maps that path, and rojo refuses to generate a sourcemap
+    // at all when a mapped $path is missing, so recreating it here is what
+    // keeps a no-dependency project working.
+    fs::create_dir_all(project_dir.join(PACKAGES_DIR))?;
+    rojo::generate_sourcemap(project_dir)?;
+    // Safe with no packages: an empty directory is a successful no-op.
+    wally_package_types(project_dir)
 }
