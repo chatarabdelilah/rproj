@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 
 use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
 use crate::steps::run_in;
@@ -31,6 +31,8 @@ pub fn ensure_rokit_init(project_dir: &Path) -> Result<()> {
 
 /// Adds every rokit tool key in `selected` to the project via `rokit add`.
 /// Keys must match `ToolEntry::key` in `catalog::tool_catalog::ROKIT_TOOLS`.
+/// A single tool failing (e.g. a GitHub rate limit) doesn't stop the rest
+/// from being attempted, or the project scaffold that follows.
 pub fn add_selected_tools(project_dir: &Path, selected: &[String]) -> Result<()> {
     for key in selected {
         let Some(entry) = ROKIT_TOOLS.iter().find(|t| t.key == key) else {
@@ -39,7 +41,7 @@ pub fn add_selected_tools(project_dir: &Path, selected: &[String]) -> Result<()>
         let ToolKind::RokitTool { rokit_source } = entry.kind else {
             continue;
         };
-        run_in("rokit", &["add", rokit_source], Some(project_dir))?;
+        run_rokit_add(Some(project_dir), rokit_source, key, "")?;
     }
     Ok(())
 }
@@ -61,36 +63,66 @@ pub fn add_global_tools(selected: &[String]) -> Result<()> {
         let ToolKind::RokitTool { rokit_source } = entry.kind else {
             continue;
         };
+        run_rokit_add(None, rokit_source, key, " globally")?;
+    }
+    Ok(())
+}
 
-        println!("\n> rokit add --global {rokit_source}");
-        let output = Command::new("rokit")
-            .args(["add", "--global", rokit_source])
-            .output()
-            .context("failed to spawn `rokit`")?;
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-        if output.status.success() {
-            continue;
-        }
+/// Runs `rokit add [--global] <rokit_source>`, printing output and
+/// classifying the outcome so one tool's hiccup doesn't take the rest down
+/// with it: re-adding an already-present tool ("Tool already exists", which
+/// a project-local `rokit add` treats as a silent no-op but `--global`
+/// doesn't) and GitHub's unauthenticated rate limit (60 requests/hour per
+/// IP, shared across every GitHub-touching step rproj *and* rokit itself
+/// make - easy to hit while iterating quickly during testing) are both
+/// printed as informative, non-fatal outcomes rather than propagated.
+/// Only a genuine inability to spawn `rokit` at all bails, since every
+/// other call in the batch would fail identically anyway.
+fn run_rokit_add(project_dir: Option<&Path>, rokit_source: &str, key: &str, scope_desc: &str) -> Result<()> {
+    let mut args = vec!["add"];
+    if project_dir.is_none() {
+        args.push("--global");
+    }
+    args.push(rokit_source);
 
-        // Unlike a project-local `rokit add`, re-adding the exact same tool
-        // to the global manifest errors instead of being a no-op ("Tool
-        // already exists and can't be added") - that's not a real failure,
-        // it just means a previous `rproj new`/`setup` run already added it.
-        let combined = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
+    println!("\n> rokit {}", args.join(" "));
+    let mut cmd = Command::new("rokit");
+    cmd.args(&args);
+    if let Some(dir) = project_dir {
+        cmd.current_dir(dir);
+    }
+    let output = cmd.output().context("failed to spawn `rokit`")?;
+
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    if combined.contains("already exists") {
+        println!("check: {key} already added{scope_desc}");
+    } else if combined.contains("403 Forbidden") || combined.to_lowercase().contains("rate limit") {
+        eprintln!(
+            "warning: {key} failed - GitHub's unauthenticated API rate limit (60 requests/hour \
+             per IP) was likely hit. That's shared across every GitHub-touching step rproj and \
+             rokit make, so it's easy to reach while iterating quickly - wait for it to reset \
+             (up to an hour) and try again.\n"
         );
-        if combined.contains("already exists") {
-            println!("check: {key} already added globally");
-            continue;
-        }
-        bail!("`rokit add --global {rokit_source}` exited with {}", output.status);
+    } else {
+        eprintln!(
+            "warning: failed to add {key}{scope_desc}, continuing - `rokit {}` exited with {}\n",
+            args.join(" "),
+            output.status
+        );
     }
     Ok(())
 }

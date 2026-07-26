@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
-use crate::steps::probe;
+use crate::steps::{github_get_text, probe};
 
 /// Roblox's stud scale: 1 stud = 0.28 meters. Setting Blender's scene unit
 /// scale to this means 1 Blender unit lines up with 1 Roblox stud.
@@ -16,13 +16,7 @@ const ROBLOX_STUD_SCALE: f64 = 0.28;
 /// literal here.
 pub fn download_latest_plugin_zip(github_repo: &str) -> Result<PathBuf> {
     let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
-    let body = ureq::get(&api_url)
-        .header("User-Agent", "rproj")
-        .call()
-        .context("failed to query latest release of the Roblox Blender plugin")?
-        .body_mut()
-        .read_to_string()
-        .context("failed to read GitHub release response")?;
+    let body = github_get_text(&api_url)?;
     let release: Value = serde_json::from_str(&body).context("failed to parse GitHub release JSON")?;
 
     let assets = release["assets"].as_array().context("release response had no assets array")?;

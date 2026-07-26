@@ -47,3 +47,19 @@ pub fn probe(program: &str, args: &[&str]) -> bool {
         .map(|o| o.status.success())
         .unwrap_or(false)
 }
+
+/// GETs `url` with a rproj User-Agent header and returns the body as text,
+/// giving a clear explanation instead of a bare "http status: 403" if
+/// GitHub's unauthenticated API rate limit (60 requests/hour per IP) was
+/// hit - shared across every GitHub-touching step rproj *and* rokit itself
+/// make, so it's easy to reach while iterating quickly during testing.
+pub fn github_get_text(url: &str) -> Result<String> {
+    match ureq::get(url).header("User-Agent", "rproj").call() {
+        Ok(mut response) => response.body_mut().read_to_string().context("failed to read response body"),
+        Err(ureq::Error::StatusCode(403)) => bail!(
+            "GitHub's unauthenticated API rate limit (60 requests/hour per IP) was hit while \
+             calling {url}. Wait for it to reset (up to an hour) and try again."
+        ),
+        Err(err) => Err(err).with_context(|| format!("failed to call {url}")),
+    }
+}

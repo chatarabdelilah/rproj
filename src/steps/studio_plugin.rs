@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
+use crate::steps::github_get_text;
+
 /// `%LOCALAPPDATA%\Roblox\Plugins` - the same folder `rojo plugin install` targets.
 pub fn studio_plugins_dir() -> Result<PathBuf> {
     let local_app_data =
@@ -16,13 +18,7 @@ pub fn studio_plugins_dir() -> Result<PathBuf> {
 /// folder. Skips the download if a file with that name is already there.
 pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Result<()> {
     let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
-    let body = ureq::get(&api_url)
-        .header("User-Agent", "rproj")
-        .call()
-        .with_context(|| format!("failed to query latest release for {github_repo}"))?
-        .body_mut()
-        .read_to_string()
-        .context("failed to read GitHub release response")?;
+    let body = github_get_text(&api_url)?;
     let release: Value =
         serde_json::from_str(&body).context("failed to parse GitHub release JSON")?;
 
