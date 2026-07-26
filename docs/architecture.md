@@ -30,7 +30,7 @@ This version is Windows-only (installs go through `winget`).
 Provisioning always asks, in this order:
 
 1. **System apps** — multi-select (Git, VS Code, Roblox Studio, Roblox client, Blender).
-2. **Rokit-managed CLI tools** — multi-select (Rojo, Wally, wally-package-types, Selene, StyLua, Lute, Tarmac, Mantle).
+2. **Rokit-managed CLI tools** — multi-select (Rojo, Wally, wally-package-types, Selene, StyLua, Lute, luau-lsp CLI, Tarmac, Mantle). Note `luau-lsp-cli` is the *command-line* type checker the quality gate runs, distinct from the `luau-lsp` VS Code extension and the `luau-lsp-plugin` Studio plugin — same upstream project, three separate install mechanisms.
 3. **Plugins** — multi-select, contextually filtered: every entry is shown *except* the Blender add-on, which only appears if "blender" was picked in step 1 during the same run.
 4. **VS Code extensions & themes** — multi-select, only asked at all if "vscode" was picked in step 1.
 
@@ -60,6 +60,7 @@ Rules that hold regardless of which command triggered provisioning:
    - Install packages per the chosen workflow — Wally: `wally init` + write `wally.toml` + `wally install`, then ensure `packages/` exists regardless of whether `wally install` created it (it doesn't, with zero dependencies); git submodules: module resolution per §8.2/§6.5, which clones each repo once and generates the `modules/` tree.
    - Generate an initial `sourcemap.json` (briefly starts and kills `rojo sourcemap --watch`).
    - Run `wally-package-types` (Wally workflow only).
+   - Write the quality gate: `.luaurc`, and — if any selected tool has a check step — `.lute/check.luau`, the CI workflow, and `lute setup --with-luaurc` (§8.5).
    - Update `.gitignore`.
    - Scaffold a Blender starter scene if Blender was enabled during provisioning.
 5. Write `rproj.toml` recording the composition mode, package workflow, resulting package list, and which tool keys were active at creation time.
@@ -200,6 +201,7 @@ rproj/
     │   ├── mod.rs               Maintenance enum
     │   ├── tool_catalog.rs      ToolKind, ToolEntry, FAMILY_ORDER, SYSTEM_APPS, ROKIT_TOOLS, PLUGINS, VSCODE_EXTENSIONS
     │   ├── place_template.rs    PropValue, PropertySpec, InstanceSpec, PLACE_TEMPLATE, render()  [+ 3 tests]
+    │   ├── quality_checks.rs    CheckStep, CHECK_STEPS, render_check(), CI_WORKFLOW  [+ 7 tests]
     │   ├── tool_settings.rs     SettingKind, SettingSpec, ConfigTarget, ConfigurableTool, CONFIGURABLE_TOOLS
     │   └── wally_packages.rs    Category, Submodule, PackageSpec, PACKAGES, companions_for()
     ├── commands/
@@ -218,6 +220,7 @@ rproj/
         ├── toolchain.rs         rokit init/add (project-local and --global), selene.toml/stylua.toml
         ├── rojo.rs              default.project.json scaffold, `rojo plugin install`, sourcemap watcher
         ├── modules.rs           modules/ tree for the submodule workflow: submodules project + link files  [+ 5 tests]
+        ├── quality.rs           writes .luaurc, .lute/check.luau, CI workflow; runs lute setup
         ├── wally.rs             wally init/install, wally.toml generation from selected packages
         ├── git.rs               git init, git submodule add
         ├── gitignore.rs         .gitignore entries
@@ -227,7 +230,7 @@ rproj/
         └── notify.rs            desktop toast notification wrapper
 ```
 
-28 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9.
+30 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9.
 
 ## 5. Subsystem Map
 
@@ -263,6 +266,7 @@ graph TD
         Toolchain["toolchain"]
         Rojo["rojo"]
         Modules["modules"]
+        Quality["quality"]
         Wally["wally"]
         Git["git"]
         Gitignore["gitignore"]
@@ -337,8 +341,11 @@ flowchart TD
     K --> L{Wally workflow?}
     L -- yes --> M[wally-package-types]
     L -- no --> N[skip]
-    M --> O[update .gitignore]
-    N --> O
+    M --> QG["write .luaurc; if any selected tool
+has a check step, also .lute/check.luau,
+CI workflow, and lute setup"]
+    N --> QG
+    QG --> O[update .gitignore]
     O --> P{Blender enabled\nin GlobalConfig?}
     P -- yes --> Q[scaffold blender/scene.blend]
     P -- no --> R(["done"])
@@ -418,6 +425,8 @@ Each of these was learned from an actual reproduced failure during this project'
 - **A winget-installed app is often not on PATH within the same shell session that installed it**, even though the installer registers it in the registry-level PATH for future sessions. This hit both Blender (`blender.exe`) and VS Code (`code`/`code.cmd`) — both `steps::blender::locate_blender_exe` and `steps::vscode::locate_code` probe PATH first, then fall back to scanning the known winget install location (`Program Files\Blender Foundation\*\blender.exe`, `%LocalAppData%\Programs\Microsoft VS Code\bin\code.cmd`) before giving up.
 - **`code.cmd` is a batch file; Rust's `Command::new` cannot execute it directly on Windows** (Rust does not implicitly wrap `.bat`/`.cmd` targets in `cmd.exe`). Any invocation that resolves to the fallback path must be run as `cmd.exe /C <path> <args...>` — see `steps::vscode::run_code`.
 - **`rokit add --global <tool>` errors instead of silently no-op'ing when the tool is already in the global manifest** ("Tool already exists and can't be added"), unlike a project-local `rokit add`, which is idempotent. `steps::toolchain::run_rokit_add` detects this specific message and treats it as success.
+- **`rokit add --global` refuses a tool rokit has never installed before** — "The following tool has not been marked as trusted" — while a project-local `rokit add` trusts implicitly as it installs. Because rproj does the global adds *first*, on a machine that has never installed the tool every global add fails this way: precisely the fresh-PC case this tool exists for, and invisible on a development machine where everything is already trusted. `steps::toolchain::run_rokit_add` runs `rokit trust <source>` before each global add. That isn't extra exposure — these are catalog tools the user explicitly selected, and the project-local add that follows would trust them anyway.
+- **Lute's standard library was renamed between the version the reference projects pin and current lute.** `fs.writestringtofile` → `fs.writeStringToFile`, and `net.request` → `net.client.request` (`net` became a namespace over `client`/`server`). Both old spellings fail at *runtime* with "attempt to call a nil value" — `lute check` type-checks the script clean either way, so a generated check script copied from an existing project passes every static check and then dies on first run. The generated script's API names were read out of the installed `~/.lute/typedefs/<version>` rather than copied from a reference repo. For the same reason, `.luaurc` does not hardcode `~/.lute/typedefs/0.1.0/...` alias paths: that version is whatever lute is installed (1.0.0 at time of writing), so `lute setup --with-luaurc` is left to write them.
 - **Rokit resolves tools by walking up the directory tree looking for a `rokit.toml`**, with `~/.rokit/rokit.toml` (`rokit add --global`) as the machine-wide fallback. Any tool invocation that happens outside a project directory (e.g. `rojo plugin install` during provisioning, before any project exists) needs the tool registered *globally* first — a project-local `rokit add` alone does not make the tool resolvable from an arbitrary working directory.
 - **GitHub's unauthenticated REST API rate limit is 60 requests/hour per IP**, and it is shared across every GitHub-touching call `rproj` makes *and* every call rokit itself makes internally (e.g. for each `rokit add`). This is easy to exhaust during rapid iterative testing — surfaced as `ureq::Error::StatusCode(403)` in `rproj`'s own calls (`steps::github_get_text`) and as literal `"403 Forbidden"`/"rate limit" text in rokit's own CLI output (`steps::toolchain::run_rokit_add`). Both are detected and explained rather than left as a bare status code.
 - **Every real wally-catalog package's GitHub repo ships its own `default.project.json`**, and Rojo auto-detects *any* `default.project.json` inside a `$path`-included folder tree, substituting it as a nested project definition. Several of those vendored project files declare `$path`s into `node_modules/...` for their own monorepo test harness (`littensy/charm`, `littensy/ripple`), which only exist after an `npm`/`pnpm` install that never runs here — a hard sync error, not an incomplete sync. Two things that do **not** fix this, both empirically disproven rather than theorized: `globIgnorePaths` does not suppress nested-project auto-detection (it only filters plain files), and naming the mounted instances after catalog keys breaks the packages' own cross-requires. The mechanism that does work is §8.2 — never let Rojo see a vendored repo's root at all.
@@ -519,7 +528,34 @@ Option names and accepted values are taken from each tool's own upstream documen
 
 **Adding a setting, or a whole new configurable tool, requires only a data entry — no code changes.**
 
-### 8.5 Catalog contents
+### 8.5 Quality gate (data-driven)
+
+`catalog::quality_checks::CHECK_STEPS` backs the generated `.lute/check.luau` — one script a developer runs with `lute run check` and CI runs unchanged, so local and CI results can't drift.
+
+| Step | Requires tool | Result var | What it does |
+| --- | --- | --- | --- |
+| sourcemap | `rojo` | *(none)* | Regenerates `sourcemap.json` so requires resolve against the current tree |
+| analyze | `luau-lsp-cli` | `analyze` | Fetches Roblox global types, type-checks `src` with `LuauSolverV2`, deletes the definitions again |
+| lint | `selene` | `selene` | Lints `src` (severity from `selene.toml`) |
+| format | `stylua` | `stylua` | `--check` only; CI must not rewrite the tree it was asked to check |
+
+Rules the renderer enforces:
+
+- **A step is emitted only if the project selected its tool.** A project without StyLua gets a script that never calls `stylua`, rather than a guaranteed CI failure.
+- **Imports are the union of exactly the emitted steps' needs.** An unused local would be flagged by the very linters this script runs, so the gate would fail itself.
+- **Every declared `result_var` is both declared and aggregated**, in a single trailing condition, so one run reports every problem instead of stopping at the first.
+- **No applicable step means no script and no CI workflow** — `render_check` returns `None` and the caller skips both.
+
+**Adding a check requires only a `CHECK_STEPS` entry — no code changes.**
+
+Generated alongside it:
+
+| File | Contents | Notes |
+| --- | --- | --- |
+| `.luaurc` | `languageMode: "strict"` | Deliberately does *not* pin `~/.lute/typedefs/<version>` aliases — that version is whatever lute is installed (`1.0.0` here, `0.1.0` in the reference project). `lute setup --with-luaurc` writes them and **merges**, preserving `languageMode`. Written merge-safely, and left alone entirely if it exists but can't be parsed. |
+| `.github/workflows/ci.yml` | checkout (with submodules) → `setup-rokit` → `lute setup --with-luaurc` → `lute run check` → `lute test` | Uses `lute test`, not `lute run tests`: the latter needs a `tests` script and hard-errors without one, which a fresh project has no reason to have. `lute test` discovers `.test.luau`/`.spec.luau` and exits 0 when there are none. |
+
+### 8.6 Catalog contents
 
 **System apps** (`SYSTEM_APPS`, all family `"System apps"`):
 
@@ -616,7 +652,7 @@ Option names and accepted values are taken from each tool's own upstream documen
 | t | osyrisrblx/t@3.1.1 | osyrisrblx/t | t | t / lib | CommunityStable | true |
 | sift | csqrl/sift@0.0.11 | csqrl/sift | Sift | sift / src | CommunityStable (no longer actively maintained upstream, not archived) | true |
 
-### 8.6 Companion rules (`companions_for`)
+### 8.7 Companion rules (`companions_for`)
 
 Guided mode applies these automatically after the category prompts finish; expert mode does not (it shows every entry individually).
 
@@ -632,12 +668,13 @@ Guided mode applies these automatically after the category prompts finish; exper
 
 ## 9. Testing Strategy
 
-8 automated tests exist, all inline `#[cfg(test)]` unit tests run by `cargo test`. There is no CI configuration and `Cargo.toml` declares no dev-dependencies (nothing beyond `std` assertions is needed).
+15 automated tests exist, all inline `#[cfg(test)]` unit tests run by `cargo test`. There is no CI configuration and `Cargo.toml` declares no dev-dependencies (nothing beyond `std` assertions is needed).
 
 | Test file | Covers |
 | --- | --- |
 | `src/steps/modules.rs` (5 tests) | Every row of §8.2's requirement matrix: no mapped path is a repo root; monorepo siblings are mounted under the names their own source requires; unvendorable packages are excluded; link files require the name the package is mounted under; packages sharing a repo share one clone dir. |
 | `src/catalog/place_template.rs` (3 tests) | Studio 0–255 colours convert to Rojo's 0–1 floats and stay in range; child instances nest under their declared parent rather than leaking to top level; every declared parent actually exists in the table (otherwise `render` silently drops the child). |
+| `src/catalog/quality_checks.rs` (7 tests) | Every rule in §8.5: steps are emitted only for selected tools; imports are exactly what the emitted steps use; result vars are both declared and aggregated; no dangling exit check when nothing can fail; nothing rendered when no step applies; every declared import resolves; CI runs the gate and uses `lute test` rather than the `lute run tests` that hard-errors without a tests script. |
 
 These deliberately encode §7's landmines rather than the happy path — each one fails loudly if a specific past bug is reintroduced, including two failure modes (a wrong mount name, a dropped child) that would otherwise surface only as a runtime nil inside Studio, with no build error anywhere.
 
@@ -646,6 +683,7 @@ These deliberately encode §7's landmines rather than the happy path — each on
 - **No test covers `commands::configure`** — neither the TOML writer's table ordering nor the `.vscode/settings.json` merge/refuse-on-unparseable behaviour. Both are described in §8.4 and both are currently only manually verified.
 - **No test covers any step that shells out** (`winget`, `rokit`, `git`, `rojo`, `code`, `blender`) or touches the network. Every bug in §7 that involved one of those was found by a live manual run, and would be again.
 - **Nothing exercises the interactive pickers**; all prompt flows are manual-only.
+- **The generated check script is verified manually, not automatically.** The tests cover what `render_check` emits; they cannot catch a lute stdlib rename, because that only fails at runtime (see §7). It was verified by generating a project and running `lute run check` against it: green on clean code, exit 1 on a formatting violation, a selene error and a type error, reporting all of them in one run rather than stopping at the first, and deleting the fetched `roblox.d.luau` afterwards. Re-run that by hand after any lute upgrade.
 - **The end-to-end claim in §8.2 is not automated.** It was verified by cloning all six underlying repos and running both `rojo sourcemap` and `rojo build` against a tree generated by the real code path, confirming each package appears twice in the sourcemap (once as `modules.<Name>`, once as `modules.submodules.<Name>`) and that Lighting properties serialize with correct types. That check requires network and a real `rojo` binary, so it is a manual procedure, not a test.
 
 Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` are kept clean after every change.
