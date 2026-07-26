@@ -6,6 +6,11 @@ use anyhow::Result;
 // wally.lock is deliberately NOT here - like Cargo.lock, it should be
 // committed so everyone building the project resolves the same package
 // versions. Only the regenerable Packages folder and build artifacts go here.
+//
+// modules/ is likewise NOT ignored: under the git-submodule workflow it
+// holds the generated link files and the submodules project file, which
+// are project source and must be committed (the submodule *contents*
+// are tracked by git as submodule pointers, not as ignorable files).
 const ENTRIES: &[&str] = &[
     "packages/",
     "sourcemap.json",

@@ -7,7 +7,7 @@ use inquire::{MultiSelect, Select};
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig};
-use crate::steps::{blender, git, gitignore, rojo, toolchain, wally};
+use crate::steps::{blender, git, gitignore, modules, rojo, toolchain, wally};
 
 pub fn run(name: &str) -> Result<()> {
     let mut config = GlobalConfig::load()?;
@@ -73,6 +73,29 @@ fn pick_package_workflow(packages: &BTreeSet<String>) -> Result<PackageWorkflow>
     if packages.is_empty() {
         return Ok(PackageWorkflow::Wally);
     }
+
+    // Some packages (the react-lua family) only ship a working module
+    // through an npm/pnpm install step upstream - there's no subfolder of
+    // their repo that resolves on its own, so raw git submodules can't
+    // vendor them at all. Rather than offer a choice that would break for
+    // this selection, go straight to Wally (the workflow that does work
+    // for every catalog entry) and say why.
+    let unvendorable: Vec<&str> = packages
+        .iter()
+        .filter_map(|k| wally_packages::find(k))
+        .filter(|p| p.submodule.is_none())
+        .map(|p| p.key)
+        .collect();
+    if !unvendorable.is_empty() {
+        println!(
+            "note: {} only ship{} a working module through an npm/pnpm install step upstream, \
+             which git submodules can't reproduce - using Wally for this project instead.",
+            unvendorable.join(", "),
+            if unvendorable.len() == 1 { "s" } else { "" }
+        );
+        return Ok(PackageWorkflow::Wally);
+    }
+
     let choice = Select::new(
         "How do you want to pull in this project's packages?",
         vec![
@@ -218,14 +241,22 @@ fn scaffold(
             std::fs::create_dir_all(project_dir.join("packages"))?;
         }
         PackageWorkflow::GitSubmodules => {
-            let mut added_repos = BTreeSet::new();
-            for key in packages {
-                let Some(spec) = wally_packages::find(key) else { continue };
-                if added_repos.insert(spec.git_repo) {
-                    git::add_submodule(project_dir, spec.git_repo, spec.repo_folder_name())?;
+            // Dedupe by target directory, not by package: monorepos like
+            // littensy/charm back several catalog entries (charm,
+            // charmSync, videCharm) from one clone.
+            let mut cloned = BTreeSet::new();
+            for spec in modules::vendorable(packages) {
+                let sub = spec.submodule.expect("vendorable() filtered to Some");
+                if cloned.insert(sub.dir) {
+                    git::add_submodule(project_dir, spec.git_repo, sub.dir)?;
                 }
             }
-            std::fs::create_dir_all(project_dir.join("Modules"))?;
+            // Both of these have to exist before the sourcemap runs below:
+            // the nested project file is what stops Rojo from walking into
+            // the vendored repos' own project files, and the link files are
+            // what project code actually requires.
+            modules::write_submodules_project(project_dir, packages)?;
+            modules::write_link_files(project_dir, packages)?;
         }
     }
 

@@ -10,6 +10,10 @@ pub fn run() {
          \x20                  no separate setup step to run first\n\
          \x20 rproj setup      Install/configure tools ahead of time without creating\n\
          \x20                  a project yet - optional, `new` asks the same things\n\
+         \x20 rproj configure [tool]\n\
+         \x20                  Walk through a tool's settings (StyLua, Selene,\n\
+         \x20                  luau-lsp...) one at a time, explaining what each\n\
+         \x20                  one does, and write them to its config file\n\
          \x20 rproj watch      Resume the dev loop in the current project\n\
          \x20 rproj copy       Copy every file under src/ to the clipboard\n\
          \x20 rproj info [key] Look up what a tool or package does\n"

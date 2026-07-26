@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Result};
 use serde_json::json;
 
+use crate::catalog::place_template;
 use crate::config::PackageWorkflow;
 use crate::steps::run;
 
@@ -52,36 +53,37 @@ pub fn scaffold_project_json(
             replicated_storage.insert("packages".to_string(), json!({ "$path": "packages" }));
         }
         PackageWorkflow::GitSubmodules => {
-            replicated_storage.insert("Modules".to_string(), json!({ "$path": "Modules" }));
-            // Every real wally-catalog package repo carries its own
-            // default.project.json (for its own dev/test/build tooling),
-            // which Rojo would otherwise auto-detect and try to use as a
-            // nested project the moment it's cloned into Modules/ - and
-            // that nested project's own paths (its own tests, its own
-            // build output) don't resolve in our checkout, which is a hard
-            // error, not just an incomplete sync. globIgnorePaths tells
-            // Rojo to treat every *.project.json under Modules/ as an
-            // ordinary (ignored) file instead - the documented mechanism
-            // for vendoring third-party folders like this.
-            project.insert("globIgnorePaths".to_string(), json!(["Modules/**/*.project.json"]));
+            // Mapped wholesale, which is safe *because* of the nested
+            // project file `steps::modules` writes at
+            // modules/submodules/default.project.json. Rojo auto-detects
+            // that file and uses it for the submodules folder, and it only
+            // ever $paths into specific source subfolders
+            // (./charm/packages/charm/src), so Rojo never walks a vendored
+            // repo's root and never sees the vendored default.project.json
+            // that would otherwise be loaded as a nested project and fail
+            // on paths only an npm/pnpm install would create. See §7 of
+            // docs/architecture.md.
+            replicated_storage.insert("modules".to_string(), json!({ "$path": "modules" }));
         }
     }
 
-    project.insert(
-        "tree".to_string(),
-        json!({
-            "$className": "DataModel",
-            "ReplicatedStorage": replicated_storage,
-            "ServerScriptService": {
-                "Server": { "$path": "src/server" }
-            },
-            "StarterPlayer": {
-                "StarterPlayerScripts": {
-                    "Client": { "$path": "src/client" }
-                }
-            }
-        }),
+    let mut tree = serde_json::Map::new();
+    tree.insert("$className".to_string(), json!("DataModel"));
+    tree.insert("ReplicatedStorage".to_string(), json!(replicated_storage));
+    tree.insert("ServerScriptService".to_string(), json!({ "Server": { "$path": "src/server" } }));
+    tree.insert(
+        "StarterPlayer".to_string(),
+        json!({ "StarterPlayerScripts": { "Client": { "$path": "src/client" } } }),
     );
+
+    // Place-level defaults (Lighting and friends) come from the
+    // place_template catalog, so changing the look every new project starts
+    // with is a data edit, not a code change.
+    for (name, node) in place_template::render() {
+        tree.insert(name, node);
+    }
+
+    project.insert("tree".to_string(), serde_json::Value::Object(tree));
 
     fs::write(&path, serde_json::to_string_pretty(&project)?)?;
     println!("wrote default.project.json");

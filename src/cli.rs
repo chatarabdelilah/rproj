@@ -17,6 +17,12 @@ pub enum Command {
         /// Project name / folder name under RobloxProjects
         name: String,
     },
+    /// Walk through a tool's settings one at a time, explaining each one,
+    /// and write them to its config file in the current project
+    Configure {
+        /// Tool key to configure (stylua, selene, luau-lsp...). Omit to pick from a list.
+        key: Option<String>,
+    },
     /// Resume the dev loop in the current project: install anything missing,
     /// then start the Rojo sourcemap watcher
     Watch,

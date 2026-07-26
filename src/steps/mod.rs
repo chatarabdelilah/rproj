@@ -2,6 +2,7 @@ pub mod blender;
 pub mod bootstrap;
 pub mod git;
 pub mod gitignore;
+pub mod modules;
 pub mod notify;
 pub mod rojo;
 pub mod studio_plugin;

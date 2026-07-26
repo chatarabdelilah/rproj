@@ -1,6 +1,8 @@
 use anyhow::Result;
 
+use crate::catalog::place_template::PLACE_TEMPLATE;
 use crate::catalog::tool_catalog;
+use crate::catalog::tool_settings;
 use crate::catalog::wally_packages;
 
 pub fn run(key: Option<&str>) -> Result<()> {
@@ -34,6 +36,9 @@ fn show_one(key: &str) -> Result<()> {
         println!("docs:     {}", tool.docs_url);
         println!();
         println!("{}", tool.description);
+        if tool_settings::find(key).is_some() {
+            println!("\nConfigurable: run `rproj configure {key}` to walk through its settings.");
+        }
         return Ok(());
     }
     println!("No catalog entry named `{key}`. Run `rproj info` with no argument to list everything.");
@@ -62,6 +67,23 @@ fn list_all() -> Result<()> {
         println!("  {family}");
         for tool in entries {
             println!("    {:<18} {:<32} ({})", tool.key, tool.kind.provider(), tool.kind.label());
+        }
+    }
+
+    println!("\nCONFIGURABLE (rproj configure <key>)");
+    for tool in tool_settings::CONFIGURABLE_TOOLS {
+        println!("    {:<18} {}", tool.key, tool.display_name);
+    }
+
+    println!("\nPLACE TEMPLATE (applied to every new project's default.project.json)");
+    for spec in PLACE_TEMPLATE {
+        let location = match spec.parent {
+            Some(parent) => format!("{parent}.{}", spec.name),
+            None => spec.name.to_string(),
+        };
+        println!("  {location} ({})", spec.class_name);
+        for prop in spec.properties {
+            println!("    {:<26} {}", prop.name, prop.value.display());
         }
     }
 

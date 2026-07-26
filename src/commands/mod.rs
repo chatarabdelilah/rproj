@@ -1,3 +1,4 @@
+pub mod configure;
 pub mod copy;
 pub mod info;
 pub mod new;

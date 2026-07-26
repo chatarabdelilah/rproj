@@ -38,6 +38,25 @@ impl Category {
     }
 }
 
+/// Where a package's source sits inside its cloned repo, for the
+/// git-submodule workflow. Verified against each upstream repo's own
+/// `default.project.json` rather than assumed - most are a plain `src` (or
+/// `lib`), but monorepos like littensy/charm and littensy/ripple publish
+/// several packages from one repo, so those point at a specific subpackage
+/// folder instead of the repo root.
+#[derive(Clone, Copy)]
+pub struct Submodule {
+    /// Folder name under `modules/submodules/` that this package's repo is
+    /// cloned into. Packages sharing a repo share this value, so the repo
+    /// is only cloned once. Chosen explicitly rather than derived from the
+    /// clone URL's last segment, which would produce names like
+    /// `roblox-lua-promise` and inconsistent casing (`Janitor`, `Fusion`).
+    pub dir: &'static str,
+    /// Path to the requirable source *within* `dir` - the folder holding
+    /// the package's `init.luau` (or a single file, for one-file packages).
+    pub path: &'static str,
+}
+
 pub struct PackageSpec {
     /// Short identifier used in rproj.toml and on the CLI (e.g. `rproj info reflex`).
     pub key: &'static str,
@@ -50,6 +69,21 @@ pub struct PackageSpec {
     /// URL and clones it once, since Wally's per-subpackage publishing has
     /// no equivalent for a raw git checkout.
     pub git_repo: &'static str,
+    /// The instance name this package is mounted under, both in
+    /// `modules/submodules/` and as the generated `modules/<name>.luau`
+    /// link file. Canonical upstream casing (`Charm`, `CharmSync`, `gt`),
+    /// not the catalog key - this is the name written in user code, and
+    /// for the monorepo packages it is load-bearing, see `submodule`.
+    pub module_name: &'static str,
+    /// Where this package's real Luau source lives inside its cloned repo,
+    /// for the git-submodule workflow only (Wally resolves its own package
+    /// layout and never looks at this). `None` means upstream only ships a
+    /// working module through an npm/pnpm install step (react-lua's
+    /// `require("@pkg/...")` aliases resolve through `node_modules`, which
+    /// a bare git clone never populates), so it can't be vendored as a raw
+    /// submodule at all - `pick_package_workflow` falls back to Wally when
+    /// one of these is selected.
+    pub submodule: Option<Submodule>,
     pub description: &'static str,
     pub maintenance: Maintenance,
     pub category: Category,
@@ -97,6 +131,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "react",
         source: "jsdotlua/react@17.2.1",
         git_repo: "https://github.com/jsdotlua/react-lua",
+        module_name: "React",
+        submodule: None,
         description: "Roact-style declarative UI library, a Luau port of React",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -107,6 +143,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "reactRoblox",
         source: "jsdotlua/react-roblox@17.2.1",
         git_repo: "https://github.com/jsdotlua/react-lua",
+        module_name: "ReactRoblox",
+        submodule: None,
         description: "React's Roblox renderer - required alongside react to mount anything",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -117,6 +155,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "vide",
         source: "centau/vide@0.4.1",
         git_repo: "https://github.com/centau/vide",
+        module_name: "Vide",
+        submodule: Some(Submodule { dir: "vide", path: "src" }),
         description: "Lightweight reactive UI + state library built for Luau",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -127,6 +167,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "fusion",
         source: "elttob/fusion@0.3.0",
         git_repo: "https://github.com/dphfox/Fusion",
+        module_name: "Fusion",
+        submodule: Some(Submodule { dir: "fusion", path: "src" }),
         description: "Reactive UI library with state management built in",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -141,6 +183,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "reflex",
         source: "littensy/reflex@4.3.1",
         git_repo: "https://github.com/littensy/reflex",
+        module_name: "Reflex",
+        submodule: Some(Submodule { dir: "reflex", path: "src" }),
         description: "Redux-inspired predictable state container",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -151,6 +195,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "reactReflex",
         source: "littensy/react-reflex@0.3.6",
         git_repo: "https://github.com/littensy/react-reflex",
+        module_name: "ReactReflex",
+        submodule: Some(Submodule { dir: "react-reflex", path: "src" }),
         description: "React bindings for Reflex",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -161,6 +207,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "charm",
         source: "littensy/charm@0.11.0",
         git_repo: "https://github.com/littensy/charm",
+        module_name: "Charm",
+        submodule: Some(Submodule { dir: "charm", path: "packages/charm/src" }),
         description: "Atom-based state management, inspired by Jotai/Nanostores",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -171,6 +219,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "charmSync",
         source: "littensy/charm-sync@0.4.0",
         git_repo: "https://github.com/littensy/charm",
+        module_name: "CharmSync",
+        submodule: Some(Submodule { dir: "charm", path: "packages/charm-sync/src" }),
         description: "Client/server atom synchronization for Charm",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -181,6 +231,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "reactCharm",
         source: "littensy/react-charm@0.4.0",
         git_repo: "https://github.com/littensy/charm",
+        module_name: "ReactCharm",
+        submodule: None,
         description: "React bindings for Charm",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -191,6 +243,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "videCharm",
         source: "littensy/vide-charm@0.4.0",
         git_repo: "https://github.com/littensy/charm",
+        module_name: "VideCharm",
+        submodule: Some(Submodule { dir: "charm", path: "packages/vide-charm/src" }),
         description: "Bridge between Vide and Charm, for using Charm atoms in Vide UI",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -202,6 +256,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "lyra",
         source: "paradoxum-games/lyra@0.6.0",
         git_repo: "https://github.com/paradoxum-games/lyra",
+        module_name: "Lyra",
+        submodule: Some(Submodule { dir: "lyra", path: "src" }),
         description: "Full game framework with a built-in player-data/profile layer",
         maintenance: Maintenance::Active,
         category: Category::DataProfile,
@@ -212,6 +268,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "profilestore",
         source: "lm-loleris/profilestore@1.0.3",
         git_repo: "https://github.com/MadStudioRoblox/ProfileStore",
+        module_name: "ProfileStore",
+        submodule: Some(Submodule { dir: "profilestore", path: "ProfileStore.luau" }),
         description: "DataStore session-locking wrapper - the successor to ProfileService, recommended for new projects",
         maintenance: Maintenance::Active,
         category: Category::DataProfile,
@@ -223,6 +281,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "testez",
         source: "roblox/testez@0.4.1",
         git_repo: "https://github.com/Roblox/testez",
+        module_name: "TestEZ",
+        submodule: Some(Submodule { dir: "testez", path: "src" }),
         description: "Roblox's own BDD-style unit testing framework - archived by Roblox in Sept 2024, no longer receiving updates upstream, but still the most common Wally-installable test framework in existing projects",
         maintenance: Maintenance::Legacy,
         category: Category::Testing,
@@ -234,6 +294,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "janitor",
         source: "howmanysmall/janitor@1.18.3",
         git_repo: "https://github.com/howmanysmall/Janitor",
+        module_name: "Janitor",
+        submodule: Some(Submodule { dir: "janitor", path: "src" }),
         description: "Cleanup/connection-management utility (a faster, typed Maid)",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -244,6 +306,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "ripple",
         source: "littensy/ripple@0.10.2",
         git_repo: "https://github.com/littensy/ripple",
+        module_name: "Ripple",
+        submodule: Some(Submodule { dir: "ripple", path: "packages/ripple/src" }),
         description: "Spring/tween-based animation library for Roblox UI, inspired by react-spring",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -254,6 +318,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "reactRipple",
         source: "littensy/react-ripple@3.0.1",
         git_repo: "https://github.com/littensy/ripple",
+        module_name: "ReactRipple",
+        submodule: None,
         description: "React bindings for Ripple's animation primitives",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -264,6 +330,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "videRipple",
         source: "littensy/vide-ripple@0.10.2",
         git_repo: "https://github.com/littensy/ripple",
+        module_name: "VideRipple",
+        submodule: Some(Submodule { dir: "ripple", path: "packages/vide-ripple/src" }),
         description: "Vide bindings for Ripple's animation primitives",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -274,6 +342,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "remo",
         source: "littensy/remo@1.5.3",
         git_repo: "https://github.com/littensy/remo",
+        module_name: "Remo",
+        submodule: Some(Submodule { dir: "remo", path: "src" }),
         description: "Type-safe remote event/networking wrapper",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -284,6 +354,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "promise",
         source: "evaera/promise@4.0.0",
         git_repo: "https://github.com/evaera/roblox-lua-promise",
+        module_name: "Promise",
+        submodule: Some(Submodule { dir: "promise", path: "lib" }),
         description: "Promise/A+-style async utility for Luau",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -294,6 +366,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "greentea",
         source: "corecii/greentea@0.4.11",
         git_repo: "https://github.com/corecii/greentea",
+        module_name: "gt",
+        submodule: Some(Submodule { dir: "greentea", path: "src" }),
         description: "Runtime type-checking utility",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -304,6 +378,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "t",
         source: "osyrisrblx/t@3.1.1",
         git_repo: "https://github.com/osyrisrblx/t",
+        module_name: "t",
+        submodule: Some(Submodule { dir: "t", path: "lib" }),
         description: "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -314,6 +390,8 @@ pub const PACKAGES: &[PackageSpec] = &[
         key: "sift",
         source: "csqrl/sift@0.0.11",
         git_repo: "https://github.com/csqrl/sift",
+        module_name: "Sift",
+        submodule: Some(Submodule { dir: "sift", path: "src" }),
         description: "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -335,12 +413,6 @@ impl PackageSpec {
         self.source.rsplit('@').next().unwrap_or("")
     }
 
-    /// The folder name to use under `Modules/` for the git-submodule package
-    /// workflow, derived from `git_repo`'s last path segment (e.g. "charm"
-    /// out of "https://github.com/littensy/charm").
-    pub fn repo_folder_name(&self) -> &'static str {
-        self.git_repo.rsplit('/').next().unwrap_or(self.git_repo)
-    }
 }
 
 pub fn find(key: &str) -> Option<&'static PackageSpec> {
