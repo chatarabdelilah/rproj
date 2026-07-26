@@ -1,5 +1,6 @@
 pub mod blender;
 pub mod bootstrap;
+pub mod git;
 pub mod gitignore;
 pub mod notify;
 pub mod rojo;

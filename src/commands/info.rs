@@ -1,6 +1,5 @@
 use anyhow::Result;
 
-use crate::catalog::presets;
 use crate::catalog::tool_catalog;
 use crate::catalog::wally_packages;
 
@@ -14,14 +13,6 @@ pub fn run(key: Option<&str>) -> Result<()> {
 /// Full detail on a single catalog entry: description, maintenance status,
 /// source/provider, docs. Compare `list_all`, which stays terse on purpose.
 fn show_one(key: &str) -> Result<()> {
-    if let Some(preset) = presets::find(key) {
-        println!("{} (preset)", preset.label);
-        println!("{}", "-".repeat(preset.label.len() + 9));
-        println!("packages: {}", preset.packages.join(", "));
-        println!();
-        println!("{}", preset.description);
-        return Ok(());
-    }
     if let Some(pkg) = wally_packages::find(key) {
         println!("{}", pkg.key);
         println!("{}", "-".repeat(pkg.key.len()));
@@ -54,12 +45,7 @@ fn show_one(key: &str) -> Result<()> {
 /// tools). No descriptions or maintenance badges here on purpose: run
 /// `rproj info <key>` for the full picture on any one entry.
 fn list_all() -> Result<()> {
-    println!("PRESETS");
-    for preset in presets::PRESETS {
-        println!("  {:<22} {} packages", preset.key, preset.packages.len());
-    }
-
-    println!("\nWALLY PACKAGES");
+    println!("WALLY PACKAGES");
     for category in wally_packages::Category::ALL {
         println!("  {}", category.label());
         for pkg in wally_packages::in_category(category) {

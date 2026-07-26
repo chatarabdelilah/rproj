@@ -6,8 +6,6 @@ use anyhow::Result;
 use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
 use crate::steps::run_in;
 
-const SELENE_CONFIG: &str = "std = \"roblox\"\n";
-
 const STYLUA_CONFIG: &str = r#"column_width = 120
 indent_type = "Spaces"
 indent_width = 4
@@ -45,9 +43,14 @@ pub fn add_selected_tools(project_dir: &Path, selected: &[String]) -> Result<()>
     Ok(())
 }
 
-pub fn ensure_selene_config(project_dir: &Path) -> Result<()> {
-    ensure_config_file(project_dir, "selene.toml", SELENE_CONFIG, |content| {
-        content.lines().any(|l| l.trim() == r#"std = "roblox""#)
+/// `std` needs "roblox+testez" instead of plain "roblox" when the project
+/// includes TestEZ, so selene understands its `describe`/`it` globals
+/// instead of flagging them as unknown globals.
+pub fn ensure_selene_config(project_dir: &Path, testez_selected: bool) -> Result<()> {
+    let std_value = if testez_selected { "roblox+testez" } else { "roblox" };
+    let config = format!("std = \"{std_value}\"\n");
+    ensure_config_file(project_dir, "selene.toml", &config, |content| {
+        content.lines().any(|l| l.trim() == format!(r#"std = "{std_value}""#))
     })
 }
 

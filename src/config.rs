@@ -71,11 +71,21 @@ fn dirs_documents() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join("Documents"))
 }
 
+/// How a project's packages get pulled in. Wally is the default; git
+/// submodules clone each selected package's own repo into `Modules/`
+/// instead of writing a `wally.toml`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PackageWorkflow {
+    Wally,
+    GitSubmodules,
+}
+
 /// Per-project record, written by `rproj new` into the project root.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectConfig {
     pub mode: String,
-    pub preset_key: Option<String>,
+    pub package_workflow: PackageWorkflow,
     pub packages: Vec<String>,
     /// Snapshot of which machine-wide tool keys were active when this
     /// project was created (for future "what did I pick before" reference).

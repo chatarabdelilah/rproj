@@ -4,33 +4,45 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use inquire::{MultiSelect, Select};
 
-use crate::catalog::presets::PRESETS;
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
-use crate::config::{GlobalConfig, ProjectConfig};
-use crate::steps::{blender, gitignore, rojo, toolchain, wally};
+use crate::commands::provision;
+use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig};
+use crate::steps::{blender, git, gitignore, rojo, toolchain, wally};
 
 pub fn run(name: &str) -> Result<()> {
-    let config = GlobalConfig::load()?;
-    if config.selected_rokit_tools.is_empty() {
-        bail!("no tools configured yet - run `rproj setup` first");
-    }
+    let mut config = GlobalConfig::load()?;
 
     let project_dir = config.projects_root()?.join(name);
     if project_dir.exists() {
         bail!("{} already exists", project_dir.display());
     }
+
+    // Self-sufficient: no `rproj setup` prerequisite. Runs the same
+    // tool/plugin/extension selection inline (defaulting to whatever was
+    // picked before, so repeat runs are a quick confirm-through) - picking
+    // Blender here is what surfaces its plugin question in the next step.
+    println!(
+        "rproj new {name}\n\
+         First, let's make sure your machine has what it needs. Every choice\n\
+         below shows what it does and whether it's actively maintained - nothing\n\
+         gets reinstalled if it's already present.\n"
+    );
+    provision::run(&mut config)?;
+    config.save()?;
+
     std::fs::create_dir_all(&project_dir)
         .with_context(|| format!("failed to create {}", project_dir.display()))?;
 
-    println!("Scaffolding `{name}` in {}\n", project_dir.display());
+    println!("\nScaffolding `{name}` in {}\n", project_dir.display());
 
-    let (mode, preset_key, packages) = pick_composition()?;
+    let (mode, packages) = pick_composition()?;
+    let package_workflow = pick_package_workflow(&packages)?;
 
-    scaffold(&project_dir, name, &config, &packages)?;
+    scaffold(&project_dir, name, &config, &packages, package_workflow)?;
 
     ProjectConfig {
         mode: mode.to_string(),
-        preset_key,
+        package_workflow,
         packages: packages.into_iter().collect(),
         tools_at_creation: config.selected_rokit_tools.clone(),
     }
@@ -40,41 +52,40 @@ pub fn run(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn pick_composition() -> Result<(&'static str, Option<String>, BTreeSet<String>)> {
+fn pick_composition() -> Result<(&'static str, BTreeSet<String>)> {
     let mode = Select::new(
         "How do you want to set up this project's packages?",
         vec![
-            "Preset workflow - pick a named bundle, no further questions",
             "Guided walkthrough - answer one question per category, with explanations (recommended for beginners)",
             "Expert checklist - pick anything, no hand-holding",
         ],
     )
     .prompt()?;
 
-    if mode.starts_with("Preset") {
-        let (key, packages) = pick_preset()?;
-        Ok(("preset", Some(key), packages))
-    } else if mode.starts_with("Guided") {
-        Ok(("guided", None, pick_guided()?))
+    if mode.starts_with("Guided") {
+        Ok(("guided", pick_guided()?))
     } else {
-        Ok(("expert", None, pick_expert()?))
+        Ok(("expert", pick_expert()?))
     }
 }
 
-fn pick_preset() -> Result<(String, BTreeSet<String>)> {
-    let options: Vec<String> = PRESETS
-        .iter()
-        .map(|p| format!("{} - {}", p.label, p.description))
-        .collect();
-    let chosen = Select::new("Pick a preset", options).prompt()?;
-    let preset = PRESETS
-        .iter()
-        .find(|p| chosen.starts_with(p.label))
-        .context("selected preset not found")?;
-
-    let mut packages: BTreeSet<String> = preset.packages.iter().map(|s| s.to_string()).collect();
-    add_companions(&mut packages);
-    Ok((preset.key.to_string(), packages))
+fn pick_package_workflow(packages: &BTreeSet<String>) -> Result<PackageWorkflow> {
+    if packages.is_empty() {
+        return Ok(PackageWorkflow::Wally);
+    }
+    let choice = Select::new(
+        "How do you want to pull in this project's packages?",
+        vec![
+            "Wally - the standard Roblox/Luau package manager (recommended)",
+            "Git submodules - clone each package's own repo instead of using Wally",
+        ],
+    )
+    .prompt()?;
+    Ok(if choice.starts_with("Wally") {
+        PackageWorkflow::Wally
+    } else {
+        PackageWorkflow::GitSubmodules
+    })
 }
 
 fn pick_guided() -> Result<BTreeSet<String>> {
@@ -149,27 +160,43 @@ fn scaffold(
     name: &str,
     config: &GlobalConfig,
     packages: &BTreeSet<String>,
+    package_workflow: PackageWorkflow,
 ) -> Result<()> {
+    git::ensure_repo_init(project_dir)?;
+
     toolchain::ensure_rokit_init(project_dir)?;
     toolchain::add_selected_tools(project_dir, &config.selected_rokit_tools)?;
-    toolchain::ensure_selene_config(project_dir)?;
+    toolchain::ensure_selene_config(project_dir, packages.contains("testez"))?;
     toolchain::ensure_stylua_config(project_dir)?;
 
-    rojo::ensure_rojo_init(project_dir)?;
-    rojo::ensure_packages_in_project_json(project_dir)?;
+    rojo::scaffold_project_json(project_dir, name, package_workflow)?;
 
-    let package_name = format!("rproj/{}", slugify(name));
-    let package_list: Vec<String> = packages.iter().cloned().collect();
-    wally::ensure_wally_init(project_dir)?;
-    wally::write_wally_toml(project_dir, &package_name, &package_list)?;
-    wally::wally_install(project_dir)?;
-
-    // Only needed once here to produce an initial sourcemap.json for
-    // wally-package-types; `rproj watch` owns the actual long-running watcher.
+    // Generate an initial sourcemap.json regardless of package workflow -
+    // useful on its own for luau-lsp, and wally-package-types additionally
+    // needs it below when using Wally.
     let mut watcher = rojo::start_sourcemap_watcher(project_dir)?;
     let _ = watcher.kill();
     let _ = watcher.wait();
-    wally::wally_package_types(project_dir)?;
+
+    match package_workflow {
+        PackageWorkflow::Wally => {
+            let package_name = format!("rproj/{}", slugify(name));
+            let package_list: Vec<String> = packages.iter().cloned().collect();
+            wally::ensure_wally_init(project_dir)?;
+            wally::write_wally_toml(project_dir, &package_name, &package_list)?;
+            wally::wally_install(project_dir)?;
+            wally::wally_package_types(project_dir)?;
+        }
+        PackageWorkflow::GitSubmodules => {
+            let mut added_repos = BTreeSet::new();
+            for key in packages {
+                let Some(spec) = wally_packages::find(key) else { continue };
+                if added_repos.insert(spec.git_repo) {
+                    git::add_submodule(project_dir, spec.git_repo, spec.repo_folder_name())?;
+                }
+            }
+        }
+    }
 
     gitignore::ensure_entries(project_dir)?;
 

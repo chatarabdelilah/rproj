@@ -4,16 +4,73 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
-use serde_json::Value;
+use serde_json::json;
 
-use crate::steps::{run, run_in};
+use crate::config::PackageWorkflow;
+use crate::steps::run;
 
-pub fn ensure_rojo_init(project_dir: &Path) -> Result<()> {
-    if project_dir.join("default.project.json").exists() {
+/// Writes `default.project.json` from scratch (rather than `rojo init` +
+/// patching) with the conventional Server/Client/Shared split, and creates
+/// the matching `src/` folders with a starter file each so Rojo has
+/// something to sync immediately. The packages folder mapped into
+/// `ReplicatedStorage` depends on which package workflow this project uses:
+/// Wally's `packages/` or git submodules' `Modules/`.
+pub fn scaffold_project_json(
+    project_dir: &Path,
+    project_name: &str,
+    package_workflow: PackageWorkflow,
+) -> Result<()> {
+    let path = project_dir.join("default.project.json");
+    if path.exists() {
         println!("check: default.project.json already exists");
         return Ok(());
     }
-    run_in("rojo", &["init"], Some(project_dir))
+
+    let starter_files = [
+        ("src/shared/init.luau", "-- Shared code, available to both client and server.\nreturn {}\n"),
+        ("src/server/init.server.luau", "-- Server entry point.\n"),
+        ("src/client/init.client.luau", "-- Client entry point.\n"),
+    ];
+    for (rel_path, contents) in starter_files {
+        let file_path = project_dir.join(rel_path);
+        if let Some(parent) = file_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        if !file_path.exists() {
+            fs::write(&file_path, contents)?;
+        }
+    }
+
+    let mut replicated_storage = serde_json::Map::new();
+    replicated_storage.insert("Shared".to_string(), json!({ "$path": "src/shared" }));
+    match package_workflow {
+        PackageWorkflow::Wally => {
+            replicated_storage.insert("packages".to_string(), json!({ "$path": "packages" }));
+        }
+        PackageWorkflow::GitSubmodules => {
+            replicated_storage.insert("Modules".to_string(), json!({ "$path": "Modules" }));
+        }
+    }
+
+    let project = json!({
+        "name": project_name,
+        "tree": {
+            "$className": "DataModel",
+            "ReplicatedStorage": replicated_storage,
+            "ServerScriptService": {
+                "Server": { "$path": "src/server" }
+            },
+            "StarterPlayer": {
+                "StarterPlayerScripts": {
+                    "Client": { "$path": "src/client" }
+                }
+            }
+        }
+    });
+
+    fs::write(&path, serde_json::to_string_pretty(&project)?)?;
+    println!("wrote default.project.json");
+    Ok(())
 }
 
 /// Installs/updates the Rojo Studio plugin via Rojo's own CLI command -
@@ -22,48 +79,6 @@ pub fn ensure_rojo_init(project_dir: &Path) -> Result<()> {
 /// to run once from `rproj setup`, not per-project.
 pub fn install_studio_plugin() -> Result<()> {
     run("rojo", &["plugin", "install"])
-}
-
-/// Adds a `packages` entry under `ReplicatedStorage` in default.project.json
-/// so Wally-installed packages get synced into Studio.
-pub fn ensure_packages_in_project_json(project_dir: &Path) -> Result<()> {
-    let path = project_dir.join("default.project.json");
-    let text = fs::read_to_string(&path)
-        .with_context(|| format!("failed to read {}", path.display()))?;
-    let mut project: Value = serde_json::from_str(&text)
-        .with_context(|| format!("invalid JSON in {}", path.display()))?;
-
-    let already_present = project
-        .pointer("/tree/ReplicatedStorage/packages/$path")
-        .and_then(Value::as_str)
-        == Some("packages");
-    if already_present {
-        println!("check: packages already in ReplicatedStorage");
-        return Ok(());
-    }
-
-    let tree = project
-        .as_object_mut()
-        .context("default.project.json root is not an object")?
-        .entry("tree")
-        .or_insert_with(|| Value::Object(Default::default()));
-    let replicated_storage = tree
-        .as_object_mut()
-        .context("`tree` is not an object")?
-        .entry("ReplicatedStorage")
-        .or_insert_with(|| Value::Object(Default::default()));
-    replicated_storage
-        .as_object_mut()
-        .context("`tree.ReplicatedStorage` is not an object")?
-        .insert(
-            "packages".to_string(),
-            serde_json::json!({ "$path": "packages" }),
-        );
-
-    let pretty = serde_json::to_string_pretty(&project)?;
-    fs::write(&path, pretty)?;
-    println!("added packages to ReplicatedStorage");
-    Ok(())
 }
 
 /// Starts `rojo sourcemap --watch`, blocking until sourcemap.json first

@@ -12,6 +12,11 @@ pub enum ToolKind {
     /// anything else is installed by downloading a GitHub release asset into the
     /// Studio plugins folder (see steps::studio_plugin).
     StudioPlugin { github_repo: &'static str, asset_suffix: &'static str },
+    /// The official Roblox Blender add-on - installed into Blender itself,
+    /// not Roblox Studio, via headless Python (see steps::blender). Only
+    /// relevant if Blender is also selected, and surfaced as a contextual
+    /// follow-up in the plugins step rather than the system-apps picker.
+    BlenderAddon { github_repo: &'static str },
 }
 
 impl ToolKind {
@@ -21,6 +26,7 @@ impl ToolKind {
             ToolKind::RokitTool { .. } => "rokit tool",
             ToolKind::VsCodeExtension { .. } => "vscode extension",
             ToolKind::StudioPlugin { .. } => "studio plugin",
+            ToolKind::BlenderAddon { .. } => "blender add-on",
         }
     }
 
@@ -32,6 +38,7 @@ impl ToolKind {
             ToolKind::RokitTool { rokit_source } => rokit_source,
             ToolKind::VsCodeExtension { extension_id } => extension_id,
             ToolKind::StudioPlugin { github_repo, .. } => github_repo,
+            ToolKind::BlenderAddon { github_repo } => github_repo,
         }
     }
 }
@@ -59,7 +66,11 @@ pub const FAMILY_ORDER: &[&str] = &[
     "Selene",
     "StyLua",
     "Lute",
+    "Tarmac",
+    "Mantle",
     "Luau Language Server",
+    "Blender",
+    "Themes",
     "Testing & extras",
 ];
 
@@ -166,9 +177,31 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         default_selected: true,
         docs_url: "https://lute.luau.org/",
     },
+    ToolEntry {
+        key: "tarmac",
+        description: "Roblox's own asset-sync tool - uploads images/sounds/meshes and generates Luau references for them",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::RokitTool { rokit_source: "Roblox/tarmac" },
+        family: "Tarmac",
+        default_selected: false,
+        docs_url: "https://github.com/Roblox/tarmac",
+    },
+    ToolEntry {
+        key: "mantle",
+        description: "Infrastructure-as-code deployment tool for Roblox places - no longer maintained upstream (the author's own words: \"do not expect responses to tickets, bug fixes, or new features\"), but still the most complete option for scripted deploys",
+        maintenance: Maintenance::Legacy,
+        kind: ToolKind::RokitTool { rokit_source: "blake-mealey/mantle" },
+        family: "Mantle",
+        default_selected: false,
+        docs_url: "https://mantledeploy.vercel.app/",
+    },
 ];
 
-pub const STUDIO_PLUGINS: &[ToolEntry] = &[
+/// Plugins shown in the plugins step, contextually filtered to what's
+/// relevant given the tools already picked (e.g. the Blender add-on only
+/// makes sense if Blender was selected). Not all of these install into
+/// Roblox Studio specifically - the Blender add-on installs into Blender.
+pub const PLUGINS: &[ToolEntry] = &[
     ToolEntry {
         key: "rojo-plugin",
         description: "Studio-side companion for Rojo's file sync (installed via `rojo plugin install`)",
@@ -195,6 +228,15 @@ pub const STUDIO_PLUGINS: &[ToolEntry] = &[
         family: "Luau Language Server",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md",
+    },
+    ToolEntry {
+        key: "blender-plugin",
+        description: "Roblox's official Blender add-on (\"Roblox Upload\") - uploads meshes/assets to Roblox via the Open Cloud API",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::BlenderAddon { github_repo: "Roblox/roblox-blender-plugin" },
+        family: "Blender",
+        default_selected: true,
+        docs_url: "https://create.roblox.com/docs/art/modeling/roblox-blender-plugin",
     },
 ];
 
@@ -235,13 +277,40 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.stylua",
     },
+    ToolEntry {
+        key: "theme-one-dark",
+        description: "Atom One Dark Theme, by Mahmoud Ali - a faithful port of Atom's iconic dark theme",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::VsCodeExtension { extension_id: "akamud.vscode-theme-onedark" },
+        family: "Themes",
+        default_selected: false,
+        docs_url: "https://marketplace.visualstudio.com/items?itemName=akamud.vscode-theme-onedark",
+    },
+    ToolEntry {
+        key: "theme-monospace",
+        description: "Monospace Theme, by Keksi - a minimalistic theme with subtle purple accents",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::VsCodeExtension { extension_id: "keksiqc.idx-monospace-theme" },
+        family: "Themes",
+        default_selected: false,
+        docs_url: "https://marketplace.visualstudio.com/items?itemName=keksiqc.idx-monospace-theme",
+    },
+    ToolEntry {
+        key: "theme-horizon",
+        description: "Horizon Theme, by Alexander Nanberg - a warm dual (light/dark) theme",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::VsCodeExtension { extension_id: "alexandernanberg.horizon-theme-vscode" },
+        family: "Themes",
+        default_selected: false,
+        docs_url: "https://marketplace.visualstudio.com/items?itemName=alexandernanberg.horizon-theme-vscode",
+    },
 ];
 
 pub fn all_setup_entries() -> impl Iterator<Item = &'static ToolEntry> {
     SYSTEM_APPS
         .iter()
         .chain(ROKIT_TOOLS.iter())
-        .chain(STUDIO_PLUGINS.iter())
+        .chain(PLUGINS.iter())
         .chain(VSCODE_EXTENSIONS.iter())
 }
 

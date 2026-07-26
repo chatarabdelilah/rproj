@@ -1,4 +1,3 @@
-pub mod presets;
 pub mod tool_catalog;
 pub mod wally_packages;
 

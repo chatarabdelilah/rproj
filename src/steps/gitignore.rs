@@ -3,7 +3,17 @@ use std::path::Path;
 
 use anyhow::Result;
 
-const ENTRIES: &[&str] = &["packages/", "wally.lock"];
+// wally.lock is deliberately NOT here - like Cargo.lock, it should be
+// committed so everyone building the project resolves the same package
+// versions. Only the regenerable Packages folder and build artifacts go here.
+const ENTRIES: &[&str] = &[
+    "packages/",
+    "sourcemap.json",
+    "*.blend1",
+    "*.blend2",
+    "Thumbs.db",
+    ".DS_Store",
+];
 
 pub fn ensure_entries(project_dir: &Path) -> Result<()> {
     let path = project_dir.join(".gitignore");
