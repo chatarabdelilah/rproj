@@ -5,6 +5,7 @@ use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
 use crate::catalog::tool_usage::{self, Usage};
 use crate::catalog::wally_packages;
+use crate::config::SavedSetup;
 
 pub fn run(key: Option<&str>) -> Result<()> {
     match key {
@@ -118,6 +119,14 @@ fn list_all() -> Result<()> {
         println!("  {location} ({})", spec.class_name);
         for prop in spec.properties {
             println!("    {:<26} {}", prop.name, prop.value.display());
+        }
+    }
+
+    let setups = SavedSetup::list();
+    if !setups.is_empty() {
+        println!("\nSAVED SETUPS (rproj new <name> --like <setup>)");
+        for setup in &setups {
+            println!("    {setup}");
         }
     }
 

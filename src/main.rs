@@ -19,7 +19,9 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Some(Command::Setup) => commands::setup::run(),
-        Some(Command::New { name }) => commands::new::run(&name),
+        Some(Command::New { name, reconfigure, like, save_setup }) => {
+            commands::new::run(&name, reconfigure, like.as_deref(), save_setup.as_deref())
+        }
         Some(Command::Configure { key }) => commands::configure::run(key.as_deref()),
         Some(Command::Watch) => commands::watch::run(),
         Some(Command::Copy) => commands::copy::run(),

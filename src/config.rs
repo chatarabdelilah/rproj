@@ -25,7 +25,7 @@ pub struct GlobalConfig {
 }
 
 impl GlobalConfig {
-    fn dirs() -> Result<ProjectDirs> {
+    pub(crate) fn dirs() -> Result<ProjectDirs> {
         ProjectDirs::from("", "", "rproj").context("could not determine a config directory for this platform")
     }
 
@@ -113,5 +113,97 @@ impl ProjectConfig {
         let path = Self::path_in(project_dir);
         let text = toml::to_string_pretty(self)?;
         fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))
+    }
+}
+
+/// A saved project composition, reusable for the next project.
+///
+/// Deliberately *not* the old hardcoded presets: this is whatever a real
+/// project ended up with, saved under a name you chose, so the set of
+/// available setups is yours rather than a curated list that goes stale.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SavedSetup {
+    pub packages: Vec<String>,
+    pub package_workflow: PackageWorkflow,
+}
+
+impl SavedSetup {
+    fn dir() -> Result<PathBuf> {
+        Ok(GlobalConfig::dirs()?.config_dir().join("setups"))
+    }
+
+    fn path_for(name: &str) -> Result<PathBuf> {
+        Ok(Self::dir()?.join(format!("{name}.toml")))
+    }
+
+    pub fn save(&self, name: &str) -> Result<PathBuf> {
+        let path = Self::path_for(name)?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+        fs::write(&path, toml::to_string_pretty(self)?)
+            .with_context(|| format!("failed to write {}", path.display()))?;
+        Ok(path)
+    }
+
+    pub fn load(name: &str) -> Result<Option<Self>> {
+        let path = Self::path_for(name)?;
+        if !path.exists() {
+            return Ok(None);
+        }
+        let text = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        Ok(Some(
+            toml::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))?,
+        ))
+    }
+
+    /// Names of every saved setup, sorted. Missing directory is not an
+    /// error - it just means none have been saved yet.
+    pub fn list() -> Vec<String> {
+        let Ok(dir) = Self::dir() else { return Vec::new() };
+        let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
+        let mut names: Vec<String> = entries
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let path = e.path();
+                (path.extension()? == "toml").then(|| path.file_stem()?.to_str().map(str::to_owned))?
+            })
+            .collect();
+        names.sort();
+        names
+    }
+}
+
+impl GlobalConfig {
+    /// Whether this machine has been through provisioning at least once.
+    ///
+    /// Keyed on having recorded *any* selection rather than on a flag, so
+    /// a config written by an older version still counts and someone who
+    /// deliberately selected nothing isn't asked again every time.
+    pub fn machine_configured(&self) -> bool {
+        self.last_checked.is_some()
+    }
+
+    /// One-line description of what provisioning last set up, for the
+    /// summary `rproj new` prints when it skips the questions.
+    pub fn machine_summary(&self) -> String {
+        let parts = [
+            (self.selected_system_apps.len(), "apps"),
+            (self.selected_rokit_tools.len(), "tools"),
+            (self.selected_studio_plugins.len(), "plugins"),
+            (self.selected_vscode_extensions.len(), "extensions"),
+        ];
+        let listed: Vec<String> = parts
+            .iter()
+            .filter(|(n, _)| *n > 0)
+            .map(|(n, label)| format!("{n} {label}"))
+            .collect();
+        if listed.is_empty() {
+            "nothing selected".to_string()
+        } else {
+            listed.join(", ")
+        }
     }
 }

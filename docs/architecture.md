@@ -17,8 +17,10 @@ This version is Windows-only (installs go through `winget`).
 | Command | Behavior |
 |---|---|
 | `rproj` (no args) | Prints a welcome/intro screen listing every command with a one-line description. Does not touch the filesystem or network. |
-| `rproj setup` | Runs machine provisioning only (see 2.2). Does not create a project. Safe to re-run any time to add or remove tools. |
-| `rproj new <name>` | Runs machine provisioning inline, then project scaffolding (see 2.2, 2.3). Fails immediately if `<RobloxProjects>/<name>` already exists. |
+| `rproj setup` | Runs machine provisioning only (see 2.2): system apps, global CLI tools, Studio plugins, editor extensions. Does not create a project. Safe to re-run any time to add or remove tools. |
+| `rproj new <name>` | Project scaffolding (see 2.3). Runs machine provisioning inline **only** on a machine that has never been provisioned, or with `--reconfigure`; otherwise prints a one-line machine summary and goes straight to the project questions. Fails immediately if `<RobloxProjects>/<name>` already exists, or if `--like` names a setup that doesn't exist (checked before any work). |
+| `rproj new --like <setup>` | Reuses a saved package selection and workflow instead of asking. Unknown names fail listing what is available. |
+| `rproj new --save-setup <name>` | Saves this project's package selection and workflow to `<config>/setups/<name>.toml` for later `--like` reuse. |
 | `rproj configure [key]` | Walks through one tool's settings, printing what each does before prompting, then writes them to that tool's config file relative to the current directory (see §8.4). With no key, prompts to pick a tool from the configurable list; with an unknown key, errors and lists the valid ones. |
 | `rproj watch` | Must be run from inside an existing project directory (one containing `default.project.json`); otherwise errors. Syncs the project's own tools/packages, then starts and blocks on Rojo's sourcemap watcher until interrupted (Ctrl+C). |
 | `rproj copy` | Recursively walks `./src`, concatenates every file's contents (each prefixed with a `// --- relative/path ---` header) and copies the result to the system clipboard. Prints a message and exits cleanly (not an error) if `src/` doesn't exist or contains no readable files. |
@@ -26,7 +28,9 @@ This version is Windows-only (installs go through `winget`).
 | `rproj info <key>` | Prints full detail for one catalog entry: description, maintenance status, source/provider, docs link, then — where one exists — its usage notes (§8.6): what it's for, when to reach for it, the commands to type, and the gotchas. Resolves wally packages first, then tools, then topics (`ci`, `check`), so `rproj info ci` works even though CI isn't an installable thing. |
 | `--verbose` / `-v` | Global flag on every command. Prints each sub-process command and all of its output. Without it, sub-process output is shown only when a step fails (§2.4). |
 
-### 2.2 Machine provisioning (shared by `rproj setup` and the inline step in `rproj new`)
+### 2.2 Machine provisioning (`rproj setup`, and `rproj new` on a fresh machine)
+
+Machine setup is a once-per-PC concern, kept out of the per-project path. `rproj new` runs it inline only when `GlobalConfig` records no previous run (`last_checked` unset) or when `--reconfigure` is passed; otherwise it prints a summary line and skips straight to project questions. Re-asking four multi-selects about winget packages on every new project was friction with no payoff — the answers almost never differ.
 
 Provisioning always asks, in this order:
 
@@ -94,8 +98,16 @@ struct GlobalConfig {
 
 // <project_dir>/rproj.toml
 // Written once by `rproj new`; read (packages list only) by `rproj watch`.
+// Saved package composition, at <config>/setups/<name>.toml. Not the old
+// hardcoded presets: these are whatever a real project ended up with,
+// under a name the user chose.
+struct SavedSetup {
+    packages: Vec<String>,
+    package_workflow: PackageWorkflow,
+}
+
 struct ProjectConfig {
-    mode: String,                    // "guided" | "expert"
+    mode: String,                // "guided" | "expert" | "like:<setup>"                    // "guided" | "expert"
     package_workflow: PackageWorkflow,
     packages: Vec<String>,           // catalog keys, including auto-added companions
     tools_at_creation: Vec<String>,  // snapshot of GlobalConfig.selected_rokit_tools at creation time
@@ -239,11 +251,12 @@ rproj/
         ├── gitignore.rs         .gitignore entries
         ├── vscode.rs            VS Code CLI location (PATH + winget-install fallback), extension install
         ├── studio_plugin.rs     generic "download latest GitHub release asset → Studio Plugins folder"
+        ├── testez.rs            testez-companion.toml, whose roots mirror the scaffolded tree  [+ 2 tests]
         ├── blender.rs           Blender add-on install (headless Python), starter-scene scaffold
         └── notify.rs            desktop toast notification wrapper
 ```
 
-32 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9.
+33 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9.
 
 ## 5. Subsystem Map
 
@@ -453,6 +466,7 @@ Each of these was learned from an actual reproduced failure during this project'
 - **A catalog `key` is not the same value as the underlying install identifier** (winget id, rokit source, VS Code extension id, GitHub repo). Conflating the two once meant passing catalog keys straight to `code --install-extension`, which silently failed every single extension (each reported "not found" individually rather than crashing outright, which is part of why it went unnoticed until the whole batch was inspected). Anywhere an install step needs the underlying identifier, it must look it up from the matching `ToolEntry`/`PackageSpec`'s `kind`/`source`/`git_repo` field, never assume the catalog key doubles as it.
 - **A single item's failure inside a loop over multiple items must never propagate with a bare `?`.** Every install loop in this codebase (system apps, rokit tools — both global and per-project, Studio plugins, Blender add-on, VS Code extensions) is written to catch, warn, and continue per item, specifically because an early version that didn't do this let one flaky item (a rate-limited GitHub call, a winget hash mismatch) abort everything downstream, including the entire project scaffold.
 - **Wally's lockfile (`wally.lock`) should be committed, not gitignored** — the same convention as `Cargo.lock`, for reproducible installs across a team. An earlier version of `steps::gitignore` had this backwards.
+- **Polling for a file as a proxy for "did that work?" turns every failure into the same timeout.** Sourcemap generation used to run `rojo sourcemap --watch`, poll for `sourcemap.json` with a 10s deadline, then kill the child. Any rojo failure surfaced as `timed out waiting for sourcemap.json` while rojo's actual explanation sat unread in a captured pipe — and the timeout path bailed *without* killing the child, leaving a watcher process behind. The scaffold now runs `rojo sourcemap` once and reads the exit status, so failures report what rojo said. (`rproj watch` still needs a long-lived watcher and keeps one, in the foreground with inherited stdio.)
 - **`rojo sourcemap --watch` requires its `$path` target folder to already exist on disk** — attempting to generate a sourcemap before the package-install step has created `packages/`/`modules/` fails outright ("could not be turned into a Roblox Instance"), not just incompletely. Package installation (and an explicit `create_dir_all` safety net, since `wally install` may not create `packages/` at all with zero dependencies) must run before sourcemap generation, never after.
 
 ## 8. Data-Driven Matrices
@@ -701,12 +715,14 @@ Guided mode applies these automatically after the category prompts finish; exper
 
 ## 9. Testing Strategy
 
-15 automated tests exist, all inline `#[cfg(test)]` unit tests run by `cargo test`. There is no CI configuration and `Cargo.toml` declares no dev-dependencies (nothing beyond `std` assertions is needed).
+21 automated tests exist, all inline `#[cfg(test)]` unit tests run by `cargo test`. There is no CI configuration and `Cargo.toml` declares no dev-dependencies (nothing beyond `std` assertions is needed).
 
 | Test file | Covers |
 | --- | --- |
 | `src/steps/modules.rs` (5 tests) | Every row of §8.2's requirement matrix: no mapped path is a repo root; monorepo siblings are mounted under the names their own source requires; unvendorable packages are excluded; link files require the name the package is mounted under; packages sharing a repo share one clone dir. |
 | `src/catalog/place_template.rs` (3 tests) | Studio 0–255 colours convert to Rojo's 0–1 floats and stay in range; child instances nest under their declared parent rather than leaking to top level; every declared parent actually exists in the table (otherwise `render` silently drops the child). |
+| `src/steps/testez.rs` (2 tests) | TestEZ Companion roots are service-rooted (not `game/`-prefixed) and name the same lowercase instances the project file creates — a mismatched root finds no tests, which is indistinguishable from every test passing. |
+| `src/commands/new.rs` (4 tests) | A submodule project doesn't pin Wally tools it can't use; a Wally project keeps all of them; a fresh machine is provisioned but an already-provisioned one isn't re-asked; the machine summary describes what's set up and omits empty groups. |
 | `src/catalog/quality_checks.rs` (7 tests) | Every rule in §8.5: steps are emitted only for selected tools; imports are exactly what the emitted steps use; result vars are both declared and aggregated; no dangling exit check when nothing can fail; nothing rendered when no step applies; every declared import resolves; CI runs the gate and uses `lute test` rather than the `lute run tests` that hard-errors without a tests script. |
 
 These deliberately encode §7's landmines rather than the happy path — each one fails loudly if a specific past bug is reintroduced, including two failure modes (a wrong mount name, a dropped child) that would otherwise surface only as a runtime nil inside Studio, with no build error anywhere.

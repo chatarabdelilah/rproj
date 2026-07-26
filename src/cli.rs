@@ -21,6 +21,19 @@ pub enum Command {
     New {
         /// Project name / folder name under RobloxProjects
         name: String,
+        /// Re-ask the machine setup questions (system apps, CLI tools,
+        /// plugins, extensions). Normally these are skipped once your
+        /// machine is set up.
+        #[arg(long)]
+        reconfigure: bool,
+        /// Reuse a saved package setup instead of picking packages
+        /// (see --save-setup). `rproj info` lists what's saved.
+        #[arg(long, value_name = "SETUP")]
+        like: Option<String>,
+        /// Save this project's package selection and workflow under a
+        /// name, so a later `rproj new ... --like <name>` reuses it.
+        #[arg(long, value_name = "NAME")]
+        save_setup: Option<String>,
     },
     /// Walk through a tool's settings one at a time, explaining each one,
     /// and write them to its config file in the current project

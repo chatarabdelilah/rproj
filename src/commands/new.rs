@@ -6,11 +6,11 @@ use inquire::{MultiSelect, Select};
 
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
-use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig};
+use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
 use crate::steps::{blender, git, gitignore, modules, quality, rojo, testez, toolchain, wally};
 use crate::ui;
 
-pub fn run(name: &str) -> Result<()> {
+pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option<&str>) -> Result<()> {
     let mut config = GlobalConfig::load()?;
 
     let project_dir = config.projects_root()?.join(name);
@@ -18,13 +18,28 @@ pub fn run(name: &str) -> Result<()> {
         bail!("{} already exists", project_dir.display());
     }
 
-    // Self-sufficient: no `rproj setup` prerequisite. Runs the same
-    // tool/plugin/extension selection inline (defaulting to whatever was
-    // picked before, so repeat runs are a quick confirm-through) - picking
-    // Blender here is what surfaces its plugin question in the next step.
-    println!("First, what your machine needs. Nothing already present is reinstalled.\n");
-    provision::run(&mut config)?;
-    config.save()?;
+    // Resolve --like before doing any work, so a typo'd setup name fails
+    // immediately rather than after provisioning and half a scaffold.
+    let saved = match like {
+        Some(setup) => Some(load_setup(setup)?),
+        None => None,
+    };
+
+    // Machine setup is a once-per-PC concern, so it's only asked when
+    // there's nothing recorded yet (a genuinely fresh machine) or when
+    // explicitly requested. Re-asking four multi-selects about winget
+    // packages on every new project was pure friction: the answers are
+    // almost never different, and `rproj new` is a project command.
+    if reconfigure || !config.machine_configured() {
+        if !config.machine_configured() {
+            println!("Setting your machine up first - this only happens once.\n");
+        }
+        provision::run(&mut config)?;
+        config.save()?;
+    } else {
+        ui::ok(&format!("machine ready: {}", config.machine_summary()));
+        ui::detail("rproj setup to re-check, or rproj new --reconfigure to change");
+    }
 
     std::fs::create_dir_all(&project_dir)
         .with_context(|| format!("failed to create {}", project_dir.display()))?;
@@ -32,18 +47,40 @@ pub fn run(name: &str) -> Result<()> {
     ui::section(&format!("Scaffolding {name}"));
     ui::detail(&project_dir.display().to_string());
 
-    let (mode, packages) = pick_composition()?;
-    let package_workflow = pick_package_workflow(&packages)?;
+    let (mode, packages, package_workflow) = match saved {
+        Some((setup_name, setup)) => {
+            let packages: BTreeSet<String> = setup.packages.into_iter().collect();
+            ui::ok(&format!(
+                "using saved setup `{setup_name}`: {}",
+                if packages.is_empty() { "no packages".to_string() } else { packages.iter().cloned().collect::<Vec<_>>().join(", ") }
+            ));
+            (format!("like:{setup_name}"), packages, setup.package_workflow)
+        }
+        None => {
+            let (mode, packages) = pick_composition()?;
+            let workflow = pick_package_workflow(&packages)?;
+            (mode.to_string(), packages, workflow)
+        }
+    };
 
     scaffold(&project_dir, name, &config, &packages, package_workflow)?;
 
     ProjectConfig {
-        mode: mode.to_string(),
+        mode,
         package_workflow,
-        packages: packages.into_iter().collect(),
+        packages: packages.iter().cloned().collect(),
         tools_at_creation: config.selected_rokit_tools.clone(),
     }
     .save_to(&project_dir)?;
+
+    if let Some(setup_name) = save_setup {
+        let setup = SavedSetup {
+            packages: packages.iter().cloned().collect(),
+            package_workflow,
+        };
+        setup.save(setup_name)?;
+        ui::ok(&format!("saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"));
+    }
 
     // A new project is exactly when someone doesn't yet know what to run,
     // so end with the next steps rather than just "done".
@@ -324,6 +361,23 @@ fn tools_for_workflow(config: &GlobalConfig, workflow: PackageWorkflow) -> Vec<S
         .collect()
 }
 
+/// Resolves `--like`, failing with the list of what *is* available rather
+/// than a bare "not found" - the names are user-chosen, so a typo is the
+/// likely cause and the correction is right there.
+fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
+    if let Some(setup) = SavedSetup::load(name)? {
+        return Ok((name.to_string(), setup));
+    }
+    let available = SavedSetup::list();
+    if available.is_empty() {
+        bail!(
+            "no saved setup called `{name}` - none have been saved yet. \
+             Add `--save-setup <name>` to a `rproj new` run to create one."
+        );
+    }
+    bail!("no saved setup called `{name}`. Available: {}", available.join(", "))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,6 +398,33 @@ mod tests {
         assert_eq!(tools, vec!["rojo", "selene"]);
     }
 
+    /// A machine that has never been provisioned must still get the
+    /// questions; one that has must not be asked again.
+    #[test]
+    fn machine_is_only_configured_once() {
+        let fresh = GlobalConfig::default();
+        assert!(!fresh.machine_configured(), "a fresh config needs provisioning");
+
+        let provisioned = GlobalConfig { last_checked: Some("123".into()), ..Default::default() };
+        assert!(provisioned.machine_configured(), "already provisioned, don't re-ask");
+    }
+
+    /// The skip path prints this instead of the pickers, so it has to say
+    /// something rather than being blank on a real config.
+    #[test]
+    fn machine_summary_describes_what_is_set_up() {
+        let config = GlobalConfig {
+            selected_system_apps: vec!["git".into(), "vscode".into()],
+            selected_rokit_tools: vec!["rojo".into()],
+            ..Default::default()
+        };
+        let summary = config.machine_summary();
+        assert!(summary.contains("2 apps"), "{summary}");
+        assert!(summary.contains("1 tools"), "{summary}");
+        assert!(!summary.contains("plugins"), "empty groups shouldn't be listed: {summary}");
+        assert_eq!(GlobalConfig::default().machine_summary(), "nothing selected");
+    }
+
     #[test]
     fn wally_projects_keep_every_selected_tool() {
         let config = config_with(&["rojo", "wally", "wally-package-types", "selene"]);
@@ -351,3 +432,4 @@ mod tests {
         assert_eq!(tools, vec!["rojo", "wally", "wally-package-types", "selene"]);
     }
 }
+

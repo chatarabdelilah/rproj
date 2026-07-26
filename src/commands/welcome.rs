@@ -4,12 +4,12 @@ pub fn run() {
          Takes a fresh PC all the way to a working Roblox dev setup, and scaffolds\n\
          individual projects on top of it. Explains what it's installing as it goes.\n\n\
          Commands:\n\
-         \x20 rproj new <name> Scaffold a new project - asks what your machine needs\n\
-         \x20                  (Git, VS Code, Roblox Studio, Blender, Rojo, Wally,\n\
-         \x20                  Selene, StyLua, plugins...) along the way, so there's\n\
-         \x20                  no separate setup step to run first\n\
-         \x20 rproj setup      Install/configure tools ahead of time without creating\n\
-         \x20                  a project yet - optional, `new` asks the same things\n\
+         \x20 rproj new <name> Scaffold a new project. Sets your machine up first if\n\
+         \x20                  it hasn't been; after that it goes straight to the\n\
+         \x20                  project questions. --like <setup> reuses a saved\n\
+         \x20                  package selection, --save-setup <name> stores one\n\
+         \x20 rproj setup      Install or change the machine-wide tools (system apps,\n\
+         \x20                  CLI tools, Studio plugins, editor extensions)\n\
          \x20 rproj configure [tool]\n\
          \x20                  Walk through a tool's settings (StyLua, Selene,\n\
          \x20                  luau-lsp...) one at a time, explaining what each\n\
