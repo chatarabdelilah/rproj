@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::catalog::place_template::PLACE_TEMPLATE;
 use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
+use crate::catalog::tool_usage::{self, Usage};
 use crate::catalog::wally_packages;
 
 pub fn run(key: Option<&str>) -> Result<()> {
@@ -36,13 +37,43 @@ fn show_one(key: &str) -> Result<()> {
         println!("docs:     {}", tool.docs_url);
         println!();
         println!("{}", tool.description);
-        if tool_settings::find(key).is_some() {
-            println!("\nConfigurable: run `rproj configure {key}` to walk through its settings.");
+        if let Some(usage) = tool_usage::find(key) {
+            print_usage(usage);
         }
+        if tool_settings::find(key).is_some() {
+            println!("\nConfigure: rproj configure {key}");
+        }
+        return Ok(());
+    }
+    if let Some(usage) = tool_usage::find(key) {
+        println!("{}", usage.key);
+        println!("{}", "-".repeat(usage.key.len()));
+        print_usage(usage);
         return Ok(());
     }
     println!("No catalog entry named `{key}`. Run `rproj info` with no argument to list everything.");
     Ok(())
+}
+
+/// The "how do I actually use this" half of an entry. Printed after the
+/// identifying details, since someone running `rproj info tarmac` almost
+/// always wants this rather than the version string.
+fn print_usage(usage: &Usage) {
+    println!("\n{}", usage.what);
+    println!("\nWhen: {}", usage.when);
+    if !usage.commands.is_empty() {
+        println!("\nCommands:");
+        let width = usage.commands.iter().map(|(c, _)| c.len()).max().unwrap_or(0);
+        for (cmd, explanation) in usage.commands {
+            println!("  {cmd:<width$}  {explanation}");
+        }
+    }
+    if !usage.notes.is_empty() {
+        println!("\nWorth knowing:");
+        for note in usage.notes {
+            println!("  - {note}");
+        }
+    }
 }
 
 /// Terse, categorized listing of the whole catalog - just names and enough
@@ -87,6 +118,20 @@ fn list_all() -> Result<()> {
         }
     }
 
-    println!("\nRun `rproj info <key>` for full details (description, maintenance status, docs) on any entry.");
+    println!("\nTOPICS");
+    for topic in tool_usage::TOPICS {
+        println!("    {:<18} {}", topic.key, first_sentence(topic.what));
+    }
+
+    println!("\nRun `rproj info <key>` for what it does, the commands to use it, and the gotchas.");
     Ok(())
+}
+
+/// Keeps the listing to one line per entry - the full text is what
+/// `rproj info <key>` is for.
+fn first_sentence(text: &str) -> &str {
+    match text.find(". ") {
+        Some(i) => &text[..=i],
+        None => text,
+    }
 }

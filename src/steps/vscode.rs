@@ -5,6 +5,7 @@ use std::process::Command;
 use anyhow::{bail, Context, Result};
 
 use crate::steps::probe;
+use crate::ui::{self, Tally};
 
 enum CodeInvocation {
     OnPath,
@@ -73,15 +74,18 @@ pub fn ensure_extensions(extension_ids: &[&str]) -> Result<()> {
     locate_code()?;
 
     let installed = installed_extensions();
+    let mut tally = Tally::new();
     for id in extension_ids {
         if installed.contains(&id.to_lowercase()) {
-            println!("check: VS Code extension {id} already installed");
+            tally.already(id);
             continue;
         }
-        if let Err(err) = install_extension(id) {
-            eprintln!("warning: failed to install VS Code extension {id}, continuing - {err:#}\n");
+        match install_extension(id) {
+            Ok(()) => tally.did(id),
+            Err(err) => ui::warn(&format!("VS Code extension {id} skipped - {err}")),
         }
     }
+    tally.finish("VS Code extensions");
     Ok(())
 }
 

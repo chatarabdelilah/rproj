@@ -9,13 +9,13 @@ use serde_json::json;
 use crate::catalog::place_template;
 use crate::config::PackageWorkflow;
 use crate::steps::run;
+use crate::ui;
 
 /// Writes `default.project.json` from scratch (rather than `rojo init` +
-/// patching) with the conventional Server/Client/Shared split, and creates
-/// the matching `src/` folders with a starter file each so Rojo has
-/// something to sync immediately. The packages folder mapped into
+/// patching) with the conventional server/client/shared split, and creates
+/// the matching `src/` folders. The packages folder mapped into
 /// `ReplicatedStorage` depends on which package workflow this project uses:
-/// Wally's `packages/` or git submodules' `Modules/`.
+/// Wally's `packages/` or git submodules' `modules/`.
 pub fn scaffold_project_json(
     project_dir: &Path,
     project_name: &str,
@@ -23,27 +23,38 @@ pub fn scaffold_project_json(
 ) -> Result<()> {
     let path = project_dir.join("default.project.json");
     if path.exists() {
-        println!("check: default.project.json already exists");
+        ui::ok("default.project.json already exists");
         return Ok(());
     }
 
-    let starter_files = [
-        ("src/shared/init.luau", "-- Shared code, available to both client and server.\nreturn {}\n"),
-        ("src/server/init.server.luau", "-- Server entry point.\n"),
-        ("src/client/init.client.luau", "-- Client entry point.\n"),
-    ];
-    for (rel_path, contents) in starter_files {
-        let file_path = project_dir.join(rel_path);
-        if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        if !file_path.exists() {
-            fs::write(&file_path, contents)?;
+    // Create the source folders empty, with only a .gitkeep.
+    //
+    // Deliberately no `init.luau`/`init.server.luau`/`init.client.luau`
+    // starter files: Rojo turns a directory containing one into a
+    // *script* named after the directory, so `src/shared/init.luau` makes
+    // ReplicatedStorage.shared a ModuleScript-with-children and
+    // `src/server/init.server.luau` makes it a Script, instead of the
+    // plain Folders these are meant to be. (Verified: with the init files
+    // present the sourcemap reports className ModuleScript/Script; without
+    // them, Folder.) The .gitkeep is what keeps the directory in git -
+    // git doesn't track empty directories, so without it a fresh clone
+    // would be missing the paths default.project.json maps and Rojo would
+    // fail on them.
+    for rel_path in ["src/shared", "src/server", "src/client"] {
+        let dir = project_dir.join(rel_path);
+        fs::create_dir_all(&dir)?;
+        let keep = dir.join(".gitkeep");
+        if !keep.exists() {
+            fs::write(&keep, "")?;
         }
     }
 
+    // Instance names mirroring source folders stay lowercase, matching the
+    // folder they map. Roblox's own service names (ReplicatedStorage,
+    // ServerScriptService...) keep their real casing - those aren't ours
+    // to rename.
     let mut replicated_storage = serde_json::Map::new();
-    replicated_storage.insert("Shared".to_string(), json!({ "$path": "src/shared" }));
+    replicated_storage.insert("shared".to_string(), json!({ "$path": "src/shared" }));
 
     let mut project = serde_json::Map::new();
     project.insert("name".to_string(), json!(project_name));
@@ -70,10 +81,10 @@ pub fn scaffold_project_json(
     let mut tree = serde_json::Map::new();
     tree.insert("$className".to_string(), json!("DataModel"));
     tree.insert("ReplicatedStorage".to_string(), json!(replicated_storage));
-    tree.insert("ServerScriptService".to_string(), json!({ "Server": { "$path": "src/server" } }));
+    tree.insert("ServerScriptService".to_string(), json!({ "server": { "$path": "src/server" } }));
     tree.insert(
         "StarterPlayer".to_string(),
-        json!({ "StarterPlayerScripts": { "Client": { "$path": "src/client" } } }),
+        json!({ "StarterPlayerScripts": { "client": { "$path": "src/client" } } }),
     );
 
     // Place-level defaults (Lighting and friends) come from the
@@ -86,7 +97,7 @@ pub fn scaffold_project_json(
     project.insert("tree".to_string(), serde_json::Value::Object(tree));
 
     fs::write(&path, serde_json::to_string_pretty(&project)?)?;
-    println!("wrote default.project.json");
+    ui::ok("wrote default.project.json");
     Ok(())
 }
 
@@ -103,11 +114,17 @@ pub fn install_studio_plugin() -> Result<()> {
 /// the background and returns its child handle so the caller can decide
 /// whether to wait on it or move on.
 pub fn start_sourcemap_watcher(project_dir: &Path) -> Result<std::process::Child> {
-    println!("\n> rojo sourcemap --watch default.project.json -o sourcemap.json");
+    let args = ["sourcemap", "--watch", "default.project.json", "-o", "sourcemap.json"];
+    ui::command("rojo", &args);
     let child = Command::new("rojo")
-        .args(["sourcemap", "--watch", "default.project.json", "-o", "sourcemap.json"])
+        .args(args)
         .current_dir(project_dir)
         .stdin(Stdio::null())
+        // Rojo prints "Created sourcemap at ..." on every write; the
+        // caller already reports the outcome, and under --watch this would
+        // keep printing after the scaffold has moved on.
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .context("failed to start `rojo sourcemap --watch`")?;
 
@@ -122,3 +139,4 @@ pub fn start_sourcemap_watcher(project_dir: &Path) -> Result<std::process::Child
     }
     Ok(child)
 }
+

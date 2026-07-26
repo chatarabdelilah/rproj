@@ -2,6 +2,7 @@ pub mod place_template;
 pub mod quality_checks;
 pub mod tool_catalog;
 pub mod tool_settings;
+pub mod tool_usage;
 pub mod wally_packages;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -5,6 +5,11 @@ use clap::{Parser, Subcommand};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    /// Show every command rproj runs and all of its output. Without this,
+    /// sub-process output is only shown when something fails.
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
 }
 
 #[derive(Subcommand)]

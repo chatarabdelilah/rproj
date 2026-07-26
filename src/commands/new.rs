@@ -8,6 +8,7 @@ use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig};
 use crate::steps::{blender, git, gitignore, modules, quality, rojo, toolchain, wally};
+use crate::ui;
 
 pub fn run(name: &str) -> Result<()> {
     let mut config = GlobalConfig::load()?;
@@ -21,19 +22,15 @@ pub fn run(name: &str) -> Result<()> {
     // tool/plugin/extension selection inline (defaulting to whatever was
     // picked before, so repeat runs are a quick confirm-through) - picking
     // Blender here is what surfaces its plugin question in the next step.
-    println!(
-        "rproj new {name}\n\
-         First, let's make sure your machine has what it needs. Every choice\n\
-         below shows what it does and whether it's actively maintained - nothing\n\
-         gets reinstalled if it's already present.\n"
-    );
+    println!("First, what your machine needs. Nothing already present is reinstalled.\n");
     provision::run(&mut config)?;
     config.save()?;
 
     std::fs::create_dir_all(&project_dir)
         .with_context(|| format!("failed to create {}", project_dir.display()))?;
 
-    println!("\nScaffolding `{name}` in {}\n", project_dir.display());
+    ui::section(&format!("Scaffolding {name}"));
+    ui::detail(&project_dir.display().to_string());
 
     let (mode, packages) = pick_composition()?;
     let package_workflow = pick_package_workflow(&packages)?;
@@ -48,7 +45,16 @@ pub fn run(name: &str) -> Result<()> {
     }
     .save_to(&project_dir)?;
 
-    println!("\n`{name}` is ready. Run `rproj watch` from inside it to start developing.");
+    // A new project is exactly when someone doesn't yet know what to run,
+    // so end with the next steps rather than just "done".
+    println!(
+        "\n{name} is ready.\n\
+         \x20 cd {}\n\
+         \x20 rproj watch          start the dev loop (Rojo sourcemap watcher)\n\
+         \x20 lute run check       run the quality gate (types, lint, format)\n\
+         \x20 rproj info <tool>    what a tool does, and the commands to use it",
+        project_dir.display()
+    );
     Ok(())
 }
 
@@ -260,12 +266,13 @@ fn scaffold(
         }
     }
 
-    // Generate an initial sourcemap.json now that the packages/Modules
+    // Generate an initial sourcemap.json now that the packages/modules
     // folder actually exists - useful on its own for luau-lsp, and
     // wally-package-types additionally needs it below when using Wally.
     let mut watcher = rojo::start_sourcemap_watcher(project_dir)?;
     let _ = watcher.kill();
     let _ = watcher.wait();
+    ui::ok("generated sourcemap.json");
 
     if package_workflow == PackageWorkflow::Wally {
         wally::wally_package_types(project_dir)?;

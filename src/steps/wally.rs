@@ -5,10 +5,11 @@ use anyhow::{Context, Result};
 
 use crate::catalog::wally_packages;
 use crate::steps::run_in;
+use crate::ui;
 
 pub fn ensure_wally_init(project_dir: &Path) -> Result<()> {
     if project_dir.join("wally.toml").exists() {
-        println!("check: wally.toml already exists");
+        ui::ok("wally.toml already exists");
         return Ok(());
     }
     run_in("wally", &["init"], Some(project_dir))
@@ -26,7 +27,7 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
             .iter()
             .all(|key| content.lines().any(|l| l.trim_start().starts_with(&format!("{key} ="))));
         if has_all {
-            println!("check: wally.toml already configured");
+            ui::ok("wally.toml already configured");
             return Ok(());
         }
     }
@@ -41,7 +42,7 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
     }
 
     fs::write(&path, body)?;
-    println!("wrote wally.toml");
+    ui::ok("wrote wally.toml");
     Ok(())
 }
 

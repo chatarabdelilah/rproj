@@ -3,13 +3,14 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::steps::run_in;
+use crate::ui;
 
 /// Every scaffolded project should be a git repo - required outright for
 /// the git-submodule package workflow, and just generally part of a
 /// professional setup regardless of which package workflow is in use.
 pub fn ensure_repo_init(project_dir: &Path) -> Result<()> {
     if project_dir.join(".git").exists() {
-        println!("check: git repo already initialized");
+        ui::ok("git repo already initialized");
         return Ok(());
     }
     run_in("git", &["init"], Some(project_dir))
@@ -25,7 +26,7 @@ pub fn ensure_repo_init(project_dir: &Path) -> Result<()> {
 pub fn add_submodule(project_dir: &Path, repo_url: &str, dir: &str) -> Result<()> {
     let rel_path = format!("modules/submodules/{dir}");
     if project_dir.join(&rel_path).exists() {
-        println!("check: {rel_path} already added as a submodule");
+        ui::ok(&format!("{rel_path} already present"));
         return Ok(());
     }
     run_in("git", &["submodule", "add", repo_url, &rel_path], Some(project_dir))

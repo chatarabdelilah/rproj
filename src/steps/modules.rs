@@ -28,6 +28,7 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use crate::catalog::wally_packages::{self, PackageSpec};
+use crate::ui;
 
 /// Test folders that ship inside some packages' source directories (e.g.
 /// `vide-ripple/src/__tests__`). Excluded from the submodules project so
@@ -81,7 +82,7 @@ pub fn write_submodules_project(project_dir: &Path, selected: &BTreeSet<String>)
     let path = dir.join("default.project.json");
     fs::write(&path, serde_json::to_string_pretty(&project)?)
         .with_context(|| format!("failed to write {}", path.display()))?;
-    println!("wrote modules/submodules/default.project.json");
+    ui::ok("wrote modules/submodules/default.project.json");
     Ok(())
 }
 
@@ -115,9 +116,9 @@ pub fn write_link_files(project_dir: &Path, selected: &BTreeSet<String>) -> Resu
     }
 
     if written.is_empty() {
-        println!("check: modules/ link files already present");
+        ui::ok("modules/ link files already present");
     } else {
-        println!("wrote modules/ link files: {}", written.join(", "));
+        ui::ok(&format!("wrote modules/ link files: {}", written.join(", ")));
     }
     Ok(())
 }

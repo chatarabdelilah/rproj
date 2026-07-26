@@ -3,6 +3,7 @@ mod cli;
 mod commands;
 mod config;
 mod steps;
+mod ui;
 
 use clap::Parser;
 
@@ -10,6 +11,7 @@ use cli::{Cli, Command};
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    ui::set_verbose(cli.verbose);
 
     match cli.command {
         None => {

@@ -16,27 +16,64 @@ use std::process::Command;
 
 use anyhow::{bail, Context, Result};
 
-/// Run a command with inherited stdio, printing what's being run and
-/// returning an error with context instead of silently exiting the whole
-/// process (the old JS scripts called `process.exit(1)` on any failure).
+use crate::ui;
+
+/// Runs a command, capturing its output rather than letting it print.
+///
+/// Capturing is the point: these tools are chatty in ways that are noise
+/// to someone running rproj (see `ui`). The output is surfaced only when
+/// the command fails - where it's the whole explanation - or under
+/// `--verbose`. Errors carry context instead of exiting the process
+/// outright (the JS scripts this replaced called `process.exit(1)` on any
+/// failure, which took the whole run down with them).
 pub fn run(program: &str, args: &[&str]) -> Result<()> {
     run_in(program, args, None)
 }
 
 pub fn run_in(program: &str, args: &[&str], dir: Option<&Path>) -> Result<()> {
-    println!("\n> {program} {}", args.join(" "));
+    let output = capture(program, args, dir)?;
+    if ui::is_verbose() {
+        ui::passthrough(&output.stdout, &output.stderr);
+    }
+    if !output.success {
+        ui::passthrough(&output.stdout, &output.stderr);
+        bail!("`{program} {}` failed", args.join(" "));
+    }
+    Ok(())
+}
+
+pub struct Captured {
+    pub stdout: String,
+    pub stderr: String,
+    pub success: bool,
+}
+
+impl Captured {
+    /// Both streams together, for callers that need to classify a failure
+    /// by matching on a message (some tools write theirs to stdout, some
+    /// to stderr, and which one isn't always stable across versions).
+    pub fn combined(&self) -> String {
+        format!("{}{}", self.stdout, self.stderr)
+    }
+}
+
+/// Runs a command and hands back its output for the caller to classify.
+/// Only a genuine failure to *spawn* is an error here - a non-zero exit is
+/// data, since for several of these tools it's an expected, benign outcome
+/// (a tool already installed, for instance).
+pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captured> {
+    ui::command(program, args);
     let mut cmd = Command::new(program);
     cmd.args(args);
     if let Some(dir) = dir {
         cmd.current_dir(dir);
     }
-    let status = cmd
-        .status()
-        .with_context(|| format!("failed to spawn `{program}`"))?;
-    if !status.success() {
-        bail!("`{program} {}` exited with {status}", args.join(" "));
-    }
-    Ok(())
+    let output = cmd.output().with_context(|| format!("failed to spawn `{program}`"))?;
+    Ok(Captured {
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        success: output.status.success(),
+    })
 }
 
 /// Like `run`, but a non-zero exit is reported by returning `Ok(false)`

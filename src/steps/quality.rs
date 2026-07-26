@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 
 use crate::catalog::quality_checks::{render_check, CI_WORKFLOW};
 use crate::steps::{probe, run_in};
+use crate::ui;
 
 /// Writes `.luaurc` with `languageMode: "strict"`.
 ///
@@ -31,7 +32,7 @@ pub fn ensure_luaurc(project_dir: &Path) -> Result<()> {
             // Don't discard a file we can't parse - .luaurc allows
             // comments that serde_json rejects.
             _ => {
-                println!("check: .luaurc exists but couldn't be parsed, leaving it alone");
+                ui::skip(".luaurc exists but couldn't be parsed, leaving it alone");
                 return Ok(());
             }
         }
@@ -40,14 +41,14 @@ pub fn ensure_luaurc(project_dir: &Path) -> Result<()> {
     };
 
     if config.contains_key("languageMode") {
-        println!("check: .luaurc already configured");
+        ui::ok(".luaurc already configured");
         return Ok(());
     }
     config.insert("languageMode".to_string(), json!("strict"));
 
     fs::write(&path, format!("{}\n", serde_json::to_string_pretty(&Value::Object(config))?))
         .with_context(|| format!("failed to write {}", path.display()))?;
-    println!("wrote .luaurc");
+    ui::ok("wrote .luaurc");
     Ok(())
 }
 
@@ -60,24 +61,24 @@ pub fn ensure_check_script(project_dir: &Path, selected_tools: &[String]) -> Res
 
     let path = project_dir.join(".lute").join("check.luau");
     if path.exists() {
-        println!("check: .lute/check.luau already exists");
+        ui::ok(".lute/check.luau already exists");
         return Ok(true);
     }
     fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
     fs::write(&path, contents).with_context(|| format!("failed to write {}", path.display()))?;
-    println!("wrote .lute/check.luau");
+    ui::ok("wrote .lute/check.luau");
     Ok(true)
 }
 
 pub fn ensure_ci_workflow(project_dir: &Path) -> Result<()> {
     let path = project_dir.join(".github").join("workflows").join("ci.yml");
     if path.exists() {
-        println!("check: .github/workflows/ci.yml already exists");
+        ui::ok(".github/workflows/ci.yml already exists");
         return Ok(());
     }
     fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
     fs::write(&path, CI_WORKFLOW).with_context(|| format!("failed to write {}", path.display()))?;
-    println!("wrote .github/workflows/ci.yml");
+    ui::ok("wrote .github/workflows/ci.yml");
     Ok(())
 }
 
@@ -88,11 +89,11 @@ pub fn ensure_ci_workflow(project_dir: &Path) -> Result<()> {
 /// same command anyway.
 pub fn lute_setup(project_dir: &Path) -> Result<()> {
     if !probe("lute", &["--version"]) {
-        println!("skip: lute isn't on PATH yet - run `lute setup --with-luaurc` in the project once it is");
+        ui::skip("lute isn't on PATH yet - run `lute setup --with-luaurc` in the project once it is");
         return Ok(());
     }
     if let Err(err) = run_in("lute", &["setup", "--with-luaurc"], Some(project_dir)) {
-        eprintln!("warning: `lute setup --with-luaurc` failed, continuing - {err}");
+        ui::warn(&format!("lute setup failed, continuing - {err}"));
     }
     Ok(())
 }

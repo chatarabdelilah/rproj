@@ -1,11 +1,11 @@
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 
 use crate::catalog::tool_catalog::{ToolEntry, ToolKind};
-use crate::steps::{probe, run};
+use crate::steps::{capture, probe, run};
+use crate::ui;
 
 pub fn is_installed(entry: &ToolEntry) -> bool {
     match entry.kind {
@@ -37,48 +37,37 @@ fn install_winget(winget_id: &str) -> Result<()> {
         "--accept-source-agreements",
         "--accept-package-agreements",
     ];
-    println!("\n> winget {}", args.join(" "));
-    let output = Command::new("winget")
-        .args(args)
-        .output()
-        .context("failed to spawn `winget`")?;
-
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
+    let output = capture("winget", &args, None)?;
+    if ui::is_verbose() {
+        ui::passthrough(&output.stdout, &output.stderr);
     }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-    if output.status.success() {
+    if output.success {
         return Ok(());
     }
 
-    let combined = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    if combined.contains("Installer hash does not match") {
-        bail!(
-            "winget install --id {winget_id} failed: installer hash does not match.\n\
-             This is a known upstream winget-pkgs issue, not a bug in rproj - it happens \
-             when a vendor's installer self-updates behind a static download URL (Roblox's \
-             installers are a common example) faster than the winget manifest's pinned \
-             hash gets refreshed. Options:\n\
-             - Re-run `rproj setup` later; winget-pkgs bots usually catch up within days\n\
-             - Install it directly for now: https://www.roblox.com/create\n\
-             - Or, as an admin, run `winget settings --enable InstallerHashOverride` once, \
-             then retry with the integrity check bypassed (only if you trust the source)"
-        );
+    // A hash mismatch is a known, ongoing upstream winget-pkgs issue, not
+    // anything the user did. Keep the headline short and put the recovery
+    // options in `detail` so they're available without dominating the run.
+    if output.combined().contains("Installer hash does not match") {
+        bail!("winget's pinned installer hash is stale (an upstream winget-pkgs issue, not rproj)");
     }
-    bail!("`winget {}` exited with {}", args.join(" "), output.status);
+    ui::passthrough(&output.stdout, &output.stderr);
+    bail!("winget install failed");
 }
+
+/// Recovery options for the hash-mismatch case, printed by the caller
+/// alongside its warning so the failure is actionable without every other
+/// install path carrying the same wall of text.
+pub const WINGET_HASH_HELP: &str = "A vendor updated their installer behind a static URL faster than winget's manifest.\n\
+     - Try again in a few days; the winget-pkgs bots usually catch up\n\
+     - Or install it directly (for Studio: https://www.roblox.com/create)\n\
+     - Or, as admin, `winget settings --enable InstallerHashOverride` once, then retry";
 
 /// Ensures Rokit itself is present. Rokit isn't on winget - its own docs
 /// specify `cargo install rokit --locked` then `rokit self-install`.
 pub fn ensure_rokit() -> Result<()> {
     if probe("rokit", &["--version"]) {
-        println!("check: rokit already installed");
+        ui::ok("rokit already installed");
         return Ok(());
     }
     run("cargo", &["install", "rokit", "--locked"])?;
@@ -87,10 +76,10 @@ pub fn ensure_rokit() -> Result<()> {
 
 pub fn ensure_projects_folder(root: &Path) -> Result<()> {
     if root.exists() {
-        println!("check: {} already exists", root.display());
+        ui::ok(&format!("{} already exists", root.display()));
         return Ok(());
     }
     fs::create_dir_all(root)?;
-    println!("created {}", root.display());
+    ui::ok(&format!("created {}", root.display()));
     Ok(())
 }

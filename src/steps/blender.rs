@@ -5,6 +5,7 @@ use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
 use crate::steps::{github_get_text, probe};
+use crate::ui;
 
 /// Roblox's stud scale: 1 stud = 0.28 meters. Setting Blender's scene unit
 /// scale to this means 1 Blender unit lines up with 1 Roblox stud.
@@ -88,7 +89,7 @@ else:
     let stdout = run_headless_script(&script)?;
 
     if let Some(module) = stdout.lines().find_map(|l| l.strip_prefix("RPROJ_ALREADY_INSTALLED:")) {
-        println!("check: Roblox Blender plugin already installed ({module})");
+        ui::ok(&format!("Blender add-on already installed ({module})"));
     }
     Ok(())
 }
@@ -113,7 +114,7 @@ pub fn scaffold_starter_scene(project_dir: &Path) -> Result<()> {
     let blender_dir = project_dir.join("blender");
     let dest = blender_dir.join("scene.blend");
     if dest.exists() {
-        println!("check: blender/scene.blend already exists");
+        ui::ok("blender/scene.blend already exists");
         return Ok(());
     }
     fs::create_dir_all(&blender_dir)?;
@@ -129,7 +130,7 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
 "#
     );
     run_headless_script(&script)?;
-    println!("scaffolded blender/scene.blend");
+    ui::ok("scaffolded blender/scene.blend");
     Ok(())
 }
 
@@ -157,14 +158,16 @@ fn run_headless_script(script: &str) -> Result<String> {
     let _ = fs::remove_file(&script_path);
     let output = output?;
 
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    if ui::is_verbose() {
+        ui::passthrough(&stdout, &stderr);
     }
 
     if !output.status.success() {
+        // Blender is a Windows GUI-subsystem executable, so this captured
+        // output is the only place its diagnostics appear at all.
+        ui::passthrough(&stdout, &stderr);
         bail!(
             "blender exited with {} (see output above - if it just says \
              \"Python script failed, check the message in the system console\", \
@@ -173,7 +176,7 @@ fn run_headless_script(script: &str) -> Result<String> {
             output.status
         );
     }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    Ok(stdout)
 }
 
 /// Finds blender.exe even when it's not on PATH. winget installs Blender

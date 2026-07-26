@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
+use crate::ui;
 
 // wally.lock is deliberately NOT here - like Cargo.lock, it should be
 // committed so everyone building the project resolves the same package
@@ -36,7 +37,7 @@ pub fn ensure_entries(project_dir: &Path) -> Result<()> {
         .collect();
 
     if missing.is_empty() {
-        println!("check: .gitignore already configured");
+        ui::ok(".gitignore already configured");
         return Ok(());
     }
 
@@ -49,6 +50,6 @@ pub fn ensure_entries(project_dir: &Path) -> Result<()> {
         updated.push('\n');
     }
     fs::write(&path, updated)?;
-    println!("updated .gitignore");
+    ui::ok("updated .gitignore");
     Ok(())
 }

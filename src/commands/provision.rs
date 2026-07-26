@@ -7,6 +7,7 @@ use crate::catalog::tool_catalog::{
 };
 use crate::config::GlobalConfig;
 use crate::steps::{blender, bootstrap, rojo, studio_plugin, toolchain, vscode};
+use crate::ui::{self, Tally};
 
 /// Everything `rproj setup` used to do standalone, now shared so `rproj new`
 /// can run the same tool/plugin/extension selection inline instead of
@@ -52,14 +53,25 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     // can work anyway, so this one stays a hard failure.
     bootstrap::ensure_rokit()?;
 
+    ui::section("Machine setup");
+    let mut apps = Tally::new();
     for key in &system_apps {
         let Some(entry) = SYSTEM_APPS.iter().find(|e| e.key == *key) else { continue };
         if bootstrap::is_installed(entry) {
-            println!("check: {} already installed", entry.key);
-        } else if let Err(err) = bootstrap::install(entry) {
-            warn_and_continue(entry.key, &err);
+            apps.already(entry.key);
+        } else {
+            match bootstrap::install(entry) {
+                Ok(()) => apps.did(entry.key),
+                Err(err) => {
+                    ui::warn(&format!("{}: {err}", entry.key));
+                    if format!("{err}").contains("installer hash") {
+                        ui::detail(bootstrap::WINGET_HASH_HELP);
+                    }
+                }
+            }
         }
     }
+    apps.finish("system apps");
 
     let projects_root = config.roblox_projects_root.clone().unwrap_or(config.projects_root()?);
     bootstrap::ensure_projects_folder(&projects_root)?;
@@ -85,7 +97,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
                 warn_and_continue("rojo-plugin", &err);
             }
         } else {
-            println!("skip: rojo-plugin needs Roblox Studio, which isn't installed yet");
+            ui::skip("rojo-plugin needs Roblox Studio, which isn't installed yet");
         }
     }
     // Sourced from the catalog entry (github_repo/asset_suffix) rather than

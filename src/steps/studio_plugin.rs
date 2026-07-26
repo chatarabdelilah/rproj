@@ -5,6 +5,7 @@ use anyhow::{bail, Context, Result};
 use serde_json::Value;
 
 use crate::steps::github_get_text;
+use crate::ui;
 
 /// `%LOCALAPPDATA%\Roblox\Plugins` - the same folder `rojo plugin install` targets.
 pub fn studio_plugins_dir() -> Result<PathBuf> {
@@ -39,7 +40,7 @@ pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Res
     fs::create_dir_all(&plugins_dir)?;
     let dest = plugins_dir.join(name);
     if dest.exists() {
-        println!("check: {name} already installed in Studio plugins folder");
+        ui::ok(&format!("{name} already in Studio plugins"));
         return Ok(());
     }
 
@@ -55,6 +56,6 @@ pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Res
         bail!("downloaded asset {name} was empty");
     }
     fs::write(&dest, bytes)?;
-    println!("installed {name} to {}", plugins_dir.display());
+    ui::ok(&format!("installed {name}"));
     Ok(())
 }
