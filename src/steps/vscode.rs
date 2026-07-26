@@ -1,9 +1,12 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{bail, Context, Result};
+use serde_json::{json, Value};
 
+use crate::config::PackageWorkflow;
 use crate::steps::probe;
 use crate::ui::{self, Tally};
 
@@ -95,11 +98,91 @@ fn install_extension(id: &str) -> Result<()> {
     if !output.stdout.is_empty() {
         print!("{}", String::from_utf8_lossy(&output.stdout));
     }
-    if !output.stderr.is_empty() {
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
     if !output.status.success() {
+        ui::passthrough(
+            &String::from_utf8_lossy(&output.stdout),
+            &String::from_utf8_lossy(&output.stderr),
+        );
         bail!("exited with {}", output.status);
     }
     Ok(())
+}
+
+/// Merges `entries` into the project's `.vscode/settings.json`.
+///
+/// Merging rather than replacing matters: the file routinely holds
+/// unrelated editor preferences, and more than one thing writes to it
+/// (`rproj new`'s scaffold and every `rproj configure` run targeting a VS
+/// Code tool), so each write has to leave the other keys alone.
+pub fn merge_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<()> {
+    let dir = project_dir.join(".vscode");
+    fs::create_dir_all(&dir)?;
+    let path = dir.join("settings.json");
+
+    let mut settings = if path.exists() {
+        let text = fs::read_to_string(&path)?;
+        match serde_json::from_str::<Value>(&text) {
+            Ok(Value::Object(map)) => map,
+            Ok(_) => bail!("{} exists but isn't a JSON object", path.display()),
+            // VS Code tolerates comments and trailing commas here;
+            // serde_json doesn't. Refuse rather than silently discarding
+            // settings we couldn't parse.
+            Err(err) => bail!(
+                "could not parse {} ({err}). It may contain comments or trailing commas, \
+                 which this writer can't preserve - fix or move the file, then re-run.",
+                path.display()
+            ),
+        }
+    } else {
+        serde_json::Map::new()
+    };
+
+    for (key, value) in entries {
+        settings.insert((*key).to_string(), value.clone());
+    }
+
+    fs::write(&path, format!("{}\n", serde_json::to_string_pretty(&Value::Object(settings))?))
+        .with_context(|| format!("failed to write {}", path.display()))?;
+    ui::ok("wrote .vscode/settings.json");
+    Ok(())
+}
+
+/// Globs the editor should treat as vendored third-party code.
+///
+/// luau-lsp already defaults both of these to `["**/_Index/**"]`, which is
+/// where *Wally* puts vendored packages - so the Wally workflow gets this
+/// behaviour for free and the git-submodule workflow got none of it. That
+/// asymmetry is the whole reason a submodule project showed hundreds of
+/// diagnostics from code it doesn't own, and offered every package twice
+/// in auto-import (`modules.Charm` and `modules.submodules.Charm`).
+/// Extending the defaults rather than replacing them keeps `_Index`
+/// covered for projects that use both.
+const VENDORED_GLOBS: &[&str] = &["**/_Index/**", "**/submodules/**"];
+
+/// Writes the editor settings a scaffolded project needs on top of the
+/// extension defaults.
+pub fn ensure_project_settings(project_dir: &Path, workflow: PackageWorkflow) -> Result<()> {
+    if workflow != PackageWorkflow::GitSubmodules {
+        return Ok(());
+    }
+    merge_settings(
+        project_dir,
+        &[
+            ("luau-lsp.ignoreGlobs", json!(VENDORED_GLOBS)),
+            ("luau-lsp.completion.imports.ignoreGlobs", json!(VENDORED_GLOBS)),
+        ],
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// luau-lsp's own defaults only cover Wally's `_Index`; dropping it
+    /// while adding `submodules` would regress projects using both.
+    #[test]
+    fn vendored_globs_extend_rather_than_replace_the_defaults() {
+        assert!(VENDORED_GLOBS.contains(&"**/_Index/**"), "must keep Wally's vendored dir");
+        assert!(VENDORED_GLOBS.contains(&"**/submodules/**"), "must add the submodule dir");
+    }
 }

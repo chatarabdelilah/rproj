@@ -9,13 +9,14 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use inquire::{Confirm, CustomType, Select};
 use serde_json::{json, Value};
 
 use crate::catalog::tool_settings::{
     self, ConfigTarget, ConfigurableTool, SettingKind, SettingSpec, CONFIGURABLE_TOOLS,
 };
+use crate::steps::vscode;
 use crate::ui;
 
 pub fn run(key: Option<&str>) -> Result<()> {
@@ -109,39 +110,10 @@ fn write_toml(project_dir: &Path, filename: &str, answers: &[(&SettingSpec, Valu
     Ok(())
 }
 
-/// Merges into `.vscode/settings.json` rather than overwriting it - the
-/// file routinely holds unrelated editor preferences, and several catalog
-/// tools write into this same file, so each run must leave the other keys
-/// alone.
+/// Applies the answers to `.vscode/settings.json`, merging rather than
+/// replacing (see `steps::vscode::merge_settings`).
 fn write_vscode_settings(project_dir: &Path, answers: &[(&SettingSpec, Value)]) -> Result<()> {
-    let dir = project_dir.join(".vscode");
-    fs::create_dir_all(&dir)?;
-    let path = dir.join("settings.json");
-
-    let mut settings = if path.exists() {
-        let text = fs::read_to_string(&path)?;
-        match serde_json::from_str::<Value>(&text) {
-            Ok(Value::Object(map)) => map,
-            Ok(_) => bail!("{} exists but isn't a JSON object", path.display()),
-            // VS Code tolerates comments and trailing commas in this file;
-            // serde_json does not. Refuse rather than silently discarding
-            // settings we failed to parse.
-            Err(err) => bail!(
-                "could not parse {} ({err}). It may contain comments or trailing commas, \
-                 which this writer can't preserve - fix or move the file, then re-run.",
-                path.display()
-            ),
-        }
-    } else {
-        serde_json::Map::new()
-    };
-
-    for (setting, value) in answers {
-        settings.insert(setting.key.to_string(), value.clone());
-    }
-
-    fs::write(&path, serde_json::to_string_pretty(&Value::Object(settings))?)
-        .with_context(|| format!("failed to write {}", path.display()))?;
-    ui::ok("wrote .vscode/settings.json");
-    Ok(())
+    let entries: Vec<(&str, Value)> =
+        answers.iter().map(|(s, v)| (s.key, v.clone())).collect();
+    vscode::merge_settings(project_dir, &entries)
 }

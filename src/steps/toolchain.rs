@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 
 use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
 use crate::catalog::tool_settings;
+use crate::config::PackageWorkflow;
 use crate::steps::{capture, run_in};
 use crate::ui::{self, Tally};
 
@@ -141,10 +142,25 @@ fn run_rokit_add(
 /// `std` needs "roblox+testez" instead of plain "roblox" when the project
 /// includes TestEZ, so selene understands its `describe`/`it` globals
 /// instead of flagging them as unknown globals.
-pub fn ensure_selene_config(project_dir: &Path, testez_selected: bool) -> Result<()> {
+pub fn ensure_selene_config(
+    project_dir: &Path,
+    testez_selected: bool,
+    workflow: PackageWorkflow,
+) -> Result<()> {
     let std_value = if testez_selected { "roblox+testez" } else { "roblox" };
-    let config = tool_settings::default_toml("selene", &[("std", std_value)])
+    let mut config = tool_settings::default_toml("selene", &[("std", std_value)])
         .context("selene is missing from the configurable-tools catalog")?;
+
+    // Vendored submodules are third-party checkouts we don't control, and
+    // linting them produces hundreds of findings that aren't this
+    // project's to fix. Wally's workflow needs no equivalent: its vendored
+    // code lands under `packages/`, which is gitignored and not linted.
+    if workflow == PackageWorkflow::GitSubmodules {
+        config = tool_settings::insert_top_level(
+            &config,
+            r#"exclude = ["modules/submodules/**"]"#,
+        );
+    }
     ensure_config_file(project_dir, "selene.toml", &config, |content| {
         content.lines().any(|l| l.trim() == format!(r#"std = "{std_value}""#))
     })

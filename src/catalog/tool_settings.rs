@@ -446,6 +446,23 @@ pub fn default_toml(tool_key: &str, overrides: &[(&str, &str)]) -> Option<String
     Some(render_toml(&answers))
 }
 
+/// Inserts a raw top-level `key = value` line before the first `[section]`
+/// header.
+///
+/// Appending would be wrong: in TOML every key after a header belongs to
+/// that table, so an `exclude` tacked onto the end of a file with a
+/// `[rules]` section becomes `rules.exclude` and is silently ignored.
+pub fn insert_top_level(toml: &str, line: &str) -> String {
+    match toml.find("\n[") {
+        // `i` is the newline immediately before the header. Slicing
+        // through it keeps the blank line that already separated the
+        // sections, and the trailing `\n\n` restores one after the
+        // inserted key so the header isn't left crowded against it.
+        Some(i) => format!("{}{line}\n\n{}", &toml[..=i], &toml[i + 1..]),
+        None => format!("{toml}{line}\n"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,6 +510,35 @@ mod tests {
             toml[..first_header].contains("std ="),
             "std must appear before the first header:\n{toml}"
         );
+    }
+
+    /// An inserted key landing after a header silently becomes part of
+    /// that table - `exclude` would turn into `rules.exclude` and do
+    /// nothing at all.
+    #[test]
+    fn inserted_keys_land_above_the_first_section() {
+        let base = default_toml("selene", &[]).unwrap();
+        let with_exclude = insert_top_level(&base, r#"exclude = ["modules/submodules/**"]"#);
+        let first_header = with_exclude.find("
+[").expect("selene has a [rules] section");
+        assert!(with_exclude[..first_header].contains("exclude ="), "{with_exclude}");
+        assert!(with_exclude.contains("[rules]"), "sections must survive:
+{with_exclude}");
+        assert!(
+            with_exclude.contains("
+
+[rules]"),
+            "the header should keep a blank line above it:
+{with_exclude}"
+        );
+    }
+
+    /// A file with no sections at all still has to get the key.
+    #[test]
+    fn inserted_keys_work_without_any_section() {
+        let out = insert_top_level("std = \"roblox\"
+", "exclude = []");
+        assert!(out.contains("exclude = []"), "{out}");
     }
 
     /// Every tool's key must be resolvable, or `rproj configure <key>` and

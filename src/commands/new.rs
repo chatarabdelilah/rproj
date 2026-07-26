@@ -7,7 +7,7 @@ use inquire::{MultiSelect, Select};
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
-use crate::steps::{blender, git, gitignore, modules, quality, rojo, testez, toolchain, wally};
+use crate::steps::{blender, git, gitignore, modules, quality, rojo, testez, toolchain, vscode, wally};
 use crate::ui;
 
 pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option<&str>) -> Result<()> {
@@ -254,10 +254,14 @@ fn scaffold(
     // into a project that vendors its packages as git submodules pulls in a
     // tool it will never run and implies a workflow it isn't using.
     toolchain::add_selected_tools(project_dir, &tools_for_workflow(config, package_workflow))?;
-    toolchain::ensure_selene_config(project_dir, packages.contains("testez"))?;
+    toolchain::ensure_selene_config(project_dir, packages.contains("testez"), package_workflow)?;
     toolchain::ensure_stylua_config(project_dir)?;
 
-    rojo::scaffold_project_json(project_dir, name, package_workflow)?;
+    let testez_selected = packages.contains("testez");
+    rojo::scaffold_project_json(project_dir, name, package_workflow, testez_selected)?;
+    if testez_selected {
+        testez::ensure_test_folders(project_dir)?;
+    }
 
     // default.project.json maps a $path (packages/ or modules/) that has to
     // exist before rojo will touch it at all - generating a sourcemap while
@@ -307,12 +311,17 @@ fn scaffold(
     // Quality gate. The check script is generated from the tools this
     // project actually selected, so it never invokes something that was
     // never installed; CI only lands if there's a script for it to run.
-    if packages.contains("testez") {
+    if testez_selected {
         // Both are required: selene.toml already says roblox+testez, and
         // without testez.yml to resolve it selene refuses to run at all.
         testez::ensure_selene_std(project_dir)?;
         testez::ensure_companion_config(project_dir)?;
     }
+
+    // Tells the editor which folders are vendored third-party code. Only
+    // needed for the submodule workflow - luau-lsp already ignores Wally's
+    // `_Index` by default, which is why that workflow never showed this.
+    vscode::ensure_project_settings(project_dir, package_workflow)?;
 
     quality::ensure_luaurc(project_dir)?;
     // The same filtered list the project's rokit.toml got: a check script
@@ -460,4 +469,5 @@ mod tests {
         assert_eq!(tools, vec!["rojo", "wally", "wally-package-types", "selene"]);
     }
 }
+
 

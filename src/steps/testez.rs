@@ -25,16 +25,66 @@ use crate::ui;
 /// service-rooted, slash-separated, and searched recursively (the plugin
 /// finds `.spec` files as descendants).
 ///
-/// These mirror the three source folders `steps::rojo` maps, so tests can
-/// live next to the code they cover. Derived from the same constant the
-/// project file is built from rather than written out twice, since a root
-/// that doesn't match the tree silently finds no tests - the plugin just
-/// reports nothing to run, which reads like "all tests pass".
+/// These name the `test` instances `steps::rojo` mounts from `tests/` when
+/// TestEZ is selected. A root naming an instance the tree doesn't create
+/// finds no tests, and the plugin reporting nothing to run is
+/// indistinguishable from every test passing - so these two must be
+/// changed together.
 pub const TEST_ROOTS: &[&str] = &[
-    "ReplicatedStorage/shared",
-    "ServerScriptService/server",
-    "StarterPlayer/StarterPlayerScripts/client",
+    "ReplicatedStorage/test",
+    "ServerScriptService/test",
+    "StarterPlayer/StarterPlayerScripts/test",
 ];
+
+/// One starter spec per test folder. Keeps the folders in git (which
+/// doesn't track empty directories, so a fresh clone would otherwise be
+/// missing paths the project file maps) and shows the TestEZ shape: a
+/// module returning a function, with `describe`/`it` inside.
+const STARTER_SPECS: &[(&str, &str)] = &[
+    ("tests/shared/hello.spec.luau", "shared"),
+    ("tests/server/hello.spec.luau", "server"),
+    ("tests/client/hello.spec.luau", "client"),
+];
+
+/// Written with explicit `\n` and `\t` escapes rather than a multi-line
+/// literal: a wrapped literal carries its own source indentation into the
+/// generated file, which then fails the project's own `stylua --check` on
+/// the very first run of the quality gate.
+///
+/// Tabs because that's what the scaffolded `stylua.toml` sets
+/// (`indent_type = "Tabs"`), so the file it writes is already formatted.
+fn starter_spec(area: &str) -> String {
+    format!(
+        "--!strict\n\nreturn function()\n\
+         \tdescribe(\"{area}\", function()\n\
+         \t\tit(\"runs\", function()\n\
+         \t\t\texpect(true).to.equal(true)\n\
+         \t\tend)\n\
+         \tend)\n\
+         end\n"
+    )
+}
+
+/// Creates `tests/{shared,server,client}` with a starter spec in each.
+pub fn ensure_test_folders(project_dir: &Path) -> Result<()> {
+    let mut written = Vec::new();
+    for (rel_path, area) in STARTER_SPECS {
+        let file = project_dir.join(rel_path);
+        fs::create_dir_all(file.parent().expect("spec paths have a parent"))?;
+        if file.exists() {
+            continue;
+        }
+        fs::write(&file, starter_spec(area))
+            .with_context(|| format!("failed to write {}", file.display()))?;
+        written.push(*area);
+    }
+    if written.is_empty() {
+        ui::ok("tests/ already present");
+    } else {
+        ui::ok(&format!("created tests/ ({})", written.join(", ")));
+    }
+    Ok(())
+}
 
 pub fn companion_config() -> String {
     let roots = TEST_ROOTS
@@ -43,8 +93,8 @@ pub fn companion_config() -> String {
         .collect::<String>();
     format!(
         "# Where TestEZ Companion looks for .spec files. Descendants are\n\
-         # included, so these are the three source roots rproj maps in\n\
-         # default.project.json - put a foo.spec.luau next to foo.luau.\n\
+         # included, so these are the three `test` instances rproj maps in\n\
+         # default.project.json from tests/shared, tests/server, tests/client.\n\
          roots = [\n{roots}]\n"
     )
 }
@@ -165,12 +215,35 @@ mod tests {
         assert!(TESTEZ_STD.starts_with("---"), "selene std files are YAML documents");
     }
 
-    /// The roots have to name the same instances default.project.json
-    /// creates; these are the lowercase folder names it maps.
+    /// The roots must name the `test` instances the project file mounts
+    /// from tests/, not the source folders.
     #[test]
-    fn roots_use_the_lowercase_instance_names_the_project_file_creates() {
-        assert!(TEST_ROOTS.contains(&"ReplicatedStorage/shared"));
-        assert!(TEST_ROOTS.contains(&"ServerScriptService/server"));
-        assert!(TEST_ROOTS.contains(&"StarterPlayer/StarterPlayerScripts/client"));
+    fn roots_name_the_test_instances_the_project_file_creates() {
+        assert_eq!(
+            TEST_ROOTS,
+            ["ReplicatedStorage/test", "ServerScriptService/test", "StarterPlayer/StarterPlayerScripts/test"]
+        );
+    }
+
+    /// A starter spec that doesn't parse as a TestEZ module would fail the
+    /// first `lute test` on a brand new project.
+    #[test]
+    fn starter_specs_use_the_testez_shape() {
+        let spec = starter_spec("shared");
+        assert!(spec.starts_with("--!strict"), "{spec}");
+        assert!(spec.contains("return function()"), "{spec}");
+        assert!(spec.contains("describe(\"shared\""), "{spec}");
+        assert!(spec.contains("it(\"runs\""), "{spec}");
+        assert!(spec.trim_end().ends_with("end"), "{spec}");
+        // A wrapped source literal bakes its own indentation into the
+        // generated file, which then fails the project's own
+        // `stylua --check` on the first run of the quality gate.
+        for line in spec.lines() {
+            assert!(
+                !line.starts_with(' '),
+                "generated spec must be tab-indented with no stray leading spaces:
+{spec}"
+            );
+        }
     }
 }

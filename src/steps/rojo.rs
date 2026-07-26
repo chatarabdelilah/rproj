@@ -15,10 +15,36 @@ use crate::ui;
 /// the matching `src/` folders. The packages folder mapped into
 /// `ReplicatedStorage` depends on which package workflow this project uses:
 /// Wally's `packages/` or git submodules' `modules/`.
+/// Starter files, one per source folder.
+///
+/// These are named `hello.*`, never `init.*`: Rojo turns a directory
+/// containing an `init.luau` into a *script* named after the directory, so
+/// `src/shared/init.luau` would make `ReplicatedStorage.shared` a
+/// ModuleScript-with-children and `src/server/init.server.luau` would make
+/// it a Script, instead of the plain Folders these are meant to be.
+/// (Verified from the sourcemap's `className` both ways.)
+///
+/// They also do the job a `.gitkeep` was previously doing - git doesn't
+/// track empty directories, so without *some* file a fresh clone would be
+/// missing the very paths `default.project.json` maps - while actually
+/// being useful, unlike an empty placeholder.
+const STARTER_FILES: &[(&str, &str)] = &[
+    ("src/shared/hello.luau", "--!strict\n\nreturn {\n\tgreeting = \"hello from shared\",\n}\n"),
+    (
+        "src/server/hello.server.luau",
+        "--!strict\n\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n\nlocal hello = require(ReplicatedStorage.shared.hello)\n\nprint(hello.greeting, \"- server\")\n",
+    ),
+    (
+        "src/client/hello.client.luau",
+        "--!strict\n\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n\nlocal hello = require(ReplicatedStorage.shared.hello)\n\nprint(hello.greeting, \"- client\")\n",
+    ),
+];
+
 pub fn scaffold_project_json(
     project_dir: &Path,
     project_name: &str,
     package_workflow: PackageWorkflow,
+    testez_selected: bool,
 ) -> Result<()> {
     let path = project_dir.join("default.project.json");
     if path.exists() {
@@ -26,25 +52,11 @@ pub fn scaffold_project_json(
         return Ok(());
     }
 
-    // Create the source folders empty, with only a .gitkeep.
-    //
-    // Deliberately no `init.luau`/`init.server.luau`/`init.client.luau`
-    // starter files: Rojo turns a directory containing one into a
-    // *script* named after the directory, so `src/shared/init.luau` makes
-    // ReplicatedStorage.shared a ModuleScript-with-children and
-    // `src/server/init.server.luau` makes it a Script, instead of the
-    // plain Folders these are meant to be. (Verified: with the init files
-    // present the sourcemap reports className ModuleScript/Script; without
-    // them, Folder.) The .gitkeep is what keeps the directory in git -
-    // git doesn't track empty directories, so without it a fresh clone
-    // would be missing the paths default.project.json maps and Rojo would
-    // fail on them.
-    for rel_path in ["src/shared", "src/server", "src/client"] {
-        let dir = project_dir.join(rel_path);
-        fs::create_dir_all(&dir)?;
-        let keep = dir.join(".gitkeep");
-        if !keep.exists() {
-            fs::write(&keep, "")?;
+    for (rel_path, contents) in STARTER_FILES {
+        let file = project_dir.join(rel_path);
+        fs::create_dir_all(file.parent().expect("starter paths have a parent"))?;
+        if !file.exists() {
+            fs::write(&file, contents)?;
         }
     }
 
@@ -77,14 +89,28 @@ pub fn scaffold_project_json(
         }
     }
 
+    let mut server_scripts = serde_json::Map::new();
+    server_scripts.insert("server".to_string(), json!({ "$path": "src/server" }));
+    let mut client_scripts = serde_json::Map::new();
+    client_scripts.insert("client".to_string(), json!({ "$path": "src/client" }));
+
+    // TestEZ tests live in their own top-level `tests/` tree rather than
+    // beside the code, and each half is mounted next to the source it
+    // covers as `test`. The names here are what `steps::testez` writes
+    // into testez-companion.toml's roots - a root naming an instance this
+    // tree doesn't create finds no tests, which reads exactly like every
+    // test passing.
+    if testez_selected {
+        replicated_storage.insert("test".to_string(), json!({ "$path": "tests/shared" }));
+        server_scripts.insert("test".to_string(), json!({ "$path": "tests/server" }));
+        client_scripts.insert("test".to_string(), json!({ "$path": "tests/client" }));
+    }
+
     let mut tree = serde_json::Map::new();
     tree.insert("$className".to_string(), json!("DataModel"));
     tree.insert("ReplicatedStorage".to_string(), json!(replicated_storage));
-    tree.insert("ServerScriptService".to_string(), json!({ "server": { "$path": "src/server" } }));
-    tree.insert(
-        "StarterPlayer".to_string(),
-        json!({ "StarterPlayerScripts": { "client": { "$path": "src/client" } } }),
-    );
+    tree.insert("ServerScriptService".to_string(), json!(server_scripts));
+    tree.insert("StarterPlayer".to_string(), json!({ "StarterPlayerScripts": client_scripts }));
 
     // Place-level defaults (Lighting and friends) come from the
     // place_template catalog, so changing the look every new project starts
