@@ -27,6 +27,15 @@ impl Category {
         Category::Testing,
         Category::Utility,
     ];
+
+    /// Whether more than one pick makes sense in this category. State
+    /// management/UI/data-profile are architecturally exclusive choices (you
+    /// don't run two UI frameworks at once), so those stay single-select;
+    /// testing and utility libraries are additive toolboxes where wanting
+    /// several at once (janitor + promise + greentea, say) is normal.
+    pub fn allows_multiple(&self) -> bool {
+        matches!(self, Category::Testing | Category::Utility)
+    }
 }
 
 pub struct PackageSpec {

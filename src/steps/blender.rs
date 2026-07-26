@@ -6,15 +6,16 @@ use serde_json::Value;
 
 use crate::steps::probe;
 
-const PLUGIN_REPO: &str = "Roblox/roblox-blender-plugin";
 /// Roblox's stud scale: 1 stud = 0.28 meters. Setting Blender's scene unit
 /// scale to this means 1 Blender unit lines up with 1 Roblox stud.
 const ROBLOX_STUD_SCALE: f64 = 0.28;
 
 /// Downloads the latest `.zip` release asset of the official Roblox Blender
-/// plugin to a temp file and returns its path.
-pub fn download_latest_plugin_zip() -> Result<PathBuf> {
-    let api_url = format!("https://api.github.com/repos/{PLUGIN_REPO}/releases/latest");
+/// plugin to a temp file and returns its path. `github_repo` comes from the
+/// catalog's "blender-plugin" entry rather than being duplicated as a
+/// literal here.
+pub fn download_latest_plugin_zip(github_repo: &str) -> Result<PathBuf> {
+    let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
     let body = ureq::get(&api_url)
         .header("User-Agent", "rproj")
         .call()

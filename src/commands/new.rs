@@ -99,20 +99,33 @@ fn pick_guided() -> Result<BTreeSet<String>> {
             continue;
         }
 
-        let mut options: Vec<String> = choices
+        let options: Vec<String> = choices
             .iter()
-            .map(|p| format!("{} - {} ({})", p.key, p.description, p.maintenance.badge()))
+            .map(|p| format!("{} - {} ({})", p.key, p.description, p.maintenance.short_badge()))
             .collect();
-        options.push("none".to_string());
+        let prompt = format!("{}: which do you want?", category.label());
 
-        let picked = Select::new(&format!("{}: which do you want?", category.label()), options)
-            .prompt()?;
-
-        if picked == "none" {
-            continue;
-        }
-        if let Some(spec) = choices.iter().find(|p| picked.starts_with(p.key)) {
-            packages.insert(spec.key.to_string());
+        if category.allows_multiple() {
+            let selected = MultiSelect::new(&prompt, options)
+                .with_help_message(
+                    "↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter",
+                )
+                .with_formatter(&compact_multi_answer)
+                .prompt()?;
+            for spec in &choices {
+                if selected.iter().any(|s| s.starts_with(&format!("{} - ", spec.key))) {
+                    packages.insert(spec.key.to_string());
+                }
+            }
+        } else {
+            let mut options = options;
+            options.push("none".to_string());
+            let picked = Select::new(&prompt, options).with_formatter(&compact_select_answer).prompt()?;
+            if picked != "none"
+                && let Some(spec) = choices.iter().find(|p| picked.starts_with(p.key))
+            {
+                packages.insert(spec.key.to_string());
+            }
         }
     }
 
@@ -129,13 +142,14 @@ fn pick_expert() -> Result<BTreeSet<String>> {
                 p.key,
                 p.description,
                 p.category.label(),
-                p.maintenance.badge()
+                p.maintenance.short_badge()
             )
         })
         .collect();
 
     let selected = MultiSelect::new("Pick every package this project needs", options)
         .with_help_message("↑↓ to move, space to select one, → to all, ← to none, enter to confirm, type to filter")
+        .with_formatter(&compact_multi_answer)
         .prompt()?;
 
     Ok(wally_packages::PACKAGES
@@ -143,6 +157,22 @@ fn pick_expert() -> Result<BTreeSet<String>> {
         .filter(|p| selected.iter().any(|s| s.starts_with(&format!("{} - ", p.key))))
         .map(|p| p.key.to_string())
         .collect())
+}
+
+/// Post-answer summaries for the package pickers above - same reasoning as
+/// `commands::provision`'s formatters: inquire's defaults echo back the
+/// full "key - description (badge)" text, which is fine while choosing but
+/// unreadable once printed as a single confirmed-answer line.
+fn compact_multi_answer(opts: &[inquire::list_option::ListOption<&String>]) -> String {
+    if opts.is_empty() {
+        return "none".to_string();
+    }
+    let keys: Vec<&str> = opts.iter().map(|o| o.value.split(" - ").next().unwrap_or(o.value)).collect();
+    format!("{} selected: {}", keys.len(), keys.join(", "))
+}
+
+fn compact_select_answer(opt: inquire::list_option::ListOption<&String>) -> String {
+    opt.value.split(" - ").next().unwrap_or(opt.value).to_string()
 }
 
 fn add_companions(packages: &mut BTreeSet<String>) {
@@ -171,13 +201,11 @@ fn scaffold(
 
     rojo::scaffold_project_json(project_dir, name, package_workflow)?;
 
-    // Generate an initial sourcemap.json regardless of package workflow -
-    // useful on its own for luau-lsp, and wally-package-types additionally
-    // needs it below when using Wally.
-    let mut watcher = rojo::start_sourcemap_watcher(project_dir)?;
-    let _ = watcher.kill();
-    let _ = watcher.wait();
-
+    // default.project.json maps a $path (packages/ or Modules/) that has to
+    // exist before rojo will touch it at all - generating a sourcemap while
+    // that folder is missing fails outright ("could not be turned into a
+    // Roblox Instance"), not just incompletely. So the package install has
+    // to happen, and the folder has to exist, before sourcemap generation.
     match package_workflow {
         PackageWorkflow::Wally => {
             let package_name = format!("rproj/{}", slugify(name));
@@ -185,7 +213,9 @@ fn scaffold(
             wally::ensure_wally_init(project_dir)?;
             wally::write_wally_toml(project_dir, &package_name, &package_list)?;
             wally::wally_install(project_dir)?;
-            wally::wally_package_types(project_dir)?;
+            // wally install may not create the folder at all when there are
+            // zero dependencies - ensure it exists regardless.
+            std::fs::create_dir_all(project_dir.join("packages"))?;
         }
         PackageWorkflow::GitSubmodules => {
             let mut added_repos = BTreeSet::new();
@@ -195,7 +225,19 @@ fn scaffold(
                     git::add_submodule(project_dir, spec.git_repo, spec.repo_folder_name())?;
                 }
             }
+            std::fs::create_dir_all(project_dir.join("Modules"))?;
         }
+    }
+
+    // Generate an initial sourcemap.json now that the packages/Modules
+    // folder actually exists - useful on its own for luau-lsp, and
+    // wally-package-types additionally needs it below when using Wally.
+    let mut watcher = rojo::start_sourcemap_watcher(project_dir)?;
+    let _ = watcher.kill();
+    let _ = watcher.wait();
+
+    if package_workflow == PackageWorkflow::Wally {
+        wally::wally_package_types(project_dir)?;
     }
 
     gitignore::ensure_entries(project_dir)?;

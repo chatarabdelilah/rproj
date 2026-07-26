@@ -78,18 +78,22 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     {
         warn_and_continue("rojo-plugin", &err);
     }
-    if plugins.iter().any(|k| k == "hoarcekat")
-        && let Err(err) = studio_plugin::install_from_latest_release("Kampfkarren/hoarcekat", ".rbxmx")
-    {
-        warn_and_continue("hoarcekat", &err);
+    // Sourced from the catalog entry (github_repo/asset_suffix) rather than
+    // duplicated as literals here - a hardcoded ".rbxmx" here for hoarcekat
+    // is exactly how that repo/suffix pair drifted from its actual release
+    // asset (a plain ".rbxm") without anyone noticing.
+    for key in ["hoarcekat", "luau-lsp-plugin"] {
+        if plugins.iter().any(|k| k == key)
+            && let Some((repo, suffix)) = studio_plugin_repo(key)
+            && let Err(err) = studio_plugin::install_from_latest_release(repo, suffix)
+        {
+            warn_and_continue(key, &err);
+        }
     }
-    if plugins.iter().any(|k| k == "luau-lsp-plugin")
-        && let Err(err) = studio_plugin::install_from_latest_release("JohnnyMorganz/luau-lsp", ".rbxm")
+    if plugins.iter().any(|k| k == "blender-plugin")
+        && let Some(repo) = blender_addon_repo()
     {
-        warn_and_continue("luau-lsp-plugin", &err);
-    }
-    if plugins.iter().any(|k| k == "blender-plugin") {
-        match blender::download_latest_plugin_zip().and_then(|zip| blender::install_addon(&zip)) {
+        match blender::download_latest_plugin_zip(repo).and_then(|zip| blender::install_addon(&zip)) {
             Ok(()) => blender::print_account_link_instructions(),
             Err(err) => warn_and_continue("blender-plugin", &err),
         }
@@ -113,6 +117,20 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
 
 fn warn_and_continue(what: &str, err: &anyhow::Error) {
     eprintln!("warning: {what} failed, continuing without it - {err:#}\n");
+}
+
+fn studio_plugin_repo(key: &str) -> Option<(&'static str, &'static str)> {
+    match tool_catalog::find(key)?.kind {
+        tool_catalog::ToolKind::StudioPlugin { github_repo, asset_suffix } => Some((github_repo, asset_suffix)),
+        _ => None,
+    }
+}
+
+fn blender_addon_repo() -> Option<&'static str> {
+    match tool_catalog::find("blender-plugin")?.kind {
+        tool_catalog::ToolKind::BlenderAddon { github_repo } => Some(github_repo),
+        _ => None,
+    }
 }
 
 /// The plugins step, contextually filtered: the Blender add-on entry only

@@ -215,7 +215,7 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "hoarcekat",
         description: "Storybook-style previewer for isolated UI components, especially useful with React/Roact",
         maintenance: Maintenance::Active,
-        kind: ToolKind::StudioPlugin { github_repo: "Kampfkarren/hoarcekat", asset_suffix: ".rbxmx" },
+        kind: ToolKind::StudioPlugin { github_repo: "Kampfkarren/hoarcekat", asset_suffix: ".rbxm" },
         family: "Testing & extras",
         default_selected: false,
         docs_url: "https://github.com/Kampfkarren/hoarcekat",
