@@ -4,6 +4,7 @@ pub mod git;
 pub mod gitignore;
 pub mod modules;
 pub mod notify;
+pub mod quality;
 pub mod rojo;
 pub mod studio_plugin;
 pub mod toolchain;

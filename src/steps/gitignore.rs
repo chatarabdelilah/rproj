@@ -14,6 +14,9 @@ use anyhow::Result;
 const ENTRIES: &[&str] = &[
     "packages/",
     "sourcemap.json",
+    // Fetched fresh by .lute/check.luau each run and deleted afterwards;
+    // listed so an interrupted run can't leave it staged.
+    "roblox.d.luau",
     "*.blend1",
     "*.blend2",
     "Thumbs.db",

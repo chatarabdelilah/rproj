@@ -1,0 +1,274 @@
+//! The project's quality gate: what `.lute/check.luau` runs, and what CI
+//! runs it with.
+//!
+//! Data-driven: each step below declares the rokit tool it needs, the
+//! `@std`/`@lute` modules it imports, and its Luau body. `render_check`
+//! emits only the steps whose tool the project actually selected, imports
+//! exactly the modules those steps use, and aggregates their results.
+//! Adding a check is a `CHECK_STEPS` entry — no code changes.
+
+/// One command in the quality gate.
+pub struct CheckStep {
+    /// Catalog key of the rokit tool this step invokes. The step is only
+    /// emitted if the project selected that tool, so a project without
+    /// (say) StyLua gets a check script that doesn't call it.
+    pub tool_key: &'static str,
+    /// Lute modules this step's body imports (`fs`, `net`, `process`).
+    /// Unioned across emitted steps so the generated file never imports
+    /// something it doesn't use — an unused local is exactly what the
+    /// linters this script runs would complain about.
+    pub imports: &'static [&'static str],
+    /// Local holding this step's result, aggregated into the final exit
+    /// status. Empty for steps whose failure shouldn't fail the gate.
+    pub result_var: &'static str,
+    /// Explains, in the generated file, what this step is checking.
+    pub comment: &'static str,
+    pub body: &'static str,
+}
+
+/// `luau-lsp analyze` needs Roblox's global type definitions, which aren't
+/// shipped with the binary - they're published per-commit by the luau-lsp
+/// project and fetched at check time, then deleted so they never end up
+/// committed or stale.
+///
+/// API names here are lute 1.0.0's and were verified against the installed
+/// typedefs, not copied from an existing project: older lute exposed
+/// `fs.writestringtofile` and `net.request`, both of which are now
+/// `fs.writeStringToFile` and `net.client.request` (`net` became a
+/// namespace over `client`/`server`). The old spellings fail at runtime
+/// with "attempt to call a nil value", not at type-check time.
+const ANALYZE_BODY: &str = r#"fs.writeStringToFile(
+	"roblox.d.luau",
+	net.client.request("https://luau-lsp.pages.dev/globalTypes.None.d.luau", { method = "GET" }).body
+)
+
+local analyze = process.run({
+	"luau-lsp",
+	"analyze",
+	"--sourcemap=sourcemap.json",
+	-- Vendored dependencies are third-party code; their type errors are
+	-- not this project's to fix, and submodules in particular are pinned
+	-- checkouts we don't control.
+	"--ignore=**/submodules/**",
+	"--ignore=**/packages/**",
+	"--base-luaurc=.luaurc",
+	"--definitions=roblox.d.luau",
+	"--flag:LuauSolverV2=true",
+	"src",
+}, { stdio = "inherit" })
+
+fs.remove("roblox.d.luau")"#;
+
+pub const CHECK_STEPS: &[CheckStep] = &[
+    CheckStep {
+        tool_key: "rojo",
+        imports: &["process"],
+        result_var: "",
+        comment: "Regenerate the sourcemap so the type checker resolves requires\n-- against the current file tree rather than a stale snapshot.",
+        body: r#"process.run({ "rojo", "sourcemap", "--output=sourcemap.json" }, { stdio = "inherit" })"#,
+    },
+    CheckStep {
+        tool_key: "luau-lsp-cli",
+        imports: &["fs", "net", "process"],
+        result_var: "analyze",
+        comment: "Type-check src/ with Roblox's API types and the new solver.",
+        body: ANALYZE_BODY,
+    },
+    CheckStep {
+        tool_key: "selene",
+        imports: &["process"],
+        result_var: "selene",
+        comment: "Lint for suspicious constructs (selene.toml decides severity).",
+        body: r#"local selene = process.run({ "selene", "src" }, { stdio = "inherit" })"#,
+    },
+    CheckStep {
+        tool_key: "stylua",
+        imports: &["process"],
+        result_var: "stylua",
+        comment: "Fail if anything isn't formatted, rather than reformatting it here -\n-- CI must not rewrite the tree it was asked to check.",
+        body: r#"local stylua = process.run({ "stylua", "--check", "src" }, { stdio = "inherit" })"#,
+    },
+];
+
+/// Which `@std`/`@lute` module each import name comes from.
+fn import_path(name: &str) -> &'static str {
+    match name {
+        "fs" => "@std/fs",
+        "net" => "@lute/net",
+        "process" => "@lute/process",
+        other => panic!("unknown lute import `{other}` in CHECK_STEPS"),
+    }
+}
+
+/// Builds `.lute/check.luau` for a project that selected `selected_tools`.
+/// Returns `None` if no step applies, so callers don't write an empty
+/// script (or a CI workflow that runs one).
+pub fn render_check(selected_tools: &[String]) -> Option<String> {
+    let steps: Vec<&CheckStep> = CHECK_STEPS
+        .iter()
+        .filter(|s| selected_tools.iter().any(|t| t == s.tool_key))
+        .collect();
+    if steps.is_empty() {
+        return None;
+    }
+
+    let mut imports: Vec<&str> = Vec::new();
+    for step in &steps {
+        for name in step.imports {
+            if !imports.contains(name) {
+                imports.push(name);
+            }
+        }
+    }
+    imports.sort_unstable();
+
+    let mut out = String::from(
+        "--!strict\n\
+         -- Generated by `rproj new`. The project's quality gate.\n\
+         -- Run locally with `lute run check`; CI runs the same script.\n\n",
+    );
+    for name in &imports {
+        out.push_str(&format!("local {name} = require(\"{}\")\n", import_path(name)));
+    }
+
+    for step in &steps {
+        out.push_str(&format!("\n-- {}\n{}\n", step.comment, step.body));
+    }
+
+    let vars: Vec<&str> = steps.iter().map(|s| s.result_var).filter(|v| !v.is_empty()).collect();
+    if !vars.is_empty() {
+        let condition =
+            vars.iter().map(|v| format!("{v}.ok")).collect::<Vec<_>>().join(" and ");
+        out.push_str(&format!(
+            "\n-- Every check runs before exiting, so one run reports all problems\n\
+             -- rather than stopping at the first.\n\
+             if not ({condition}) then\n\tprocess.exit(1)\nend\n"
+        ));
+    }
+
+    Some(out)
+}
+
+/// The GitHub Actions workflow that runs the gate on every push and PR.
+///
+/// `lute test` rather than `lute run tests`: the latter needs a `tests`
+/// script to exist and hard-errors when it doesn't, which a freshly
+/// scaffolded project has no reason to have. `lute test` discovers
+/// `.test.luau`/`.spec.luau` files and exits 0 when there are none, so
+/// this workflow is green on a new project and still runs tests once
+/// there are some.
+pub const CI_WORKFLOW: &str = r#"name: CI
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Packages vendored as git submodules are part of the build.
+          submodules: true
+
+      # Installs every tool pinned in rokit.toml (rojo, luau-lsp, selene,
+      # stylua, lute...) at the exact versions this project uses.
+      - uses: CompeyDev/setup-rokit@v0.2.1
+
+      # Writes the ~/.lute typedef aliases into .luaurc. Merges into the
+      # committed file rather than replacing it, so languageMode survives.
+      - name: Set up Lute
+        run: lute setup --with-luaurc
+
+      - name: Check code quality
+        run: lute run check
+
+      - name: Run tests
+        run: lute test
+"#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tools(keys: &[&str]) -> Vec<String> {
+        keys.iter().map(|k| (*k).to_string()).collect()
+    }
+
+    /// The gate must never invoke a tool the project didn't install -
+    /// that's a guaranteed CI failure on a valid project.
+    #[test]
+    fn only_emits_steps_for_selected_tools() {
+        let script = render_check(&tools(&["rojo", "selene"])).unwrap();
+        assert!(script.contains("\"rojo\""));
+        assert!(script.contains("\"selene\""));
+        assert!(!script.contains("\"stylua\""), "stylua not selected:\n{script}");
+        assert!(!script.contains("luau-lsp"), "luau-lsp not selected:\n{script}");
+    }
+
+    /// An unused local is exactly what selene/luau-lsp - which this very
+    /// script runs - would flag, so the gate would fail itself.
+    #[test]
+    fn imports_only_what_the_emitted_steps_use() {
+        let script = render_check(&tools(&["rojo", "stylua"])).unwrap();
+        assert!(script.contains(r#"local process = require("@lute/process")"#));
+        assert!(!script.contains("@std/fs"), "fs is unused here:\n{script}");
+        assert!(!script.contains("@lute/net"), "net is unused here:\n{script}");
+
+        // luau-lsp's step is the only one needing fs and net.
+        let with_analyze = render_check(&tools(&["luau-lsp-cli"])).unwrap();
+        assert!(with_analyze.contains("@std/fs"));
+        assert!(with_analyze.contains("@lute/net"));
+    }
+
+    /// Every result variable must be both declared and aggregated, or the
+    /// script fails to compile / silently ignores a failing check.
+    #[test]
+    fn aggregates_exactly_the_declared_result_vars() {
+        let script = render_check(&tools(&["rojo", "luau-lsp-cli", "selene", "stylua"])).unwrap();
+        for var in ["analyze", "selene", "stylua"] {
+            assert!(script.contains(&format!("local {var} = process.run")), "{var} not declared");
+            assert!(script.contains(&format!("{var}.ok")), "{var} not aggregated");
+        }
+        // rojo's step declares no result var, so it must not be aggregated.
+        assert!(!script.contains("rojo.ok"));
+        assert!(script.contains("process.exit(1)"));
+    }
+
+    /// A script whose only step is the sourcemap has nothing to fail on,
+    /// so it must not emit a dangling `if not () then`.
+    #[test]
+    fn omits_exit_check_when_no_step_produces_a_result() {
+        let script = render_check(&tools(&["rojo"])).unwrap();
+        assert!(!script.contains("process.exit"), "nothing to gate on:\n{script}");
+    }
+
+    /// No selected tool means no gate, and callers use that to decide
+    /// whether to write a CI workflow at all.
+    #[test]
+    fn renders_nothing_when_no_step_applies() {
+        assert!(render_check(&tools(&["wally", "tarmac"])).is_none());
+        assert!(render_check(&[]).is_none());
+    }
+
+    /// Guards the `import_path` panic: every import named by a step must
+    /// map to a real module.
+    #[test]
+    fn every_declared_import_resolves() {
+        for step in CHECK_STEPS {
+            for name in step.imports {
+                let path = import_path(name);
+                assert!(path.starts_with('@'), "{name} -> {path}");
+            }
+        }
+    }
+
+    /// CI must run the tools it installs, and `lute run tests` hard-errors
+    /// without a tests script - `lute test` exits 0 when none are found.
+    #[test]
+    fn ci_workflow_runs_the_gate_and_tolerates_no_tests() {
+        assert!(CI_WORKFLOW.contains("lute run check"));
+        assert!(CI_WORKFLOW.contains("lute test"));
+        assert!(!CI_WORKFLOW.contains("lute run tests"));
+        assert!(CI_WORKFLOW.contains("submodules: true"));
+    }
+}

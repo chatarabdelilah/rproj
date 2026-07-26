@@ -81,6 +81,19 @@ pub fn add_global_tools(selected: &[String]) -> Result<()> {
 fn run_rokit_add(project_dir: Option<&Path>, rokit_source: &str, key: &str, scope_desc: &str) -> Result<()> {
     let mut args = vec!["add"];
     if project_dir.is_none() {
+        // `rokit add --global` refuses a tool rokit hasn't seen before
+        // ("The following tool has not been marked as trusted"), unlike a
+        // project-local `rokit add`, which trusts implicitly as it
+        // installs. Since rproj does the global adds *first*, every one of
+        // them fails this way on a machine that has never installed the
+        // tool - i.e. exactly the fresh-PC case this tool exists for,
+        // which is invisible on a developer machine where everything is
+        // already trusted. Trusting up front is not extra exposure: these
+        // are catalog tools the user explicitly selected, and the
+        // project-local add that follows would trust them anyway. Output
+        // is captured rather than printed because this is plumbing, and
+        // failures here are left for the add below to report properly.
+        let _ = Command::new("rokit").args(["trust", rokit_source]).output();
         args.push("--global");
     }
     args.push(rokit_source);
@@ -110,6 +123,14 @@ fn run_rokit_add(project_dir: Option<&Path>, rokit_source: &str, key: &str, scop
     );
     if combined.contains("already exists") {
         println!("check: {key} already added{scope_desc}");
+    } else if combined.contains("not been marked as trusted") {
+        // The pre-emptive `rokit trust` above should make this
+        // unreachable; kept so the message explains itself rather than
+        // surfacing as a bare non-zero exit if rokit changes behaviour.
+        eprintln!(
+            "warning: {key} isn't trusted by rokit and trusting it automatically failed. \
+             Run `rokit trust {rokit_source}` once, then re-run.\n"
+        );
     } else if combined.contains("403 Forbidden") || combined.to_lowercase().contains("rate limit") {
         eprintln!(
             "warning: {key} failed - GitHub's unauthenticated API rate limit (60 requests/hour \

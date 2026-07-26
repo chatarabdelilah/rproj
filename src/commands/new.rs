@@ -7,7 +7,7 @@ use inquire::{MultiSelect, Select};
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig};
-use crate::steps::{blender, git, gitignore, modules, rojo, toolchain, wally};
+use crate::steps::{blender, git, gitignore, modules, quality, rojo, toolchain, wally};
 
 pub fn run(name: &str) -> Result<()> {
     let mut config = GlobalConfig::load()?;
@@ -269,6 +269,15 @@ fn scaffold(
 
     if package_workflow == PackageWorkflow::Wally {
         wally::wally_package_types(project_dir)?;
+    }
+
+    // Quality gate. The check script is generated from the tools this
+    // project actually selected, so it never invokes something that was
+    // never installed; CI only lands if there's a script for it to run.
+    quality::ensure_luaurc(project_dir)?;
+    if quality::ensure_check_script(project_dir, &config.selected_rokit_tools)? {
+        quality::ensure_ci_workflow(project_dir)?;
+        quality::lute_setup(project_dir)?;
     }
 
     gitignore::ensure_entries(project_dir)?;

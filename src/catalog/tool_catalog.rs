@@ -170,12 +170,21 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
     },
     ToolEntry {
         key: "lute",
-        description: "Standalone Luau runtime, used for scripting/tooling tasks",
+        description: "Standalone Luau runtime - runs the project's `.lute/check.luau` quality gate locally and in CI",
         maintenance: Maintenance::Active,
         kind: ToolKind::RokitTool { rokit_source: "luau-lang/lute" },
         family: "Lute",
         default_selected: true,
         docs_url: "https://lute.luau.org/",
+    },
+    ToolEntry {
+        key: "luau-lsp-cli",
+        description: "Luau language server as a command-line type checker - this is what `luau-lsp analyze` in the quality gate runs, separate from the VS Code extension of the same name",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::RokitTool { rokit_source: "JohnnyMorganz/luau-lsp" },
+        family: "Luau Language Server",
+        default_selected: true,
+        docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
     },
     ToolEntry {
         key: "tarmac",
