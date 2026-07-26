@@ -43,18 +43,33 @@ pub fn scaffold_project_json(
 
     let mut replicated_storage = serde_json::Map::new();
     replicated_storage.insert("Shared".to_string(), json!({ "$path": "src/shared" }));
+
+    let mut project = serde_json::Map::new();
+    project.insert("name".to_string(), json!(project_name));
+
     match package_workflow {
         PackageWorkflow::Wally => {
             replicated_storage.insert("packages".to_string(), json!({ "$path": "packages" }));
         }
         PackageWorkflow::GitSubmodules => {
             replicated_storage.insert("Modules".to_string(), json!({ "$path": "Modules" }));
+            // Every real wally-catalog package repo carries its own
+            // default.project.json (for its own dev/test/build tooling),
+            // which Rojo would otherwise auto-detect and try to use as a
+            // nested project the moment it's cloned into Modules/ - and
+            // that nested project's own paths (its own tests, its own
+            // build output) don't resolve in our checkout, which is a hard
+            // error, not just an incomplete sync. globIgnorePaths tells
+            // Rojo to treat every *.project.json under Modules/ as an
+            // ordinary (ignored) file instead - the documented mechanism
+            // for vendoring third-party folders like this.
+            project.insert("globIgnorePaths".to_string(), json!(["Modules/**/*.project.json"]));
         }
     }
 
-    let project = json!({
-        "name": project_name,
-        "tree": {
+    project.insert(
+        "tree".to_string(),
+        json!({
             "$className": "DataModel",
             "ReplicatedStorage": replicated_storage,
             "ServerScriptService": {
@@ -65,8 +80,8 @@ pub fn scaffold_project_json(
                     "Client": { "$path": "src/client" }
                 }
             }
-        }
-    });
+        }),
+    );
 
     fs::write(&path, serde_json::to_string_pretty(&project)?)?;
     println!("wrote default.project.json");

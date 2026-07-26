@@ -1,10 +1,11 @@
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 
 use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
-use crate::steps::{run, run_in};
+use crate::steps::run_in;
 
 const STYLUA_CONFIG: &str = r#"column_width = 120
 indent_type = "Spaces"
@@ -60,10 +61,36 @@ pub fn add_global_tools(selected: &[String]) -> Result<()> {
         let ToolKind::RokitTool { rokit_source } = entry.kind else {
             continue;
         };
-        // `rokit add` is itself idempotent (it's a no-op if this exact
-        // source/version is already in the global manifest), so no separate
-        // "already installed" probe is needed here.
-        run("rokit", &["add", "--global", rokit_source])?;
+
+        println!("\n> rokit add --global {rokit_source}");
+        let output = Command::new("rokit")
+            .args(["add", "--global", rokit_source])
+            .output()
+            .context("failed to spawn `rokit`")?;
+        if !output.stdout.is_empty() {
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        if output.status.success() {
+            continue;
+        }
+
+        // Unlike a project-local `rokit add`, re-adding the exact same tool
+        // to the global manifest errors instead of being a no-op ("Tool
+        // already exists and can't be added") - that's not a real failure,
+        // it just means a previous `rproj new`/`setup` run already added it.
+        let combined = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        if combined.contains("already exists") {
+            println!("check: {key} already added globally");
+            continue;
+        }
+        bail!("`rokit add --global {rokit_source}` exited with {}", output.status);
     }
     Ok(())
 }

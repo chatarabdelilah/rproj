@@ -73,10 +73,20 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
         warn_and_continue("rokit tools", &err);
     }
 
-    if plugins.iter().any(|k| k == "rojo-plugin")
-        && let Err(err) = rojo::install_studio_plugin()
-    {
-        warn_and_continue("rojo-plugin", &err);
+    // Rojo's plugin installer locates Studio via the Windows registry and
+    // fails with a confusing "couldn't find registry keys" error if Studio
+    // isn't actually there - check first and skip with a clear reason
+    // instead (this comes up in practice: Roblox Studio's winget package
+    // has its own known hash-mismatch issue, see bootstrap::install).
+    let studio_installed = SYSTEM_APPS.iter().find(|e| e.key == "studio").is_some_and(bootstrap::is_installed);
+    if plugins.iter().any(|k| k == "rojo-plugin") {
+        if studio_installed {
+            if let Err(err) = rojo::install_studio_plugin() {
+                warn_and_continue("rojo-plugin", &err);
+            }
+        } else {
+            println!("skip: rojo-plugin needs Roblox Studio, which isn't installed yet");
+        }
     }
     // Sourced from the catalog entry (github_repo/asset_suffix) rather than
     // duplicated as literals here - a hardcoded ".rbxmx" here for hoarcekat
@@ -99,11 +109,22 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
         }
     }
 
-    if system_apps.iter().any(|k| k == "vscode")
-        && let Err(err) =
-            vscode::ensure_extensions(&vscode_extensions.iter().map(String::as_str).collect::<Vec<_>>())
-    {
-        warn_and_continue("vscode extensions", &err);
+    if system_apps.iter().any(|k| k == "vscode") {
+        // vscode_extensions holds catalog keys (e.g. "luau-lsp"), not the
+        // actual marketplace extension ids (e.g. "JohnnyMorganz.luau-lsp") -
+        // look those up rather than passing the key straight to `code
+        // --install-extension`, which just fails with "not found" silently
+        // for every single entry.
+        let extension_ids: Vec<&str> = vscode_extensions
+            .iter()
+            .filter_map(|key| match tool_catalog::find(key)?.kind {
+                tool_catalog::ToolKind::VsCodeExtension { extension_id } => Some(extension_id),
+                _ => None,
+            })
+            .collect();
+        if let Err(err) = vscode::ensure_extensions(&extension_ids) {
+            warn_and_continue("vscode extensions", &err);
+        }
     }
 
     config.roblox_projects_root = Some(projects_root);

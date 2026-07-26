@@ -66,24 +66,36 @@ fn installed_extensions() -> HashSet<String> {
 }
 
 /// Installs any extension in `extension_ids` that isn't already present.
+/// Fails fast if `code` can't be found at all (one clear message instead of
+/// repeating that same failure for every extension), but a single
+/// extension's install failing doesn't stop the rest from being attempted.
 pub fn ensure_extensions(extension_ids: &[&str]) -> Result<()> {
+    locate_code()?;
+
     let installed = installed_extensions();
     for id in extension_ids {
         if installed.contains(&id.to_lowercase()) {
             println!("check: VS Code extension {id} already installed");
             continue;
         }
-        let output = run_code(&["--install-extension", id])
-            .with_context(|| format!("failed to install VS Code extension {id}"))?;
-        if !output.stdout.is_empty() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
+        if let Err(err) = install_extension(id) {
+            eprintln!("warning: failed to install VS Code extension {id}, continuing - {err:#}\n");
         }
-        if !output.stderr.is_empty() {
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-        if !output.status.success() {
-            bail!("failed to install VS Code extension {id}: exited with {}", output.status);
-        }
+    }
+    Ok(())
+}
+
+fn install_extension(id: &str) -> Result<()> {
+    let output = run_code(&["--install-extension", id])
+        .with_context(|| format!("failed to spawn install for {id}"))?;
+    if !output.stdout.is_empty() {
+        print!("{}", String::from_utf8_lossy(&output.stdout));
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", String::from_utf8_lossy(&output.stderr));
+    }
+    if !output.status.success() {
+        bail!("exited with {}", output.status);
     }
     Ok(())
 }
