@@ -29,5 +29,9 @@ pub fn add_submodule(project_dir: &Path, repo_url: &str, dir: &str) -> Result<()
         ui::ok(&format!("{rel_path} already present"));
         return Ok(());
     }
+    // Cloning several repos takes long enough that silence reads as a
+    // hang, and git's own progress output is captured, so say what's
+    // happening before starting rather than only after.
+    ui::ok(&format!("cloning {dir}"));
     run_in("git", &["submodule", "add", repo_url, &rel_path], Some(project_dir))
 }

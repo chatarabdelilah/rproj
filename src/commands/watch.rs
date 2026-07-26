@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 
 use crate::config::ProjectConfig;
-use crate::steps::{toolchain, wally};
+use crate::steps::{rojo, toolchain, wally};
 
 pub fn run() -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
@@ -28,10 +28,6 @@ pub fn run() -> Result<()> {
     }
 
     println!("\nWatching for changes - press Ctrl+C to stop.");
-    let mut child = crate::steps::rojo::start_sourcemap_watcher(&project_dir)?;
-    let status = child.wait().context("failed to wait on rojo sourcemap watcher")?;
-    if !status.success() {
-        bail!("rojo sourcemap watcher exited with {status}");
-    }
-    Ok(())
+    rojo::watch_sourcemap(&project_dir)
+
 }

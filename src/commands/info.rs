@@ -25,6 +25,9 @@ fn show_one(key: &str) -> Result<()> {
         println!("docs:     {}", pkg.docs_url);
         println!();
         println!("{}", pkg.description);
+        if let Some(usage) = tool_usage::find(key) {
+            print_usage(usage);
+        }
         return Ok(());
     }
     if let Some(tool) = tool_catalog::find(key) {

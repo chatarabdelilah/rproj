@@ -7,7 +7,7 @@ use inquire::{MultiSelect, Select};
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig};
-use crate::steps::{blender, git, gitignore, modules, quality, rojo, toolchain, wally};
+use crate::steps::{blender, git, gitignore, modules, quality, rojo, testez, toolchain, wally};
 use crate::ui;
 
 pub fn run(name: &str) -> Result<()> {
@@ -224,7 +224,12 @@ fn scaffold(
     git::ensure_repo_init(project_dir)?;
 
     toolchain::ensure_rokit_init(project_dir)?;
-    toolchain::add_selected_tools(project_dir, &config.selected_rokit_tools)?;
+    // Pin only the tools this project will actually use. The machine-wide
+    // selection is "what I want available"; a project's rokit.toml is "what
+    // this project needs", and those aren't the same thing - pinning Wally
+    // into a project that vendors its packages as git submodules pulls in a
+    // tool it will never run and implies a workflow it isn't using.
+    toolchain::add_selected_tools(project_dir, &tools_for_workflow(config, package_workflow))?;
     toolchain::ensure_selene_config(project_dir, packages.contains("testez"))?;
     toolchain::ensure_stylua_config(project_dir)?;
 
@@ -269,10 +274,7 @@ fn scaffold(
     // Generate an initial sourcemap.json now that the packages/modules
     // folder actually exists - useful on its own for luau-lsp, and
     // wally-package-types additionally needs it below when using Wally.
-    let mut watcher = rojo::start_sourcemap_watcher(project_dir)?;
-    let _ = watcher.kill();
-    let _ = watcher.wait();
-    ui::ok("generated sourcemap.json");
+    rojo::generate_sourcemap(project_dir)?;
 
     if package_workflow == PackageWorkflow::Wally {
         wally::wally_package_types(project_dir)?;
@@ -281,6 +283,10 @@ fn scaffold(
     // Quality gate. The check script is generated from the tools this
     // project actually selected, so it never invokes something that was
     // never installed; CI only lands if there's a script for it to run.
+    if packages.contains("testez") {
+        testez::ensure_companion_config(project_dir)?;
+    }
+
     quality::ensure_luaurc(project_dir)?;
     if quality::ensure_check_script(project_dir, &config.selected_rokit_tools)? {
         quality::ensure_ci_workflow(project_dir)?;
@@ -300,4 +306,48 @@ fn slugify(name: &str) -> String {
     name.chars()
         .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
         .collect()
+}
+
+/// The machine-wide tool selection filtered to what this project's chosen
+/// package workflow actually uses.
+///
+/// Wally and wally-package-types are Wally-workflow-only: under git
+/// submodules there is no wally.toml to install from and no package thunks
+/// to retype, so pinning them would just be noise in rokit.toml.
+fn tools_for_workflow(config: &GlobalConfig, workflow: PackageWorkflow) -> Vec<String> {
+    const WALLY_ONLY: &[&str] = &["wally", "wally-package-types"];
+    config
+        .selected_rokit_tools
+        .iter()
+        .filter(|key| workflow == PackageWorkflow::Wally || !WALLY_ONLY.contains(&key.as_str()))
+        .cloned()
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_with(tools: &[&str]) -> GlobalConfig {
+        GlobalConfig {
+            selected_rokit_tools: tools.iter().map(|t| t.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    /// Choosing git submodules and then having Wally pinned into the
+    /// project anyway is the workflow leaking across its own boundary.
+    #[test]
+    fn submodule_projects_do_not_pin_wally_tools() {
+        let config = config_with(&["rojo", "wally", "wally-package-types", "selene"]);
+        let tools = tools_for_workflow(&config, PackageWorkflow::GitSubmodules);
+        assert_eq!(tools, vec!["rojo", "selene"]);
+    }
+
+    #[test]
+    fn wally_projects_keep_every_selected_tool() {
+        let config = config_with(&["rojo", "wally", "wally-package-types", "selene"]);
+        let tools = tools_for_workflow(&config, PackageWorkflow::Wally);
+        assert_eq!(tools, vec!["rojo", "wally", "wally-package-types", "selene"]);
+    }
 }

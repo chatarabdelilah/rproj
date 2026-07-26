@@ -1,14 +1,13 @@
 use std::fs;
 use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
 
 use anyhow::{bail, Context, Result};
 use serde_json::json;
 
 use crate::catalog::place_template;
 use crate::config::PackageWorkflow;
-use crate::steps::run;
+use crate::steps::{capture, run};
 use crate::ui;
 
 /// Writes `default.project.json` from scratch (rather than `rojo init` +
@@ -109,34 +108,49 @@ pub fn install_studio_plugin() -> Result<()> {
     run("rojo", &["plugin", "install"])
 }
 
-/// Starts `rojo sourcemap --watch`, blocking until sourcemap.json first
-/// appears (or the timeout elapses), then leaves the watcher running in
-/// the background and returns its child handle so the caller can decide
-/// whether to wait on it or move on.
-pub fn start_sourcemap_watcher(project_dir: &Path) -> Result<std::process::Child> {
-    let args = ["sourcemap", "--watch", "default.project.json", "-o", "sourcemap.json"];
-    ui::command("rojo", &args);
-    let child = Command::new("rojo")
-        .args(args)
-        .current_dir(project_dir)
-        .stdin(Stdio::null())
-        // Rojo prints "Created sourcemap at ..." on every write; the
-        // caller already reports the outcome, and under --watch this would
-        // keep printing after the scaffold has moved on.
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("failed to start `rojo sourcemap --watch`")?;
-
-    let sourcemap_path = project_dir.join("sourcemap.json");
-    let start = Instant::now();
-    let timeout = Duration::from_secs(10);
-    while !sourcemap_path.exists() {
-        if start.elapsed() > timeout {
-            bail!("timed out waiting for sourcemap.json");
-        }
-        std::thread::sleep(Duration::from_millis(100));
+/// Generates `sourcemap.json` once.
+///
+/// Deliberately *not* `--watch`: the scaffold only needs one sourcemap,
+/// and the watch-then-kill approach it replaced was the source of two
+/// bugs. It polled for the file with a 10s timeout, so any rojo failure
+/// surfaced as "timed out waiting for sourcemap.json" with rojo's actual
+/// explanation captured and thrown away - and on that timeout path it
+/// bailed without killing the child, leaving a `rojo sourcemap --watch`
+/// running forever. Running it once and reading the exit status reports
+/// whatever rojo actually said, and leaves nothing behind.
+pub fn generate_sourcemap(project_dir: &Path) -> Result<()> {
+    let output = capture(
+        "rojo",
+        &["sourcemap", "default.project.json", "-o", "sourcemap.json"],
+        Some(project_dir),
+    )?;
+    if ui::is_verbose() {
+        ui::passthrough(&output.stdout, &output.stderr);
     }
-    Ok(child)
+    if !output.success {
+        ui::passthrough(&output.stdout, &output.stderr);
+        bail!("rojo could not generate a sourcemap (see above)");
+    }
+    ui::ok("generated sourcemap.json");
+    Ok(())
 }
 
+/// Runs `rojo sourcemap --watch` in the foreground until interrupted, for
+/// `rproj watch`. Unlike the one-shot `generate_sourcemap`, this genuinely
+/// wants a long-lived process, so stdio is inherited: the user is watching
+/// this run and rojo's own "Created sourcemap at ..." on each rebuild is
+/// the feedback that it's working.
+pub fn watch_sourcemap(project_dir: &Path) -> Result<()> {
+    let args = ["sourcemap", "--watch", "default.project.json", "-o", "sourcemap.json"];
+    ui::command("rojo", &args);
+    let status = Command::new("rojo")
+        .args(args)
+        .current_dir(project_dir)
+        .status()
+        .context("failed to start `rojo sourcemap --watch`")?;
+    // Ctrl+C reaches the child too and is the normal way to stop watching,
+    // so a non-zero exit here is expected rather than a failure worth
+    // reporting as one.
+    let _ = status;
+    Ok(())
+}

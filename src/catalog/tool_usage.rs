@@ -160,6 +160,47 @@ pub const USAGE: &[Usage] = &[
         notes: &["A story is a module returning a function that mounts your component into a given parent frame."],
     },
     Usage {
+        key: "testez",
+        what: "A test framework. You write files like `foo.spec.luau` describing what your code should do, and TestEZ runs them and reports which expectations held.",
+        when: "Once you have logic worth protecting from future changes - data handling, gameplay rules, anything subtle.",
+        commands: &[
+            ("lute test", "Run tests outside Roblox, in CI and locally."),
+        ],
+        notes: &[
+            "Tests need a Roblox DataModel for anything touching Instances, which is what the TestEZ Companion plugin is for - it runs them inside Studio.",
+            "rproj sets selene's std to \"roblox+testez\" when you select it, so describe/it/expect aren't reported as undefined globals.",
+            "Archived by Roblox in Sept 2024. Still the most widely used option, but it isn't gaining features.",
+        ],
+    },
+    Usage {
+        key: "testez-companion",
+        what: "Runs your TestEZ tests from inside VS Code and shows pass/fail inline, by talking to a companion plugin running in Studio.",
+        when: "While writing tests, so you don't have to switch to Studio and press play to see results.",
+        commands: &[
+            ("testez-companion.buildPlugin", "VS Code command palette: builds the Studio plugin. Save it into Studio via 'Save as Local Plugin'."),
+            ("Ctrl+;", "Run the tests and show results."),
+        ],
+        notes: &[
+            "Needs testez-companion.toml listing which DataModel paths hold .spec files - rproj writes one matching the tree it scaffolds.",
+            "Rojo must be syncing, since the plugin runs the tests against what's actually in Studio.",
+            "A root that doesn't match your tree finds no tests, which looks the same as everything passing.",
+        ],
+    },
+    Usage {
+        key: "roblox-ui",
+        what: "Adds an explorer panel to VS Code showing your project as the Roblox instance tree it becomes, rather than as files.",
+        when: "Whenever you're unsure where a file will end up in the DataModel.",
+        commands: &[],
+        notes: &["It reads the Rojo sourcemap, so it's only as current as the last sourcemap generation."],
+    },
+    Usage {
+        key: "github-actions",
+        what: "Shows your CI runs and their logs inside VS Code, and gives completion and validation when editing workflow YAML.",
+        when: "After pushing, to see whether the quality gate passed without leaving the editor.",
+        commands: &[],
+        notes: &["See `rproj info ci` for what the generated workflow actually runs."],
+    },
+    Usage {
         key: "rokit",
         what: "Installs and pins the versions of the command-line tools above, per project, so everyone on a project (and CI) runs identical versions.",
         when: "Whenever you add a tool or clone a project.",
