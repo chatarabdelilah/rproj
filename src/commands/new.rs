@@ -63,6 +63,25 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         }
     };
 
+    // Git submodules have no dependency resolution: the scaffold clones
+    // exactly the list it's given. Wally does its own resolution, so its
+    // manifest is left as the user picked it.
+    let packages = match package_workflow {
+        PackageWorkflow::Wally => packages,
+        PackageWorkflow::GitSubmodules => {
+            let resolved = wally_packages::with_dependencies(&packages);
+            let added: Vec<&str> = resolved
+                .iter()
+                .filter(|k| !packages.contains(*k))
+                .map(String::as_str)
+                .collect();
+            if !added.is_empty() {
+                ui::ok(&format!("added required dependencies: {}", added.join(", ")));
+            }
+            resolved
+        }
+    };
+
     scaffold(&project_dir, name, &config, &packages, package_workflow)?;
 
     ProjectConfig {
@@ -123,19 +142,28 @@ fn pick_package_workflow(packages: &BTreeSet<String>) -> Result<PackageWorkflow>
     // vendor them at all. Rather than offer a choice that would break for
     // this selection, go straight to Wally (the workflow that does work
     // for every catalog entry) and say why.
-    let unvendorable: Vec<&str> = packages
-        .iter()
-        .filter_map(|k| wally_packages::find(k))
-        .filter(|p| p.submodule.is_none())
-        .map(|p| p.key)
-        .collect();
-    if !unvendorable.is_empty() {
-        println!(
-            "note: {} only ship{} a working module through an npm/pnpm install step upstream, \
-             which git submodules can't reproduce - using Wally for this project instead.",
-            unvendorable.join(", "),
-            if unvendorable.len() == 1 { "s" } else { "" }
-        );
+    //
+    // Checked over the *transitive* closure, not just what was picked: a
+    // package can be perfectly vendorable itself and still be unusable
+    // because something it requires isn't. `reactReflex` is the real case -
+    // it reaches for React, which upstream only ships through npm - and
+    // before this it scaffolded happily into a submodule project and failed
+    // at runtime in Studio, with no build error anywhere.
+    let blocked = wally_packages::unvendorable_in_closure(packages);
+    if !blocked.is_empty() {
+        for (key, pulled_in_by) in &blocked {
+            match pulled_in_by {
+                Some(dependent) => println!(
+                    "note: {dependent} requires {key}, which upstream only ships through an \
+                     npm/pnpm install step - git submodules can't reproduce that."
+                ),
+                None => println!(
+                    "note: {key} only ships a working module through an npm/pnpm install step \
+                     upstream, which git submodules can't reproduce."
+                ),
+            }
+        }
+        println!("      Using Wally for this project instead.");
         return Ok(PackageWorkflow::Wally);
     }
 
@@ -382,17 +410,22 @@ fn tools_for_workflow(config: &GlobalConfig, workflow: PackageWorkflow) -> Vec<S
 /// a package that has no vendorable source produces a broken tree.
 fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
     if let Some(mut setup) = SavedSetup::load(name)? {
-        let unvendorable: Vec<&str> = setup
-            .packages
-            .iter()
-            .filter_map(|k| wally_packages::find(k))
-            .filter(|p| p.submodule.is_none())
-            .map(|p| p.key)
-            .collect();
-        if setup.package_workflow == PackageWorkflow::GitSubmodules && !unvendorable.is_empty() {
+        // Same transitive check as the interactive path: a saved setup can
+        // name only vendorable packages and still be unbuildable because one
+        // of them requires something that isn't.
+        let selected: BTreeSet<String> = setup.packages.iter().cloned().collect();
+        let blocked = wally_packages::unvendorable_in_closure(&selected);
+        if setup.package_workflow == PackageWorkflow::GitSubmodules && !blocked.is_empty() {
+            let reasons: Vec<String> = blocked
+                .iter()
+                .map(|(key, via)| match via {
+                    Some(dependent) => format!("{key} (required by {dependent})"),
+                    None => (*key).to_string(),
+                })
+                .collect();
             ui::warn(&format!(
                 "setup `{name}` asks for git submodules, but {} can't be vendored that way - using Wally",
-                unvendorable.join(", ")
+                reasons.join(", ")
             ));
             setup.package_workflow = PackageWorkflow::Wally;
         }

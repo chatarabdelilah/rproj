@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use super::Maintenance;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -108,6 +110,23 @@ pub struct PackageSpec {
     /// submodule at all - `pick_package_workflow` falls back to Wally when
     /// one of these is selected.
     pub submodule: Option<Submodule>,
+    /// Catalog keys of other packages this one requires at runtime.
+    ///
+    /// Wally resolves transitive dependencies itself, so this exists for the
+    /// git-submodule workflow, which has *no* dependency resolution at all -
+    /// it clones exactly what was selected. A package whose dependency
+    /// wasn't also selected is mounted but broken, and the two ways it
+    /// breaks are both invisible at build time: `charm-sync` does
+    /// `require("../Charm")` and gets a runtime nil, while `reflex` and
+    /// `remo` look their Promise up through `script.Parent.Parent` and
+    /// `error()` outright when it isn't there.
+    ///
+    /// Derived by cloning all 15 repos and resolving every require against
+    /// the mounted layout, not from the packages' wally.toml files - three
+    /// distinct require styles are in play (relative strings, instance
+    /// paths, and roblox-ts's `FindFirstAncestor("rbxts_include")` fallback
+    /// chain), and only the last of these is visible from a manifest.
+    pub requires: &'static [&'static str],
     pub description: &'static str,
     pub maintenance: Maintenance,
     pub category: Category,
@@ -158,6 +177,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/jsdotlua/react-lua",
         module_name: "React",
         submodule: None,
+        requires: &[],
         description: "Roact-style declarative UI library, a Luau port of React",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -171,6 +191,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/jsdotlua/react-lua",
         module_name: "ReactRoblox",
         submodule: None,
+        requires: &[],
         description: "React's Roblox renderer - required alongside react to mount anything",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -184,6 +205,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/centau/vide",
         module_name: "Vide",
         submodule: Some(Submodule { dir: "vide", path: "src" }),
+        requires: &[],
         description: "Lightweight reactive UI + state library built for Luau",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -197,6 +219,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/dphfox/Fusion",
         module_name: "Fusion",
         submodule: Some(Submodule { dir: "fusion", path: "src" }),
+        requires: &[],
         description: "Reactive UI library with state management built in",
         maintenance: Maintenance::Active,
         category: Category::Ui,
@@ -214,6 +237,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/reflex",
         module_name: "Reflex",
         submodule: Some(Submodule { dir: "reflex", path: "src" }),
+        requires: &["promise"],
         description: "Redux-inspired predictable state container",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -227,6 +251,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/react-reflex",
         module_name: "ReactReflex",
         submodule: Some(Submodule { dir: "react-reflex", path: "src" }),
+        requires: &["react", "reflex"],
         description: "React bindings for Reflex",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -240,6 +265,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/charm",
         module_name: "Charm",
         submodule: Some(Submodule { dir: "charm", path: "packages/charm/src" }),
+        requires: &[],
         description: "Atom-based state management, inspired by Jotai/Nanostores",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -253,6 +279,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/charm",
         module_name: "CharmSync",
         submodule: Some(Submodule { dir: "charm", path: "packages/charm-sync/src" }),
+        requires: &["charm"],
         description: "Client/server atom synchronization for Charm",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -266,6 +293,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/charm",
         module_name: "ReactCharm",
         submodule: None,
+        requires: &[],
         description: "React bindings for Charm",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -279,6 +307,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/charm",
         module_name: "VideCharm",
         submodule: Some(Submodule { dir: "charm", path: "packages/vide-charm/src" }),
+        requires: &["charm", "vide"],
         description: "Bridge between Vide and Charm, for using Charm atoms in Vide UI",
         maintenance: Maintenance::Active,
         category: Category::StateManagement,
@@ -293,6 +322,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/paradoxum-games/lyra",
         module_name: "Lyra",
         submodule: Some(Submodule { dir: "lyra", path: "src" }),
+        requires: &["promise", "t"],
         description: "Full game framework with a built-in player-data/profile layer",
         maintenance: Maintenance::Active,
         category: Category::DataProfile,
@@ -306,6 +336,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/MadStudioRoblox/ProfileStore",
         module_name: "ProfileStore",
         submodule: Some(Submodule { dir: "profilestore", path: "ProfileStore.luau" }),
+        requires: &[],
         description: "DataStore session-locking wrapper - the successor to ProfileService, recommended for new projects",
         maintenance: Maintenance::Active,
         category: Category::DataProfile,
@@ -320,6 +351,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/Roblox/testez",
         module_name: "TestEZ",
         submodule: Some(Submodule { dir: "testez", path: "src" }),
+        requires: &[],
         description: "Roblox's own BDD-style unit testing framework - archived by Roblox in Sept 2024, no longer receiving updates upstream, but still the most common Wally-installable test framework in existing projects",
         maintenance: Maintenance::Legacy,
         category: Category::Testing,
@@ -334,6 +366,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/howmanysmall/Janitor",
         module_name: "Janitor",
         submodule: Some(Submodule { dir: "janitor", path: "src" }),
+        requires: &[],
         description: "Cleanup/connection-management utility (a faster, typed Maid)",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -347,6 +380,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/ripple",
         module_name: "Ripple",
         submodule: Some(Submodule { dir: "ripple", path: "packages/ripple/src" }),
+        requires: &[],
         description: "Spring/tween-based animation library for Roblox UI, inspired by react-spring",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -360,6 +394,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/ripple",
         module_name: "ReactRipple",
         submodule: None,
+        requires: &[],
         description: "React bindings for Ripple's animation primitives",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -373,6 +408,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/ripple",
         module_name: "VideRipple",
         submodule: Some(Submodule { dir: "ripple", path: "packages/vide-ripple/src" }),
+        requires: &["ripple", "vide"],
         description: "Vide bindings for Ripple's animation primitives",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -386,6 +422,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/littensy/remo",
         module_name: "Remo",
         submodule: Some(Submodule { dir: "remo", path: "src" }),
+        requires: &["promise"],
         description: "Type-safe remote event/networking wrapper",
         maintenance: Maintenance::Active,
         category: Category::Utility,
@@ -399,6 +436,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/evaera/roblox-lua-promise",
         module_name: "Promise",
         submodule: Some(Submodule { dir: "promise", path: "lib" }),
+        requires: &[],
         description: "Promise/A+-style async utility for Luau",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -412,6 +450,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/corecii/greentea",
         module_name: "gt",
         submodule: Some(Submodule { dir: "greentea", path: "src" }),
+        requires: &[],
         description: "Runtime type-checking utility",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -425,6 +464,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/osyrisrblx/t",
         module_name: "t",
         submodule: Some(Submodule { dir: "t", path: "lib" }),
+        requires: &[],
         description: "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -438,6 +478,7 @@ pub const PACKAGES: &[PackageSpec] = &[
         git_repo: "https://github.com/csqrl/sift",
         module_name: "Sift",
         submodule: Some(Submodule { dir: "sift", path: "src" }),
+        requires: &[],
         description: "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used",
         maintenance: Maintenance::CommunityStable,
         category: Category::Utility,
@@ -481,6 +522,61 @@ pub fn has_server_realm<'a>(keys: impl IntoIterator<Item = &'a String>) -> bool 
     keys.into_iter().filter_map(|k| find(k)).any(|p| p.realm == Realm::Server)
 }
 
+/// `selected` plus everything it transitively requires.
+///
+/// Only meaningful for the git-submodule workflow: wally resolves
+/// dependencies itself, so expanding a Wally selection would just list
+/// packages in `wally.toml` that the user didn't ask for. Under submodules
+/// nothing resolves anything - the scaffold clones exactly what it's given -
+/// so a selection that isn't closed over `requires` produces a tree where
+/// some package is mounted next to a sibling that isn't there.
+///
+/// Unknown keys are preserved rather than dropped; validating them is
+/// `load_setup`'s job and silently discarding one here would turn a typo
+/// into a quietly smaller project.
+pub fn with_dependencies(selected: &BTreeSet<String>) -> BTreeSet<String> {
+    let mut resolved = selected.clone();
+    let mut queue: Vec<String> = selected.iter().cloned().collect();
+    while let Some(key) = queue.pop() {
+        let Some(spec) = find(&key) else { continue };
+        for dep in spec.requires {
+            if resolved.insert((*dep).to_string()) {
+                queue.push((*dep).to_string());
+            }
+        }
+    }
+    resolved
+}
+
+/// Packages in the transitive closure of `selected` that can't be vendored
+/// as a git submodule, paired with why: `None` when the package itself was
+/// selected, `Some(dependent)` when it was pulled in by something else.
+///
+/// The second case is the one worth reporting separately - `reactReflex`
+/// looks perfectly vendorable on its own and is only unusable because it
+/// reaches for React, which upstream ships solely through an npm install.
+/// Told just "react can't be vendored", someone who never picked react has
+/// no way to connect that to what they did pick.
+pub fn unvendorable_in_closure(selected: &BTreeSet<String>) -> Vec<(&'static str, Option<&'static str>)> {
+    let mut blocked = Vec::new();
+    for key in with_dependencies(selected) {
+        let Some(spec) = find(&key) else { continue };
+        if spec.submodule.is_some() {
+            continue;
+        }
+        let pulled_in_by = (!selected.contains(&key))
+            .then(|| {
+                PACKAGES
+                    .iter()
+                    .find(|p| selected.contains(p.key) && p.requires.contains(&spec.key))
+                    .map(|p| p.key)
+            })
+            .flatten();
+        blocked.push((spec.key, pulled_in_by));
+    }
+    blocked
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -503,6 +599,91 @@ mod tests {
                 "{} is marked server-realm; confirm with a real `wally install` before trusting it",
                 spec.key
             );
+        }
+    }
+
+    fn owned(keys: &[&str]) -> BTreeSet<String> {
+        keys.iter().map(|k| (*k).to_string()).collect()
+    }
+
+    /// A `requires` entry naming a package that doesn't exist would be
+    /// silently skipped by the resolver, putting the dependency back in the
+    /// state this field exists to prevent.
+    #[test]
+    fn every_required_key_names_a_real_package() {
+        for spec in PACKAGES {
+            for dep in spec.requires {
+                assert!(find(dep).is_some(), "{}'s requires names unknown `{dep}`", spec.key);
+                assert_ne!(*dep, spec.key, "{} requires itself", spec.key);
+            }
+        }
+    }
+
+    /// Git submodules resolve nothing - the scaffold clones exactly what
+    /// it's given - so a selection that isn't closed over `requires` mounts
+    /// a package next to a sibling that isn't there. Verified against the
+    /// real repos: lyra's Promise wrapper and t usage, charm-sync's
+    /// `require("../Charm")`.
+    #[test]
+    fn dependencies_are_pulled_in_transitively() {
+        assert_eq!(with_dependencies(&owned(&["lyra"])), owned(&["lyra", "promise", "t"]));
+        assert_eq!(with_dependencies(&owned(&["charmSync"])), owned(&["charm", "charmSync"]));
+        // ripple itself needs nothing, so the closure stops at one level.
+        assert_eq!(
+            with_dependencies(&owned(&["videRipple"])),
+            owned(&["ripple", "vide", "videRipple"])
+        );
+        // Already-complete selections are left exactly as they are.
+        assert_eq!(with_dependencies(&owned(&["charm"])), owned(&["charm"]));
+        assert_eq!(with_dependencies(&owned(&[])), owned(&[]));
+        // An unknown key is preserved, not dropped - validating it belongs
+        // to load_setup, and discarding it here would silently shrink the
+        // project instead of reporting the typo.
+        assert_eq!(with_dependencies(&owned(&["nope"])), owned(&["nope"]));
+    }
+
+    /// `reactReflex` is vendorable itself and still unusable as a submodule,
+    /// because it reaches for React, which upstream ships only through npm.
+    /// Before the closure check it scaffolded happily and failed at runtime
+    /// in Studio with no build error anywhere.
+    #[test]
+    fn unvendorable_dependencies_are_reported_with_the_package_that_needs_them() {
+        let blocked = unvendorable_in_closure(&owned(&["reactReflex"]));
+        assert_eq!(blocked, vec![("react", Some("reactReflex"))], "{blocked:?}");
+
+        // Directly selected: no "required by", because nothing pulled it in.
+        assert_eq!(unvendorable_in_closure(&owned(&["react"])), vec![("react", None)]);
+
+        // A fully vendorable selection blocks nothing.
+        assert!(unvendorable_in_closure(&owned(&["lyra", "charm"])).is_empty());
+    }
+
+    /// Every vendorable package must have a vendorable dependency tree, or
+    /// the workflow guard has to catch it - there is no third option that
+    /// produces a working submodule project.
+    #[test]
+    fn vendorable_packages_either_resolve_or_are_caught_by_the_guard() {
+        for spec in PACKAGES.iter().filter(|p| p.submodule.is_some()) {
+            let selection = owned(&[spec.key]);
+            let blocked = unvendorable_in_closure(&selection);
+            if blocked.is_empty() {
+                // Everything it needs can be vendored; the closure must
+                // actually contain those dependencies.
+                for dep in spec.requires {
+                    assert!(
+                        with_dependencies(&selection).contains(*dep),
+                        "{} requires {dep}, which the closure dropped",
+                        spec.key
+                    );
+                }
+            } else {
+                // Otherwise the guard names this package as the reason.
+                assert!(
+                    blocked.iter().any(|(_, via)| *via == Some(spec.key)),
+                    "{} is blocked but nothing explains why: {blocked:?}",
+                    spec.key
+                );
+            }
         }
     }
 
