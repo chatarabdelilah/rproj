@@ -213,7 +213,7 @@ fn wally_ci_steps(has_server_packages: bool) -> String {
       # rokit-installed binary below instead.
       - name: Cache wally-package-types
         id: cache-wpt
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo/bin/wally-package-types
           key: wally-package-types-{WPT_FIXED_REV}
@@ -263,7 +263,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Packages vendored as git submodules are part of the build.
           submodules: true
