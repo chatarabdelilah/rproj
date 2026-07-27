@@ -16,6 +16,35 @@ pub fn ensure_repo_init(project_dir: &Path) -> Result<()> {
     run_in("git", &["init"], Some(project_dir))
 }
 
+/// Fetches the contents of every submodule the project declares.
+///
+/// A plain `git clone` records each submodule's commit and leaves its
+/// directory empty. `modules/submodules/default.project.json` maps
+/// straight into those directories, and rojo refuses to build a sourcemap
+/// for a `$path` it can't turn into an instance - so `rproj watch` on a
+/// fresh clone of a submodule project printed "Watching for changes" and
+/// then died on `File $path: ./charm/packages/charm/src`, having watched
+/// nothing. Reproduced by cloning a scaffolded project without
+/// `--recurse-submodules`, which is what `git clone <url>` does by default.
+///
+/// This is the submodule half of what `wally::sync` does for Wally
+/// projects, whose `Packages/` is absent from a fresh clone for the same
+/// reason (gitignored). Wally projects recovered on their own; submodule
+/// ones did not, and the asymmetry was invisible on any machine where the
+/// project had been scaffolded rather than cloned.
+///
+/// `add_submodule` can't stand in for this: its "already present" check is
+/// a directory-exists check, and after a clone the directory exists and is
+/// empty.
+pub fn sync_submodules(project_dir: &Path) -> Result<()> {
+    if !project_dir.join(".gitmodules").exists() {
+        return Ok(());
+    }
+    run_in("git", &["submodule", "update", "--init", "--recursive"], Some(project_dir))?;
+    ui::ok("submodules synced");
+    Ok(())
+}
+
 /// Adds `repo_url` as a submodule under `modules/submodules/<dir>` -
 /// nested under an extra `submodules/` level rather than directly under
 /// `modules/`, matching the structure used by littensy/fishing-minigame (a
