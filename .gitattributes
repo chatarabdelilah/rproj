@@ -1,0 +1,19 @@
+# rproj hands every project it scaffolds one of these (steps/gitattributes.rs)
+# and had none itself, so every commit from a Windows checkout printed
+# "LF will be replaced by CRLF" and the working tree disagreed with what
+# the repo stores.
+#
+# The generated-file string literals in src/ are *not* at risk from a CRLF
+# checkout - rustc normalises \r\n to \n inside string literals (verified,
+# not assumed) - so this is about keeping the tree honest, not about what
+# rproj writes out.
+* text=auto eol=lf
+
+# No binary files are tracked today; these are the formats that would show
+# up first if any were, and line-ending conversion corrupts every one.
+*.rbxl binary
+*.rbxlx binary
+*.rbxm binary
+*.rbxmx binary
+*.blend binary
+*.png binary
