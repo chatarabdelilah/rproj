@@ -55,8 +55,12 @@ pub fn ensure_luaurc(project_dir: &Path) -> Result<()> {
 
 /// Writes `.lute/check.luau` from the selected tools. No-op when the
 /// project selected nothing the gate can run.
-pub fn ensure_check_script(project_dir: &Path, selected_tools: &[String]) -> Result<bool> {
-    let Some(contents) = render_check(selected_tools) else {
+pub fn ensure_check_script(
+    project_dir: &Path,
+    selected_tools: &[String],
+    testez_selected: bool,
+) -> Result<bool> {
+    let Some(contents) = render_check(selected_tools, testez_selected) else {
         return Ok(false);
     };
 

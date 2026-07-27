@@ -363,7 +363,11 @@ fn scaffold(
     // The same filtered list the project's rokit.toml got: a check script
     // must only invoke tools this project actually pins, or CI fails on a
     // command that isn't installed.
-    if quality::ensure_check_script(project_dir, &tools_for_workflow(config, package_workflow))? {
+    if quality::ensure_check_script(
+        project_dir,
+        &tools_for_workflow(config, package_workflow),
+        testez_selected,
+    )? {
         quality::ensure_ci_workflow(project_dir, package_workflow, has_server_packages)?;
         quality::lute_setup(project_dir)?;
     }

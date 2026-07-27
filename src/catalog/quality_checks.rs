@@ -25,7 +25,22 @@ pub struct CheckStep {
     pub result_var: &'static str,
     /// Explains, in the generated file, what this step is checking.
     pub comment: &'static str,
+    /// The step's Luau. `{targets}` is substituted with the comma-separated
+    /// quoted paths this project checks — `"src"`, plus `"tests"` when the
+    /// project has a TestEZ tree. Every step happens to want those in the
+    /// same shape (elements of a Luau list), so one placeholder covers all
+    /// of them and adding a step still needs no code change.
     pub body: &'static str,
+}
+
+/// Paths the gate checks.
+///
+/// `tests` is conditional because it only exists for TestEZ projects, and
+/// every one of these tools errors on a path that isn't there — so naming it
+/// unconditionally would fail the gate on exactly the projects that have no
+/// tests to check.
+fn targets(testez_selected: bool) -> &'static str {
+    if testez_selected { r#""src", "tests""# } else { r#""src""# }
 }
 
 /// `luau-lsp analyze` needs Roblox's global type definitions, which aren't
@@ -57,7 +72,7 @@ local analyze = process.run({
 	"--base-luaurc=.luaurc",
 	"--definitions=roblox.d.luau",
 	"--flag:LuauSolverV2=true",
-	"src",
+	{targets},
 }, { stdio = "inherit" })
 
 fs.remove("roblox.d.luau")"#;
@@ -74,7 +89,7 @@ pub const CHECK_STEPS: &[CheckStep] = &[
         tool_key: "luau-lsp-cli",
         imports: &["fs", "net", "process"],
         result_var: "analyze",
-        comment: "Type-check src/ with Roblox's API types and the new solver.",
+        comment: "Type-check the project with Roblox's API types and the new solver.",
         body: ANALYZE_BODY,
     },
     CheckStep {
@@ -82,14 +97,14 @@ pub const CHECK_STEPS: &[CheckStep] = &[
         imports: &["process"],
         result_var: "selene",
         comment: "Lint for suspicious constructs (selene.toml decides severity).",
-        body: r#"local selene = process.run({ "selene", "src" }, { stdio = "inherit" })"#,
+        body: r#"local selene = process.run({ "selene", {targets} }, { stdio = "inherit" })"#,
     },
     CheckStep {
         tool_key: "stylua",
         imports: &["process"],
         result_var: "stylua",
         comment: "Fail if anything isn't formatted, rather than reformatting it here -\n-- CI must not rewrite the tree it was asked to check.",
-        body: r#"local stylua = process.run({ "stylua", "--check", "src" }, { stdio = "inherit" })"#,
+        body: r#"local stylua = process.run({ "stylua", "--check", {targets} }, { stdio = "inherit" })"#,
     },
 ];
 
@@ -106,7 +121,7 @@ fn import_path(name: &str) -> &'static str {
 /// Builds `.lute/check.luau` for a project that selected `selected_tools`.
 /// Returns `None` if no step applies, so callers don't write an empty
 /// script (or a CI workflow that runs one).
-pub fn render_check(selected_tools: &[String]) -> Option<String> {
+pub fn render_check(selected_tools: &[String], testez_selected: bool) -> Option<String> {
     let steps: Vec<&CheckStep> = CHECK_STEPS
         .iter()
         .filter(|s| selected_tools.iter().any(|t| t == s.tool_key))
@@ -134,8 +149,13 @@ pub fn render_check(selected_tools: &[String]) -> Option<String> {
         out.push_str(&format!("local {name} = require(\"{}\")\n", import_path(name)));
     }
 
+    // Plain replace rather than `format!`: these bodies are Luau and full
+    // of literal braces (`{ stdio = "inherit" }`), which a format string
+    // would demand be doubled — turning every step's body into something
+    // that no longer reads like the code it generates.
+    let targets = targets(testez_selected);
     for step in &steps {
-        out.push_str(&format!("\n-- {}\n{}\n", step.comment, step.body));
+        out.push_str(&format!("\n-- {}\n{}\n", step.comment, step.body.replace("{targets}", targets)));
     }
 
     let vars: Vec<&str> = steps.iter().map(|s| s.result_var).filter(|v| !v.is_empty()).collect();
@@ -278,7 +298,7 @@ mod tests {
     /// that's a guaranteed CI failure on a valid project.
     #[test]
     fn only_emits_steps_for_selected_tools() {
-        let script = render_check(&tools(&["rojo", "selene"])).unwrap();
+        let script = render_check(&tools(&["rojo", "selene"]), false).unwrap();
         assert!(script.contains("\"rojo\""));
         assert!(script.contains("\"selene\""));
         assert!(!script.contains("\"stylua\""), "stylua not selected:\n{script}");
@@ -289,13 +309,13 @@ mod tests {
     /// script runs - would flag, so the gate would fail itself.
     #[test]
     fn imports_only_what_the_emitted_steps_use() {
-        let script = render_check(&tools(&["rojo", "stylua"])).unwrap();
+        let script = render_check(&tools(&["rojo", "stylua"]), false).unwrap();
         assert!(script.contains(r#"local process = require("@lute/process")"#));
         assert!(!script.contains("@std/fs"), "fs is unused here:\n{script}");
         assert!(!script.contains("@lute/net"), "net is unused here:\n{script}");
 
         // luau-lsp's step is the only one needing fs and net.
-        let with_analyze = render_check(&tools(&["luau-lsp-cli"])).unwrap();
+        let with_analyze = render_check(&tools(&["luau-lsp-cli"]), false).unwrap();
         assert!(with_analyze.contains("@std/fs"));
         assert!(with_analyze.contains("@lute/net"));
     }
@@ -304,7 +324,7 @@ mod tests {
     /// script fails to compile / silently ignores a failing check.
     #[test]
     fn aggregates_exactly_the_declared_result_vars() {
-        let script = render_check(&tools(&["rojo", "luau-lsp-cli", "selene", "stylua"])).unwrap();
+        let script = render_check(&tools(&["rojo", "luau-lsp-cli", "selene", "stylua"]), false).unwrap();
         for var in ["analyze", "selene", "stylua"] {
             assert!(script.contains(&format!("local {var} = process.run")), "{var} not declared");
             assert!(script.contains(&format!("{var}.ok")), "{var} not aggregated");
@@ -314,11 +334,39 @@ mod tests {
         assert!(script.contains("process.exit(1)"));
     }
 
+    /// Before this, every step checked `src` only, so a broken or
+    /// unformatted spec passed the gate and only surfaced when someone ran
+    /// the tests. Verified against a real project: a type error, an
+    /// undefined global and a spaces-instead-of-tabs spec each take the
+    /// gate from 0 to 1.
+    #[test]
+    fn testez_projects_check_their_tests_too() {
+        let tools = tools(&["rojo", "luau-lsp-cli", "selene", "stylua"]);
+
+        let with_tests = render_check(&tools, true).unwrap();
+        assert!(with_tests.contains(r#"{ "selene", "src", "tests" }"#), "{with_tests}");
+        assert!(with_tests.contains(r#"{ "stylua", "--check", "src", "tests" }"#), "{with_tests}");
+        assert!(with_tests.contains("\t\"src\", \"tests\",\n"), "analyze:\n{with_tests}");
+
+        // Without TestEZ there is no tests/ directory, and every one of
+        // these tools errors on a path that doesn't exist - so naming it
+        // would fail the gate on precisely the projects with no tests.
+        let without = render_check(&tools, false).unwrap();
+        assert!(!without.contains("tests"), "{without}");
+        assert!(without.contains(r#"{ "selene", "src" }"#), "{without}");
+
+        // The placeholder is an implementation detail; none may survive
+        // into the generated Luau.
+        for script in [&with_tests, &without] {
+            assert!(!script.contains("{targets}"), "unsubstituted placeholder:\n{script}");
+        }
+    }
+
     /// A script whose only step is the sourcemap has nothing to fail on,
     /// so it must not emit a dangling `if not () then`.
     #[test]
     fn omits_exit_check_when_no_step_produces_a_result() {
-        let script = render_check(&tools(&["rojo"])).unwrap();
+        let script = render_check(&tools(&["rojo"]), false).unwrap();
         assert!(!script.contains("process.exit"), "nothing to gate on:\n{script}");
     }
 
@@ -326,8 +374,8 @@ mod tests {
     /// whether to write a CI workflow at all.
     #[test]
     fn renders_nothing_when_no_step_applies() {
-        assert!(render_check(&tools(&["wally", "tarmac"])).is_none());
-        assert!(render_check(&[]).is_none());
+        assert!(render_check(&tools(&["wally", "tarmac"]), false).is_none());
+        assert!(render_check(&[], false).is_none());
     }
 
     /// Guards the `import_path` panic: every import named by a step must
