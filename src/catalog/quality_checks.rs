@@ -151,7 +151,22 @@ pub fn render_check(selected_tools: &[String]) -> Option<String> {
     Some(out)
 }
 
-/// The step that puts this project's dependencies on disk in CI.
+/// The wally-package-types commit CI builds from source.
+///
+/// Not a version, because there is no release to point at: the newest one
+/// (`1.6.2`) generates Luau that doesn't parse for packages whose generics
+/// mix defaulted and non-defaulted parameters - `remo` is one - and the fix
+/// (PR #28) is merged but unreleased. See §7 of docs/architecture.md.
+///
+/// Pinned to a full sha rather than a branch so CI is reproducible, and to
+/// *this* sha rather than PR #28's merge commit because it also carries #30
+/// (the `full-moon` bump that parses the `const` keyword). It is the same
+/// commit installed on the development machine: pinning CI to anything
+/// earlier would mean the gate accepts locally what it rejects in CI, which
+/// is the failure mode this file exists to prevent.
+const WPT_FIXED_REV: &str = "daf5c97bf451e9fed47080769cfaa75d419eb768";
+
+/// The steps that put this project's dependencies on disk in CI.
 ///
 /// Wally's `Packages/` is gitignored, so a fresh checkout doesn't have it -
 /// and `default.project.json` maps that path, which means rojo refuses to
@@ -163,17 +178,44 @@ pub fn render_check(selected_tools: &[String]) -> Option<String> {
 ///
 /// Submodule projects need no equivalent - `submodules: true` on the
 /// checkout already brings their packages in.
-const WALLY_CI_STEP: &str = r#"
+fn wally_ci_steps() -> String {
+    format!(
+        r#"
+      # wally-package-types 1.6.2 - the newest release, and what rokit.toml
+      # pins - emits Luau that doesn't parse for packages whose generics mix
+      # defaults and non-defaults. Fixed upstream but not yet released, so
+      # the fix has to be built from a pinned commit. Delete this step and
+      # the cache above it once a release past 1.6.2 exists, and call the
+      # rokit-installed binary below instead.
+      - name: Cache wally-package-types
+        id: cache-wpt
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/wally-package-types
+          key: wally-package-types-{WPT_FIXED_REV}
+
+      - name: Build wally-package-types
+        if: steps.cache-wpt.outputs.cache-hit != 'true'
+        run: |
+          cargo install --locked --git https://github.com/JohnnyMorganz/wally-package-types --rev {WPT_FIXED_REV}
+
       # Packages/ is gitignored, so it has to be installed here. The
       # retyping step matters as much as the install: wally rewrites every
       # link file without type information, so skipping it would have the
       # type checker see `any` for every package.
+      #
+      # wally-package-types is called by absolute path on purpose. rokit's
+      # shim directory is also on PATH, and it holds the broken 1.6.2 - a
+      # bare `wally-package-types` would silently resolve to whichever comes
+      # first.
       - name: Install packages
         run: |
           wally install
           rojo sourcemap default.project.json --output sourcemap.json
-          wally-package-types --sourcemap sourcemap.json Packages
-"#;
+          ~/.cargo/bin/wally-package-types --sourcemap sourcemap.json Packages
+"#
+    )
+}
 
 /// The GitHub Actions workflow that runs the gate on every push and PR.
 ///
@@ -185,8 +227,8 @@ const WALLY_CI_STEP: &str = r#"
 /// there are some.
 pub fn ci_workflow(workflow: PackageWorkflow) -> String {
     let install = match workflow {
-        PackageWorkflow::Wally => WALLY_CI_STEP,
-        PackageWorkflow::GitSubmodules => "",
+        PackageWorkflow::Wally => wally_ci_steps(),
+        PackageWorkflow::GitSubmodules => String::new(),
     };
     format!(
         r#"name: CI
@@ -328,6 +370,36 @@ mod tests {
         // binary.
         let submodules = ci_workflow(PackageWorkflow::GitSubmodules);
         assert!(!submodules.contains("wally"), "{submodules}");
+    }
+
+    /// The released wally-package-types generates Luau that doesn't parse
+    /// (§7), so CI builds a pinned commit. Three things have to hold or CI
+    /// silently goes back to using the broken one.
+    #[test]
+    fn wally_ci_builds_the_fixed_wally_package_types() {
+        let ci = ci_workflow(PackageWorkflow::Wally);
+
+        // A branch or tag would make CI non-reproducible, and a short sha
+        // is ambiguous.
+        assert_eq!(WPT_FIXED_REV.len(), 40, "pin a full 40-char sha, not {WPT_FIXED_REV}");
+        assert!(WPT_FIXED_REV.chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(ci.contains(&format!("--rev {WPT_FIXED_REV}")), "{ci}");
+        assert!(ci.contains("cargo install --locked"), "unpinned deps aren't reproducible:\n{ci}");
+
+        // It must be built before it's used.
+        assert!(
+            ci.find("cargo install") < ci.find("--sourcemap sourcemap.json"),
+            "the build has to precede the invocation:\n{ci}"
+        );
+
+        // And it must be invoked by absolute path: rokit's shim dir is also
+        // on PATH and holds the broken 1.6.2, so a bare command name would
+        // resolve to whichever came first - the exact bug this step exists
+        // to avoid, reintroduced invisibly.
+        assert!(
+            ci.contains("~/.cargo/bin/wally-package-types --sourcemap"),
+            "must call the built binary by path, not by name:\n{ci}"
+        );
     }
 
     /// Wally hardcodes `Packages`; the lowercase spelling only resolves on
