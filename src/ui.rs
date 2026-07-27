@@ -97,19 +97,29 @@ impl Tally {
         self.already.push(name.to_string());
     }
 
-    /// Prints the summary. `noun` is plural, e.g. "rokit tools".
-    pub fn finish(self, noun: &str) {
+    /// The lines this tally would print. Split out from `finish` so the
+    /// summarising rules can be tested without capturing stdout.
+    pub fn summary(&self, noun: &str) -> Vec<String> {
+        let mut lines = Vec::new();
         if !self.done.is_empty() {
-            ok(&format!("{noun}: installed {}", self.done.join(", ")));
+            lines.push(format!("{noun}: installed {}", self.done.join(", ")));
         }
         if !self.already.is_empty() {
             let n = self.already.len();
             // Naming a handful is useful; naming twenty is a wall again.
-            if n <= 4 {
-                ok(&format!("{noun}: {} already present", self.already.join(", ")));
+            lines.push(if n <= 4 {
+                format!("{noun}: {} already present", self.already.join(", "))
             } else {
-                ok(&format!("{n} {noun} already present"));
-            }
+                format!("{n} {noun} already present")
+            });
+        }
+        lines
+    }
+
+    /// Prints the summary. `noun` is plural, e.g. "rokit tools".
+    pub fn finish(self, noun: &str) {
+        for line in self.summary(noun) {
+            ok(&line);
         }
     }
 }
@@ -177,5 +187,58 @@ mod tests {
     #[test]
     fn multiselect_help_mentions_how_to_confirm() {
         assert!(MULTISELECT_HELP.contains("enter to confirm"));
+    }
+
+    /// The whole point of a tally: what happened is one line, and what
+    /// didn't need doing is another - never one line each.
+    #[test]
+    fn a_tally_reports_each_kind_on_a_single_line() {
+        let mut tally = Tally::new();
+        tally.did("rojo");
+        tally.did("wally");
+        tally.already("stylua");
+        assert_eq!(
+            tally.summary("rokit tools"),
+            vec![
+                "rokit tools: installed rojo, wally".to_string(),
+                "rokit tools: stylua already present".to_string(),
+            ]
+        );
+    }
+
+    /// Naming a handful is useful; naming twenty is the wall of output the
+    /// tally exists to prevent, so past four it becomes a count.
+    #[test]
+    fn a_long_already_present_list_collapses_to_a_count() {
+        let mut tally = Tally::new();
+        for name in ["a", "b", "c", "d"] {
+            tally.already(name);
+        }
+        assert_eq!(tally.summary("tools"), vec!["tools: a, b, c, d already present"]);
+
+        tally.already("e");
+        assert_eq!(tally.summary("tools"), vec!["5 tools already present"]);
+    }
+
+    /// A tally with nothing in it should print nothing at all, not an empty
+    /// "installed" line.
+    #[test]
+    fn an_empty_tally_says_nothing() {
+        assert!(Tally::new().summary("tools").is_empty());
+    }
+
+    /// inquire's own summary echoes every selected option's full
+    /// `key - description (badge)` line, which is unreadable past two.
+    #[test]
+    fn a_multi_select_summary_lists_keys_only() {
+        let labels = ["react - Roact-style declarative UI library (active)".to_string(),
+                      "reflex - Redux-inspired state container (active)".to_string()];
+        let opts: Vec<inquire::list_option::ListOption<&String>> = labels
+            .iter()
+            .enumerate()
+            .map(|(i, label)| inquire::list_option::ListOption::new(i, label))
+            .collect();
+        assert_eq!(compact_multi_answer(&opts), "2 selected: react, reflex");
+        assert_eq!(compact_multi_answer(&[]), "none");
     }
 }
