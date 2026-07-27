@@ -1,6 +1,7 @@
 pub mod blender;
 pub mod bootstrap;
 pub mod git;
+pub mod gitattributes;
 pub mod gitignore;
 pub mod modules;
 pub mod notify;

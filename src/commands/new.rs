@@ -7,7 +7,10 @@ use inquire::{MultiSelect, Select};
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
-use crate::steps::{blender, git, gitignore, modules, quality, rojo, testez, toolchain, vscode, wally};
+use crate::steps::{
+    blender, git, gitattributes, gitignore, modules, quality, rojo, testez, toolchain, vscode,
+    wally,
+};
 use crate::ui;
 
 pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option<&str>) -> Result<()> {
@@ -373,6 +376,7 @@ fn scaffold(
     }
 
     gitignore::ensure_entries(project_dir)?;
+    gitattributes::ensure_gitattributes(project_dir)?;
 
     if config.blender_enabled() {
         blender::scaffold_starter_scene(project_dir)?;
