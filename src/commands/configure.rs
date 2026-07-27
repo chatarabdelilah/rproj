@@ -34,13 +34,20 @@ pub fn run(key: Option<&str>) -> Result<()> {
 
     println!("\n{} - {}\n{}\n", tool.display_name, tool.summary, tool.docs_url);
     println!(
-        "Enter accepts the shown default. Settings are written to {}.\n",
+        "Enter keeps what this project already uses. Settings are written to {}.\n",
         target_description(&tool.target)
     );
 
+    // Seeded from the file on disk, so pressing enter through the
+    // walkthrough changes nothing. It used to seed from the catalog
+    // instead, which quietly reverted every earlier choice - a TestEZ
+    // project's `std = "roblox+testez"` went back to plain `roblox`, and any
+    // editor setting turned off went back on.
+    let current = current_values(&project_dir, tool)?;
+
     let mut answers: Vec<(&SettingSpec, Value)> = Vec::new();
-    for setting in tool.settings {
-        answers.push((setting, ask(setting)?));
+    for (setting, current) in tool.settings.iter().zip(current) {
+        answers.push((setting, ask(setting, current.as_ref())?));
     }
 
     match &tool.target {
@@ -48,6 +55,35 @@ pub fn run(key: Option<&str>) -> Result<()> {
         ConfigTarget::VsCodeSettings => write_vscode_settings(&project_dir, &answers)?,
     }
     Ok(())
+}
+
+/// What each setting is set to right now, one entry per `tool.settings`.
+fn current_values(project_dir: &Path, tool: &ConfigurableTool) -> Result<Vec<Option<Value>>> {
+    match &tool.target {
+        ConfigTarget::ProjectToml { filename } => {
+            let path = project_dir.join(filename);
+            let existing = read_if_present(&path)?;
+            // A config the tool itself can't read is a problem worth
+            // surfacing now: every prompt default would otherwise be a
+            // catalog value silently disagreeing with the file.
+            if !existing.trim().is_empty() {
+                toml::from_str::<toml::Table>(&existing)
+                    .with_context(|| format!("could not parse {} - fix or delete it, then re-run", path.display()))?;
+            }
+            Ok(tool_settings::current_toml_values(tool, &existing))
+        }
+        ConfigTarget::VsCodeSettings => {
+            let settings = vscode::read_settings(project_dir)?;
+            Ok(tool.settings.iter().map(|s| settings.get(s.key).cloned()).collect())
+        }
+    }
+}
+
+fn read_if_present(path: &Path) -> Result<String> {
+    match path.exists() {
+        true => fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display())),
+        false => Ok(String::new()),
+    }
 }
 
 fn pick_tool() -> Result<&'static ConfigurableTool> {
@@ -72,22 +108,34 @@ fn target_description(target: &ConfigTarget) -> String {
 /// Prompts for one setting. The description is printed above the prompt
 /// rather than crammed into it, so a long explanation stays readable and
 /// the question line itself remains short.
-fn ask(setting: &SettingSpec) -> Result<Value> {
-    println!("{}\n  {}", setting.key, setting.description);
+///
+/// `current` is what the project's config file already says, and takes
+/// precedence over the catalog default - a walkthrough that proposes
+/// reverting your own settings is worse than no walkthrough.
+fn ask(setting: &SettingSpec, current: Option<&Value>) -> Result<Value> {
+    println!("{}\n  {}", setting.display_key(), setting.description);
 
     let value = match &setting.kind {
         SettingKind::Bool { default } => {
-            let answer = Confirm::new("  Enable?").with_default(*default).prompt()?;
-            json!(answer)
+            let default = current.and_then(Value::as_bool).unwrap_or(*default);
+            json!(Confirm::new("  Enable?").with_default(default).prompt()?)
         }
         SettingKind::Integer { default } => {
-            let answer = CustomType::<i64>::new("  Value:").with_default(*default).prompt()?;
-            json!(answer)
+            let default = current.and_then(Value::as_i64).unwrap_or(*default);
+            json!(CustomType::<i64>::new("  Value:").with_default(default).prompt()?)
         }
         SettingKind::Choice { default, options } => {
             let labels: Vec<String> =
                 options.iter().map(|o| format!("{}{}{}", o.value, ui::OPTION_SEPARATOR, o.explanation)).collect();
-            let start = options.iter().position(|o| o.value == *default).unwrap_or(0);
+            // A current value the catalog doesn't list (a hand-written
+            // config, or one written by an older rproj) can't be the
+            // starting cursor, so fall back to the documented default.
+            let selected = current.and_then(Value::as_str).unwrap_or(default);
+            let start = options
+                .iter()
+                .position(|o| o.value == selected)
+                .or_else(|| options.iter().position(|o| o.value == *default))
+                .unwrap_or(0);
             let picked = Select::new("  Value:", labels)
                 .with_starting_cursor(start)
                 .with_formatter(&ui::compact_select_answer)
@@ -100,11 +148,14 @@ fn ask(setting: &SettingSpec) -> Result<Value> {
     Ok(value)
 }
 
-/// Writes the answers as TOML, rendered by the catalog so this file and
-/// the one `rproj new` scaffolds stay identical for equal answers.
+/// Applies the answers to the tool's TOML file, merging rather than
+/// replacing (see `tool_settings::merge_toml`). Replacing deleted every key
+/// the catalog doesn't describe - `selene.toml`'s scaffolded `exclude`
+/// among them.
 fn write_toml(project_dir: &Path, filename: &str, answers: &[(&SettingSpec, Value)]) -> Result<()> {
     let path = project_dir.join(filename);
-    fs::write(&path, tool_settings::render_toml(answers))
+    let existing = read_if_present(&path)?;
+    fs::write(&path, tool_settings::merge_toml(&existing, answers))
         .with_context(|| format!("failed to write {}", path.display()))?;
     ui::ok(&format!("wrote {filename}"));
     Ok(())

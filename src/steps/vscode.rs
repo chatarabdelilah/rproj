@@ -108,6 +108,34 @@ fn install_extension(id: &str) -> Result<()> {
     Ok(())
 }
 
+/// The project's `.vscode/settings.json`, or an empty object when there
+/// isn't one.
+///
+/// Separate from `merge_settings` so `rproj configure` can hit the same
+/// refusal *before* asking thirteen questions rather than after.
+pub fn read_settings(project_dir: &Path) -> Result<serde_json::Map<String, Value>> {
+    let path = project_dir.join(".vscode").join("settings.json");
+    if !path.exists() {
+        return Ok(serde_json::Map::new());
+    }
+    let text = fs::read_to_string(&path)?;
+    if text.trim().is_empty() {
+        return Ok(serde_json::Map::new());
+    }
+    match serde_json::from_str::<Value>(&text) {
+        Ok(Value::Object(map)) => Ok(map),
+        Ok(_) => bail!("{} exists but isn't a JSON object", path.display()),
+        // VS Code tolerates comments and trailing commas here; serde_json
+        // doesn't. Refuse rather than silently discarding settings we
+        // couldn't parse.
+        Err(err) => bail!(
+            "could not parse {} ({err}). It may contain comments or trailing commas, \
+             which this writer can't preserve - fix or move the file, then re-run.",
+            path.display()
+        ),
+    }
+}
+
 /// Merges `entries` into the project's `.vscode/settings.json`.
 ///
 /// Merging rather than replacing matters: the file routinely holds
@@ -115,27 +143,10 @@ fn install_extension(id: &str) -> Result<()> {
 /// (`rproj new`'s scaffold and every `rproj configure` run targeting a VS
 /// Code tool), so each write has to leave the other keys alone.
 pub fn merge_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<()> {
+    let mut settings = read_settings(project_dir)?;
     let dir = project_dir.join(".vscode");
     fs::create_dir_all(&dir)?;
     let path = dir.join("settings.json");
-
-    let mut settings = if path.exists() {
-        let text = fs::read_to_string(&path)?;
-        match serde_json::from_str::<Value>(&text) {
-            Ok(Value::Object(map)) => map,
-            Ok(_) => bail!("{} exists but isn't a JSON object", path.display()),
-            // VS Code tolerates comments and trailing commas here;
-            // serde_json doesn't. Refuse rather than silently discarding
-            // settings we couldn't parse.
-            Err(err) => bail!(
-                "could not parse {} ({err}). It may contain comments or trailing commas, \
-                 which this writer can't preserve - fix or move the file, then re-run.",
-                path.display()
-            ),
-        }
-    } else {
-        serde_json::Map::new()
-    };
 
     for (key, value) in entries {
         settings.insert((*key).to_string(), value.clone());

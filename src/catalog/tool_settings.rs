@@ -45,6 +45,19 @@ pub enum ConfigTarget {
     VsCodeSettings,
 }
 
+impl SettingSpec {
+    /// How the setting is named on screen. Sectioned keys have to be shown
+    /// dotted: StyLua's only sectioned setting is called `enabled`, and a
+    /// prompt headed by that word alone tells you nothing about what it
+    /// enables.
+    pub fn display_key(&self) -> String {
+        match self.section {
+            Some(section) => format!("{section}.{}", self.key),
+            None => self.key.to_string(),
+        }
+    }
+}
+
 pub struct ConfigurableTool {
     /// Matches the tool's catalog key, so `rproj configure stylua` and
     /// `rproj info stylua` refer to the same thing.
@@ -418,6 +431,124 @@ fn toml_value(value: &Value) -> String {
     }
 }
 
+/// Applies `answers` to an existing config file, rewriting only the lines
+/// that hold a setting the catalog describes and leaving everything else -
+/// comments, blank lines, keys and whole tables rproj knows nothing about -
+/// byte for byte as it found them.
+///
+/// Re-rendering the file from the catalog instead was silently destructive.
+/// A scaffolded `selene.toml` carries an `exclude` key that no `SettingSpec`
+/// describes, and `rproj configure selene` deleted it - putting the project
+/// straight back to the 2335-findings lint run that `exclude` exists to
+/// prevent. Verified by running configure against a scaffolded project:
+/// `exclude` was gone from the file afterwards.
+///
+/// Line-based rather than parse-and-reserialise so comments survive, which
+/// also makes accepting every default a byte-exact no-op.
+pub fn merge_toml(existing: &str, answers: &[(&SettingSpec, Value)]) -> String {
+    if existing.trim().is_empty() {
+        return render_toml(answers);
+    }
+
+    let mut out = String::new();
+    let mut section: Option<String> = None;
+    let mut replaced = vec![false; answers.len()];
+
+    for line in existing.lines() {
+        let trimmed = line.trim();
+        if let Some(name) = trimmed.strip_prefix('[').and_then(|rest| rest.strip_suffix(']')) {
+            section = Some(name.trim().to_string());
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+
+        let key = match trimmed.split_once('=') {
+            Some((key, _)) if !trimmed.starts_with('#') => key.trim(),
+            _ => {
+                out.push_str(line);
+                out.push('\n');
+                continue;
+            }
+        };
+        match answers.iter().position(|(spec, _)| spec.key == key && spec.section == section.as_deref()) {
+            Some(i) => {
+                replaced[i] = true;
+                out.push_str(&format!("{key} = {}\n", toml_value(&answers[i].1)));
+            }
+            None => {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+    }
+
+    // A setting the file didn't carry yet - a new entry in the catalog, or a
+    // hand-written config that only set some of them.
+    for (i, (setting, value)) in answers.iter().enumerate() {
+        if replaced[i] {
+            continue;
+        }
+        let line = format!("{} = {}", setting.key, toml_value(value));
+        out = match setting.section {
+            None => insert_top_level(&out, &line),
+            Some(section) => insert_into_section(&out, section, &line),
+        };
+    }
+    out
+}
+
+/// Adds `line` directly under `[section]`, creating the table at the end of
+/// the file if it isn't there. Appending to the file blindly would put the
+/// key in whichever table happened to come last.
+fn insert_into_section(toml: &str, section: &str, line: &str) -> String {
+    let header = format!("[{section}]");
+    match toml.lines().position(|l| l.trim() == header) {
+        Some(i) => {
+            let mut lines: Vec<&str> = toml.lines().collect();
+            lines.insert(i + 1, line);
+            format!("{}\n", lines.join("\n"))
+        }
+        None => format!("{toml}\n{header}\n{line}\n"),
+    }
+}
+
+/// What each of `tool`'s settings is currently set to in `existing`.
+///
+/// `rproj configure` offers these as the prompt defaults. Offering the
+/// catalog defaults instead meant pressing enter through the walkthrough
+/// reverted every choice already made - including `std = "roblox+testez"`,
+/// which a TestEZ project needs and which reverting breaks.
+pub fn current_toml_values(tool: &ConfigurableTool, existing: &str) -> Vec<Option<Value>> {
+    // A whole document, not a single value: `str::parse::<toml::Value>`
+    // parses one value and rejects the rest of the file.
+    let Ok(doc) = toml::from_str::<toml::Table>(existing) else {
+        return tool.settings.iter().map(|_| None).collect();
+    };
+    tool.settings
+        .iter()
+        .map(|setting| {
+            let value = match setting.section {
+                Some(section) => doc.get(section)?.as_table()?.get(setting.key)?,
+                None => doc.get(setting.key)?,
+            };
+            toml_to_json(value)
+        })
+        .collect()
+}
+
+/// Only the shapes a `SettingKind` can hold. Anything else (an array, a
+/// nested table) isn't a value this walkthrough could have written, so it's
+/// left alone rather than offered back as a default.
+fn toml_to_json(value: &toml::Value) -> Option<Value> {
+    match value {
+        toml::Value::Boolean(b) => Some(json!(b)),
+        toml::Value::Integer(i) => Some(json!(i)),
+        toml::Value::String(s) => Some(json!(s)),
+        _ => None,
+    }
+}
+
 /// The config file a tool gets at scaffold time: every setting at its
 /// documented default, with `overrides` applied by key.
 ///
@@ -453,6 +584,11 @@ pub fn default_toml(tool_key: &str, overrides: &[(&str, &str)]) -> Option<String
 /// that table, so an `exclude` tacked onto the end of a file with a
 /// `[rules]` section becomes `rules.exclude` and is silently ignored.
 pub fn insert_top_level(toml: &str, line: &str) -> String {
+    // A file whose very first line is a header has no `\n[` to find, and
+    // appending would drop the key into whichever table ends the file.
+    if toml.starts_with('[') {
+        return format!("{line}\n\n{toml}");
+    }
     match toml.find("\n[") {
         // `i` is the newline immediately before the header. Slicing
         // through it keeps the blank line that already separated the
@@ -539,6 +675,110 @@ mod tests {
         let out = insert_top_level("std = \"roblox\"
 ", "exclude = []");
         assert!(out.contains("exclude = []"), "{out}");
+    }
+
+    /// Answers built from what the file already says, i.e. what `rproj
+    /// configure` sends to the writer when you press enter through it.
+    fn enter_through(tool: &'static ConfigurableTool, existing: &str) -> Vec<(&'static SettingSpec, Value)> {
+        let current = current_toml_values(tool, existing);
+        tool.settings
+            .iter()
+            .zip(current)
+            .map(|(spec, current)| (spec, current.unwrap_or_else(|| spec.kind.default_value())))
+            .collect()
+    }
+
+    /// The scaffolded `exclude` is what keeps selene out of `Packages/`.
+    /// Configure used to re-render the file from the catalog, which deleted
+    /// it and put the project back to thousands of vendored-code findings.
+    #[test]
+    fn merging_keeps_keys_the_catalog_does_not_describe() {
+        let tool = find("selene").unwrap();
+        let existing = default_toml("selene", &[]).unwrap();
+        let existing = insert_top_level(&existing, r#"exclude = ["Packages/**"]"#);
+
+        let merged = merge_toml(&existing, &enter_through(tool, &existing));
+        assert!(merged.contains(r#"exclude = ["Packages/**"]"#), "{merged}");
+    }
+
+    /// Accepting every prompt has to be a no-op. Anything else means the
+    /// walkthrough rewrites your project just for being opened.
+    #[test]
+    fn enter_through_configure_changes_nothing() {
+        for tool in CONFIGURABLE_TOOLS {
+            let ConfigTarget::ProjectToml { .. } = tool.target else { continue };
+            // A file carrying every kind of thing configure has to preserve:
+            // a comment, an unmanaged top-level key, a non-default managed
+            // value, an unmanaged key inside a managed table, and an
+            // unmanaged table.
+            let mut existing = default_toml(tool.key, &[]).unwrap();
+            existing = insert_top_level(&existing, "# hand-written\nunmanaged_top = 7");
+            existing.push_str("\n[unmanaged_table]\nkey = \"value\"\n");
+
+            let merged = merge_toml(&existing, &enter_through(tool, &existing));
+            assert_eq!(merged, existing, "{} rewrote its config", tool.key);
+        }
+    }
+
+    /// A changed answer has to actually land, and only on its own line.
+    #[test]
+    fn merging_rewrites_only_the_answered_line() {
+        let tool = find("selene").unwrap();
+        let existing = "# keep me\nstd = \"roblox\"\nexclude = [\"Packages/**\"]\n\n[rules]\nshadowing = \"warn\"\n";
+        let mut answers = enter_through(tool, existing);
+        for (spec, value) in answers.iter_mut() {
+            if spec.key == "shadowing" {
+                *value = json!("allow");
+            }
+        }
+        let merged = merge_toml(existing, &answers);
+        assert!(merged.contains("# keep me"), "{merged}");
+        assert!(merged.contains(r#"exclude = ["Packages/**"]"#), "{merged}");
+        assert!(merged.contains(r#"shadowing = "allow""#), "{merged}");
+        assert!(!merged.contains(r#"shadowing = "warn""#), "{merged}");
+    }
+
+    /// A setting the file predates has to be added under its own table,
+    /// not appended wherever the file happens to end.
+    #[test]
+    fn a_missing_sectioned_setting_lands_under_its_own_header() {
+        let tool = find("selene").unwrap();
+        let existing = "std = \"roblox\"\n";
+        let merged = merge_toml(existing, &enter_through(tool, existing));
+        let parsed = toml::from_str::<toml::Table>(&merged).expect("still valid TOML");
+        assert_eq!(parsed["rules"]["shadowing"].as_str(), Some("warn"), "{merged}");
+        assert_eq!(parsed["std"].as_str(), Some("roblox"), "{merged}");
+    }
+
+    /// An empty or absent file has nothing to merge into.
+    #[test]
+    fn merging_into_nothing_renders_the_defaults() {
+        let tool = find("stylua").unwrap();
+        let answers = enter_through(tool, "");
+        assert_eq!(merge_toml("", &answers), default_toml("stylua", &[]).unwrap());
+    }
+
+    /// Pressing enter through `rproj configure` proposes these, so reading
+    /// them back wrong is how a project's own settings get reverted.
+    #[test]
+    fn current_values_come_from_the_file_not_the_catalog() {
+        let tool = find("selene").unwrap();
+        let existing = "std = \"roblox+testez\"\n\nexclude = [\"Packages/**\"]\n\n[rules]\nunused_variable = \"allow\"\n";
+        let current = current_toml_values(tool, existing);
+        assert_eq!(current.len(), tool.settings.len());
+
+        let by_key = |key: &str, section: Option<&str>| {
+            let i = tool
+                .settings
+                .iter()
+                .position(|s| s.key == key && s.section == section)
+                .expect("setting exists");
+            current[i].clone()
+        };
+        assert_eq!(by_key("std", None), Some(json!("roblox+testez")));
+        assert_eq!(by_key("unused_variable", Some("rules")), Some(json!("allow")));
+        // Not in the file: the catalog default has to fill in.
+        assert_eq!(by_key("shadowing", Some("rules")), None);
     }
 
     /// Every tool's key must be resolvable, or `rproj configure <key>` and
