@@ -45,6 +45,7 @@ pub fn scaffold_project_json(
     project_name: &str,
     package_workflow: PackageWorkflow,
     testez_selected: bool,
+    has_server_packages: bool,
 ) -> Result<()> {
     let path = project_dir.join("default.project.json");
     if path.exists() {
@@ -98,6 +99,21 @@ pub fn scaffold_project_json(
 
     let mut server_scripts = serde_json::Map::new();
     server_scripts.insert("server".to_string(), json!({ "$path": "src/server" }));
+
+    // Server-realm Wally packages land in their own `ServerPackages/` folder,
+    // which belongs in ServerScriptService - putting them in
+    // ReplicatedStorage would replicate a server-only module to every client,
+    // which is the thing the realm exists to prevent. Mounted as
+    // `serverPackages` rather than `packages` so server code reads
+    // unambiguously against the shared `ReplicatedStorage.packages`; lowercase
+    // initial, like every other instance name that mirrors a folder.
+    //
+    // Only mounted when a server package was actually selected: rojo fails
+    // outright on a mapped $path that doesn't exist, so an unconditional
+    // entry would break every project that has no server dependency.
+    if has_server_packages {
+        server_scripts.insert("serverPackages".to_string(), json!({ "$path": "ServerPackages" }));
+    }
     let mut client_scripts = serde_json::Map::new();
     client_scripts.insert("client".to_string(), json!({ "$path": "src/client" }));
 

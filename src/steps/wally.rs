@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::catalog::wally_packages;
+use crate::catalog::wally_packages::{self, Realm};
 use crate::steps::{rojo, run_in};
 use crate::ui;
 
@@ -32,13 +32,32 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
         }
     }
 
+    let mut specs = Vec::new();
+    for key in selected {
+        specs.push(
+            wally_packages::find(key)
+                .with_context(|| format!("unknown package key `{key}` in selection"))?,
+        );
+    }
+
     let mut body = format!(
         "[package]\nname = \"{package_name}\"\nversion = \"0.1.0\"\nregistry = \"https://github.com/UpliftGames/wally-index\"\nrealm = \"shared\"\n\n[dependencies]\n"
     );
-    for key in selected {
-        let spec = wally_packages::find(key)
-            .with_context(|| format!("unknown package key `{key}` in selection"))?;
+    for spec in specs.iter().filter(|s| s.realm == Realm::Shared) {
         body.push_str(&format!("{} = \"{}\"\n", spec.key, spec.source));
+    }
+
+    // A server-realm package under `[dependencies]` doesn't merely land in
+    // the wrong folder - wally refuses to resolve it and the install fails
+    // outright, taking the whole scaffold with it. The section is only
+    // emitted when something needs it, so the common project keeps a
+    // one-section manifest.
+    let server: Vec<_> = specs.iter().filter(|s| s.realm == Realm::Server).collect();
+    if !server.is_empty() {
+        body.push_str("\n[server-dependencies]\n");
+        for spec in server {
+            body.push_str(&format!("{} = \"{}\"\n", spec.key, spec.source));
+        }
     }
 
     fs::write(&path, body)?;
@@ -54,12 +73,25 @@ pub fn wally_install(project_dir: &Path) -> Result<()> {
 /// realm. Every other spelling only works by accident on Windows.
 pub const PACKAGES_DIR: &str = "Packages";
 
+/// Where wally puts `[server-dependencies]`. A separate folder, not a
+/// subfolder of `Packages/`, so everything that touches vendored package
+/// code has to know about both.
+pub const SERVER_PACKAGES_DIR: &str = "ServerPackages";
+
+/// Retypes the link files in whichever package folders exist.
+///
+/// Both folders are passed in one invocation rather than two runs: the tool
+/// accepts multiple paths, and a project with no server-realm package has no
+/// `ServerPackages/` at all - naming a missing directory is an error, so the
+/// argument list is built from what's on disk.
 pub fn wally_package_types(project_dir: &Path) -> Result<()> {
-    run_in(
-        "wally-package-types",
-        &["-s", "sourcemap.json", PACKAGES_DIR],
-        Some(project_dir),
-    )
+    let mut args = vec!["-s", "sourcemap.json"];
+    for dir in [PACKAGES_DIR, SERVER_PACKAGES_DIR] {
+        if project_dir.join(dir).is_dir() {
+            args.push(dir);
+        }
+    }
+    run_in("wally-package-types", &args, Some(project_dir))
 }
 
 /// Installs this project's Wally dependencies and restores the types on the

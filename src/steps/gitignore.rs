@@ -18,6 +18,9 @@ const ENTRIES: &[&str] = &[
     // spelling, so a Linux contributor would be committing every vendored
     // package.
     "Packages/",
+    // Wally's second output folder, for `[server-dependencies]`. Generated
+    // the same way and just as regenerable, so it's ignored the same way.
+    "ServerPackages/",
     "sourcemap.json",
     // Local editor state. Note the tradeoff: rproj writes luau-lsp's
     // ignoreGlobs here for submodule projects, so a teammate cloning the

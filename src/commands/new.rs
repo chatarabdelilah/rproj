@@ -258,7 +258,17 @@ fn scaffold(
     toolchain::ensure_stylua_config(project_dir)?;
 
     let testez_selected = packages.contains("testez");
-    rojo::scaffold_project_json(project_dir, name, package_workflow, testez_selected)?;
+    // Only the Wally workflow has realms at all - a submodule checkout is
+    // just files, mounted wholesale under modules/ regardless.
+    let has_server_packages =
+        package_workflow == PackageWorkflow::Wally && wally_packages::has_server_realm(packages);
+    rojo::scaffold_project_json(
+        project_dir,
+        name,
+        package_workflow,
+        testez_selected,
+        has_server_packages,
+    )?;
     if testez_selected {
         testez::ensure_test_folders(project_dir)?;
     }
@@ -326,7 +336,7 @@ fn scaffold(
     // must only invoke tools this project actually pins, or CI fails on a
     // command that isn't installed.
     if quality::ensure_check_script(project_dir, &tools_for_workflow(config, package_workflow))? {
-        quality::ensure_ci_workflow(project_dir, package_workflow)?;
+        quality::ensure_ci_workflow(project_dir, package_workflow, has_server_packages)?;
         quality::lute_setup(project_dir)?;
     }
 

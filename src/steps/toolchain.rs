@@ -159,7 +159,9 @@ pub fn ensure_selene_config(
     // a freshly scaffolded Wally project reported 2335 errors, every one
     // of them from inside Packages/_Index.
     let vendored = match workflow {
-        PackageWorkflow::Wally => r#"exclude = ["Packages/**"]"#,
+        // Both wally output folders: a project with server-realm packages
+        // would otherwise have ServerPackages/ linted.
+        PackageWorkflow::Wally => r#"exclude = ["Packages/**", "ServerPackages/**"]"#,
         PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
     };
     config = tool_settings::insert_top_level(&config, vendored);

@@ -71,14 +71,18 @@ pub fn ensure_check_script(project_dir: &Path, selected_tools: &[String]) -> Res
     Ok(true)
 }
 
-pub fn ensure_ci_workflow(project_dir: &Path, workflow: PackageWorkflow) -> Result<()> {
+pub fn ensure_ci_workflow(
+    project_dir: &Path,
+    workflow: PackageWorkflow,
+    has_server_packages: bool,
+) -> Result<()> {
     let path = project_dir.join(".github").join("workflows").join("ci.yml");
     if path.exists() {
         ui::ok(".github/workflows/ci.yml already exists");
         return Ok(());
     }
     fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
-    fs::write(&path, ci_workflow(workflow))
+    fs::write(&path, ci_workflow(workflow, has_server_packages))
         .with_context(|| format!("failed to write {}", path.display()))?;
     ui::ok("wrote .github/workflows/ci.yml");
     Ok(())

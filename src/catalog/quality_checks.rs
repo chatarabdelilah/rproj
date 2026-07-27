@@ -53,6 +53,7 @@ local analyze = process.run({
 	-- checkouts we don't control.
 	"--ignore=**/submodules/**",
 	"--ignore=**/Packages/**",
+	"--ignore=**/ServerPackages/**",
 	"--base-luaurc=.luaurc",
 	"--definitions=roblox.d.luau",
 	"--flag:LuauSolverV2=true",
@@ -178,7 +179,10 @@ const WPT_FIXED_REV: &str = "daf5c97bf451e9fed47080769cfaa75d419eb768";
 ///
 /// Submodule projects need no equivalent - `submodules: true` on the
 /// checkout already brings their packages in.
-fn wally_ci_steps() -> String {
+fn wally_ci_steps(has_server_packages: bool) -> String {
+    // Naming a directory that doesn't exist is an error, and ServerPackages/
+    // only exists when something server-realm was selected.
+    let dirs = if has_server_packages { "Packages ServerPackages" } else { "Packages" };
     format!(
         r#"
       # wally-package-types 1.6.2 - the newest release, and what rokit.toml
@@ -212,7 +216,7 @@ fn wally_ci_steps() -> String {
         run: |
           wally install
           rojo sourcemap default.project.json --output sourcemap.json
-          ~/.cargo/bin/wally-package-types --sourcemap sourcemap.json Packages
+          ~/.cargo/bin/wally-package-types --sourcemap sourcemap.json {dirs}
 "#
     )
 }
@@ -225,9 +229,9 @@ fn wally_ci_steps() -> String {
 /// `.test.luau`/`.spec.luau` files and exits 0 when there are none, so
 /// this workflow is green on a new project and still runs tests once
 /// there are some.
-pub fn ci_workflow(workflow: PackageWorkflow) -> String {
+pub fn ci_workflow(workflow: PackageWorkflow, has_server_packages: bool) -> String {
     let install = match workflow {
-        PackageWorkflow::Wally => wally_ci_steps(),
+        PackageWorkflow::Wally => wally_ci_steps(has_server_packages),
         PackageWorkflow::GitSubmodules => String::new(),
     };
     format!(
@@ -343,7 +347,7 @@ mod tests {
     #[test]
     fn ci_workflow_runs_the_gate_and_tolerates_no_tests() {
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            let ci = ci_workflow(workflow);
+            let ci = ci_workflow(workflow, false);
             assert!(ci.contains("lute run check"));
             assert!(ci.contains("lute test"));
             assert!(!ci.contains("lute run tests"));
@@ -356,7 +360,7 @@ mod tests {
     /// doesn't exist - fails, and every Wally project's CI is red.
     #[test]
     fn wally_ci_installs_packages_and_restores_their_types() {
-        let ci = ci_workflow(PackageWorkflow::Wally);
+        let ci = ci_workflow(PackageWorkflow::Wally, false);
         assert!(ci.contains("wally install"), "{ci}");
         assert!(ci.contains("wally-package-types"), "{ci}");
         // The install must come before the gate, or it's pointless.
@@ -368,7 +372,7 @@ mod tests {
         // Submodule projects get their packages from `submodules: true` and
         // don't pin wally at all - invoking it would fail on a missing
         // binary.
-        let submodules = ci_workflow(PackageWorkflow::GitSubmodules);
+        let submodules = ci_workflow(PackageWorkflow::GitSubmodules, false);
         assert!(!submodules.contains("wally"), "{submodules}");
     }
 
@@ -377,7 +381,7 @@ mod tests {
     /// silently goes back to using the broken one.
     #[test]
     fn wally_ci_builds_the_fixed_wally_package_types() {
-        let ci = ci_workflow(PackageWorkflow::Wally);
+        let ci = ci_workflow(PackageWorkflow::Wally, false);
 
         // A branch or tag would make CI non-reproducible, and a short sha
         // is ambiguous.
@@ -402,11 +406,24 @@ mod tests {
         );
     }
 
+    /// wally-package-types errors on a directory argument that doesn't
+    /// exist, and `ServerPackages/` only exists when something server-realm
+    /// was selected - so the argument list has to track the manifest.
+    #[test]
+    fn ci_retypes_server_packages_only_when_there_are_any() {
+        let with = ci_workflow(PackageWorkflow::Wally, true);
+        assert!(with.contains("sourcemap.json Packages ServerPackages"), "{with}");
+
+        let without = ci_workflow(PackageWorkflow::Wally, false);
+        assert!(without.contains("sourcemap.json Packages\n"), "{without}");
+        assert!(!without.contains("ServerPackages"), "{without}");
+    }
+
     /// Wally hardcodes `Packages`; the lowercase spelling only resolves on
     /// a case-insensitive filesystem, which the Linux runner is not.
     #[test]
     fn vendored_paths_use_wallys_real_capitalisation() {
         assert!(ANALYZE_BODY.contains("**/Packages/**"), "{ANALYZE_BODY}");
-        assert!(ci_workflow(PackageWorkflow::Wally).contains("sourcemap.json Packages"));
+        assert!(ci_workflow(PackageWorkflow::Wally, false).contains("sourcemap.json Packages"));
     }
 }

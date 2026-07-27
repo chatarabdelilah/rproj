@@ -57,11 +57,35 @@ pub struct Submodule {
     pub path: &'static str,
 }
 
+/// Which wally realm a package is published under.
+///
+/// Not cosmetic and not rproj's choice: wally refuses to resolve a
+/// server-realm package listed under `[dependencies]` at all, failing with
+/// "No packages were found that matched (Shared) <pkg>. Are you sure this is
+/// a Shared dependency?" - which is what every selection including
+/// ProfileStore did, aborting the scaffold. Server-realm packages go in
+/// `[server-dependencies]` and wally installs them into `ServerPackages/`
+/// instead of `Packages/`.
+///
+/// Applies to the Wally workflow only. A git submodule is just a checkout;
+/// nothing enforces a realm, and the whole `modules/` tree is mounted in one
+/// place regardless.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Realm {
+    Shared,
+    Server,
+}
+
 pub struct PackageSpec {
     /// Short identifier used in rproj.toml and on the CLI (e.g. `rproj info reflex`).
     pub key: &'static str,
     /// Wally dependency line value, e.g. "littensy/reflex@4.3.1".
     pub source: &'static str,
+    /// The realm this package is published under. Every catalog entry is
+    /// `Shared` except ProfileStore - verified by installing all 22 packages
+    /// together, which succeeds only with ProfileStore under
+    /// `[server-dependencies]`.
+    pub realm: Realm,
     /// Git clone URL, used by the git-submodule package workflow instead of
     /// Wally. Some entries share the same repo (e.g. charm/charmSync/
     /// reactCharm/videCharm all live in littensy/charm's `packages/`
@@ -130,6 +154,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "react",
         source: "jsdotlua/react@17.2.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/jsdotlua/react-lua",
         module_name: "React",
         submodule: None,
@@ -142,6 +167,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "reactRoblox",
         source: "jsdotlua/react-roblox@17.2.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/jsdotlua/react-lua",
         module_name: "ReactRoblox",
         submodule: None,
@@ -154,6 +180,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "vide",
         source: "centau/vide@0.4.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/centau/vide",
         module_name: "Vide",
         submodule: Some(Submodule { dir: "vide", path: "src" }),
@@ -166,6 +193,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "fusion",
         source: "elttob/fusion@0.3.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/dphfox/Fusion",
         module_name: "Fusion",
         submodule: Some(Submodule { dir: "fusion", path: "src" }),
@@ -182,6 +210,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "reflex",
         source: "littensy/reflex@4.3.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/reflex",
         module_name: "Reflex",
         submodule: Some(Submodule { dir: "reflex", path: "src" }),
@@ -194,6 +223,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "reactReflex",
         source: "littensy/react-reflex@0.3.6",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/react-reflex",
         module_name: "ReactReflex",
         submodule: Some(Submodule { dir: "react-reflex", path: "src" }),
@@ -206,6 +236,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "charm",
         source: "littensy/charm@0.11.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "Charm",
         submodule: Some(Submodule { dir: "charm", path: "packages/charm/src" }),
@@ -218,6 +249,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "charmSync",
         source: "littensy/charm-sync@0.4.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "CharmSync",
         submodule: Some(Submodule { dir: "charm", path: "packages/charm-sync/src" }),
@@ -230,6 +262,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "reactCharm",
         source: "littensy/react-charm@0.4.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "ReactCharm",
         submodule: None,
@@ -242,6 +275,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "videCharm",
         source: "littensy/vide-charm@0.4.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "VideCharm",
         submodule: Some(Submodule { dir: "charm", path: "packages/vide-charm/src" }),
@@ -255,6 +289,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "lyra",
         source: "paradoxum-games/lyra@0.6.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/paradoxum-games/lyra",
         module_name: "Lyra",
         submodule: Some(Submodule { dir: "lyra", path: "src" }),
@@ -267,6 +302,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "profilestore",
         source: "lm-loleris/profilestore@1.0.3",
+        realm: Realm::Server,
         git_repo: "https://github.com/MadStudioRoblox/ProfileStore",
         module_name: "ProfileStore",
         submodule: Some(Submodule { dir: "profilestore", path: "ProfileStore.luau" }),
@@ -280,6 +316,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "testez",
         source: "roblox/testez@0.4.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/Roblox/testez",
         module_name: "TestEZ",
         submodule: Some(Submodule { dir: "testez", path: "src" }),
@@ -293,6 +330,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "janitor",
         source: "howmanysmall/janitor@1.18.3",
+        realm: Realm::Shared,
         git_repo: "https://github.com/howmanysmall/Janitor",
         module_name: "Janitor",
         submodule: Some(Submodule { dir: "janitor", path: "src" }),
@@ -305,6 +343,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "ripple",
         source: "littensy/ripple@0.10.2",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/ripple",
         module_name: "Ripple",
         submodule: Some(Submodule { dir: "ripple", path: "packages/ripple/src" }),
@@ -317,6 +356,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "reactRipple",
         source: "littensy/react-ripple@3.0.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/ripple",
         module_name: "ReactRipple",
         submodule: None,
@@ -329,6 +369,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "videRipple",
         source: "littensy/vide-ripple@0.10.2",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/ripple",
         module_name: "VideRipple",
         submodule: Some(Submodule { dir: "ripple", path: "packages/vide-ripple/src" }),
@@ -341,6 +382,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "remo",
         source: "littensy/remo@1.5.3",
+        realm: Realm::Shared,
         git_repo: "https://github.com/littensy/remo",
         module_name: "Remo",
         submodule: Some(Submodule { dir: "remo", path: "src" }),
@@ -353,6 +395,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "promise",
         source: "evaera/promise@4.0.0",
+        realm: Realm::Shared,
         git_repo: "https://github.com/evaera/roblox-lua-promise",
         module_name: "Promise",
         submodule: Some(Submodule { dir: "promise", path: "lib" }),
@@ -365,6 +408,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "greentea",
         source: "corecii/greentea@0.4.11",
+        realm: Realm::Shared,
         git_repo: "https://github.com/corecii/greentea",
         module_name: "gt",
         submodule: Some(Submodule { dir: "greentea", path: "src" }),
@@ -377,6 +421,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "t",
         source: "osyrisrblx/t@3.1.1",
+        realm: Realm::Shared,
         git_repo: "https://github.com/osyrisrblx/t",
         module_name: "t",
         submodule: Some(Submodule { dir: "t", path: "lib" }),
@@ -389,6 +434,7 @@ pub const PACKAGES: &[PackageSpec] = &[
     PackageSpec {
         key: "sift",
         source: "csqrl/sift@0.0.11",
+        realm: Realm::Shared,
         git_repo: "https://github.com/csqrl/sift",
         module_name: "Sift",
         submodule: Some(Submodule { dir: "sift", path: "src" }),
@@ -421,4 +467,57 @@ pub fn find(key: &str) -> Option<&'static PackageSpec> {
 
 pub fn in_category(category: Category) -> impl Iterator<Item = &'static PackageSpec> {
     PACKAGES.iter().filter(move |p| p.category == category)
+}
+
+/// Whether any selected package is server-realm, i.e. whether wally will
+/// create a `ServerPackages/` folder.
+///
+/// Several unrelated things key off this - the project file's mount, the
+/// retyping arguments, CI - and every one of them breaks differently if it
+/// disagrees with the manifest: rojo fails on a `$path` that doesn't exist,
+/// and wally-package-types fails on a directory argument that doesn't
+/// exist. Deriving them all from one predicate keeps them from drifting.
+pub fn has_server_realm<'a>(keys: impl IntoIterator<Item = &'a String>) -> bool {
+    keys.into_iter().filter_map(|k| find(k)).any(|p| p.realm == Realm::Server)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A server-realm package listed under `[dependencies]` doesn't land in
+    /// the wrong folder - wally refuses to resolve it and the install fails,
+    /// aborting the whole scaffold. This is what happened to every selection
+    /// containing ProfileStore.
+    #[test]
+    fn profilestore_is_the_server_realm_package() {
+        let profilestore = find("profilestore").expect("profilestore is in the catalog");
+        assert!(profilestore.realm == Realm::Server, "ProfileStore is published server-realm");
+
+        // Verified by installing all 22 catalog packages together: the
+        // install succeeds only with ProfileStore under
+        // `[server-dependencies]` and everything else under `[dependencies]`.
+        for spec in PACKAGES.iter().filter(|p| p.key != "profilestore") {
+            assert!(
+                spec.realm == Realm::Shared,
+                "{} is marked server-realm; confirm with a real `wally install` before trusting it",
+                spec.key
+            );
+        }
+    }
+
+    /// Several unrelated things key off this predicate (the project file's
+    /// ServerPackages mount, the retyping arguments, CI), and each fails
+    /// differently when it disagrees with the manifest.
+    #[test]
+    fn has_server_realm_tracks_the_selection() {
+        let owned = |keys: &[&str]| keys.iter().map(|k| (*k).to_string()).collect::<Vec<_>>();
+
+        assert!(has_server_realm(&owned(&["charm", "profilestore"])));
+        assert!(has_server_realm(&owned(&["profilestore"])));
+        assert!(!has_server_realm(&owned(&["charm", "lyra", "remo"])));
+        assert!(!has_server_realm(&owned(&[])));
+        // An unknown key must not panic or count as server-realm.
+        assert!(!has_server_realm(&owned(&["not-a-package"])));
+    }
 }
