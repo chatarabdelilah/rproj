@@ -1,5 +1,8 @@
 # rproj
 
+[![crates.io](https://img.shields.io/crates/v/rproj.svg)](https://crates.io/crates/rproj)
+[![license](https://img.shields.io/crates/l/rproj.svg)](LICENSE)
+
 **Guided bootstrap-to-game-dev CLI for Roblox.**
 
 Takes a fresh Windows PC all the way to a working Roblox/Luau development setup, then scaffolds projects on top of it — and explains every tool and package as it goes, so you end up knowing why your setup looks the way it does.
@@ -59,14 +62,11 @@ Every one of those is a real bug that was reproduced and fixed here, not a hypot
 
 ## Install
 
-Not published to crates.io yet — build from source:
-
 ```powershell
-git clone https://github.com/chatarabdelilah/rproj
-cargo install --path rproj
+cargo install rproj
 ```
 
-or straight from the repo:
+Or from source, to get unreleased changes:
 
 ```powershell
 cargo install --git https://github.com/chatarabdelilah/rproj --locked
@@ -196,7 +196,7 @@ Set `RPROJ_NO_EMOJI=1` for `+` / `-` / `!` markers instead of `✅` / `➖` / `�
 
 ## Status
 
-v0.1.0. Windows-only, Luau-only, and not yet on crates.io.
+v0.1.0, the first published release. Windows-only and Luau-only.
 
 Deliberately not planned: macOS support and roblox-ts. On the roadmap: a GUI over the same core logic, and live maintenance-status checking once the catalog is large enough that hand-curation becomes a burden.
 
