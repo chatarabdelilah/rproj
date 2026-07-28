@@ -23,6 +23,7 @@ fn main() -> anyhow::Result<()> {
             commands::new::run(&name, reconfigure, like.as_deref(), save_setup.as_deref())
         }
         Some(Command::Configure { key }) => commands::configure::run(key.as_deref()),
+        Some(Command::Upgrade { yes }) => commands::upgrade::run(yes),
         Some(Command::Watch) => commands::watch::run(),
         Some(Command::Copy) => commands::copy::run(),
         Some(Command::Info { key }) => commands::info::run(key.as_deref()),

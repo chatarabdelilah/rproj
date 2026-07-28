@@ -41,6 +41,13 @@ pub enum Command {
         /// Tool key to configure (stylua, selene, luau-lsp...). Omit to pick from a list.
         key: Option<String>,
     },
+    /// Re-apply rproj's generated config to an existing project, so it
+    /// picks up fixes made since it was scaffolded
+    Upgrade {
+        /// Apply without asking for confirmation
+        #[arg(long)]
+        yes: bool,
+    },
     /// Resume the dev loop in the current project: install anything missing,
     /// then start the Rojo sourcemap watcher
     Watch,

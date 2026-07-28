@@ -143,19 +143,52 @@ pub fn read_settings(project_dir: &Path) -> Result<serde_json::Map<String, Value
 /// (`rproj new`'s scaffold and every `rproj configure` run targeting a VS
 /// Code tool), so each write has to leave the other keys alone.
 pub fn merge_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<()> {
-    let mut settings = read_settings(project_dir)?;
+    let merged = merged_settings(project_dir, entries)?;
     let dir = project_dir.join(".vscode");
     fs::create_dir_all(&dir)?;
     let path = dir.join("settings.json");
+    fs::write(&path, merged).with_context(|| format!("failed to write {}", path.display()))?;
+    ui::ok("wrote .vscode/settings.json");
+    Ok(())
+}
 
+/// What `merge_settings` *would* write, without writing it.
+///
+/// `rproj upgrade` needs this to tell whether a file would actually change
+/// before offering to rewrite it - "up to date" has to mean something.
+pub fn merged_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<String> {
+    let mut settings = read_settings(project_dir)?;
     for (key, value) in entries {
         settings.insert((*key).to_string(), value.clone());
     }
+    drop_superseded(&mut settings);
+    Ok(format!("{}\n", serde_json::to_string_pretty(&Value::Object(settings))?))
+}
 
-    fs::write(&path, format!("{}\n", serde_json::to_string_pretty(&Value::Object(settings))?))
-        .with_context(|| format!("failed to write {}", path.display()))?;
-    ui::ok("wrote .vscode/settings.json");
-    Ok(())
+/// Setting names rproj used to write, paired with what replaced them.
+///
+/// Both were written by rproj itself before the extension deprecated them,
+/// so leaving them behind means the file rproj manages carries a
+/// deprecation squiggle it put there. Adding the replacement is not enough
+/// on its own - the old key stays valid and stays flagged.
+const SUPERSEDED: &[(&str, &str)] = &[
+    ("luau-lsp.plugin.enabled", "luau-lsp.studioPlugin.enabled"),
+    ("luau-lsp.types.roblox", "luau-lsp.platform.type"),
+];
+
+/// Removes a deprecated key **only once its replacement is present**.
+///
+/// The guard is what makes this safe to run from every write path. Without
+/// it, `rproj configure stylua-vscode` on a project scaffolded before the
+/// rename would strip `luau-lsp.plugin.enabled` while writing nothing in
+/// its place - silently switching the Studio DataModel bridge back off,
+/// which is the one failure this whole area exists to prevent.
+fn drop_superseded(settings: &mut serde_json::Map<String, Value>) {
+    for (old, replacement) in SUPERSEDED {
+        if settings.contains_key(*replacement) {
+            settings.remove(*old);
+        }
+    }
 }
 
 /// Globs the editor should treat as vendored third-party code.
@@ -178,7 +211,7 @@ pub fn ensure_project_settings(project_dir: &Path, workflow: PackageWorkflow) ->
 
 /// The editor settings a scaffolded project needs on top of the extension
 /// defaults. Split from the writer so the list itself is testable.
-fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)> {
+pub fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)> {
     let mut entries: Vec<(&str, Value)> = vec![
         // The extension defaults this to *false*, which is the single
         // setting standing between a scaffolded project and knowing about
@@ -290,6 +323,44 @@ mod tests {
     #[test]
     fn a_stale_global_stylua_config_path_is_neutralised() {
         assert_eq!(setting(PackageWorkflow::Wally, "stylua.configPath"), Some(json!("")));
+    }
+
+    /// Adding the replacement isn't enough: the deprecated key stays valid
+    /// and stays flagged, so the file rproj manages keeps a squiggle rproj
+    /// put there.
+    #[test]
+    fn a_superseded_setting_is_removed_once_its_replacement_lands() {
+        let mut settings = serde_json::Map::new();
+        settings.insert("luau-lsp.plugin.enabled".into(), json!(true));
+        settings.insert("luau-lsp.studioPlugin.enabled".into(), json!(true));
+        settings.insert("editor.rulers".into(), json!([100]));
+        drop_superseded(&mut settings);
+        assert!(!settings.contains_key("luau-lsp.plugin.enabled"));
+        assert!(settings.contains_key("luau-lsp.studioPlugin.enabled"));
+        assert!(settings.contains_key("editor.rulers"), "unrelated keys must survive");
+    }
+
+    /// Without the guard, `rproj configure stylua-vscode` on an older
+    /// project would strip the Studio bridge setting and write nothing in
+    /// its place, silently switching it back off.
+    #[test]
+    fn a_superseded_setting_survives_until_its_replacement_exists() {
+        let mut settings = serde_json::Map::new();
+        settings.insert("luau-lsp.plugin.enabled".into(), json!(true));
+        drop_superseded(&mut settings);
+        assert_eq!(settings.get("luau-lsp.plugin.enabled"), Some(&json!(true)));
+    }
+
+    /// Every superseded key must name a replacement this module actually
+    /// writes, or the guard never fires and the key is never cleaned up.
+    #[test]
+    fn every_replacement_is_a_setting_rproj_writes() {
+        let written: Vec<&str> =
+            project_settings(PackageWorkflow::Wally).into_iter().map(|(k, _)| k).collect();
+        for (old, replacement) in SUPERSEDED {
+            assert!(written.contains(replacement), "{old} -> {replacement} is never written");
+            assert!(!written.contains(old), "{old} is deprecated and must not be written");
+        }
     }
 
     /// `.gitattributes` governs what git checks out; this governs what the

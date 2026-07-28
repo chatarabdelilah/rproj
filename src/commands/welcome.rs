@@ -41,6 +41,14 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
             "Selene, luau-lsp - explaining each, then write them out",
         ],
     ),
+    (
+        "🔄",
+        "rproj upgrade",
+        &[
+            "Re-apply rproj's generated config to a project you already made,",
+            "so it picks up fixes shipped since it was scaffolded",
+        ],
+    ),
     ("👀", "rproj watch", &["Resume the dev loop: install what's missing, watch the sourcemap"]),
     ("📋", "rproj copy", &["Copy every file under src/ to the clipboard, with path headers"]),
     ("📖", "rproj info [key]", &["Look up what a tool or package does, and how to use it"]),
@@ -102,7 +110,7 @@ mod tests {
     /// screen is the only place someone who typed `rproj` learns they exist.
     #[test]
     fn every_command_is_listed() {
-        for command in ["new", "setup", "configure", "watch", "copy", "info"] {
+        for command in ["new", "setup", "configure", "upgrade", "watch", "copy", "info"] {
             assert!(
                 COMMANDS.iter().any(|(_, name, _)| name.starts_with(&format!("rproj {command}"))),
                 "`{command}` is missing from the welcome screen"

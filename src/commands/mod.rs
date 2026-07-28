@@ -4,5 +4,6 @@ pub mod info;
 pub mod new;
 pub mod provision;
 pub mod setup;
+pub mod upgrade;
 pub mod watch;
 pub mod welcome;

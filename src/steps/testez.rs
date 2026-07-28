@@ -113,7 +113,7 @@ pub fn companion_config() -> String {
 ///
 /// Must be `.yml`: selene does not recognise a `.yaml` extension when
 /// resolving standard libraries.
-const TESTEZ_STD: &str = r#"---
+pub const TESTEZ_STD: &str = r#"---
 globals:
   FIXME:
     args:
