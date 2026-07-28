@@ -106,12 +106,18 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
 
     // A new project is exactly when someone doesn't yet know what to run,
     // so end with the next steps rather than just "done".
+    // All plain double-width emoji: 🛡 and friends need a variation
+    // selector to render as emoji at all, and land narrow without one.
+    let (party, folder, eye, gate, book) = match ui::emoji_enabled() {
+        true => ("🎉  ", "📁", "👀", "🧪", "📖"),
+        false => ("", " ", " ", " ", " "),
+    };
     println!(
-        "\n{name} is ready.\n\
-         \x20 cd {}\n\
-         \x20 rproj watch          start the dev loop (Rojo sourcemap watcher)\n\
-         \x20 lute run check       run the quality gate (types, lint, format)\n\
-         \x20 rproj info <tool>    what a tool does, and the commands to use it",
+        "\n{party}{name} is ready.\n\n\
+         \x20 {folder}  cd {}\n\
+         \x20 {eye}  rproj watch          start the dev loop (Rojo sourcemap watcher)\n\
+         \x20 {gate}  lute run check       run the quality gate (types, lint, format)\n\
+         \x20 {book}  rproj info <tool>    what a tool does, and the commands to use it\n",
         project_dir.display()
     );
     Ok(())

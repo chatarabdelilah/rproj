@@ -17,6 +17,44 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static VERBOSE: AtomicBool = AtomicBool::new(false);
 
+/// Whether to draw the emoji markers.
+///
+/// On by default - rproj's own terminal output already relies on non-ASCII
+/// (the multi-select help line's arrows), and every tool it drives renders
+/// box-drawing characters, so a console that can't show these is a console
+/// the whole workflow already looks wrong in. `RPROJ_NO_EMOJI` exists for
+/// the exceptions: a log file, a CI transcript, a screen reader, or a
+/// console still on a legacy code page, where a mojibake marker on every
+/// line is worse than no marker at all.
+fn emoji() -> bool {
+    !matches!(std::env::var("RPROJ_NO_EMOJI").as_deref(), Ok("1" | "true"))
+}
+
+/// Whether callers laying out their own emoji should draw them.
+pub fn emoji_enabled() -> bool {
+    emoji()
+}
+
+/// The marker starting an outcome line, with its ASCII fallback.
+///
+/// Two spaces after `⚠️`: it is a base character plus VARIATION SELECTOR-16,
+/// which consoles disagree about the width of, and the extra space is what
+/// keeps the message text aligned with its neighbours. The others are
+/// inherently double-width and need only one. Rokit does the same thing
+/// with its `🛠️  Found tools:` header.
+fn marker(icon: &str, pad: &str, fallback: &str) -> String {
+    render_marker(emoji(), icon, pad, fallback)
+}
+
+/// The pure half of `marker`, so both branches are testable without
+/// touching the environment (which every other test in the process shares).
+fn render_marker(emoji: bool, icon: &str, pad: &str, fallback: &str) -> String {
+    match emoji {
+        true => format!("{icon}{pad}"),
+        false => format!("{fallback} "),
+    }
+}
+
 pub fn set_verbose(on: bool) {
     VERBOSE.store(on, Ordering::Relaxed);
 }
@@ -27,22 +65,25 @@ pub fn is_verbose() -> bool {
 
 /// A top-level phase, e.g. "Machine setup" or "Scaffolding creamy".
 pub fn section(title: &str) {
-    println!("\n{title}");
+    match emoji() {
+        true => println!("\n📦  {title}"),
+        false => println!("\n{title}"),
+    }
 }
 
 /// Something was done, or was already the case.
 pub fn ok(msg: &str) {
-    println!("  + {msg}");
+    println!("  {}{msg}", marker("✅", " ", "+"));
 }
 
 /// Deliberately not done, with the reason.
 pub fn skip(msg: &str) {
-    println!("  - {msg}");
+    println!("  {}{msg}", marker("➖", " ", "-"));
 }
 
 /// Something failed but the run continues.
 pub fn warn(msg: &str) {
-    println!("  ! {msg}");
+    println!("  {}{msg}", marker("⚠️", "  ", "!"));
 }
 
 /// Detail under the most recent line: indented, and only worth printing
@@ -181,6 +222,30 @@ mod tests {
     #[test]
     fn option_key_handles_labels_without_a_separator() {
         assert_eq!(option_key("none"), "none");
+    }
+
+    /// Turning emoji off has to give back a marker of the *same* width, or
+    /// every outcome line shifts and the output stops lining up.
+    #[test]
+    fn both_marker_styles_are_the_same_width() {
+        assert_eq!(render_marker(true, "✅", " ", "+"), "✅ ");
+        assert_eq!(render_marker(false, "✅", " ", "+"), "+ ");
+        // Two `char`s either way: one emoji plus one space, or one ASCII
+        // character plus one space.
+        for (icon, pad, fallback) in [("✅", " ", "+"), ("➖", " ", "-")] {
+            let on = render_marker(true, icon, pad, fallback);
+            let off = render_marker(false, icon, pad, fallback);
+            assert_eq!(on.chars().count(), off.chars().count(), "{icon}");
+        }
+    }
+
+    /// A marker built from a variation-selector emoji is one `char` wider
+    /// than it looks, which is why `warn` pads by two - see `marker`.
+    #[test]
+    fn the_warning_marker_compensates_for_its_variation_selector() {
+        assert_eq!("⚠️".chars().count(), 2, "⚠️ is a base char plus VS-16");
+        assert_eq!("✅".chars().count(), 1, "✅ needs no selector");
+        assert_eq!(render_marker(true, "⚠️", "  ", "!"), "⚠️  ");
     }
 
     /// The help text is the only place enter-to-confirm is mentioned.
