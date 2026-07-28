@@ -2,3 +2,11 @@
 # Local Claude Code settings and any backups of them - per-machine,
 # not project configuration.
 .claude/
+# The study guide and everything feeding it: inventory, book sources,
+# the example workspace, the rebuild harness, and the compiled PDF.
+# Deliberately not part of the project - it is a side artifact about
+# rproj, not a component of it, and a multi-megabyte PDF has no business
+# in the published crate or the repo. One directory so one rule covers
+# it; cargo takes its file list from git, so ignoring it here also keeps
+# it out of `cargo package`.
+/study/
