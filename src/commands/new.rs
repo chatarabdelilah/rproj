@@ -285,7 +285,12 @@ fn scaffold(
     // into a project that vendors its packages as git submodules pulls in a
     // tool it will never run and implies a workflow it isn't using.
     toolchain::add_selected_tools(project_dir, &tools_for_workflow(config, package_workflow))?;
-    toolchain::ensure_selene_config(project_dir, packages.contains("testez"), package_workflow)?;
+    toolchain::ensure_selene_config(
+        project_dir,
+        packages.contains("testez"),
+        package_workflow,
+        wally_packages::allows_mixed_tables(packages),
+    )?;
     toolchain::ensure_stylua_config(project_dir)?;
 
     let testez_selected = packages.contains("testez");

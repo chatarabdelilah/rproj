@@ -146,9 +146,19 @@ pub fn ensure_selene_config(
     project_dir: &Path,
     testez_selected: bool,
     workflow: PackageWorkflow,
+    allow_mixed_tables: bool,
 ) -> Result<()> {
     let std_value = if testez_selected { "roblox+testez" } else { "roblox" };
-    let mut config = tool_settings::default_toml("selene", &[("std", std_value)])
+    let mut overrides = vec![("std", std_value)];
+    // Not a style preference being waived: with a UI library whose every
+    // component is a properties-and-children table, `mixed_table` at its
+    // default `warn` fails the gate on every UI file the project will ever
+    // have, and selene exits 1 on warnings too. See
+    // `wally_packages::MIXED_TABLE_IDIOM`.
+    if allow_mixed_tables {
+        overrides.push(("mixed_table", "allow"));
+    }
+    let mut config = tool_settings::default_toml("selene", &overrides)
         .context("selene is missing from the configurable-tools catalog")?;
 
     // Vendored packages are third-party code we don't control, and linting

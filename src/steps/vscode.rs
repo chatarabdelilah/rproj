@@ -186,15 +186,25 @@ fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)> {
         // the port the companion plugin posts the DataModel to, so a Part
         // you name `testPart` is invisible to `workspace.testPart`, while
         // the Studio side still looks connected. Nothing says why.
-        ("luau-lsp.plugin.enabled", json!(true)),
+        ("luau-lsp.studioPlugin.enabled", json!(true)),
         ("luau-lsp.sourcemap.enabled", json!(true)),
         // `rproj watch` runs `rojo sourcemap --watch` itself. Leaving the
         // extension to autogenerate as well puts two watchers on one file.
         ("luau-lsp.sourcemap.autogenerate", json!(false)),
         ("luau-lsp.sourcemap.rojoProjectFile", json!("default.project.json")),
         ("luau-lsp.sourcemap.sourcemapFile", json!("sourcemap.json")),
+        // `luau-lsp.types.roblox` is the deprecated spelling of this and
+        // setting both earns a deprecation squiggle in the file rproj just
+        // wrote, which is a poor first impression.
         ("luau-lsp.platform.type", json!("roblox")),
-        ("luau-lsp.types.roblox", json!(true)),
+        // The editor half of `.gitattributes`. That file governs what git
+        // checks out; this governs what the editor *creates*, and on
+        // Windows VS Code defaults to CRLF. A new file made in the editor
+        // would otherwise be CRLF while `stylua.toml` says `line_endings =
+        // "Unix"`, so `stylua --check` reports a diff for the whole file
+        // with every line looking identical on both sides - and CI fails on
+        // code that looks perfect.
+        ("files.eol", json!("\n")),
     ];
 
     // Format with the same binary CI checks with. The extension otherwise
@@ -266,7 +276,10 @@ mod tests {
     #[test]
     fn the_studio_plugin_bridge_is_turned_on() {
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            assert_eq!(setting(workflow, "luau-lsp.plugin.enabled"), Some(json!(true)));
+            // The non-deprecated spelling: `luau-lsp.plugin.enabled` is
+            // deprecated in favour of this one.
+            assert_eq!(setting(workflow, "luau-lsp.studioPlugin.enabled"), Some(json!(true)));
+            assert!(setting(workflow, "luau-lsp.plugin.enabled").is_none(), "deprecated spelling");
         }
     }
 
@@ -277,6 +290,24 @@ mod tests {
     #[test]
     fn a_stale_global_stylua_config_path_is_neutralised() {
         assert_eq!(setting(PackageWorkflow::Wally, "stylua.configPath"), Some(json!("")));
+    }
+
+    /// `.gitattributes` governs what git checks out; this governs what the
+    /// editor creates. Without it a file made on Windows is CRLF while
+    /// stylua.toml asks for Unix endings, and `stylua --check` reports a
+    /// whole-file diff in which every line looks identical.
+    #[test]
+    fn new_files_are_created_with_unix_line_endings() {
+        assert_eq!(setting(PackageWorkflow::Wally, "files.eol"), Some(json!("
+")));
+    }
+
+    /// Deprecated in favour of `luau-lsp.platform.type`, which is written
+    /// instead; setting both squiggles the file rproj just wrote.
+    #[test]
+    fn the_deprecated_roblox_types_switch_is_not_written() {
+        assert!(setting(PackageWorkflow::Wally, "luau-lsp.types.roblox").is_none());
+        assert_eq!(setting(PackageWorkflow::Wally, "luau-lsp.platform.type"), Some(json!("roblox")));
     }
 
     /// `rproj watch` runs `rojo sourcemap --watch`; letting the extension

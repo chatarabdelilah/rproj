@@ -78,6 +78,26 @@ pub enum Realm {
     Server,
 }
 
+/// Packages whose public API is a table holding both properties and
+/// children, which selene's `mixed_table` lint objects to.
+///
+/// Vide is written `create("Frame")({ Name = "x", create("TextLabel")({}) })`:
+/// properties as key/value pairs and children as array entries, in one
+/// table. That is not a style choice a user can avoid, it is how every Vide
+/// component is written, so with the lint at its default `warn` every UI
+/// file a Vide project will ever contain fails the quality gate — and
+/// selene exits 1 on warnings as well as errors (checked, not assumed).
+///
+/// Deliberately just Vide. Fusion's children go under a `[Children]` key,
+/// which keeps the table a pure dictionary, and React takes props and
+/// children as separate arguments - neither produces a mixed table.
+const MIXED_TABLE_IDIOM: &[&str] = &["vide"];
+
+/// Whether this selection's UI library forces mixed tables on the user.
+pub fn allows_mixed_tables<'a>(selected: impl IntoIterator<Item = &'a String>) -> bool {
+    selected.into_iter().any(|key| MIXED_TABLE_IDIOM.contains(&key.as_str()))
+}
+
 pub struct PackageSpec {
     /// Short identifier used in rproj.toml and on the CLI (e.g. `rproj info reflex`).
     pub key: &'static str,
@@ -580,6 +600,23 @@ pub fn unvendorable_in_closure(selected: &BTreeSet<String>) -> Vec<(&'static str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every Vide component is a properties-and-children table, so with
+    /// the lint left on, every UI file a Vide project will ever have fails
+    /// the quality gate.
+    #[test]
+    fn only_the_create_style_ui_library_waives_the_mixed_table_lint() {
+        let vide: BTreeSet<String> = ["vide".to_string()].into_iter().collect();
+        assert!(allows_mixed_tables(&vide));
+
+        // Fusion puts children under a `[Children]` key and React takes
+        // them as a separate argument; neither builds a mixed table.
+        for key in ["fusion", "react", "charm", "reflex"] {
+            let other: BTreeSet<String> = [key.to_string()].into_iter().collect();
+            assert!(!allows_mixed_tables(&other), "{key} should keep the lint");
+        }
+        assert!(!allows_mixed_tables(&BTreeSet::new()));
+    }
 
     /// A server-realm package listed under `[dependencies]` doesn't land in
     /// the wrong folder - wally refuses to resolve it and the install fails,
