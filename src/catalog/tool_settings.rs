@@ -272,9 +272,9 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
             },
             SettingSpec {
                 key: "luau-lsp.sourcemap.autogenerate",
-                description: "Let the extension run Rojo itself to keep sourcemap.json fresh as files change, instead of you running a watcher.",
+                description: "Let the extension run Rojo itself to keep sourcemap.json fresh. Off by default here because `rproj watch` already runs `rojo sourcemap --watch` - turn it on if you'd rather not run a watcher, but don't run both.",
                 section: None,
-                kind: SettingKind::Bool { default: true },
+                kind: SettingKind::Bool { default: false },
             },
             SettingSpec {
                 key: "luau-lsp.sourcemap.rojoProjectFile",

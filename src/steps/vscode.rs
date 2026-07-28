@@ -173,16 +173,64 @@ const VENDORED_GLOBS: &[&str] = &["**/_Index/**", "**/submodules/**"];
 /// Writes the editor settings a scaffolded project needs on top of the
 /// extension defaults.
 pub fn ensure_project_settings(project_dir: &Path, workflow: PackageWorkflow) -> Result<()> {
-    if workflow != PackageWorkflow::GitSubmodules {
-        return Ok(());
+    merge_settings(project_dir, &project_settings(workflow))
+}
+
+/// The editor settings a scaffolded project needs on top of the extension
+/// defaults. Split from the writer so the list itself is testable.
+fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)> {
+    let mut entries: Vec<(&str, Value)> = vec![
+        // The extension defaults this to *false*, which is the single
+        // setting standing between a scaffolded project and knowing about
+        // anything you make in Studio: without it the editor never opens
+        // the port the companion plugin posts the DataModel to, so a Part
+        // you name `testPart` is invisible to `workspace.testPart`, while
+        // the Studio side still looks connected. Nothing says why.
+        ("luau-lsp.plugin.enabled", json!(true)),
+        ("luau-lsp.sourcemap.enabled", json!(true)),
+        // `rproj watch` runs `rojo sourcemap --watch` itself. Leaving the
+        // extension to autogenerate as well puts two watchers on one file.
+        ("luau-lsp.sourcemap.autogenerate", json!(false)),
+        ("luau-lsp.sourcemap.rojoProjectFile", json!("default.project.json")),
+        ("luau-lsp.sourcemap.sourcemapFile", json!("sourcemap.json")),
+        ("luau-lsp.platform.type", json!("roblox")),
+        ("luau-lsp.types.roblox", json!(true)),
+    ];
+
+    // Format with the same binary CI checks with. The extension otherwise
+    // falls back to its own bundled StyLua, and two StyLua versions
+    // disagreeing about formatting is how a file formatted on save fails
+    // `stylua --check` on the runner.
+    if let Some(path) = rokit_tool_path("stylua") {
+        entries.push(("stylua.styluaPath", json!(path)));
     }
-    merge_settings(
-        project_dir,
-        &[
-            ("luau-lsp.ignoreGlobs", json!(VENDORED_GLOBS)),
-            ("luau-lsp.completion.imports.ignoreGlobs", json!(VENDORED_GLOBS)),
-        ],
-    )
+
+    // Empty means "find this project's own stylua.toml the normal way".
+    // Written explicitly because a *user-level* `stylua.configPath` is an
+    // absolute path that overrides every workspace, and one left pointing
+    // at a deleted project breaks formatting in every project on the
+    // machine with only `Failed to read config file: The system cannot
+    // find the path specified` to go on. A workspace setting outranks it.
+    // Verified against the extension's own code, which appends
+    // `--config-path` only when the value is non-empty after trimming.
+    entries.push(("stylua.configPath", json!("")));
+
+    if workflow == PackageWorkflow::GitSubmodules {
+        entries.push(("luau-lsp.ignoreGlobs", json!(VENDORED_GLOBS)));
+        entries.push(("luau-lsp.completion.imports.ignoreGlobs", json!(VENDORED_GLOBS)));
+    }
+    entries
+}
+
+/// Absolute path to a rokit-managed tool's shim, or `None` if it isn't
+/// there. Absolute because the editor doesn't resolve through rokit's
+/// shims the way a shell on `PATH` does — and machine-specific paths are
+/// fine here only because `.vscode/` is gitignored in every scaffolded
+/// project.
+fn rokit_tool_path(tool: &str) -> Option<String> {
+    let home = directories::UserDirs::new()?.home_dir().to_path_buf();
+    let shim = home.join(".rokit").join("bin").join(format!("{tool}.exe"));
+    shim.is_file().then(|| shim.display().to_string())
 }
 
 #[cfg(test)]
@@ -195,5 +243,57 @@ mod tests {
     fn vendored_globs_extend_rather_than_replace_the_defaults() {
         assert!(VENDORED_GLOBS.contains(&"**/_Index/**"), "must keep Wally's vendored dir");
         assert!(VENDORED_GLOBS.contains(&"**/submodules/**"), "must add the submodule dir");
+    }
+
+    fn setting(workflow: PackageWorkflow, key: &str) -> Option<Value> {
+        project_settings(workflow).into_iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+    }
+
+    /// This used to write nothing at all unless the project used git
+    /// submodules, so every Wally project - the common case - got whatever
+    /// the machine's global settings happened to say.
+    #[test]
+    fn both_workflows_get_editor_settings() {
+        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
+            assert!(!project_settings(workflow).is_empty(), "{workflow:?} got nothing");
+        }
+    }
+
+    /// The extension defaults this to false, and with it off the editor
+    /// never opens the port the Studio companion plugin posts to - so
+    /// nothing you create in Studio is ever known to autocomplete, with no
+    /// error anywhere to say so.
+    #[test]
+    fn the_studio_plugin_bridge_is_turned_on() {
+        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
+            assert_eq!(setting(workflow, "luau-lsp.plugin.enabled"), Some(json!(true)));
+        }
+    }
+
+    /// A user-level `stylua.configPath` is absolute and outranks every
+    /// project's own config; left pointing at a deleted project it breaks
+    /// formatting everywhere, reporting only "cannot find the path
+    /// specified". An empty workspace value restores the normal lookup.
+    #[test]
+    fn a_stale_global_stylua_config_path_is_neutralised() {
+        assert_eq!(setting(PackageWorkflow::Wally, "stylua.configPath"), Some(json!("")));
+    }
+
+    /// `rproj watch` runs `rojo sourcemap --watch`; letting the extension
+    /// autogenerate too puts two writers on one file.
+    #[test]
+    fn sourcemap_autogeneration_is_left_to_rproj_watch() {
+        assert_eq!(
+            setting(PackageWorkflow::Wally, "luau-lsp.sourcemap.autogenerate"),
+            Some(json!(false))
+        );
+    }
+
+    /// The vendored globs are the one part that really is submodule-only:
+    /// luau-lsp already ignores Wally's `_Index` by default.
+    #[test]
+    fn vendored_globs_stay_submodule_only() {
+        assert!(setting(PackageWorkflow::Wally, "luau-lsp.ignoreGlobs").is_none());
+        assert!(setting(PackageWorkflow::GitSubmodules, "luau-lsp.ignoreGlobs").is_some());
     }
 }
