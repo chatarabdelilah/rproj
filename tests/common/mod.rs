@@ -36,7 +36,13 @@ pub const ESC: &str = "\x1b";
 
 /// How long any single wait may take before the test fails. Generous: the
 /// cost of a high value is only paid when something is already broken.
-const TIMEOUT: Duration = Duration::from_secs(30);
+///
+/// `RPROJ_TEST_TIMEOUT` raises it for the live suite, where a step can be a
+/// `wally install` or a `cargo install --git` on a cold cache.
+fn timeout() -> Duration {
+    let secs = std::env::var("RPROJ_TEST_TIMEOUT").ok().and_then(|v| v.parse().ok()).unwrap_or(30);
+    Duration::from_secs(secs)
+}
 
 /// Tall enough that no test's output ever scrolls. Anything that scrolls
 /// off the top is gone, since only the visible screen is rendered.
@@ -166,7 +172,7 @@ impl Session {
 
     /// Blocks until `needle` appears in the output.
     pub fn wait_for(&self, needle: &str) {
-        let deadline = Instant::now() + TIMEOUT;
+        let deadline = Instant::now() + timeout();
         loop {
             let text = self.text();
             if text.contains(needle) {
@@ -200,7 +206,7 @@ impl Session {
     }
 
     pub fn finish(mut self) -> Outcome {
-        let deadline = Instant::now() + TIMEOUT;
+        let deadline = Instant::now() + timeout();
         let status = loop {
             match self.child.try_wait().expect("wait on rproj") {
                 Some(status) => break status,
