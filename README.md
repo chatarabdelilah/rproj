@@ -55,7 +55,7 @@ Every one of those is a real bug that was reproduced and fixed here, not a hypot
 ## Requirements
 
 - **Windows.** Installs go through `winget`. This is the only supported platform.
-- **Rust 1.85+** (the crate is edition 2024) to build.
+- **Rust 1.89+** to build. Edition 2024 sets a floor of 1.85, but `notify-rust` declares 1.89 and is the highest in the dependency tree.
 
 ## Install
 
@@ -199,3 +199,7 @@ Set `RPROJ_NO_EMOJI=1` for `+` / `-` / `!` markers instead of `✅` / `➖` / `�
 v0.1.0. Windows-only, Luau-only, and not yet on crates.io.
 
 Deliberately not planned: macOS support and roblox-ts. On the roadmap: a GUI over the same core logic, and live maintenance-status checking once the catalog is large enough that hand-curation becomes a burden.
+
+## License
+
+[MIT](LICENSE) © Chatar Abdelilah
