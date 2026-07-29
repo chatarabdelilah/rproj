@@ -61,10 +61,6 @@ impl GlobalConfig {
         Ok(documents.join("RobloxProjects"))
     }
 
-    pub fn blender_enabled(&self) -> bool {
-        self.selected_system_apps.iter().any(|k| k == "blender")
-    }
-
     /// Whether this machine has been through provisioning at least once.
     ///
     /// Keyed on having recorded *any* selection rather than on a flag, so

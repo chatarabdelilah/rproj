@@ -30,13 +30,19 @@ impl Category {
         Category::Utility,
     ];
 
-    /// Whether more than one pick makes sense in this category. State
-    /// management/UI/data-profile are architecturally exclusive choices (you
-    /// don't run two UI frameworks at once), so those stay single-select;
-    /// testing and utility libraries are additive toolboxes where wanting
+    /// Whether more than one pick makes sense in this category.
+    ///
+    /// State management, UI, data/profile and testing are architecturally
+    /// exclusive choices - you don't run two UI frameworks, and you don't
+    /// run two test runners: that would mean two `tests/` layouts, two
+    /// selene standard libraries and two quality-gate steps. Those are
+    /// single-select, so picking one means not picking the other, and
+    /// `none` is always available.
+    ///
+    /// Utilities is the exception: an additive toolbox where wanting
     /// several at once (janitor + promise + greentea, say) is normal.
     pub fn allows_multiple(&self) -> bool {
-        matches!(self, Category::Testing | Category::Utility)
+        matches!(self, Category::Utility)
     }
 }
 
@@ -737,5 +743,40 @@ mod tests {
         assert!(!has_server_realm(&owned(&[])));
         // An unknown key must not panic or count as server-realm.
         assert!(!has_server_realm(&owned(&["not-a-package"])));
+    }
+}
+
+#[cfg(test)]
+mod category_tests {
+    use super::*;
+
+    /// Utilities is the only multi-pick category.
+    ///
+    /// Testing used to be multi-pick, which would let a project select two
+    /// test runners once there is more than one in the catalog - two
+    /// `tests/` layouts, two selene standard libraries, two gate steps.
+    #[test]
+    fn only_utilities_allows_more_than_one() {
+        for category in Category::ALL {
+            let expected = category == Category::Utility;
+            assert_eq!(
+                category.allows_multiple(),
+                expected,
+                "{} should{} allow multiple",
+                category.label(),
+                if expected { "" } else { " not" }
+            );
+        }
+    }
+
+    /// No package is pre-selected in a single-pick category, so pressing
+    /// enter through the walkthrough selects nothing rather than silently
+    /// adding a dependency.
+    #[test]
+    fn a_single_pick_category_has_a_none_answer_available() {
+        for category in Category::ALL.iter().filter(|c| !c.allows_multiple()) {
+            let choices = in_category(*category).filter(|p| p.primary_choice).count();
+            assert!(choices > 0, "{} has no options at all", category.label());
+        }
     }
 }

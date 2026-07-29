@@ -6,6 +6,7 @@ use inquire::{MultiSelect, Select};
 
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
+use crate::catalog::artifacts::{self, Selections, Workflow};
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
 use crate::steps::{
     blender, git, gitattributes, gitignore, modules, quality, rojo, testez, toolchain, vscode,
@@ -85,7 +86,31 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         }
     };
 
-    scaffold(&project_dir, name, &config, &packages, package_workflow)?;
+    // Asked here rather than inside `scaffold`, so every prompt in this
+    // command lives in one place and `scaffold` only ever acts on decisions
+    // already made. A saved setup skips the packages question but still
+    // asks this one - which files you want is a per-project choice, not
+    // part of a package composition.
+    let selected_packages: Vec<String> = packages.iter().cloned().collect();
+    let selected_tools = tools_for_workflow(&config, package_workflow);
+    let chosen_artifacts = pick_artifacts(&Selections {
+        packages: &selected_packages,
+        tools: &selected_tools,
+        apps: &config.selected_system_apps,
+        workflow: match package_workflow {
+            PackageWorkflow::Wally => Workflow::Wally,
+            PackageWorkflow::GitSubmodules => Workflow::GitSubmodules,
+        },
+    })?;
+
+    scaffold(
+        &project_dir,
+        name,
+        &config,
+        &packages,
+        package_workflow,
+        &chosen_artifacts,
+    )?;
 
     ProjectConfig {
         mode,
@@ -268,6 +293,49 @@ fn pick_expert() -> Result<BTreeSet<String>> {
 }
 
 
+/// Which optional files this project gets.
+///
+/// One prompt, not one per category: six extra questions to answer before a
+/// project exists is worse than a single list. The category rides along as
+/// the badge slot, which both groups the list visually and keeps
+/// `option_line`'s width handling in charge of truncation.
+///
+/// Mandatory artifacts are not offered - a Rojo project without a source
+/// tree or a project file is not a project, so asking would be a question
+/// with one acceptable answer.
+fn pick_artifacts(selections: &Selections) -> Result<Vec<String>> {
+    let offerable: Vec<&'static artifacts::Artifact> = artifacts::offerable(selections)
+        .into_iter()
+        .filter(|a| !a.mandatory)
+        .collect();
+    if offerable.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let options: Vec<String> = offerable
+        .iter()
+        .map(|a| ui::option_line(a.key, a.description, a.category.label()))
+        .collect();
+    let defaults: Vec<usize> = offerable
+        .iter()
+        .enumerate()
+        .filter(|(_, a)| a.default_selected)
+        .map(|(i, _)| i)
+        .collect();
+
+    let picked = MultiSelect::new("Files to generate", options)
+        .with_default(&defaults)
+        .with_help_message(ui::MULTISELECT_HELP)
+        .with_formatter(&ui::compact_multi_answer)
+        .prompt()?;
+
+    Ok(offerable
+        .iter()
+        .filter(|a| picked.iter().any(|p| ui::option_is(p, a.key)))
+        .map(|a| a.key.to_string())
+        .collect())
+}
+
 fn add_companions(packages: &mut BTreeSet<String>) {
     let primaries: Vec<String> = packages.iter().cloned().collect();
     let snapshot = packages.clone();
@@ -284,7 +352,26 @@ fn scaffold(
     config: &GlobalConfig,
     packages: &BTreeSet<String>,
     package_workflow: PackageWorkflow,
+    chosen_artifacts: &[String],
 ) -> Result<()> {
+    // Which files this project gets, resolved from the selections rather
+    // than decided by the order of the calls below. Everything after this
+    // asks `writes(...)` instead of inventing its own condition - which is
+    // how six artifacts came to be written whatever the user answered.
+    let selected_packages: Vec<String> = packages.iter().cloned().collect();
+    let selected_tools = tools_for_workflow(config, package_workflow);
+    let selections = Selections {
+        packages: &selected_packages,
+        tools: &selected_tools,
+        apps: &config.selected_system_apps,
+        workflow: match package_workflow {
+            PackageWorkflow::Wally => Workflow::Wally,
+            PackageWorkflow::GitSubmodules => Workflow::GitSubmodules,
+        },
+    };
+    let written = artifacts::resolve(&selections, chosen_artifacts);
+    let writes = |key: &str| written.iter().any(|a| a.key == key);
+
     git::ensure_repo_init(project_dir)?;
 
     toolchain::ensure_rokit_init(project_dir)?;
@@ -374,25 +461,45 @@ fn scaffold(
     // Tells the editor which folders are vendored third-party code. Only
     // needed for the submodule workflow - luau-lsp already ignores Wally's
     // `_Index` by default, which is why that workflow never showed this.
-    vscode::ensure_project_settings(project_dir, package_workflow)?;
+    if writes(".vscode/settings.json") {
+        vscode::ensure_project_settings(project_dir, package_workflow)?;
+    }
 
-    quality::ensure_luaurc(project_dir)?;
+    if writes(".luaurc") {
+        quality::ensure_luaurc(project_dir)?;
+    }
     // The same filtered list the project's rokit.toml got: a check script
     // must only invoke tools this project actually pins, or CI fails on a
     // command that isn't installed.
-    if quality::ensure_check_script(
-        project_dir,
-        &tools_for_workflow(config, package_workflow),
-        testez_selected,
-    )? {
-        quality::ensure_ci_workflow(project_dir, package_workflow, has_server_packages)?;
+    if writes(".lute/check.luau")
+        && quality::ensure_check_script(
+            project_dir,
+            &tools_for_workflow(config, package_workflow),
+            testez_selected,
+        )?
+    {
+        // The workflow only exists to run the script, so the artifact model
+        // requires one on the other - unticking the script drops the CI
+        // file rather than leaving a workflow whose first command is
+        // missing.
+        if writes(".github/workflows/ci.yml") {
+            quality::ensure_ci_workflow(project_dir, package_workflow, has_server_packages)?;
+        }
         quality::lute_setup(project_dir)?;
     }
 
-    gitignore::ensure_entries(project_dir)?;
-    gitattributes::ensure_gitattributes(project_dir)?;
+    if writes(".gitignore") {
+        gitignore::ensure_entries(project_dir)?;
+    }
+    if writes(".gitattributes") {
+        gitattributes::ensure_gitattributes(project_dir)?;
+    }
 
-    if config.blender_enabled() {
+    // Was `config.blender_enabled()`, which meant that selecting Blender once at
+    // setup silently added a folder to every project afterwards. Now it is
+    // an artifact requiring the app AND defaulting to off, so it is opt-in
+    // per project.
+    if writes("blender") {
         blender::scaffold_starter_scene(project_dir)?;
     }
 

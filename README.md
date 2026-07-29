@@ -43,6 +43,12 @@ Nothing already installed is reinstalled, and one item failing to install is a w
 | `rproj info [key]` | What a tool or package is for, when to reach for it, and the commands to type. |
 | `-v`, `--verbose` | Show every sub-process and its output. |
 
+### Choosing what gets generated
+
+After the package questions, `rproj new` asks which files to generate. Everything is optional except the source tree and `default.project.json` — answer nothing and you get a bare Rojo project. Files that depend on a choice are only offered when it is present: `selene.toml` needs Selene, `tests/` needs a test framework, `blender/` needs Blender.
+
+The CI workflow is off by default, since it changes what happens on a push.
+
 ### Choosing packages
 
 `rproj new` offers a **guided** walkthrough — one prompt per category, in order: state management, UI, data and profiles, testing, utilities — or an **expert** flat list across the whole catalog.
