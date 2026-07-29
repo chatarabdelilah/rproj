@@ -10,6 +10,7 @@ pub mod rojo;
 pub mod studio_plugin;
 pub mod testez;
 pub mod toolchain;
+pub mod update_check;
 pub mod vscode;
 pub mod wally;
 

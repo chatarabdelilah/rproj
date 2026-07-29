@@ -1,9 +1,43 @@
 use super::Maintenance;
 
+/// How to tell whether a system app is already installed.
+///
+/// Separate from *how it is installed*, because for at least one app those
+/// are different questions. `winget list --id Roblox.RobloxStudio -e` exits
+/// 20 ("no installed package found") on a machine with Studio installed and
+/// running, because Studio installs per-user through its own bootstrapper
+/// into `%LOCALAPPDATA%\Roblox\Versions\` and never registers anywhere
+/// winget looks.
+///
+/// That one wrong answer used to cause two visible failures in a single
+/// run: setup tried to reinstall Studio (hitting winget's stale-hash issue,
+/// which the user would otherwise never have reached), and then skipped
+/// `rojo plugin install` as "Studio isn't installed" - while installing
+/// other plugins into the Studio plugins folder that only exists because
+/// Studio *is* installed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Detect {
+    /// `winget list --id <id> -e`. Correct for anything winget itself
+    /// installed, which is everything except the Roblox apps' own
+    /// bootstrapper.
+    Winget,
+    /// An executable at `%<env_var>%\<subdir>\<exe>`, or one level deeper
+    /// under a versioned directory - which is how Roblox lays out
+    /// `Versions\version-<hash>\`.
+    ExeUnder {
+        env_var: &'static str,
+        subdir: &'static str,
+        exe: &'static str,
+    },
+}
+
 pub enum ToolKind {
-    /// Installed/detected via `winget`.
-    SystemApp { winget_id: &'static str },
+    /// Installed via `winget`; detected via `detect`, which is not always
+    /// the same thing - see `Detect`.
+    SystemApp {
+        winget_id: &'static str,
+        detect: Detect,
+    },
     /// Installed/detected via `rokit add <source>`, pinned in the project's rokit.toml.
     RokitTool { rokit_source: &'static str },
     /// Installed/detected via `code --install-extension <id>`.
@@ -34,7 +68,7 @@ impl ToolKind {
     /// "rojo-rbx/rojo". Used for the compact `rproj info` listing.
     pub fn provider(&self) -> &'static str {
         match self {
-            ToolKind::SystemApp { winget_id } => winget_id,
+            ToolKind::SystemApp { winget_id, .. } => winget_id,
             ToolKind::RokitTool { rokit_source } => rokit_source,
             ToolKind::VsCodeExtension { extension_id } => extension_id,
             ToolKind::StudioPlugin { github_repo, .. } => github_repo,
@@ -79,7 +113,7 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "git",
         description: "Version control - required for any real team workflow",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Git.Git" },
+        kind: ToolKind::SystemApp { winget_id: "Git.Git", detect: Detect::Winget },
         family: "System apps",
         default_selected: true,
         docs_url: "https://git-scm.com/",
@@ -88,7 +122,7 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "vscode",
         description: "Code editor",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Microsoft.VisualStudioCode" },
+        kind: ToolKind::SystemApp { winget_id: "Microsoft.VisualStudioCode", detect: Detect::Winget },
         family: "System apps",
         default_selected: true,
         docs_url: "https://code.visualstudio.com/",
@@ -97,7 +131,15 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "studio",
         description: "Roblox Studio, the game editor",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Roblox.RobloxStudio" },
+        kind: ToolKind::SystemApp {
+            winget_id: "Roblox.RobloxStudio",
+            // The one app winget cannot see - see `Detect`.
+            detect: Detect::ExeUnder {
+                env_var: "LOCALAPPDATA",
+                subdir: "Roblox/Versions",
+                exe: "RobloxStudioBeta.exe",
+            },
+        },
         family: "System apps",
         default_selected: true,
         docs_url: "https://create.roblox.com/",
@@ -106,7 +148,7 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "roblox",
         description: "Roblox client - needed to play/test published games",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Roblox.Roblox" },
+        kind: ToolKind::SystemApp { winget_id: "Roblox.Roblox", detect: Detect::Winget },
         family: "System apps",
         default_selected: true,
         docs_url: "https://www.roblox.com/",
@@ -115,7 +157,7 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "blender",
         description: "3D modeling tool, for building custom meshes/animations (optional, heavier install)",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "BlenderFoundation.Blender" },
+        kind: ToolKind::SystemApp { winget_id: "BlenderFoundation.Blender", detect: Detect::Winget },
         family: "System apps",
         default_selected: false,
         docs_url: "https://www.blender.org/",

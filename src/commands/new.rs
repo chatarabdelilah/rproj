@@ -206,7 +206,10 @@ fn pick_guided() -> Result<BTreeSet<String>> {
             .iter()
             .map(|p| format!("{} - {} ({})", p.key, p.description, p.maintenance.short_badge()))
             .collect();
-        let prompt = format!("{}: which do you want?", category.label());
+        // Just the category name. The question is implied by a picker, and
+        // the answer line reads as `State management: reflex` rather than
+        // `State management: which do you want? reflex`.
+        let prompt = format!("{}:", category.label());
 
         if category.allows_multiple() {
             let selected = MultiSelect::new(&prompt, options)

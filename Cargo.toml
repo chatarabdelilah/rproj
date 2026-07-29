@@ -1,6 +1,6 @@
 [package]
 name = "rproj"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 # Not the edition's floor (1.85), which would be a claim that doesn't
 # build: notify-rust declares 1.89, the highest in the dependency tree.
@@ -9,17 +9,36 @@ description = "Guided bootstrap-to-game-dev CLI for Roblox: takes a fresh Window
 authors = ["Chatar Abdelilah <chatar.abdelilah.s@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/chatarabdelilah/rproj"
+# `repository` is deliberately absent while the GitHub repo is private.
+# crates.io renders it as a link on the crate page, and a link that 404s
+# for every visitor is worse than no link - it reads as an abandoned or
+# deleted project. Add it back in the same commit that makes the repo
+# public, not before.
+#
+# `exclude` keeps the architecture doc out of the published archive. It is
+# an internal design reference written for whoever maintains this, not
+# documentation for someone installing it, and shipping it to every
+# consumer of the crate puts 80KB of internal reasoning on the crate page.
+exclude = ["docs/"]
 keywords = ["roblox", "luau", "rojo", "wally", "scaffold"]
 categories = ["command-line-utilities", "development-tools", "game-development"]
 
 [dependencies]
 anyhow = "1.0.104"
-arboard = "3.6.1"
+# `image-data` is a default feature and pulls in a whole image-decoding
+# stack - image, png, moxcms, pxfm, bytemuck, byteorder-lite, fdeflate,
+# num-traits. Eight crates for a capability `rproj copy` never uses; it
+# copies text. Measured: 115 packages -> 107.
+arboard = { version = "3.6.1", default-features = false }
 clap = { version = "4.6.4", features = ["derive"] }
 directories = "6.0.0"
 inquire = "0.9.4"
 notify-rust = "4.18.0"
+# Already in the tree via clap, so these cost no new packages. `anstream`
+# strips colour when stderr is not a terminal, which is what makes it
+# safe to colour errors at all (see ui::error).
+anstream = "1.0.0"
+anstyle = "1.0.14"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 toml = "1.1.3"

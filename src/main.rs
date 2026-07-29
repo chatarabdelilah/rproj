@@ -1,3 +1,12 @@
+// `forbid`, not `deny`: an inner `#[allow(unsafe_code)]` cannot override
+// it, so granting an exception has to happen here, in a diff a reviewer
+// sees. The crate has never contained `unsafe` - this is what keeps that
+// true. It caught its first case immediately: a test written to steer a
+// path lookup reached for `std::env::set_var`, which is `unsafe` in
+// edition 2024, and the lint forced the better design (pass the base
+// directory in, rather than mutating process-global state).
+#![forbid(unsafe_code)]
+
 mod catalog;
 mod cli;
 mod commands;
@@ -5,14 +14,29 @@ mod config;
 mod steps;
 mod ui;
 
+use std::process::ExitCode;
+
 use clap::Parser;
 
 use cli::{Cli, Command};
 
-fn main() -> anyhow::Result<()> {
+/// Returns `ExitCode` rather than `anyhow::Result` so the error is printed
+/// by `ui::error` instead of by Rust's default `Termination` impl, which
+/// writes an uncoloured `Error: ...` with the chain in `Debug` form.
+fn main() -> ExitCode {
     let cli = Cli::parse();
     ui::set_verbose(cli.verbose);
 
+    match dispatch(cli) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            ui::error(&err);
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         None => {
             commands::welcome::run();

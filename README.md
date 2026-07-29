@@ -1,14 +1,14 @@
 # rproj
 
 [![crates.io](https://img.shields.io/crates/v/rproj.svg)](https://crates.io/crates/rproj)
-[![license](https://img.shields.io/crates/l/rproj.svg)](LICENSE)
+[![license](https://img.shields.io/crates/l/rproj.svg)](#license)
 
 **Guided bootstrap-to-game-dev CLI for Roblox.**
 
 Takes a fresh Windows PC all the way to a working Roblox/Luau development setup, then scaffolds projects on top of it — and explains every tool and package as it goes, so you end up knowing why your setup looks the way it does.
 
 ```text
-🎮  rproj 0.1.0 - guided bootstrap-to-game-dev CLI for Roblox
+🎮  rproj 0.2.0 - guided bootstrap-to-game-dev CLI for Roblox
 
     Takes a fresh PC all the way to a working Roblox dev setup, then
     scaffolds projects on top of it. Explains every tool and package
@@ -53,7 +53,7 @@ Each of those has a gotcha that costs an evening the first time you meet it. `rp
 - luau-lsp's Studio-plugin bridge is **off** by default, which is why parts you create in Studio never autocomplete in your editor.
 - Vide's API is a mixed table by construction, so selene's `mixed_table` lint fails every UI file a Vide project will ever contain — and selene exits 1 on warnings, not just errors.
 
-Every one of those is a real bug that was reproduced and fixed here, not a hypothetical. See [docs/architecture.md](docs/architecture.md) §7 for the full list.
+Every one of those is a real bug that was reproduced and fixed here, not a hypothetical. Every one is documented in the source, next to the code that prevents it.
 
 ## Requirements
 
@@ -69,7 +69,7 @@ cargo install rproj
 Or from source, to get unreleased changes:
 
 ```powershell
-cargo install --git https://github.com/chatarabdelilah/rproj --locked
+cargo install rproj --locked
 ```
 
 ## Quick start
@@ -188,18 +188,18 @@ cargo test --test live -- --ignored --test-threads=1     # ~69s
 
 `--test-threads=1` is not optional: the tests share rokit's global manifest and wally's package cache, and two scaffolds racing on those is an irreproducible flake.
 
-The interactive commands are tested by driving the real binary through a **pseudo-terminal** ([tests/common/mod.rs](tests/common/mod.rs)). Two things forced that: `inquire` reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever; and the pty byte stream is not what the program printed — ConPTY may express a line break as `\n` or as a cursor move depending on machine load, so assertions run against a rendered screen instead of the raw bytes. Synchronisation is by expecting output, never by sleeping.
+The interactive commands are tested by driving the real binary through a **pseudo-terminal** (`tests/common/mod.rs`). Two things forced that: `inquire` reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever; and the pty byte stream is not what the program printed — ConPTY may express a line break as `\n` or as a cursor move depending on machine load, so assertions run against a rendered screen instead of the raw bytes. Synchronisation is by expecting output, never by sleeping.
 
 Set `RPROJ_NO_EMOJI=1` for `+` / `-` / `!` markers instead of `✅` / `➖` / `❗` — for a log file, a CI transcript, or a screen reader.
 
-[docs/architecture.md](docs/architecture.md) is the real reference: data model, subsystem map, flow diagrams, the data-driven matrices behind the catalog and the gate, and §7's list of landmines with the reproduction behind each one.
+`docs/architecture.md` in the repository is the full reference: data model, subsystem map, flow diagrams, the data-driven matrices behind the catalog and the quality gate, and the list of ecosystem landmines with the reproduction behind each one. It is not shipped in the published crate — it is a design document for maintainers, not install documentation.
 
 ## Status
 
-v0.1.0, the first published release. Windows-only and Luau-only.
+v0.2.0. Windows-only and Luau-only.
 
 Deliberately not planned: macOS support and roblox-ts. On the roadmap: a GUI over the same core logic, and live maintenance-status checking once the catalog is large enough that hand-curation becomes a burden.
 
 ## License
 
-[MIT](LICENSE) © Chatar Abdelilah
+MIT © Chatar Abdelilah

@@ -88,6 +88,11 @@ pub fn run() {
 
     println!("{sparkle}New here?  rproj new my-first-game  sets your machine up and");
     println!("    scaffolds your first project in one go.\n");
+
+    // Last, and only on the bare `rproj` screen - not before every command,
+    // where it would be a network call in the way of the thing the user
+    // asked for. Silent unless there is something newer.
+    crate::steps::update_check::nudge_if_outdated();
 }
 
 #[cfg(test)]

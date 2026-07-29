@@ -95,6 +95,32 @@ pub fn warn(msg: &str) {
     println!("  {}{msg}", marker("❗", " ", "!"));
 }
 
+/// A failure that ends the run, with its full cause chain.
+///
+/// Printed here rather than by Rust's default `Termination` impl for
+/// `Result`, which writes an uncoloured `Error: ` followed by the chain in
+/// `Debug` form. Red, because the one line the user must not miss should
+/// not look like the twenty `✅` lines above it.
+///
+/// Colour goes through `anstream`, so it is stripped automatically when
+/// stderr is redirected to a file or a CI log rather than emitting escape
+/// codes into it. `NO_COLOR` and `CLICOLOR=0` are honoured for free.
+pub fn error(err: &anyhow::Error) {
+    use anstyle::{AnsiColor, Color, Style};
+    let red = Style::new()
+        .fg_color(Some(Color::Ansi(AnsiColor::Red)))
+        .bold();
+    let reset = red.render_reset();
+    let red = red.render();
+
+    anstream::eprintln!("\n{red}{}{}{reset}", marker("❗", " ", "!"), err);
+    // Each `with_context` layer, innermost last - the OS or library error
+    // that actually stopped things is the deepest one.
+    for cause in err.chain().skip(1) {
+        anstream::eprintln!("      {cause}");
+    }
+}
+
 /// Detail under the most recent line: indented, and only worth printing
 /// when it tells the user something they'd otherwise have to go find.
 pub fn detail(msg: &str) {
