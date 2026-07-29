@@ -136,13 +136,39 @@ impl Maintenance {
 }
 
 enum ToolKind {
-    SystemApp { winget_id: &'static str },
+    SystemApp { winget_id: &'static str, detect: Detect },
     RokitTool { rokit_source: &'static str },
     VsCodeExtension { extension_id: &'static str },
     StudioPlugin { github_repo: &'static str, asset_suffix: &'static str },
     BlenderAddon { github_repo: &'static str },
 }
 
+// How to tell whether a system app is present - separate from how it is
+// installed, because for Studio those are different questions.
+enum Detect {
+    Winget,
+    ExeUnder { env_var, subdir, exe },
+}
+```
+
+`Detect` exists for one entry. `winget list --id Roblox.RobloxStudio -e` exits 20 on a machine with Studio installed and running, because Studio installs per-user through its own bootstrapper into `%LOCALAPPDATA%\Roblox\Versions\` and never registers where winget looks — while `Roblox.Roblox`, the client, is detected fine. That one wrong answer used to produce two failures per `rproj setup`: an attempt to reinstall Studio (hitting winget's stale-hash issue, which the user would otherwise never have reached), then `rojo plugin install` skipped as "Studio isn't installed" — while other plugins installed into the Studio plugins folder that only exists because Studio *is* installed. Two tests hold the fix: Studio must not use winget detection, and every other system app must.
+
+### Why maintenance badges are curated, not live
+
+The badge answers *is this a good choice for a new project*, which is a judgement. A last-commit timestamp does not make it: `t` and `promise` are feature-complete and legitimately quiet, while daily commits can mean pre-alpha churn.
+
+Live checking at runtime also does not survive the numbers — 50 catalog entries against GitHub's 60 requests/hour **per IP**, a budget shared with every other GitHub-touching tool on the machine including rokit, so one `rproj new` would spend it. Measured: 20 unique repositories take 11.4s sequentially, which would be 11 seconds ahead of the first prompt, and parallelising needs a thread pool or an async runtime this program deliberately lacks. Nor is there an offline story, in a tool whose job is bootstrapping a machine.
+
+So the judgement stays curated and the *objective* half is checked in CI — weekly, authenticated at 5,000/hour, where nobody is waiting (`src/steps/badge_check.rs`, and the `badges` job in `.github/workflows/ci.yml`):
+
+| signal | verdict |
+| --- | --- |
+| archived upstream, badge is not `Legacy` | fails the build |
+| badged `Active`, no push since 2024 | reported, not fatal |
+
+The same fatal/review split the other gates use: fail on the unambiguous, report the judgement calls. Repositories are deduplicated by `owner/repo`, so the Charm monorepo behind four catalogued packages costs one request rather than four.
+
+```rust
 struct ToolEntry {
     key: &'static str,
     description: &'static str,
