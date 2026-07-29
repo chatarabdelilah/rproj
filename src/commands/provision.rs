@@ -49,11 +49,15 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
         Vec::new()
     };
 
-    // Rokit itself is foundational - if this fails, nothing rokit-managed
+    ui::section("Machine setup");
+
+    // Inside the section, not above it. This prints an outcome line, and an
+    // outcome line before its own section header reads as belonging to
+    // whatever came before - which here was the last picker's answer.
+    //
+    // Rokit itself is foundational: if this fails, nothing rokit-managed
     // can work anyway, so this one stays a hard failure.
     bootstrap::ensure_rokit()?;
-
-    ui::section("Machine setup");
     let mut apps = Tally::new();
     for key in &system_apps {
         let Some(entry) = SYSTEM_APPS.iter().find(|e| e.key == *key) else { continue };
@@ -188,7 +192,7 @@ fn pick_from_catalog(
     let has_prior = !previously_selected.is_empty();
     let options: Vec<String> = entries
         .iter()
-        .map(|e| format!("{} - {} ({})", e.key, e.description, e.maintenance.short_badge()))
+        .map(|e| ui::option_line(e.key, e.description, e.maintenance.short_badge()))
         .collect();
 
     let default_indices: Vec<usize> = entries

@@ -8,7 +8,7 @@
 Takes a fresh Windows PC all the way to a working Roblox/Luau development setup, then scaffolds projects on top of it — and explains every tool and package as it goes, so you end up knowing why your setup looks the way it does.
 
 ```text
-🎮  rproj 0.2.0 - guided bootstrap-to-game-dev CLI for Roblox
+🎮  rproj 0.2.1 - guided bootstrap-to-game-dev CLI for Roblox
 
     Takes a fresh PC all the way to a working Roblox dev setup, then
     scaffolds projects on top of it. Explains every tool and package
@@ -196,7 +196,7 @@ Set `RPROJ_NO_EMOJI=1` for `+` / `-` / `!` markers instead of `✅` / `➖` / `�
 
 ## Status
 
-v0.2.0. Windows-only and Luau-only.
+v0.2.1. Windows-only and Luau-only.
 
 Deliberately not planned: macOS support and roblox-ts. On the roadmap: a GUI over the same core logic, and live maintenance-status checking once the catalog is large enough that hand-curation becomes a burden.
 

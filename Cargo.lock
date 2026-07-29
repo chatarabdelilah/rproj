@@ -1189,13 +1189,14 @@ dependencies = [
 
 [[package]]
 name = "rproj"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anstream",
  "anstyle",
  "anyhow",
  "arboard",
  "clap",
+ "crossterm",
  "directories",
  "inquire",
  "notify-rust",
@@ -1203,6 +1204,7 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+ "unicode-width 0.2.2",
  "ureq",
  "vt100",
  "walkdir",

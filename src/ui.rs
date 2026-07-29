@@ -147,11 +147,12 @@ pub fn passthrough(stdout: &str, stderr: &str) {
     }
 }
 
-/// Collapses a run of same-kind outcomes into one line.
+/// Collapses a run of same-kind outcomes into one wrapped list.
 ///
-/// Nine "already added globally" lines say exactly as much as
-/// "9 tools already installed", and the latter doesn't bury the one tool
-/// that actually needed attention.
+/// Nine separate `already added globally` lines bury the one tool that
+/// actually needed attention. One line naming all nine does not - and it
+/// still answers *which*, which a bare count does not (see
+/// `summary_within`).
 #[derive(Default)]
 pub struct Tally {
     done: Vec<String>,
@@ -176,18 +177,35 @@ impl Tally {
     /// The lines this tally would print. Split out from `finish` so the
     /// summarising rules can be tested without capturing stdout.
     pub fn summary(&self, noun: &str) -> Vec<String> {
+        self.summary_within(noun, option_budget())
+    }
+
+    /// The pure half, taking the line budget instead of reading the
+    /// terminal - so the wrapping rule is testable at a fixed width.
+    ///
+    /// **Names every item, wrapping rather than collapsing to a count.**
+    /// This used to print `5 system apps already present` past four items,
+    /// which answers "how many" when the question is "which". The wall of
+    /// output the tally exists to prevent was one line *per item* - nine
+    /// `✅ ... already added globally` lines - and a list wrapped across two
+    /// lines is not that.
+    pub fn summary_within(&self, noun: &str, budget: usize) -> Vec<String> {
         let mut lines = Vec::new();
         if !self.done.is_empty() {
-            lines.push(format!("{noun}: installed {}", self.done.join(", ")));
+            lines.extend(wrap_list(
+                &format!("{noun}: installed "),
+                &self.done,
+                " ",
+                budget,
+            ));
         }
         if !self.already.is_empty() {
-            let n = self.already.len();
-            // Naming a handful is useful; naming twenty is a wall again.
-            lines.push(if n <= 4 {
-                format!("{noun}: {} already present", self.already.join(", "))
-            } else {
-                format!("{n} {noun} already present")
-            });
+            lines.extend(wrap_list(
+                &format!("{noun}: "),
+                &self.already,
+                " already present",
+                budget,
+            ));
         }
         lines
     }
@@ -200,12 +218,122 @@ impl Tally {
     }
 }
 
+/// `prefix` then a comma-separated list then `suffix`, wrapped to `budget`
+/// columns with a hanging indent on continuation lines.
+///
+/// Returns one string per output line. Never breaks an item across lines:
+/// an item longer than the budget gets its own line and overflows, because
+/// a truncated tool name is worse than a long line.
+fn wrap_list(prefix: &str, items: &[String], suffix: &str, budget: usize) -> Vec<String> {
+    const HANGING_INDENT: &str = "  ";
+    let mut lines = Vec::new();
+    let mut current = prefix.to_string();
+    let mut count_on_line = 0;
+
+    for (i, item) in items.iter().enumerate() {
+        let last = i + 1 == items.len();
+        let piece = if last {
+            format!("{item}{suffix}")
+        } else {
+            format!("{item}, ")
+        };
+        // Start a new line when this item would overflow - unless nothing is
+        // on the line yet, in which case overflowing is the only option.
+        if count_on_line > 0 && display_width(&current) + display_width(&piece) > budget {
+            lines.push(current.trim_end().to_string());
+            current = HANGING_INDENT.to_string();
+            count_on_line = 0;
+        }
+        current.push_str(&piece);
+        count_on_line += 1;
+    }
+    if !current.trim().is_empty() {
+        lines.push(current.trim_end().to_string());
+    }
+    lines
+}
+
 /// Options in every picker are rendered as `key - description (badge)`, so
 /// the key is the part before the first " - ". These helpers keep that
 /// format in one place: it was previously encoded in seven separate
 /// closures across three modules, where changing the separator would have
 /// silently broken selection matching rather than failing to compile.
 pub const OPTION_SEPARATOR: &str = " - ";
+
+/// Renders one picker option as `key - description (badge)`, truncated so
+/// it cannot wrap in the current terminal.
+///
+/// **Truncation is not cosmetic - it is what stops the picker corrupting
+/// itself.** inquire redraws its list by moving the cursor up by the number
+/// of options it rendered, one row per option. A line longer than the
+/// terminal is wrapped by the terminal into two or more rows, so the cursor
+/// moves up too few rows and each redraw overwrites the wrong region: after
+/// a few arrow keys the list is unreadable garbage. Reproduced in a 66-column
+/// terminal, where descriptions of 71-216 characters wrap to 2-4 rows each.
+///
+/// The key is never truncated. `option_is` matches on the `key - ` prefix,
+/// so shortening it would silently break selection matching rather than
+/// merely look wrong.
+pub fn option_line(key: &str, description: &str, badge: &str) -> String {
+    let full = format!("{key}{OPTION_SEPARATOR}{description} ({badge})");
+    let budget = option_budget();
+    if display_width(&full) <= budget {
+        return full;
+    }
+
+    // The description is what gets shortened. The key must survive intact
+    // (selection matches on it) and so must the badge - a maintenance
+    // status is guidance the user is choosing on, not decoration, so
+    // dropping it to save nine columns defeats the point of the picker.
+    let prefix = format!("{key}{OPTION_SEPARATOR}");
+    let tail = format!(" ({badge})");
+    let room = budget
+        .saturating_sub(display_width(&prefix))
+        .saturating_sub(display_width(&tail))
+        .saturating_sub(1); // the ellipsis
+
+    if room < 8 {
+        // Not enough width for a useful description. Key and badge still
+        // carry the two things a decision needs.
+        return format!("{key}{tail}");
+    }
+    format!("{prefix}{}…{tail}", truncate_to(description, room))
+}
+
+/// Columns an option line may occupy.
+///
+/// inquire prints its own `> [ ] ` marker ahead of the label, and a line
+/// that exactly fills the terminal still wraps on some consoles, so this
+/// leaves room for both.
+fn option_budget() -> usize {
+    const MARKER_AND_MARGIN: usize = 8;
+    const FALLBACK: usize = 100;
+    let columns = crossterm::terminal::size()
+        .map(|(cols, _)| cols as usize)
+        // Not a terminal (piped, or a CI log): nothing wraps, so a
+        // generous fixed width keeps descriptions intact.
+        .unwrap_or(FALLBACK);
+    columns.saturating_sub(MARKER_AND_MARGIN).max(24)
+}
+
+fn display_width(s: &str) -> usize {
+    unicode_width::UnicodeWidthStr::width(s)
+}
+
+/// Truncates to at most `width` display columns, never mid-character.
+fn truncate_to(s: &str, width: usize) -> String {
+    let mut out = String::new();
+    let mut used = 0;
+    for c in s.chars() {
+        let w = unicode_width::UnicodeWidthChar::width(c).unwrap_or(0);
+        if used + w > width {
+            break;
+        }
+        out.push(c);
+        used += w;
+    }
+    out.trim_end().to_string()
+}
 
 /// The key half of a rendered option line.
 pub fn option_key(label: &str) -> &str {
@@ -243,6 +371,75 @@ pub fn compact_select_answer(opt: inquire::list_option::ListOption<&String>) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A truncated option line must still select correctly.
+    ///
+    /// This is the assertion that makes truncation safe: `option_is`
+    /// matches the `key - ` prefix, so shortening the line from the end
+    /// leaves matching intact. Truncating from the front, or shortening
+    /// the key to fit, would break selection silently - the user picks
+    /// one package and gets another, or none.
+    #[test]
+    fn a_truncated_option_line_still_matches_its_key() {
+        let long = "Immutable data utility library for tables/arrays (Llama-style helpers) -                     no longer actively maintained upstream, but stable and widely used";
+        let line = option_line("sift", long, "stable");
+
+        assert!(option_is(&line, "sift"), "{line}");
+        assert_eq!(option_key(&line), "sift", "{line}");
+        assert!(!option_is(&line, "sif"), "a shorter key must not match");
+        assert!(
+            line.ends_with("(stable)"),
+            "the maintenance badge survives truncation - it is what the user              is choosing on: {line}"
+        );
+    }
+
+    /// Even with no room for a description, the two things a decision needs
+    /// are still there.
+    #[test]
+    fn a_very_narrow_budget_keeps_the_key_and_the_badge() {
+        let line = option_line("wally-package-types", &"x".repeat(200), "active");
+        assert!(option_is(&line, "wally-package-types") || line.starts_with("wally-package-types"));
+        assert!(line.contains("(active)"), "{line}");
+    }
+
+    /// The property the picker depends on: no option line can wrap.
+    #[test]
+    fn every_option_line_fits_the_budget() {
+        let budget = option_budget();
+        for (key, desc) in [
+            ("t", "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions"),
+            ("testez", &"very long description ".repeat(12)),
+            ("sift", "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used"),
+            ("janitor", "Cleanup"),
+        ] {
+            let line = option_line(key, desc, "stable");
+            assert!(
+                display_width(&line) <= budget,
+                "{key} renders {} columns, budget {budget}: {line}",
+                display_width(&line)
+            );
+        }
+    }
+
+    /// A short description is left exactly as it was - truncation must not
+    /// touch lines that already fit.
+    #[test]
+    fn a_short_option_line_is_untouched() {
+        let line = option_line("janitor", "Cleanup utility", "active");
+        assert_eq!(line, "janitor - Cleanup utility (active)");
+    }
+
+    /// Truncation happens on character boundaries and accounts for
+    /// double-width characters, so a description containing them cannot
+    /// overshoot the budget by a column.
+    #[test]
+    fn truncation_respects_display_width_not_byte_length() {
+        // Each of these is one char and two columns.
+        assert_eq!(truncate_to("ok", 4), "ok");
+        assert!(display_width(&truncate_to("aaaaaa", 5)) <= 5);
+        assert_eq!(truncate_to("abcdef", 3), "abc");
+        assert_eq!(truncate_to("ab cdef", 3), "ab");
+    }
 
     /// `starts_with(key)` would make `react` match `reactRoblox`, quietly
     /// selecting a package the user didn't pick.
@@ -302,16 +499,31 @@ mod tests {
         assert!(MULTISELECT_HELP.contains("enter to confirm"));
     }
 
-    /// The whole point of a tally: what happened is one line, and what
-    /// didn't need doing is another - never one line each.
+    /// Every item is named, so a user can see *which* - the complaint the
+    /// old count-collapse produced ("5 system apps already present" when
+    /// the question was which five).
     #[test]
-    fn a_tally_reports_each_kind_on_a_single_line() {
+    fn a_tally_names_every_item() {
+        let mut tally = Tally::new();
+        for name in ["git", "vscode", "studio", "roblox", "blender"] {
+            tally.already(name);
+        }
+        assert_eq!(
+            tally.summary_within("system apps", 200),
+            vec!["system apps: git, vscode, studio, roblox, blender already present"]
+        );
+    }
+
+    /// What happened and what did not need doing stay on separate lines -
+    /// never one line each per item.
+    #[test]
+    fn a_tally_reports_each_kind_separately() {
         let mut tally = Tally::new();
         tally.did("rojo");
         tally.did("wally");
         tally.already("stylua");
         assert_eq!(
-            tally.summary("rokit tools"),
+            tally.summary_within("rokit tools", 200),
             vec![
                 "rokit tools: installed rojo, wally".to_string(),
                 "rokit tools: stylua already present".to_string(),
@@ -319,25 +531,47 @@ mod tests {
         );
     }
 
-    /// Naming a handful is useful; naming twenty is the wall of output the
-    /// tally exists to prevent, so past four it becomes a count.
+    /// A long list wraps with a hanging indent instead of collapsing to a
+    /// count, and no line exceeds the budget.
     #[test]
-    fn a_long_already_present_list_collapses_to_a_count() {
+    fn a_long_list_wraps_rather_than_collapsing() {
         let mut tally = Tally::new();
-        for name in ["a", "b", "c", "d"] {
+        for name in [
+            "rojo", "wally", "wally-package-types", "selene", "stylua", "lute",
+            "luau-lsp-cli", "tarmac", "mantle",
+        ] {
             tally.already(name);
         }
-        assert_eq!(tally.summary("tools"), vec!["tools: a, b, c, d already present"]);
+        let lines = tally.summary_within("rokit tools", 60);
 
-        tally.already("e");
-        assert_eq!(tally.summary("tools"), vec!["5 tools already present"]);
+        assert!(lines.len() > 1, "should wrap: {lines:?}");
+        for line in &lines {
+            assert!(display_width(line) <= 60, "line too wide: {line:?}");
+        }
+        // Every tool is still named somewhere.
+        let joined = lines.join(" ");
+        for name in ["rojo", "wally-package-types", "mantle"] {
+            assert!(joined.contains(name), "{name} missing from {lines:?}");
+        }
+        assert!(lines[1].starts_with("  "), "hanging indent: {lines:?}");
+    }
+
+    /// An item longer than the whole budget gets its own line and overflows
+    /// rather than being truncated - a cut-off tool name is worse than a
+    /// long line.
+    #[test]
+    fn an_item_wider_than_the_budget_is_not_truncated() {
+        let mut tally = Tally::new();
+        tally.already("a-very-long-tool-name-that-exceeds-any-sensible-budget");
+        let lines = tally.summary_within("tools", 20);
+        assert!(lines.join(" ").contains("a-very-long-tool-name-that-exceeds-any-sensible-budget"));
     }
 
     /// A tally with nothing in it should print nothing at all, not an empty
     /// "installed" line.
     #[test]
     fn an_empty_tally_says_nothing() {
-        assert!(Tally::new().summary("tools").is_empty());
+        assert!(Tally::new().summary_within("tools", 80).is_empty());
     }
 
     /// inquire's own summary echoes every selected option's full

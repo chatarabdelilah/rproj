@@ -204,7 +204,7 @@ fn pick_guided() -> Result<BTreeSet<String>> {
 
         let options: Vec<String> = choices
             .iter()
-            .map(|p| format!("{} - {} ({})", p.key, p.description, p.maintenance.short_badge()))
+            .map(|p| ui::option_line(p.key, p.description, p.maintenance.short_badge()))
             .collect();
         // Just the category name. The question is implied by a picker, and
         // the answer line reads as `State management: reflex` rather than

@@ -1,6 +1,6 @@
 [package]
 name = "rproj"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 # Not the edition's floor (1.85), which would be a claim that doesn't
 # build: notify-rust declares 1.89, the highest in the dependency tree.
@@ -39,6 +39,11 @@ notify-rust = "4.18.0"
 # safe to colour errors at all (see ui::error).
 anstream = "1.0.0"
 anstyle = "1.0.14"
+# Also already in the tree, via inquire. Needed to keep picker option
+# lines from wrapping, which corrupts inquire's redraw - see
+# ui::option_line.
+crossterm = "0.29.0"
+unicode-width = "0.2.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 toml = "1.1.3"
