@@ -426,9 +426,55 @@ pub fn render_toml(answers: &[(&SettingSpec, Value)]) -> String {
 
 fn toml_value(value: &Value) -> String {
     match value {
-        Value::String(s) => format!("\"{s}\""),
+        Value::String(s) => format!("\"{}\"", escape_toml_string(s)),
         other => other.to_string(),
     }
+}
+
+/// Escapes a TOML basic string.
+///
+/// Every value written here currently comes from a fixed vocabulary the
+/// user picks from a menu, so nothing needs escaping today - which made
+/// the unescaped `format!("\"{s}\"")` safe by circumstance rather than by
+/// construction. A single quote or backslash in a value produced a file
+/// that did not parse.
+fn escape_toml_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            // The remaining control characters have no short escape.
+            c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                out.push_str(&format!("\\u{:04X}", c as u32));
+            }
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// The `# comment` at the end of a `key = value` line, if there is one.
+///
+/// Scans past the `=` tracking whether it is inside a quoted value, so a
+/// `#` within a string is not mistaken for the start of a comment.
+fn trailing_comment(line: &str) -> Option<&str> {
+    let after_eq = line.find('=')? + 1;
+    let mut in_string = false;
+    let mut escaped = false;
+    for (i, c) in line.char_indices().skip_while(|(i, _)| *i < after_eq) {
+        match c {
+            _ if escaped => escaped = false,
+            '\\' if in_string => escaped = true,
+            '"' => in_string = !in_string,
+            '#' if !in_string => return Some(&line[i..]),
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Applies `answers` to an existing config file, rewriting only the lines
@@ -474,7 +520,18 @@ pub fn merge_toml(existing: &str, answers: &[(&SettingSpec, Value)]) -> String {
         match answers.iter().position(|(spec, _)| spec.key == key && spec.section == section.as_deref()) {
             Some(i) => {
                 replaced[i] = true;
-                out.push_str(&format!("{key} = {}\n", toml_value(&answers[i].1)));
+                // The value is rewritten; anything the user wrote after it
+                // is theirs. Without this a trailing `# why` was dropped
+                // even when the value did not change, so "accepting every
+                // default is a byte-exact no-op" held for comments on
+                // their own lines and quietly failed for these.
+                let comment = trailing_comment(line)
+                    .map(|c| format!("   {c}"))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "{key} = {}{comment}\n",
+                    toml_value(&answers[i].1)
+                ));
             }
             None => {
                 out.push_str(line);
@@ -602,6 +659,62 @@ pub fn insert_top_level(toml: &str, line: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A setting used only by the tests below, so they do not depend on
+    /// which real settings happen to exist.
+    const A_TOP_LEVEL: SettingSpec = SettingSpec {
+        key: "indent_type",
+        description: "for the tests below",
+        section: None,
+        kind: SettingKind::Choice { default: "Tabs", options: &[] },
+    };
+
+    /// Accepting the value a file already holds must not disturb the
+    /// line - including a comment the user wrote after it.
+    ///
+    /// This failed before: a matched line was replaced with a canonical
+    /// `key = value`, so `indent_type = "Tabs"   # agreed with the team`
+    /// came back without the reason.
+    #[test]
+    fn a_trailing_comment_on_a_setting_line_survives() {
+        let existing = "indent_type = \"Tabs\"   # agreed with the team\n";
+        let merged = merge_toml(existing, &[(&A_TOP_LEVEL, json!("Tabs"))]);
+        assert_eq!(merged, existing, "same value in, same bytes out");
+    }
+
+    #[test]
+    fn a_trailing_comment_survives_a_changed_value() {
+        let merged = merge_toml(
+            "indent_type = \"Tabs\"   # agreed with the team\n",
+            &[(&A_TOP_LEVEL, json!("Spaces"))],
+        );
+        assert_eq!(merged, "indent_type = \"Spaces\"   # agreed with the team\n");
+    }
+
+    /// A `#` inside the value is part of the value, not a comment.
+    #[test]
+    fn a_hash_inside_a_string_value_is_not_a_comment() {
+        assert_eq!(trailing_comment("key = \"a # b\""), None);
+        assert_eq!(trailing_comment("key = \"a\" # b"), Some("# b"));
+        assert_eq!(trailing_comment("key = \"a \\\" # b\""), None);
+        assert_eq!(trailing_comment("key = 1"), None);
+    }
+
+    /// A quote or backslash in a value used to produce a file that did
+    /// not parse. Every value is written through the escaper now.
+    #[test]
+    fn a_quote_in_a_value_produces_parseable_toml() {
+        let merged = merge_toml("", &[(&A_TOP_LEVEL, json!("a\"b\\c"))]);
+        let parsed: toml::Table = toml::from_str(&merged).expect("valid TOML");
+        assert_eq!(parsed["indent_type"].as_str(), Some("a\"b\\c"));
+    }
+
+    #[test]
+    fn control_characters_are_escaped_too() {
+        assert_eq!(escape_toml_string("a\nb\tc"), "a\\nb\\tc");
+        assert_eq!(escape_toml_string("a\u{1}b"), "a\\u0001b");
+        assert_eq!(escape_toml_string("plain"), "plain");
+    }
 
     /// The scaffolded file and `rproj configure` accepting every default
     /// must produce the same thing, or configure silently reformats the

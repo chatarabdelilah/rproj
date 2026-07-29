@@ -46,6 +46,9 @@ pub fn run_in(program: &str, args: &[&str], dir: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
+/// `Debug` so a test can call `unwrap_err()` on a `Result<Captured, _>`,
+/// which prints the `Ok` value when it panics and therefore requires it.
+#[derive(Debug)]
 pub struct Captured {
     pub stdout: String,
     pub stderr: String,

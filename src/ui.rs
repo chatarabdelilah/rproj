@@ -37,11 +37,20 @@ pub fn emoji_enabled() -> bool {
 
 /// The marker starting an outcome line, with its ASCII fallback.
 ///
-/// Two spaces after `⚠️`: it is a base character plus VARIATION SELECTOR-16,
-/// which consoles disagree about the width of, and the extra space is what
-/// keeps the message text aligned with its neighbours. The others are
-/// inherently double-width and need only one. Rokit does the same thing
-/// with its `🛠️  Found tools:` header.
+/// Every icon here is a single scalar value with no VARIATION SELECTOR, so
+/// all three are unambiguously double-width and take one space of padding.
+///
+/// `warn` used to be `⚠️` with *two* spaces, on the theory that a base
+/// character plus VS-16 renders one column narrower. Measured with
+/// `unicode-width`: VS-16 requests emoji presentation, which is wide, so
+/// the standard makes it two columns and the extra space put warn one
+/// column right of its neighbours. The legacy console ignores VS-16 and
+/// draws it narrow, where the extra space was right - and nothing the
+/// program can query tells the two apart.
+///
+/// `❗` (U+2757) removes the question: one char, two columns, no selector,
+/// same as `✅` and `➖`. Alignment is now a property of the glyphs rather
+/// than a guess about the terminal.
 fn marker(icon: &str, pad: &str, fallback: &str) -> String {
     render_marker(emoji(), icon, pad, fallback)
 }
@@ -83,7 +92,7 @@ pub fn skip(msg: &str) {
 
 /// Something failed but the run continues.
 pub fn warn(msg: &str) {
-    println!("  {}{msg}", marker("⚠️", "  ", "!"));
+    println!("  {}{msg}", marker("❗", " ", "!"));
 }
 
 /// Detail under the most recent line: indented, and only worth printing
@@ -231,21 +240,34 @@ mod tests {
         assert_eq!(render_marker(true, "✅", " ", "+"), "✅ ");
         assert_eq!(render_marker(false, "✅", " ", "+"), "+ ");
         // Two `char`s either way: one emoji plus one space, or one ASCII
-        // character plus one space.
-        for (icon, pad, fallback) in [("✅", " ", "+"), ("➖", " ", "-")] {
+        // character plus one space. All three markers, not just two - see
+        // `no_marker_icon_carries_a_variation_selector`.
+        for (icon, pad, fallback) in [("✅", " ", "+"), ("➖", " ", "-"), ("❗", " ", "!")] {
             let on = render_marker(true, icon, pad, fallback);
             let off = render_marker(false, icon, pad, fallback);
             assert_eq!(on.chars().count(), off.chars().count(), "{icon}");
         }
     }
 
-    /// A marker built from a variation-selector emoji is one `char` wider
-    /// than it looks, which is why `warn` pads by two - see `marker`.
+    /// The alignment guarantee, and it is a property of the glyphs.
+    ///
+    /// A base character plus VARIATION SELECTOR-16 is two `char`s whose
+    /// rendered width consoles disagree about, so a marker built from one
+    /// cannot be aligned for every terminal. Every icon here is a single
+    /// scalar with emoji presentation of its own.
     #[test]
-    fn the_warning_marker_compensates_for_its_variation_selector() {
-        assert_eq!("⚠️".chars().count(), 2, "⚠️ is a base char plus VS-16");
-        assert_eq!("✅".chars().count(), 1, "✅ needs no selector");
-        assert_eq!(render_marker(true, "⚠️", "  ", "!"), "⚠️  ");
+    fn no_marker_icon_carries_a_variation_selector() {
+        for icon in ["✅", "➖", "❗", "📦"] {
+            assert_eq!(
+                icon.chars().count(),
+                1,
+                "{icon} must be one scalar, not a base char plus a selector"
+            );
+            assert!(
+                !icon.contains('\u{FE0F}'),
+                "{icon} must not carry VARIATION SELECTOR-16"
+            );
+        }
     }
 
     /// The help text is the only place enter-to-confirm is mentioned.

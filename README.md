@@ -190,7 +190,7 @@ cargo test --test live -- --ignored --test-threads=1     # ~69s
 
 The interactive commands are tested by driving the real binary through a **pseudo-terminal** ([tests/common/mod.rs](tests/common/mod.rs)). Two things forced that: `inquire` reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever; and the pty byte stream is not what the program printed — ConPTY may express a line break as `\n` or as a cursor move depending on machine load, so assertions run against a rendered screen instead of the raw bytes. Synchronisation is by expecting output, never by sleeping.
 
-Set `RPROJ_NO_EMOJI=1` for `+` / `-` / `!` markers instead of `✅` / `➖` / `⚠️` — for a log file, a CI transcript, or a screen reader.
+Set `RPROJ_NO_EMOJI=1` for `+` / `-` / `!` markers instead of `✅` / `➖` / `❗` — for a log file, a CI transcript, or a screen reader.
 
 [docs/architecture.md](docs/architecture.md) is the real reference: data model, subsystem map, flow diagrams, the data-driven matrices behind the catalog and the gate, and §7's list of landmines with the reproduction behind each one.
 

@@ -193,11 +193,17 @@ impl SavedSetup {
 
     /// Names of every saved setup, sorted. Missing directory is not an
     /// error - it just means none have been saved yet.
+    ///
+    /// The `is_file` filter is load-bearing: `read_dir` yields directories
+    /// too, and without it a directory named `something.toml` is listed as
+    /// a setup that then fails to load, because the path exists and so the
+    /// `None` branch in `load` never fires.
     pub fn list() -> Vec<String> {
         let Ok(dir) = Self::dir() else { return Vec::new() };
         let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
         let mut names: Vec<String> = entries
             .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
             .filter_map(|e| {
                 let path = e.path();
                 (path.extension()? == "toml").then(|| path.file_stem()?.to_str().map(str::to_owned))?
@@ -208,3 +214,55 @@ impl SavedSetup {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `read_dir` yields directories as well as files, and the extension
+    /// filter alone does not tell them apart. Without the `is_file` check
+    /// a directory named `something.toml` was listed as a saved setup -
+    /// and then failed to load rather than returning `None`, because the
+    /// path does exist.
+    #[test]
+    fn listing_ignores_a_directory_named_like_a_setup() {
+        let dir = std::env::temp_dir()
+            .join(format!("rproj-list-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("trap.toml")).expect("create the trap");
+        fs::write(dir.join("real.toml"), "packages = []\npackage_workflow = \"wally\"\n")
+            .expect("write a real one");
+        fs::write(dir.join("notes.txt"), "not a setup").expect("write");
+
+        // The same filter chain `list` runs, against a directory the test
+        // controls. `list` itself reads the real config location, which a
+        // test must not touch.
+        let mut names: Vec<String> = fs::read_dir(&dir)
+            .expect("read_dir")
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
+            .filter_map(|e| {
+                let path = e.path();
+                (path.extension()? == "toml").then(|| path.file_stem()?.to_str().map(str::to_owned))?
+            })
+            .collect();
+        names.sort();
+
+        assert_eq!(names, ["real"], "the directory and the .txt are both out");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The on-disk spelling is a compatibility promise; the Rust spelling
+    /// is not. A rename in Rust must not silently change the file format.
+    #[test]
+    fn the_workflow_enum_is_written_in_kebab_case() {
+        let text = toml::to_string_pretty(&ProjectConfig {
+            mode: "guided".into(),
+            package_workflow: PackageWorkflow::GitSubmodules,
+            packages: vec![],
+            tools_at_creation: vec![],
+        })
+        .expect("serialise");
+        assert!(text.contains("package_workflow = \"git-submodules\""), "{text}");
+        assert!(!text.contains("GitSubmodules"), "{text}");
+    }
+}
