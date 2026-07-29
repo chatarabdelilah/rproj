@@ -1,0 +1,134 @@
+# Every choice here is deliberate, including the omissions - see the
+# comments, and docs/architecture.md for the measurements behind them.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Weekly, for the badge-freshness job at the bottom. Nothing else uses
+  # it: the build and test jobs are deterministic given the lockfile, so
+  # running those on a timer would only ever report Actions outages.
+  schedule:
+    - cron: "0 6 * * 1"
+
+# A second push to the same branch cancels the first. Without this, a
+# busy branch queues runs that are obsolete before they start.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Fail the build if the lockfile would change. Without it, CI can
+  # quietly resolve a different graph than the one that was tested.
+  CARGO_NET_RETRY: 3
+
+jobs:
+  test:
+    name: test (${{ matrix.toolchain }} on ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Learn about every leg, not just the first to fail.
+      fail-fast: false
+      matrix:
+        # windows-latest only: this program reads %USERPROFILE% and shells
+        # out to a Windows package manager. A Linux runner cannot exercise
+        # it, and a green Linux leg would be evidence of nothing.
+        os: [windows-latest]
+        # `stable` catches new lints and keeps the project current.
+        # `1.89` is the declared MSRV - this leg is what keeps that claim
+        # honest rather than aspirational.
+        toolchain: [stable, "1.89"]
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+        # No `submodules:` - this repository has none. Add `submodules: true`
+        # the day it does; the failure otherwise is an empty directory and a
+        # confusing "file not found".
+        # No `fetch-depth: 0` - nothing here needs history.
+
+      - name: Install the toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Keyed per matrix leg: stable and 1.89 produce incompatible
+          # build artifacts and must not share a cache.
+          key: ${{ matrix.toolchain }}
+
+      - name: Build
+        run: cargo build --locked --all-targets
+
+      - name: Test
+        # The default test set. The `#[ignore]`d live suite is deliberately
+        # NOT run here: it installs real tools, hits the network, and must
+        # be serial. It is run by hand before a release.
+        run: cargo test --locked
+
+      - name: Clippy
+        # Only on stable. Running it on the MSRV leg would fail whenever a
+        # newer lint exists that the older clippy does not know about, and
+        # would mean the MSRV leg reports lint drift rather than MSRV
+        # breakage.
+        if: matrix.toolchain == 'stable'
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      # DELIBERATELY ABSENT: `cargo fmt --check`.
+      #
+      # Measured: this codebase differs from rustfmt in 309 hunks across 38
+      # of 40 files, and no configuration reconciles it (Chapter 58). Adding
+      # the check would produce a gate that is red on the day it is added,
+      # which teaches everyone to ignore CI. Adopt rustfmt first, or leave
+      # the check out - but do not ship a permanently failing gate.
+
+  package:
+    name: package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: package
+
+      # Builds the tarball AND compiles the crate from it, which is the
+      # only check that catches a file excluded from the package but
+      # needed by the build.
+      - name: Verify the crate packages and builds from its tarball
+        run: cargo package --locked
+
+  badges:
+    name: badge freshness
+    runs-on: ubuntu-latest
+    # Schedule and manual only. A catalog badge going stale is not caused
+    # by a push, so checking it on every push would spend API calls and
+    # reviewer attention on a question no commit changed.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: badges
+
+      # ubuntu, unlike the test job: this one neither shells out to a
+      # Windows package manager nor touches the filesystem. It makes HTTP
+      # requests, and the cheapest runner does that fine.
+      - name: Check curated badges against upstream
+        env:
+          # Authenticated: 5,000 requests/hour instead of 60 per IP. That
+          # unauthenticated limit is the whole reason this is a CI job
+          # rather than a runtime feature - see src/steps/badge_check.rs.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo test --locked -- --ignored badges_do_not_contradict_upstream --nocapture

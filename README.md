@@ -82,7 +82,9 @@ Run `rproj info` for the full listing, or `rproj info <key>` for detail on any e
 - **VS Code extensions** — luau-lsp, vscode-rojo, selene, StyLua, roblox-ui, TestEZ Companion, and themes
 - **Wally packages** — React, Vide, Fusion, Reflex, Charm, Lyra, ProfileStore, TestEZ, Janitor, Ripple, Remo, Promise, t, Sift, and their bindings
 
-Maintenance badges are hand-curated rather than checked live.
+Maintenance badges are hand-curated. "Is this a good choice for a new project" is a judgement, and a last-commit timestamp does not make it — a feature-complete library with no commits in a year is fine, and a repository with daily commits may be pre-alpha churn.
+
+What *is* objective — whether a repository has been archived — is checked weekly in CI against every catalogued repo, so a badge cannot silently contradict upstream.
 
 ## Environment
 

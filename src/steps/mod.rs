@@ -1,3 +1,10 @@
+// Test-only: this is a CI gate, not a runtime feature, and the module
+// docs explain why. Gated rather than `#[allow(dead_code)]` because
+// `#[cfg(test)]` is the accurate statement - nothing in the shipped
+// binary calls it. The attribute comes off in the same commit that gives
+// it a caller.
+#[cfg(test)]
+pub mod badge_check;
 pub mod blender;
 pub mod bootstrap;
 pub mod git;
