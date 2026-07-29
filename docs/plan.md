@@ -220,29 +220,47 @@ Do it incrementally, one tool at a time, each behind its own commit and each ver
 
 ---
 
-## 8. GUI — Tauri
+## 8. The Studio plugin, and what it must not be
 
-Tauri over Electron, and it is not close: the core is already Rust, so the GUI calls it directly rather than through a sidecar; ~10–40 MB against Electron's ~120 MB+; far lower memory. Tauri's real weakness is webview inconsistency across platforms, and rproj is Windows-only, so that cost is approximately zero here.
+Today a project can carry four Studio plugins: Rojo's sync plugin, Hoarcekat or UI Labs, the luau-lsp companion, and Resurface. Each installs separately and knows nothing about the others.
+
+The tempting answer is **one plugin** that does sync, storybook and the LSP bridge, talking to rproj instead of to each tool. That is rejected, for the reason in §1: replacing Rojo's sync plugin means reimplementing Rojo's sync protocol, and a project built that way stops opening in a teammate's real Rojo. It is the ecosystem fork §1 exists to prevent, in plugin form.
+
+**What rproj's plugin should be instead: additive, and small.** It does only what no existing plugin does, and it sits beside Rojo's rather than replacing it.
+
+| | |
+| --- | --- |
+| Show which rproj artifacts this project has | Nothing else knows the artifact model. |
+| Run the quality gate from inside Studio, results in a panel | Today this means alt-tabbing to a terminal. |
+| Offer `rproj upgrade` when conventions have moved on | The project cannot tell you this itself. |
+
+Everything sync-related stays Rojo's job. That keeps the plugin a few hundred lines instead of a reimplementation, and keeps interop intact.
+
+## 9. GUI — deferred, and the cost of the step before it
+
+Deferred until the foundation above is in place. Nothing in M1–M8 depends on it, and shipping a GUI over a scaffolder whose artifact model is still changing would mean rebuilding the GUI when the model settles.
+
+When it happens: **Tauri, not Electron**, and it is not close. The core is already Rust, so the GUI calls it directly rather than through a sidecar; ~10–40 MB against Electron's ~120 MB+; far lower memory. Tauri's real weakness is webview inconsistency across platforms, and rproj is Windows-only, so that cost is approximately zero here.
+
+It needs a library crate first, because a binary crate has no importable API:
 
 ```mermaid
 graph TD
-    core["rproj-core (new lib crate)<br/>catalog · artifacts · steps · config"]
-    cli["rproj (bin)<br/>clap + inquire"]
+    core["rproj-core (library)<br/>catalog · artifacts · steps · config"]
+    cli["rproj (binary)<br/>clap + inquire"]
     gui["rproj-gui (Tauri)<br/>webview + commands"]
-    plugin["one Studio plugin<br/>talks to the app"]
 
     cli --> core
     gui --> core
-    gui -.->|localhost| plugin
 ```
 
-**A cost worth naming before committing.** Extracting `rproj-core` turns off a property the binary-only crate gets for free: `pub` does not suppress `dead_code`, so every public item must be reachable from `main` or the build fails. Measured during the rebuild verification — 227 unreachable items at the point before `main.rs` landed, zero after. A library crate loses that, and dead code starts accumulating behind an API nobody calls.
+**The cost, worth reading before committing.** A binary-only crate gets a guarantee for free: `pub` does not suppress `dead_code`, so every public item must be reachable from `main` or the build fails. Measured during the rebuild verification — **227 unreachable items** at the point before `main.rs` landed, **zero** after. A library crate loses that, and dead code starts accumulating behind an API nobody calls.
 
-Mitigation: keep `rproj-core`'s public surface deliberately small and add `#![warn(unreachable_pub)]`, or keep the CLI as the only consumer until the GUI genuinely needs more.
+So the extraction is worth paying for exactly when a second front-end exists, and not before. Deferring the GUI means keeping the guarantee for free in the meantime.
 
----
+Mitigation when the time comes: keep `rproj-core`'s public surface deliberately small, add `#![warn(unreachable_pub)]`, and keep the CLI as the only consumer until the GUI genuinely needs more.
 
-## 9. Milestones and estimates
+## 10. Milestones and estimates
 
 Estimates are in **focused days** — uninterrupted working days, not calendar days. For solo part-time work, multiply by three to four for calendar time. Ranges are wide because they should be.
 
@@ -251,25 +269,46 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | M1 | Artifact model (§3) | 4–7 | The keystone. Everything below is cheaper after it. |
 | M2 | Catalog additions (§5) | 2–3 | Mostly data. UI Labs, Resurface, Figma, catppuccin. |
 | M3 | `rproj setup <tool>` (§4) | 3–5 | Needs M1 for the artifact half. |
-| M4 | jest-lua as a TestEZ peer | 2–4 | New gate step, new artifacts, category rework. |
+| M4 | jest-lua as a TestEZ peer (§10.1) | 2–4 | New gate step, new artifacts, Testing becomes single-pick. |
 | M5 | `default.project.json` via `$EDITOR` (§6) | 1–2 | |
-| M6 | rbxm-to-rojo integration | 2–4 | Depends on the rbx-dom crates from M7. |
+| M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
-| M8 | `rproj-core` extraction | 3–5 | Prerequisite for M9. Read §8's cost first. |
-| M9 | Tauri GUI, first usable version | 15–25 | Widest range here by far. |
-| M10 | One unified Studio plugin | 8–15 | Needs a local protocol between app and plugin. |
-| | **total** | **50–85** | ≈ 6–11 months part-time |
+| M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
+| | **total** | **28–48** | ≈ 3–6 months part-time |
 
-Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8 → M9 → M10**, with M6 folded into M7.
+**Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
-M1 first because it is a keystone: three later milestones get smaller once artifacts are entries. M9 and M10 last because they are the only ones that cannot be shipped incrementally.
+| | | days | |
+| --- | --- | ---: | --- |
+| D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
+| D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
+
+Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
+
+M1 first because it is a keystone: three later milestones get smaller once artifacts are entries. Every milestone above ships on its own; D1 and D2 are the only items that cannot, which is the second reason they wait.
+
+Deferring the GUI also means **not paying D1's cost yet** — the binary crate keeps its dead-code guarantee (§9) for free, for as long as there is one front-end.
 
 ---
 
-## 10. Open questions
+## 11. Decisions taken, and what is still open
 
-1. **jest-lua vs TestEZ as the default.** TestEZ is effectively unmaintained but has the Studio companion and the mindshare. Offer both, default to which?
-2. **Does the unified Studio plugin replace Rojo's, or sit beside it?** Beside is safer and means two plugins. Replacing means reimplementing the sync protocol — which §1 argues against.
-3. **`rproj-core` on crates.io, or path-only?** Publishing means a public API and semver obligations for a library with one real consumer.
-4. **Where does GUI state live?** Sharing `%APPDATA%\rproj\config.toml` with the CLI is the obvious answer and means both must tolerate the other having written it.
-5. **Live badge checking** was answered — curated judgement, CI-verified facts (`docs/architecture.md`). Revisit only if the catalog outgrows hand review.
+### Taken
+
+| | decision |
+| --- | --- |
+| **GUI** | Deferred until M1–M8 are in place. Tauri when it happens (§9). |
+| **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. |
+| **Studio plugin** | Additive and small, beside Rojo's — never replacing it (§8). |
+| **Testing framework** | Neither TestEZ nor jest-lua is default. The user chooses, and `none` is a valid answer. Consequence: **Testing becomes single-pick**, because two runners in one project means two `tests/` conventions, two selene standard libraries and two gate steps. |
+| **Live badges** | Curated judgement, CI-verified facts. Settled — see `docs/architecture.md`. |
+| **Language** | Rust. A Node-based bootstrapper would need Node installed first, which is the problem rproj exists to solve. |
+| **Toolchain reimplementation** | No (§1). |
+
+### Still open
+
+1. **Does `rproj-core` get published to crates.io, or stay path-only?** Publishing means a public API and semver obligations for a library with one real consumer. Not urgent — deferred with the GUI.
+2. **Where does GUI state live?** Sharing the CLI's own config file is the obvious answer, and means both must tolerate the other having written it. Deferred with the GUI.
+proj\config.toml` with the CLI is the obvious answer and means both must tolerate the other having written it. Deferred with the GUI.
+3. **`codify-lib`, `packager`, `roblox-font-list-generator`** — need evaluation before a verdict (§5).
+4. **Is `stylua-lib` published?** §7 assumes the toolchain is available as libraries; that one is unconfirmed and should be checked before M7 is planned around it.
