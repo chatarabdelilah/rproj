@@ -623,6 +623,32 @@ mod tests {
         }
     }
 
+    /// **Every offered artifact must have something that writes it.**
+    ///
+    /// `tarmac.toml` was added to this catalog with no writer, so the picker
+    /// offered it and ticking it did nothing - a silent no-op, which is the
+    /// worst kind. Scanning the scaffolder's source for a `writes("key")`
+    /// call is crude, and it is the check that catches this: the alternative
+    /// is noticing by hand that one of twenty-two entries never appears in
+    /// the output.
+    ///
+    /// Mandatory artifacts are exempt - they are written unconditionally and
+    /// have no gate to find.
+    #[test]
+    fn every_offered_artifact_is_gated_in_the_scaffolder() {
+        let scaffolder = include_str!("../commands/new.rs");
+        let missing: Vec<&str> = ARTIFACTS
+            .iter()
+            .filter(|a| !a.mandatory)
+            .map(|a| a.key)
+            .filter(|key| !scaffolder.contains(&format!("writes(\"{key}\")")))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "offered but never written: {missing:?}"
+        );
+    }
+
     /// Defaults are what a user gets by pressing enter, so the two that are
     /// deliberately off must stay off.
     #[test]

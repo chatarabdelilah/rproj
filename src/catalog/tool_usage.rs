@@ -139,7 +139,7 @@ pub const USAGE: &[Usage] = &[
             ("tarmac asset-list --output asset-list.txt", "List every asset the project needs."),
         ],
         notes: &[
-            "Configured by tarmac.toml in the project root; rproj doesn't create one, since it depends on your asset layout.",
+            "Configured by tarmac.toml in the project root. `rproj setup tarmac` writes a starter one pointing at figma/exports/ if that folder exists, or assets/ otherwise - edit the glob to match your layout.",
             "Uploading needs auth: an Open Cloud key via --api-key, or the cookie from an installed Studio.",
             "Uploaded images go through Roblox moderation and aren't usable until approved.",
         ],

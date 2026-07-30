@@ -42,7 +42,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
             commands::welcome::run();
             Ok(())
         }
-        Some(Command::Setup) => commands::setup::run(),
+        Some(Command::Setup { tool }) => commands::setup::run(tool.as_deref()),
         Some(Command::New { name, reconfigure, like, save_setup }) => {
             commands::new::run(&name, reconfigure, like.as_deref(), save_setup.as_deref())
         }

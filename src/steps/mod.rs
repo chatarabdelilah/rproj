@@ -16,6 +16,7 @@ pub mod notify;
 pub mod quality;
 pub mod rojo;
 pub mod studio_plugin;
+pub mod tarmac;
 pub mod testez;
 pub mod toolchain;
 pub mod update_check;

@@ -165,7 +165,7 @@ rproj setup <tool>
 
 Today the answer to "how do I start using Tarmac" is `rproj info tarmac`, read the commands, and do it by hand. `setup <tool>` does it: writes the tool's config with sane defaults, adds it to `rokit.toml` if missing, explains the one-time manual steps that cannot be scripted, and prints the first command to run.
 
-Candidates, in order of payoff: `tarmac`, `mantle`, `lute`, `luau-lsp`.
+Candidates, in order of payoff: `tarmac`, `mantle`, `lute`, `luau-lsp-cli` (the CLI; `luau-lsp` is the VS Code extension's key).
 
 `mantle` carries an honest Legacy badge and still gets support, on the same principle as TestEZ — the tool telling you a thing is unmaintained is more useful than the tool pretending it does not exist.
 

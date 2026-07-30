@@ -36,6 +36,7 @@ Nothing already installed is reinstalled, and one item failing to install is a w
 | `rproj` | Welcome screen. Touches neither disk nor network. |
 | `rproj new <name>` | Scaffold a project. `--like <setup>` reuses a saved selection, `--save-setup <name>` saves one, `--reconfigure` re-asks the machine questions. |
 | `rproj setup` | Machine provisioning on its own. Optional — `rproj new` is self-sufficient. Safe to re-run. |
+| `rproj setup <tool>` | Set one tool up in the current project: pin it, write its config, and explain the steps that need a human. |
 | `rproj configure [tool]` | Walk through a tool's settings one at a time, explaining each, then merge them into its config file. Covers `stylua`, `selene`, `luau-lsp`. |
 | `rproj upgrade` | Re-apply generated config to an existing project, so it picks up fixes shipped since. Shows the plan and asks first. |
 | `rproj watch` | From inside a project: install anything missing, then run Rojo's sourcemap watcher. |

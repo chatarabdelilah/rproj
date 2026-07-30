@@ -16,7 +16,14 @@ pub struct Cli {
 pub enum Command {
     /// Install and configure every tool rproj knows about (Git, VS Code, Roblox Studio,
     /// Blender, Rojo, Wally, Selene, StyLua, Studio plugins, editor extensions...)
-    Setup,
+    ///
+    /// With a tool name, sets that one tool up in the current project instead:
+    /// pins it, writes its config, and explains the steps that need a human.
+    Setup {
+        /// A tool to set up in this project, e.g. `tarmac`. Omit for
+        /// machine-wide setup.
+        tool: Option<String>,
+    },
     /// Scaffold a new Roblox project under your RobloxProjects folder
     New {
         /// Project name / folder name under RobloxProjects

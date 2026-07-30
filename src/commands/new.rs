@@ -9,8 +9,8 @@ use crate::commands::provision;
 use crate::catalog::artifacts::{self, Selections, Workflow};
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
 use crate::steps::{
-    blender, figma, git, gitattributes, gitignore, modules, quality, rojo, testez, toolchain,
-    vscode, wally,
+    blender, figma, git, gitattributes, gitignore, modules, quality, rojo, tarmac, testez,
+    toolchain, vscode, wally,
 };
 use crate::ui;
 
@@ -112,13 +112,22 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         &chosen_artifacts,
     )?;
 
-    ProjectConfig {
-        mode,
-        package_workflow,
-        packages: packages.iter().cloned().collect(),
-        tools_at_creation: config.selected_rokit_tools.clone(),
+    // Written here rather than in `scaffold`, because it records the mode
+    // and the saved-setup name, which are `run`'s knowledge. Gated on the
+    // same artifact key so declining it declines it - the cost being that
+    // `rproj upgrade` then has nothing to read, which its own error says.
+    let writes = |key: &str| chosen_artifacts.iter().any(|k| k == key);
+    if writes("rproj.toml") {
+        ProjectConfig {
+            mode,
+            package_workflow,
+            packages: packages.iter().cloned().collect(),
+            tools_at_creation: config.selected_rokit_tools.clone(),
+        }
+        .save_to(&project_dir)?;
+    } else {
+        ui::skip("rproj.toml not written, so `rproj upgrade` won't know this project");
     }
-    .save_to(&project_dir)?;
 
     if let Some(setup_name) = save_setup {
         let setup = SavedSetup {
@@ -329,9 +338,16 @@ fn pick_artifacts(selections: &Selections) -> Result<Vec<String>> {
         .with_formatter(&ui::compact_multi_answer)
         .prompt()?;
 
-    Ok(offerable
+    // Resolved here, not by the caller. Resolution drops artifacts whose
+    // dependencies were not ticked, and doing it once means `run` and
+    // `scaffold` cannot disagree about what is being written.
+    let ticked: Vec<String> = offerable
         .iter()
         .filter(|a| picked.iter().any(|p| ui::option_is(p, a.key)))
+        .map(|a| a.key.to_string())
+        .collect();
+    Ok(artifacts::resolve(selections, &ticked)
+        .iter()
         .map(|a| a.key.to_string())
         .collect())
 }
@@ -358,36 +374,32 @@ fn scaffold(
     // than decided by the order of the calls below. Everything after this
     // asks `writes(...)` instead of inventing its own condition - which is
     // how six artifacts came to be written whatever the user answered.
-    let selected_packages: Vec<String> = packages.iter().cloned().collect();
-    let selected_tools = tools_for_workflow(config, package_workflow);
-    let selections = Selections {
-        packages: &selected_packages,
-        tools: &selected_tools,
-        apps: &config.selected_system_apps,
-        workflow: match package_workflow {
-            PackageWorkflow::Wally => Workflow::Wally,
-            PackageWorkflow::GitSubmodules => Workflow::GitSubmodules,
-        },
-    };
-    let written = artifacts::resolve(&selections, chosen_artifacts);
-    let writes = |key: &str| written.iter().any(|a| a.key == key);
+    // Already resolved by `pick_artifacts`, so this is a membership test
+    // rather than a second resolution that could disagree with the first.
+    let writes = |key: &str| chosen_artifacts.iter().any(|k| k == key);
 
     git::ensure_repo_init(project_dir)?;
 
-    toolchain::ensure_rokit_init(project_dir)?;
+    if writes("rokit.toml") {
+        toolchain::ensure_rokit_init(project_dir)?;
+    }
     // Pin only the tools this project will actually use. The machine-wide
     // selection is "what I want available"; a project's rokit.toml is "what
     // this project needs", and those aren't the same thing - pinning Wally
     // into a project that vendors its packages as git submodules pulls in a
     // tool it will never run and implies a workflow it isn't using.
     toolchain::add_selected_tools(project_dir, &tools_for_workflow(config, package_workflow))?;
-    toolchain::ensure_selene_config(
-        project_dir,
-        packages.contains("testez"),
-        package_workflow,
-        wally_packages::allows_mixed_tables(packages),
-    )?;
-    toolchain::ensure_stylua_config(project_dir)?;
+    if writes("selene.toml") {
+        toolchain::ensure_selene_config(
+            project_dir,
+            packages.contains("testez"),
+            package_workflow,
+            wally_packages::allows_mixed_tables(packages),
+        )?;
+    }
+    if writes("stylua.toml") {
+        toolchain::ensure_stylua_config(project_dir)?;
+    }
 
     let testez_selected = packages.contains("testez");
     // Only the Wally workflow has realms at all - a submodule checkout is
@@ -401,7 +413,7 @@ fn scaffold(
         testez_selected,
         has_server_packages,
     )?;
-    if testez_selected {
+    if writes("tests") {
         testez::ensure_test_folders(project_dir)?;
     }
 
@@ -413,7 +425,11 @@ fn scaffold(
     // which is why each workflow generates its own sourcemap at the end of
     // its own branch rather than sharing one call afterwards.
     match package_workflow {
-        PackageWorkflow::Wally => {
+        // The `writes` checks here look redundant against the `match` -
+        // the artifacts require these exact workflows. They are what makes
+        // the requirement live in one place rather than two, and what lets
+        // a test assert every offered artifact has a gate.
+        PackageWorkflow::Wally if writes("wally.toml") => {
             let package_name = format!("rproj/{}", slugify(name));
             let package_list: Vec<String> = packages.iter().cloned().collect();
             wally::ensure_wally_init(project_dir)?;
@@ -422,7 +438,7 @@ fn scaffold(
             // types a plain `wally install` leaves off. See `wally::sync`.
             wally::sync(project_dir)?;
         }
-        PackageWorkflow::GitSubmodules => {
+        PackageWorkflow::GitSubmodules if writes("modules") => {
             // Dedupe by target directory, not by package: monorepos like
             // littensy/charm back several catalog entries (charm,
             // charmSync, videCharm) from one clone.
@@ -442,7 +458,17 @@ fn scaffold(
             // Now that modules/ exists, an initial sourcemap.json for
             // luau-lsp. (The Wally branch got its own inside `wally::sync`,
             // which needs it for wally-package-types.)
-            rojo::generate_sourcemap(project_dir)?;
+            if writes("sourcemap.json") {
+                rojo::generate_sourcemap(project_dir)?;
+            }
+        }
+        // Declined the dependency manifest, so there is nothing to install.
+        // A project can legitimately want the tree and manage packages by
+        // hand.
+        _ => {
+            if writes("sourcemap.json") {
+                rojo::generate_sourcemap(project_dir)?;
+            }
         }
     }
 
@@ -453,9 +479,15 @@ fn scaffold(
         // All three: selene.toml already says roblox+testez, and without
         // testez.yml to resolve it selene refuses to run at all; luau-lsp
         // ignores both of those and needs tests/.luaurc of its own.
-        testez::ensure_selene_std(project_dir)?;
-        testez::ensure_tests_luaurc(project_dir)?;
-        testez::ensure_companion_config(project_dir)?;
+        if writes("testez.yml") {
+            testez::ensure_selene_std(project_dir)?;
+        }
+        if writes("tests/.luaurc") {
+            testez::ensure_tests_luaurc(project_dir)?;
+        }
+        if writes("testez-companion.toml") {
+            testez::ensure_companion_config(project_dir)?;
+        }
     }
 
     // Tells the editor which folders are vendored third-party code. Only
@@ -504,6 +536,11 @@ fn scaffold(
     }
     if writes("figma") {
         figma::scaffold_design_folder(project_dir)?;
+    }
+    // After figma/, so `asset_source` can see the exports folder and point
+    // Tarmac at it rather than at a generic assets/ directory.
+    if writes("tarmac.toml") {
+        tarmac::ensure_config(project_dir, &slugify(name))?;
     }
 
     Ok(())
