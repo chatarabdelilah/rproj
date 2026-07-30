@@ -32,6 +32,8 @@ use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 
 pub const ENTER: &str = "\r";
 pub const DOWN: &str = "\x1b[B";
+/// In a `MultiSelect`, deselects everything (`→` is select-all).
+pub const LEFT: &str = "\x1b[D";
 pub const ESC: &str = "\x1b";
 
 /// How long any single wait may take before the test fails. Generous: the

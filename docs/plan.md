@@ -266,15 +266,17 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 
 | | milestone | days | notes |
 | --- | --- | ---: | --- |
-| M1 | Artifact model (§3) | 4–7 | The keystone. Everything below is cheaper after it. |
-| M2 | Catalog additions (§5) | 2–3 | Mostly data. UI Labs, Resurface, Figma, catppuccin. |
-| M3 | `rproj setup <tool>` (§4) | 3–5 | Needs M1 for the artifact half. |
-| M4 | jest-lua as a TestEZ peer (§10.1) | 2–4 | New gate step, new artifacts, Testing becomes single-pick. |
+| ~~M1~~ | ~~Artifact model (§3)~~ | 4–7 | **Shipped** v0.3.0, completed v0.3.2, **corrected v0.4.0** — see below. |
+| ~~M2~~ | ~~Catalog additions (§5)~~ | 2–3 | **Shipped** v0.3.1. UI Labs, Resurface, Figma, catppuccin. |
+| ~~M3~~ | ~~`rproj setup <tool>` (§4)~~ | 3–5 | **Shipped** v0.3.2. |
+| ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
+| M4 | jest-lua as a TestEZ peer (§10.1) | 2–4 | New gate step, new artifacts. Testing is already single-pick as of v0.3.0, so this is now just the catalog entry, its artifact set and a gate step. |
 | M5 | `default.project.json` via `$EDITOR` (§6) | 1–2 | |
 | M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
-| | **total** | **28–48** | ≈ 3–6 months part-time |
+| | **total** | **30–50** | ≈ 3–6 months part-time |
+| | *remaining after v0.4.0* | **19–33** | M1–M3 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -283,9 +285,11 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
-Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
+Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7. Remaining: **M5 → M4 → M7 → M8**.
 
 M1 first because it is a keystone: three later milestones get smaller once artifacts are entries. Every milestone above ships on its own; D1 and D2 are the only items that cannot, which is the second reason they wait.
+
+**What M1 got wrong, since it is the kind of mistake worth planning against.** The estimate was for one model, and there were two: "when may this file be offered" and "is this file still a question". Building only the first made every generated file optional — the actual goal — and simultaneously created a picker that would offer to delete the manifest holding packages the user had just chosen. The lesson is not "estimate higher". It is that **a model which makes something configurable owes an account of what is not configurable**, and M1 shipped without one. M3b was the bill.
 
 Deferring the GUI also means **not paying D1's cost yet** — the binary crate keeps its dead-code guarantee (§9) for free, for as long as there is one front-end.
 
@@ -304,6 +308,8 @@ Deferring the GUI also means **not paying D1's cost yet** — the binary crate k
 | **Live badges** | Curated judgement, CI-verified facts. Settled — see `docs/architecture.md`. |
 | **Language** | Rust. A Node-based bootstrapper would need Node installed first, which is the problem rproj exists to solve. |
 | **Toolchain reimplementation** | No (§1). |
+| **Optional vs coherent** | Both. Every generated file is a choice, *and* a file an earlier answer decides is reported with its reason rather than offered. The bar for "already decided" is narrow and per-entry: declining it must make an earlier answer do nothing, or leave a tool that cannot run. "Would be nice to have" keeps its checkbox — `stylua.toml` stays optional because StyLua has working defaults, and `selene.toml` does not because Selene without one lints every Roblox global as undefined. |
+| **Tool pinning** | Per-project, and asked. The machine selection is "what I want available"; a project's `rokit.toml` is "what this project promises a teammate". Pinning nothing is valid, and is what keeps a bare project reachable on a fully provisioned machine. |
 
 ### Still open
 

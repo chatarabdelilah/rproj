@@ -4,6 +4,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use inquire::{MultiSelect, Select};
 
+use crate::catalog::tool_catalog;
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
 use crate::catalog::artifacts::{self, Selections, Workflow};
@@ -92,11 +93,12 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     // asks this one - which files you want is a per-project choice, not
     // part of a package composition.
     let selected_packages: Vec<String> = packages.iter().cloned().collect();
-    let selected_tools = tools_for_workflow(&config, package_workflow);
+    let project_tools = pick_project_tools(&config, package_workflow)?;
     let chosen_artifacts = pick_artifacts(&Selections {
         packages: &selected_packages,
-        tools: &selected_tools,
+        tools: &project_tools,
         apps: &config.selected_system_apps,
+        extensions: &config.selected_vscode_extensions,
         workflow: match package_workflow {
             PackageWorkflow::Wally => Workflow::Wally,
             PackageWorkflow::GitSubmodules => Workflow::GitSubmodules,
@@ -106,9 +108,9 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     scaffold(
         &project_dir,
         name,
-        &config,
         &packages,
         package_workflow,
+        &project_tools,
         &chosen_artifacts,
     )?;
 
@@ -122,7 +124,11 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
             mode,
             package_workflow,
             packages: packages.iter().cloned().collect(),
-            tools_at_creation: config.selected_rokit_tools.clone(),
+            // What *this project* pins, not what the machine has selected.
+            // `rproj upgrade` re-renders the check script from this field, so
+            // recording the machine list gave a submodule project a script
+            // with Wally steps in it - for tools the project never pinned.
+            tools_at_creation: project_tools.clone(),
         }
         .save_to(&project_dir)?;
     } else {
@@ -302,6 +308,58 @@ fn pick_expert() -> Result<BTreeSet<String>> {
 }
 
 
+/// Which CLI tools this project pins in its own `rokit.toml`.
+///
+/// This used to be no question at all: every project pinned every tool the
+/// machine had selected. That is the wrong default in both directions - it
+/// pins tools a project will never run, and it made the *files* question
+/// incoherent, because five artifacts follow from which tools are pinned and
+/// the answer was always "all of them".
+///
+/// **Pinning is a reproducibility choice, not a functional one**, which is
+/// why nothing here is entailed and every entry stays a checkbox. Every tool
+/// also resolves from rokit's global manifest (provisioning adds them there),
+/// so a project with no `rokit.toml` still runs `rojo` and `selene` fine on
+/// this machine - it just doesn't promise a teammate the same versions. That
+/// is a preference, the same class as `stylua.toml`, so it is offered rather
+/// than decided.
+///
+/// Pre-checked, so pressing enter keeps the previous behaviour. `←` clears
+/// them all, which is the one keystroke that makes "just the Rojo basics"
+/// reachable without changing machine-wide setup.
+fn pick_project_tools(config: &GlobalConfig, workflow: PackageWorkflow) -> Result<Vec<String>> {
+    let available = tools_for_workflow(config, workflow);
+    if available.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let entries: Vec<&'static tool_catalog::ToolEntry> = available
+        .iter()
+        .filter_map(|key| tool_catalog::find(key))
+        .collect();
+    if entries.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let options: Vec<String> = entries
+        .iter()
+        .map(|t| ui::option_line(t.key, t.description, t.maintenance.short_badge()))
+        .collect();
+    let all: Vec<usize> = (0..options.len()).collect();
+
+    let picked = MultiSelect::new("Tools to pin in this project", options)
+        .with_default(&all)
+        .with_help_message(ui::MULTISELECT_HELP)
+        .with_formatter(&ui::compact_multi_answer)
+        .prompt()?;
+
+    Ok(entries
+        .iter()
+        .filter(|t| picked.iter().any(|p| ui::option_is(p, t.key)))
+        .map(|t| t.key.to_string())
+        .collect())
+}
+
 /// Which optional files this project gets.
 ///
 /// One prompt, not one per category: six extra questions to answer before a
@@ -309,23 +367,36 @@ fn pick_expert() -> Result<BTreeSet<String>> {
 /// the badge slot, which both groups the list visually and keeps
 /// `option_line`'s width handling in charge of truncation.
 ///
-/// Mandatory artifacts are not offered - a Rojo project without a source
-/// tree or a project file is not a project, so asking would be a question
-/// with one acceptable answer.
+/// **Only genuine choices reach the checkbox list.** Two kinds never do:
+///
+/// - *Mandatory* - a Rojo project without a source tree or a project file is
+///   not a project.
+/// - *Entailed* - an earlier answer already decided it. Picking six packages
+///   and then being offered the chance to decline `wally.toml` was a question
+///   with one sane answer, and answering it the other way made the six
+///   packages silently evaporate.
+///
+/// Entailed artifacts are printed with the answer that caused them, before
+/// the prompt. That is the part that makes this honest rather than merely
+/// firmer: the user can see exactly which earlier answer to change, and
+/// "just the Rojo basics" stays reachable by changing it.
 fn pick_artifacts(selections: &Selections) -> Result<Vec<String>> {
-    let offerable: Vec<&'static artifacts::Artifact> = artifacts::offerable(selections)
-        .into_iter()
-        .filter(|a| !a.mandatory)
-        .collect();
-    if offerable.is_empty() {
-        return Ok(Vec::new());
+    for line in settled_lines(&artifacts::entailed(selections)) {
+        ui::detail(&line);
     }
 
-    let options: Vec<String> = offerable
+    let offered = artifacts::offered(selections);
+    if offered.is_empty() {
+        // Everything left was either mandatory or already settled, so there
+        // is no question to ask. Saying so beats a prompt with no options.
+        return Ok(resolved_keys(selections, &[]));
+    }
+
+    let options: Vec<String> = offered
         .iter()
         .map(|a| ui::option_line(a.key, a.description, a.category.label()))
         .collect();
-    let defaults: Vec<usize> = offerable
+    let defaults: Vec<usize> = offered
         .iter()
         .enumerate()
         .filter(|(_, a)| a.default_selected)
@@ -338,18 +409,44 @@ fn pick_artifacts(selections: &Selections) -> Result<Vec<String>> {
         .with_formatter(&ui::compact_multi_answer)
         .prompt()?;
 
-    // Resolved here, not by the caller. Resolution drops artifacts whose
-    // dependencies were not ticked, and doing it once means `run` and
-    // `scaffold` cannot disagree about what is being written.
-    let ticked: Vec<String> = offerable
+    let ticked: Vec<String> = offered
         .iter()
         .filter(|a| picked.iter().any(|p| ui::option_is(p, a.key)))
         .map(|a| a.key.to_string())
         .collect();
-    Ok(artifacts::resolve(selections, &ticked)
+    Ok(resolved_keys(selections, &ticked))
+}
+
+/// The block printed above the picker naming what earlier answers already
+/// settled, and why.
+///
+/// Pure, and its own function, so the wording is a test rather than something
+/// only visible by running the prompt. The "why" is the load-bearing half:
+/// without it this is a tool announcing decisions, and with it the user can
+/// see which answer to change.
+fn settled_lines(settled: &[(&'static artifacts::Artifact, &'static str)]) -> Vec<String> {
+    if settled.is_empty() {
+        return Vec::new();
+    }
+    let width = settled.iter().map(|(a, _)| a.key.len()).max().unwrap_or(0);
+    let mut lines = vec!["Already settled by your answers so far:".to_string()];
+    lines.extend(
+        settled
+            .iter()
+            .map(|(artifact, why)| format!("  {:<width$}  {why}", artifact.key)),
+    );
+    lines.push("To drop one of these, change the answer it follows from.".to_string());
+    lines
+}
+
+/// Resolution happens here, not in the caller. It drops artifacts whose
+/// dependencies were not ticked and adds back the entailed ones, and doing
+/// it once means `run` and `scaffold` cannot disagree about what is written.
+fn resolved_keys(selections: &Selections, ticked: &[String]) -> Vec<String> {
+    artifacts::resolve(selections, ticked)
         .iter()
         .map(|a| a.key.to_string())
-        .collect())
+        .collect()
 }
 
 fn add_companions(packages: &mut BTreeSet<String>) {
@@ -365,9 +462,9 @@ fn add_companions(packages: &mut BTreeSet<String>) {
 fn scaffold(
     project_dir: &Path,
     name: &str,
-    config: &GlobalConfig,
     packages: &BTreeSet<String>,
     package_workflow: PackageWorkflow,
+    project_tools: &[String],
     chosen_artifacts: &[String],
 ) -> Result<()> {
     // Which files this project gets, resolved from the selections rather
@@ -380,15 +477,21 @@ fn scaffold(
 
     git::ensure_repo_init(project_dir)?;
 
+    // Both calls sit behind the same gate. `rokit add` writes rokit.toml
+    // itself, so pinning while the file was declined would have re-created it
+    // anyway - the answer could not have been honoured, which is why the
+    // artifact is entailed by having any tool to pin.
+    //
+    // Ungated, this was worse than untidy: on a machine with nine tools
+    // selected and a project whose rokit.toml had been declined, `rokit add`
+    // ran nine times against a directory with no manifest, rokit walked up to
+    // the global one, and the project pinned **nothing** - silently, because
+    // each failure is warned and continued. Verified on a real scaffold:
+    // `t1/` contained no rokit.toml at all.
     if writes("rokit.toml") {
         toolchain::ensure_rokit_init(project_dir)?;
+        toolchain::add_selected_tools(project_dir, project_tools)?;
     }
-    // Pin only the tools this project will actually use. The machine-wide
-    // selection is "what I want available"; a project's rokit.toml is "what
-    // this project needs", and those aren't the same thing - pinning Wally
-    // into a project that vendors its packages as git submodules pulls in a
-    // tool it will never run and implies a workflow it isn't using.
-    toolchain::add_selected_tools(project_dir, &tools_for_workflow(config, package_workflow))?;
     if writes("selene.toml") {
         toolchain::ensure_selene_config(
             project_dir,
@@ -415,6 +518,11 @@ fn scaffold(
     )?;
     if writes("tests") {
         testez::ensure_test_folders(project_dir)?;
+        // Part of the folder, not a separate decision: it declares TestEZ's
+        // globals so the specs written a line above don't light up red in
+        // the editor. It used to be its own catalog entry, i.e. a checkbox
+        // asking whether you wanted the files you just asked for to work.
+        testez::ensure_tests_luaurc(project_dir)?;
     }
 
     // default.project.json maps a $path (packages/ or modules/) that has to
@@ -475,19 +583,15 @@ fn scaffold(
     // Quality gate. The check script is generated from the tools this
     // project actually selected, so it never invokes something that was
     // never installed; CI only lands if there's a script for it to run.
-    if testez_selected {
-        // All three: selene.toml already says roblox+testez, and without
-        // testez.yml to resolve it selene refuses to run at all; luau-lsp
-        // ignores both of those and needs tests/.luaurc of its own.
-        if writes("testez.yml") {
-            testez::ensure_selene_std(project_dir)?;
-        }
-        if writes("tests/.luaurc") {
-            testez::ensure_tests_luaurc(project_dir)?;
-        }
-        if writes("testez-companion.toml") {
-            testez::ensure_companion_config(project_dir)?;
-        }
+    // selene.toml says std = "roblox+testez", and without testez.yml to
+    // resolve it selene prints "Could not find all standard library files"
+    // and lints nothing at all - src/ included. Hence entailed by selene
+    // being pinned rather than offered.
+    if writes("testez.yml") {
+        testez::ensure_selene_std(project_dir)?;
+    }
+    if writes("testez-companion.toml") {
+        testez::ensure_companion_config(project_dir)?;
     }
 
     // Tells the editor which folders are vendored third-party code. Only
@@ -500,15 +604,11 @@ fn scaffold(
     if writes(".luaurc") {
         quality::ensure_luaurc(project_dir)?;
     }
-    // The same filtered list the project's rokit.toml got: a check script
-    // must only invoke tools this project actually pins, or CI fails on a
-    // command that isn't installed.
+    // The same list the project's rokit.toml got: a check script must only
+    // invoke tools this project actually pins, or CI fails on a command that
+    // isn't installed.
     if writes(".lute/check.luau")
-        && quality::ensure_check_script(
-            project_dir,
-            &tools_for_workflow(config, package_workflow),
-            testez_selected,
-        )?
+        && quality::ensure_check_script(project_dir, project_tools, testez_selected)?
     {
         // The workflow only exists to run the script, so the artifact model
         // requires one on the other - unticking the script drops the CI
@@ -553,11 +653,12 @@ fn slugify(name: &str) -> String {
 }
 
 /// The machine-wide tool selection filtered to what this project's chosen
-/// package workflow actually uses.
+/// package workflow *could* use - the candidate list `pick_project_tools`
+/// then offers.
 ///
 /// Wally and wally-package-types are Wally-workflow-only: under git
 /// submodules there is no wally.toml to install from and no package thunks
-/// to retype, so pinning them would just be noise in rokit.toml.
+/// to retype, so offering them would be offering noise.
 fn tools_for_workflow(config: &GlobalConfig, workflow: PackageWorkflow) -> Vec<String> {
     const WALLY_ONLY: &[&str] = &["wally", "wally-package-types"];
     config
@@ -670,6 +771,102 @@ mod tests {
         assert!(summary.contains("1 tools"), "{summary}");
         assert!(!summary.contains("plugins"), "empty groups shouldn't be listed: {summary}");
         assert_eq!(GlobalConfig::default().machine_summary(), "nothing selected");
+    }
+
+    /// **"Just the Rojo basics" has to survive entailment.**
+    ///
+    /// Found by checking the real machine config rather than reasoning: it
+    /// has all nine rokit tools selected, so `rokit.toml` entailed by "any
+    /// tool to pin" would have made a bare project unreachable without
+    /// editing machine-wide setup. That is why which tools a project pins is
+    /// now its own question - with none pinned, nothing is entailed and the
+    /// minimum is still the minimum.
+    #[test]
+    fn pinning_no_tools_keeps_the_bare_project_reachable_on_a_full_machine() {
+        let config = config_with(&[
+            "rojo", "wally", "wally-package-types", "selene", "stylua", "lute", "luau-lsp-cli",
+            "tarmac", "mantle",
+        ]);
+        // What the picker would offer, and what it returns if you press `←`.
+        assert_eq!(tools_for_workflow(&config, PackageWorkflow::Wally).len(), 9);
+        let pinned: Vec<String> = Vec::new();
+
+        let (packages, apps, extensions) = (Vec::new(), Vec::new(), Vec::new());
+        let selections = Selections {
+            packages: &packages,
+            tools: &pinned,
+            apps: &apps,
+            extensions: &extensions,
+            workflow: Workflow::Wally,
+        };
+        assert!(
+            crate::catalog::artifacts::entailed(&selections).is_empty(),
+            "nothing may be forced when nothing is pinned"
+        );
+        let written: Vec<&str> = crate::catalog::artifacts::resolve(&selections, &[])
+            .iter()
+            .map(|a| a.key)
+            .collect();
+        assert_eq!(written, ["src", "default.project.json"]);
+    }
+
+    /// The other direction: pinning the tools *does* settle their configs, so
+    /// pressing enter through both prompts gives a project whose linter can
+    /// actually run.
+    #[test]
+    fn pinning_selene_settles_its_config() {
+        let (packages, apps, extensions) = (Vec::new(), Vec::new(), Vec::new());
+        let pinned = vec!["selene".to_string()];
+        let selections = Selections {
+            packages: &packages,
+            tools: &pinned,
+            apps: &apps,
+            extensions: &extensions,
+            workflow: Workflow::Wally,
+        };
+        let written: Vec<&str> = crate::catalog::artifacts::resolve(&selections, &[])
+            .iter()
+            .map(|a| a.key)
+            .collect();
+        assert!(written.contains(&"rokit.toml"), "{written:?}");
+        assert!(written.contains(&"selene.toml"), "{written:?}");
+    }
+
+    /// The exact block a real selection prints. Reviewed as text, because
+    /// this is the whole user-visible half of the fix: the user is told what
+    /// was settled, *why*, and how to change it.
+    #[test]
+    fn the_settled_block_names_each_file_its_reason_and_the_way_out() {
+        let packages = vec!["testez".to_string()];
+        let tools = vec!["rojo".to_string(), "selene".to_string()];
+        let (apps, extensions) = (Vec::new(), Vec::new());
+        let selections = Selections {
+            packages: &packages,
+            tools: &tools,
+            apps: &apps,
+            extensions: &extensions,
+            workflow: Workflow::Wally,
+        };
+
+        let lines = settled_lines(&crate::catalog::artifacts::entailed(&selections));
+        assert_eq!(
+            lines,
+            vec![
+                "Already settled by your answers so far:",
+                "  rokit.toml   it is where this project's tool versions are pinned",
+                "  wally.toml   the packages you picked are installed from it",
+                "  selene.toml  selene defaults to the Lua 5.1 std, so every Roblox global lints as undefined",
+                "  testez.yml   selene.toml sets std = roblox+testez, and selene will not run without it",
+                "To drop one of these, change the answer it follows from.",
+            ]
+        );
+    }
+
+    /// Nothing settled means nothing printed - not a heading with an empty
+    /// list under it.
+    #[test]
+    fn the_settled_block_is_silent_when_everything_is_still_a_choice() {
+        assert!(settled_lines(&[]).is_empty());
     }
 
     #[test]

@@ -1,25 +1,229 @@
-use anyhow::Result;
+//! `rproj info` - the catalog, browsable.
+//!
+//! Three entry points, one body of detail pages:
+//!
+//! - `rproj info <key>` prints one entry and exits. Scriptable, and what
+//!   every "try next" hint in the rest of rproj points at.
+//! - `rproj info` in a terminal opens a two-level menu: pick a section, then
+//!   pick an entry (or type to filter). Replaces printing ~130 catalog rows
+//!   and leaving the user to scroll back, find an exact name, and retype it
+//!   as an argument - which is a lookup the tool was making the user perform
+//!   on its behalf. It also means a detail page gets the whole screen rather
+//!   than having to stay terse enough to survive in a list.
+//! - `rproj info` with stdin redirected prints the flat listing, because a
+//!   prompt with nowhere to read from is a crash. `rproj info > notes.txt`
+//!   and CI logs keep working.
 
+use std::io::IsTerminal;
+
+use anyhow::Result;
+use inquire::{InquireError, Select};
+
+use crate::catalog::artifacts::{self, Artifact};
 use crate::catalog::place_template::PLACE_TEMPLATE;
 use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
 use crate::catalog::tool_usage::{self, Usage};
 use crate::catalog::wally_packages;
 use crate::config::SavedSetup;
+use crate::ui;
 
 pub fn run(key: Option<&str>) -> Result<()> {
     match key {
         Some(key) => show_one(key),
+        None if std::io::stdin().is_terminal() => browse(),
         None => list_all(),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Browsing
+// ---------------------------------------------------------------------------
+
+/// One row in a section's list: what the picker shows, and what selecting it
+/// looks up.
+struct Row {
+    key: String,
+    description: String,
+    badge: String,
+}
+
+/// A top-level menu choice.
+enum Section {
+    /// A filterable list of entries, each with a detail page.
+    Entries { label: &'static str, rows: Vec<Row> },
+    /// A single page with nothing to pick inside it.
+    Page { label: &'static str, render: fn() },
+}
+
+impl Section {
+    fn label(&self) -> &'static str {
+        match self {
+            Section::Entries { label, .. } | Section::Page { label, .. } => label,
+        }
+    }
+}
+
+fn sections() -> Vec<Section> {
+    let mut sections = vec![
+        Section::Entries {
+            label: "Packages - libraries a project depends on",
+            rows: wally_packages::PACKAGES
+                .iter()
+                .map(|p| Row {
+                    key: p.key.to_string(),
+                    description: p.description.to_string(),
+                    badge: p.category.label().to_string(),
+                })
+                .collect(),
+        },
+        Section::Entries {
+            label: "Tools, apps, plugins & extensions - what gets installed",
+            // Grouped by family in the source order of FAMILY_ORDER, so
+            // Rojo's CLI tool, Studio plugin and VS Code extension sit
+            // together rather than being scattered across three kinds.
+            rows: tool_catalog::FAMILY_ORDER
+                .iter()
+                .flat_map(|family| tool_catalog::in_family(family))
+                .map(|t| Row {
+                    key: t.key.to_string(),
+                    description: t.description.to_string(),
+                    badge: t.kind.label().to_string(),
+                })
+                .collect(),
+        },
+        Section::Entries {
+            label: "Generated files - what `rproj new` can write, and why",
+            rows: artifacts::ARTIFACTS
+                .iter()
+                .map(|a| Row {
+                    key: a.key.to_string(),
+                    description: a.description.to_string(),
+                    badge: a.category.label().to_string(),
+                })
+                .collect(),
+        },
+        Section::Entries {
+            label: "Topics - how the pieces fit together",
+            rows: tool_usage::TOPICS
+                .iter()
+                .map(|t| Row {
+                    key: t.key.to_string(),
+                    description: first_sentence(t.what).to_string(),
+                    badge: "topic".to_string(),
+                })
+                .collect(),
+        },
+        Section::Entries {
+            label: "Configurable - settings rproj can edit for you",
+            rows: tool_settings::CONFIGURABLE_TOOLS
+                .iter()
+                .map(|t| Row {
+                    key: t.key.to_string(),
+                    description: format!("{} - edit with `rproj configure {}`", t.display_name, t.key),
+                    badge: "configure".to_string(),
+                })
+                .collect(),
+        },
+        Section::Page {
+            label: "Place template - the instance tree every project starts with",
+            render: print_place_template,
+        },
+    ];
+
+    // Only when there are any: an empty section is a dead end that teaches
+    // the user nothing about why it is empty.
+    if !SavedSetup::list().is_empty() {
+        sections.push(Section::Page {
+            label: "Saved setups - package compositions you saved",
+            render: print_saved_setups,
+        });
+    }
+    sections
+}
+
+/// Section menu -> entry list -> detail page, looping until the user leaves.
+///
+/// Detail pages print above the next prompt rather than replacing it, so the
+/// page stays readable while the menu returns underneath. That is also why
+/// there is no "press enter to continue" step: the next menu *is* the
+/// continue, and an extra keystroke per lookup is the friction this command
+/// exists to remove.
+fn browse() -> Result<()> {
+    let sections = sections();
+    println!("The rproj catalog. Pick a section, then type to filter.\n");
+
+    loop {
+        let labels: Vec<String> = sections.iter().map(|s| s.label().to_string()).collect();
+        let Some(picked) = ask("What do you want to look up?", labels, false)? else {
+            return Ok(());
+        };
+        let Some(section) = sections.iter().find(|s| s.label() == picked) else {
+            return Ok(());
+        };
+
+        match section {
+            Section::Page { render, .. } => {
+                println!();
+                render();
+                println!();
+            }
+            Section::Entries { rows, label } => browse_entries(label, rows)?,
+        }
+    }
+}
+
+/// The entry list for one section. Stays here until the user backs out, so
+/// looking up four packages is four selections rather than four round trips
+/// through the section menu.
+fn browse_entries(label: &str, rows: &[Row]) -> Result<()> {
+    const BACK: &str = "← back to the sections";
+    loop {
+        let mut options: Vec<String> = rows
+            .iter()
+            .map(|r| ui::option_line(&r.key, &r.description, &r.badge))
+            .collect();
+        options.push(BACK.to_string());
+
+        let Some(picked) = ask(label, options, true)? else {
+            return Ok(());
+        };
+        if picked == BACK {
+            return Ok(());
+        }
+        println!();
+        show_one(ui::option_key(&picked))?;
+        println!();
+    }
+}
+
+/// A `Select` that treats Esc and Ctrl-C as "I'm done" rather than an error.
+///
+/// Leaving a browser is not a failure, and reporting it as one would print a
+/// red error line with a cause chain for the ordinary way out.
+fn ask(prompt: &str, options: Vec<String>, compact_echo: bool) -> Result<Option<String>> {
+    let mut select = Select::new(prompt, options).with_page_size(ui::page_size());
+    if compact_echo {
+        // Echo just the key, not the whole `key - description (badge)` line -
+        // the detail page below it is about to repeat all of that.
+        select = select.with_formatter(&ui::compact_select_answer);
+    }
+    match select.prompt() {
+        Ok(choice) => Ok(Some(choice)),
+        Err(InquireError::OperationCanceled | InquireError::OperationInterrupted) => Ok(None),
+        Err(err) => Err(err.into()),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Detail pages
+// ---------------------------------------------------------------------------
 
 /// Full detail on a single catalog entry: description, maintenance status,
 /// source/provider, docs. Compare `list_all`, which stays terse on purpose.
 fn show_one(key: &str) -> Result<()> {
     if let Some(pkg) = wally_packages::find(key) {
-        println!("{}", pkg.key);
-        println!("{}", "-".repeat(pkg.key.len()));
+        heading(pkg.key);
         println!("category: {}", pkg.category.label());
         println!("status:   {}", pkg.maintenance.badge());
         println!("source:   {}", pkg.source);
@@ -32,8 +236,7 @@ fn show_one(key: &str) -> Result<()> {
         return Ok(());
     }
     if let Some(tool) = tool_catalog::find(key) {
-        println!("{}", tool.key);
-        println!("{}", "-".repeat(tool.key.len()));
+        heading(tool.key);
         println!("family:   {}", tool.family);
         println!("kind:     {}", tool.kind.label());
         println!("provider: {}", tool.kind.provider());
@@ -49,14 +252,86 @@ fn show_one(key: &str) -> Result<()> {
         }
         return Ok(());
     }
+    // Checked after tools and packages: an artifact key like `wally.toml`
+    // can't collide with either, and putting it last keeps the common
+    // lookups first.
+    if let Some(artifact) = artifacts::find(key) {
+        print_artifact(artifact);
+        return Ok(());
+    }
     if let Some(usage) = tool_usage::find(key) {
-        println!("{}", usage.key);
-        println!("{}", "-".repeat(usage.key.len()));
+        heading(usage.key);
         print_usage(usage);
         return Ok(());
     }
-    println!("No catalog entry named `{key}`. Run `rproj info` with no argument to list everything.");
+    println!("No catalog entry named `{key}`. Run `rproj info` with no argument to browse.");
     Ok(())
+}
+
+fn heading(title: &str) {
+    println!("{title}");
+    println!("{}", "-".repeat(title.chars().count()));
+}
+
+/// Why a project has this file - which is the question the artifact model
+/// created and nothing answered until now. `requires` says when it can be
+/// offered at all; `entailed_by` says when it stops being a question, and
+/// carries the reason the picker prints.
+/// Whether `rproj new` will ever put this artifact in front of the user, in
+/// one line.
+///
+/// Four states, not three. The one worth separating out is an artifact whose
+/// entailment condition is also one of its requirements - `selene.toml` is
+/// only offerable when Selene is pinned, and being pinned is exactly what
+/// settles it, so it is *never* a question. Saying "yes, unless something
+/// settles it" there would be true and useless: the "unless" always holds.
+/// Whether the thing that entails this artifact is also what makes it
+/// offerable - in which case it can never come up as a question.
+fn always_settled(artifact: &Artifact) -> bool {
+    artifact
+        .entailed_by
+        .iter()
+        .any(|e| artifact.requires.contains(&e.when))
+}
+
+fn asked_line(artifact: &Artifact) -> String {
+    if artifact.mandatory {
+        return "never - every project gets it, or it isn't a Rojo project".to_string();
+    }
+    if always_settled(artifact) {
+        return "never - whenever it applies at all, it is already settled (below)".to_string();
+    }
+    if artifact.entailed_by.is_empty() {
+        return format!(
+            "yes, in `rproj new` ({} by default)",
+            if artifact.default_selected { "on" } else { "off" }
+        );
+    }
+    "sometimes - unless an earlier answer settles it (below)".to_string()
+}
+
+fn print_artifact(artifact: &Artifact) {
+    heading(artifact.key);
+    println!("category: {}", artifact.category.label());
+    println!("asked:    {}", asked_line(artifact));
+    if !artifact.requires.is_empty() {
+        let needs: Vec<String> = artifact.requires.iter().map(|r| r.describe()).collect();
+        println!("needs:    {}", needs.join(", and "));
+    }
+    println!();
+    println!("{}", artifact.description);
+
+    if !artifact.entailed_by.is_empty() {
+        println!("\nSettled, not asked, when you have:");
+        for entailment in artifact.entailed_by {
+            println!("  {}", entailment.when.describe());
+            println!("      {}", entailment.because);
+        }
+        println!(
+            "\nDeclining it would contradict that answer, so the way to not have\n\
+             this file is to change the answer above."
+        );
+    }
 }
 
 /// The "how do I actually use this" half of an entry. Printed after the
@@ -79,6 +354,10 @@ fn print_usage(usage: &Usage) {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Flat listing (non-interactive)
+// ---------------------------------------------------------------------------
 
 /// Terse, categorized listing of the whole catalog - just names and enough
 /// to identify each entry (author/version for packages, provider id for
@@ -105,29 +384,34 @@ fn list_all() -> Result<()> {
         }
     }
 
+    println!("\nGENERATED FILES (rproj info <key> for why a project gets one)");
+    for artifact in artifacts::ARTIFACTS {
+        // Same four states the detail page reports, so the two views cannot
+        // disagree about whether something is ever asked.
+        let when = if artifact.mandatory {
+            "always"
+        } else if always_settled(artifact) {
+            "always, when it applies"
+        } else if artifact.entailed_by.is_empty() {
+            "optional"
+        } else {
+            "optional, or settled by an earlier answer"
+        };
+        println!("    {:<24} {when}", artifact.key);
+    }
+
     println!("\nCONFIGURABLE (rproj configure <key>)");
     for tool in tool_settings::CONFIGURABLE_TOOLS {
         println!("    {:<18} {}", tool.key, tool.display_name);
     }
 
     println!("\nPLACE TEMPLATE (applied to every new project's default.project.json)");
-    for spec in PLACE_TEMPLATE {
-        let location = match spec.parent {
-            Some(parent) => format!("{parent}.{}", spec.name),
-            None => spec.name.to_string(),
-        };
-        println!("  {location} ({})", spec.class_name);
-        for prop in spec.properties {
-            println!("    {:<26} {}", prop.name, prop.value.display());
-        }
-    }
+    print_place_template();
 
     let setups = SavedSetup::list();
     if !setups.is_empty() {
         println!("\nSAVED SETUPS (rproj new <name> --like <setup>)");
-        for setup in &setups {
-            println!("    {setup}");
-        }
+        print_saved_setups();
     }
 
     println!("\nTOPICS");
@@ -139,11 +423,127 @@ fn list_all() -> Result<()> {
     Ok(())
 }
 
+fn print_place_template() {
+    for spec in PLACE_TEMPLATE {
+        let location = match spec.parent {
+            Some(parent) => format!("{parent}.{}", spec.name),
+            None => spec.name.to_string(),
+        };
+        println!("  {location} ({})", spec.class_name);
+        for prop in spec.properties {
+            println!("    {:<26} {}", prop.name, prop.value.display());
+        }
+    }
+}
+
+fn print_saved_setups() {
+    for setup in SavedSetup::list() {
+        println!("    {setup}");
+    }
+}
+
 /// Keeps the listing to one line per entry - the full text is what
 /// `rproj info <key>` is for.
 fn first_sentence(text: &str) -> &str {
     match text.find(". ") {
         Some(i) => &text[..=i],
         None => text,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every section must have something in it. An empty list is a dead end
+    /// that says nothing about why it is empty - which is why saved setups
+    /// are only added when some exist.
+    #[test]
+    fn no_section_is_empty() {
+        for section in sections() {
+            if let Section::Entries { label, rows } = &section {
+                assert!(!rows.is_empty(), "{label} has no entries");
+            }
+        }
+    }
+
+    /// Every row must resolve to a detail page. A row whose key `show_one`
+    /// cannot find would print "No catalog entry named ..." for something
+    /// the menu just offered.
+    #[test]
+    fn every_row_resolves_to_a_detail_page() {
+        for section in sections() {
+            if let Section::Entries { label, rows } = &section {
+                for row in rows {
+                    let found = wally_packages::find(&row.key).is_some()
+                        || tool_catalog::find(&row.key).is_some()
+                        || artifacts::find(&row.key).is_some()
+                        || tool_usage::find(&row.key).is_some();
+                    assert!(found, "{label}: `{}` has no detail page", row.key);
+                }
+            }
+        }
+    }
+
+    /// The rendered line is what selection matches on, so it has to round-trip
+    /// through `option_key` even after width truncation.
+    #[test]
+    fn every_row_survives_rendering_as_a_picker_option() {
+        for section in sections() {
+            if let Section::Entries { rows, .. } = &section {
+                for row in rows {
+                    let line = ui::option_line(&row.key, &row.description, &row.badge);
+                    assert_eq!(ui::option_key(&line), row.key, "{line}");
+                }
+            }
+        }
+    }
+
+    /// The back option is matched by exact string, so it must not collide
+    /// with a rendered row - a package called that would be unselectable.
+    #[test]
+    fn the_back_option_cannot_collide_with_an_entry() {
+        for section in sections() {
+            if let Section::Entries { rows, .. } = &section {
+                for row in rows {
+                    assert_ne!(
+                        ui::option_line(&row.key, &row.description, &row.badge),
+                        "← back to the sections"
+                    );
+                }
+            }
+        }
+    }
+
+    /// The four states, each pinned to the entry that motivated it. The
+    /// third is the one that is easy to get wrong: `selene.toml` reads
+    /// "sometimes - unless ..." if the always-settled case is not detected,
+    /// and the "unless" is a condition that never fails.
+    #[test]
+    fn the_asked_line_separates_never_from_sometimes() {
+        let line = |key: &str| asked_line(artifacts::find(key).expect(key));
+
+        assert!(line("src").starts_with("never -"), "{}", line("src"));
+        assert_eq!(
+            line("selene.toml"),
+            "never - whenever it applies at all, it is already settled (below)"
+        );
+        assert!(line("wally.toml").starts_with("sometimes -"), "{}", line("wally.toml"));
+        assert_eq!(line("stylua.toml"), "yes, in `rproj new` (on by default)");
+        assert_eq!(
+            line(".github/workflows/ci.yml"),
+            "yes, in `rproj new` (off by default)"
+        );
+    }
+
+    /// Section labels are matched by exact string to find the section again,
+    /// so two sections may not share one.
+    #[test]
+    fn section_labels_are_unique() {
+        let mut labels: Vec<&str> = sections().iter().map(|s| s.label()).collect();
+        let before = labels.len();
+        labels.sort_unstable();
+        labels.dedup();
+        assert_eq!(before, labels.len(), "duplicate section label");
     }
 }

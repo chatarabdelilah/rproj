@@ -316,6 +316,28 @@ fn option_budget() -> usize {
     columns.saturating_sub(MARKER_AND_MARGIN).max(24)
 }
 
+/// How many options a picker may draw at once.
+///
+/// The vertical twin of `option_line`'s problem, and the same mechanism.
+/// inquire redraws by moving the cursor up one row per rendered option; if
+/// the block is taller than the terminal, the top rows scroll off, the cursor
+/// arithmetic addresses rows that no longer exist, and the list corrupts.
+/// inquire's own default of 7 is safe on any terminal but wastes a tall one,
+/// which matters for `rproj info`, where the whole point is browsing a
+/// catalog of eighty entries.
+///
+/// Capped at 15 regardless of height: a list longer than that is faster to
+/// filter by typing than to scroll.
+pub fn page_size() -> usize {
+    // Prompt line, help line, the answer line inquire leaves behind, margin.
+    const CHROME: usize = 5;
+    const FALLBACK: usize = 10;
+    crossterm::terminal::size()
+        .map(|(_, rows)| (rows as usize).saturating_sub(CHROME))
+        .unwrap_or(FALLBACK)
+        .clamp(5, 15)
+}
+
 fn display_width(s: &str) -> usize {
     unicode_width::UnicodeWidthStr::width(s)
 }
