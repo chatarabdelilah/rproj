@@ -2,7 +2,7 @@ use anyhow::Result;
 use inquire::MultiSelect;
 
 use crate::catalog::tool_catalog::{
-    self, ToolEntry, PLUGINS, ROKIT_TOOLS, SYSTEM_APPS, VSCODE_EXTENSIONS,
+    self, PLUGINS, ROKIT_TOOLS, SYSTEM_APPS, ToolEntry, ToolKind, VSCODE_EXTENSIONS,
 };
 use crate::config::GlobalConfig;
 use crate::steps::{blender, bootstrap, rojo, studio_plugin, toolchain, vscode};
@@ -104,16 +104,32 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
             ui::skip("rojo-plugin needs Roblox Studio, which isn't installed yet");
         }
     }
-    // Sourced from the catalog entry (github_repo/asset_suffix) rather than
-    // duplicated as literals here - a hardcoded ".rbxmx" here for hoarcekat
-    // is exactly how that repo/suffix pair drifted from its actual release
-    // asset (a plain ".rbxm") without anyone noticing.
-    for key in ["hoarcekat", "luau-lsp-plugin"] {
-        if plugins.iter().any(|k| k == key)
-            && let Some((repo, suffix)) = studio_plugin_repo(key)
-            && let Err(err) = studio_plugin::install_from_latest_release(repo, suffix)
-        {
-            warn_and_continue(key, &err);
+    // Driven from the catalog, not a hardcoded key list. Adding a plugin is
+    // a row now: its `ToolKind` says how it is installed, so this loop needs
+    // no edit. The previous version listed `["hoarcekat", "luau-lsp-plugin"]`
+    // because it could not tell a release-asset plugin from Rojo's
+    // CLI-installed one - both were `StudioPlugin`, distinguished only by an
+    // empty `asset_suffix`.
+    for entry in PLUGINS.iter().filter(|e| plugins.iter().any(|k| *k == e.key)) {
+        match entry.kind {
+            ToolKind::StudioPlugin { github_repo, asset_suffix } => {
+                if let Err(err) = studio_plugin::install_from_latest_release(github_repo, asset_suffix)
+                {
+                    warn_and_continue(entry.key, &err);
+                }
+            }
+            // Nothing to install and nothing to check: marketplace plugins
+            // land under a filename derived from their asset id, so their
+            // presence is not detectable. Report it as a skip with the
+            // reason and the link, which is the honest outcome.
+            ToolKind::StudioPluginManual { install_url, .. } => {
+                ui::skip(&format!("{}: install from the creator store", entry.key));
+                ui::detail(install_url);
+            }
+            // Handled above (Rojo) and below (the Blender add-on), each
+            // needing a different tool to be present first.
+            ToolKind::StudioPluginViaCli { .. } | ToolKind::BlenderAddon { .. } => {}
+            _ => {}
         }
     }
     if plugins.iter().any(|k| k == "blender-plugin")
@@ -154,13 +170,6 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
 
 fn warn_and_continue(what: &str, err: &anyhow::Error) {
     ui::warn(&format!("{what} skipped - {err}"));
-}
-
-fn studio_plugin_repo(key: &str) -> Option<(&'static str, &'static str)> {
-    match tool_catalog::find(key)?.kind {
-        tool_catalog::ToolKind::StudioPlugin { github_repo, asset_suffix } => Some((github_repo, asset_suffix)),
-        _ => None,
-    }
 }
 
 fn blender_addon_repo() -> Option<&'static str> {

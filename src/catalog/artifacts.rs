@@ -262,6 +262,14 @@ pub const ARTIFACTS: &[Artifact] = &[
         mandatory: false,
     },
     Artifact {
+        key: "figma",
+        description: "Folder for exported design assets, wired to the Tarmac upload pipeline",
+        category: ArtifactCategory::Assets,
+        requires: &[Requirement::App("figma")],
+        default_selected: false,
+        mandatory: false,
+    },
+    Artifact {
         key: "tarmac.toml",
         description: "Tarmac asset-sync configuration",
         category: ArtifactCategory::Assets,

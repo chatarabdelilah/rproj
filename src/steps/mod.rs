@@ -7,6 +7,7 @@
 pub mod badge_check;
 pub mod blender;
 pub mod bootstrap;
+pub mod figma;
 pub mod git;
 pub mod gitattributes;
 pub mod gitignore;

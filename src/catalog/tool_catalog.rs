@@ -42,10 +42,27 @@ pub enum ToolKind {
     RokitTool { rokit_source: &'static str },
     /// Installed/detected via `code --install-extension <id>`.
     VsCodeExtension { extension_id: &'static str },
-    /// A Roblox Studio plugin. Rojo's own plugin installs via `rojo plugin install`;
-    /// anything else is installed by downloading a GitHub release asset into the
-    /// Studio plugins folder (see steps::studio_plugin).
+    /// A Studio plugin installed by downloading the latest GitHub release
+    /// asset whose filename ends in `asset_suffix`, into the Studio plugins
+    /// folder (see `steps::studio_plugin`).
     StudioPlugin { github_repo: &'static str, asset_suffix: &'static str },
+    /// A Studio plugin installed by its own tool's CLI, e.g.
+    /// `rojo plugin install`.
+    ///
+    /// Was `StudioPlugin { asset_suffix: "" }`, with the empty suffix
+    /// standing in for "not a release download" - which meant the install
+    /// loop could not tell the two apart from the kind alone and carried a
+    /// hardcoded list of keys instead. Adding a plugin then meant editing
+    /// code rather than adding a row.
+    StudioPluginViaCli { github_repo: &'static str },
+    /// A Studio plugin distributed through Roblox's creator marketplace,
+    /// with no GitHub release to download.
+    ///
+    /// rproj can point at it and explain what it is; it cannot install it.
+    /// Marketplace plugins land in the same folder under a filename derived
+    /// from the asset id, so their presence cannot be reliably detected
+    /// either - which is why this reports rather than checks.
+    StudioPluginManual { github_repo: &'static str, install_url: &'static str },
     /// The official Roblox Blender add-on - installed into Blender itself,
     /// not Roblox Studio, via headless Python (see steps::blender). Only
     /// relevant if Blender is also selected, and surfaced as a contextual
@@ -59,7 +76,9 @@ impl ToolKind {
             ToolKind::SystemApp { .. } => "system app",
             ToolKind::RokitTool { .. } => "rokit tool",
             ToolKind::VsCodeExtension { .. } => "vscode extension",
-            ToolKind::StudioPlugin { .. } => "studio plugin",
+            ToolKind::StudioPlugin { .. }
+            | ToolKind::StudioPluginViaCli { .. }
+            | ToolKind::StudioPluginManual { .. } => "studio plugin",
             ToolKind::BlenderAddon { .. } => "blender add-on",
         }
     }
@@ -71,7 +90,9 @@ impl ToolKind {
             ToolKind::SystemApp { winget_id, .. } => winget_id,
             ToolKind::RokitTool { rokit_source } => rokit_source,
             ToolKind::VsCodeExtension { extension_id } => extension_id,
-            ToolKind::StudioPlugin { github_repo, .. } => github_repo,
+            ToolKind::StudioPlugin { github_repo, .. }
+            | ToolKind::StudioPluginViaCli { github_repo }
+            | ToolKind::StudioPluginManual { github_repo, .. } => github_repo,
             ToolKind::BlenderAddon { github_repo } => github_repo,
         }
     }
@@ -161,6 +182,15 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         family: "System apps",
         default_selected: false,
         docs_url: "https://www.blender.org/",
+    },
+    ToolEntry {
+        key: "figma",
+        description: "UI design tool - for laying out interfaces before building them (optional)",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::SystemApp { winget_id: "Figma.Figma", detect: Detect::Winget },
+        family: "System apps",
+        default_selected: false,
+        docs_url: "https://www.figma.com/",
     },
 ];
 
@@ -257,7 +287,7 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "rojo-plugin",
         description: "Studio-side companion for Rojo's file sync (installed via `rojo plugin install`)",
         maintenance: Maintenance::Active,
-        kind: ToolKind::StudioPlugin { github_repo: "rojo-rbx/rojo", asset_suffix: "" },
+        kind: ToolKind::StudioPluginViaCli { github_repo: "rojo-rbx/rojo" },
         family: "Rojo",
         default_selected: true,
         docs_url: "https://rojo.space/",
@@ -279,6 +309,30 @@ pub const PLUGINS: &[ToolEntry] = &[
         family: "Luau Language Server",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md",
+    },
+    ToolEntry {
+        key: "ui-labs",
+        description: "Storybook-style UI component previewer - the actively developed successor to Hoarcekat",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::StudioPlugin { github_repo: "PepeElToro41/ui-labs", asset_suffix: ".rbxm" },
+        family: "Testing & extras",
+        default_selected: false,
+        docs_url: "https://pepeeltoro41.github.io/ui-labs/",
+    },
+    ToolEntry {
+        key: "resurface",
+        description: "Converts surface GUIs to studs and back, plus alignment and sizing helpers",
+        maintenance: Maintenance::Active,
+        // No GitHub releases and no tags - the repo is source, built with
+        // Rojo/darklua/tarmac, and shipped through the creator marketplace.
+        // Verified: both the releases and tags endpoints return zero.
+        kind: ToolKind::StudioPluginManual {
+            github_repo: "cxmeel/resurface-plugin",
+            install_url: "https://create.roblox.com/store/asset/5070921519",
+        },
+        family: "Testing & extras",
+        default_selected: false,
+        docs_url: "https://github.com/cxmeel/resurface-plugin",
     },
     ToolEntry {
         key: "blender-plugin",
@@ -381,6 +435,24 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         family: "Themes",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=alexandernanberg.horizon-theme-vscode",
+    },
+    ToolEntry {
+        key: "theme-catppuccin",
+        description: "Catppuccin, four pastel themes (Latte, Frappe, Macchiato, Mocha) with a large ecosystem",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::VsCodeExtension { extension_id: "Catppuccin.catppuccin-vsc" },
+        family: "Themes",
+        default_selected: false,
+        docs_url: "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc",
+    },
+    ToolEntry {
+        key: "theme-catppuccin-icons",
+        description: "Catppuccin's matching file-icon set - only worth it alongside the theme",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::VsCodeExtension { extension_id: "Catppuccin.catppuccin-vsc-icons" },
+        family: "Themes",
+        default_selected: false,
+        docs_url: "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc-icons",
     },
 ];
 

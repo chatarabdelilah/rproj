@@ -75,14 +75,26 @@ pub fn tracked_entries() -> Vec<Tracked> {
         .chain(PLUGINS)
         .chain(VSCODE_EXTENSIONS)
     {
-        // Only the kinds that name a repository. A winget id or a
-        // marketplace extension id is not a GitHub slug, and guessing one
-        // from a tool name would check the wrong project.
+        // Every kind that names a repository, regardless of how the thing
+        // is installed - the maintenance question is about the project, not
+        // the delivery mechanism.
+        //
+        // Written as an exhaustive match rather than `_ => None` on purpose.
+        // Splitting `StudioPlugin` into three variants silently dropped
+        // Rojo's plugin out of this check, because the old arm named one
+        // variant and the catch-all swallowed the rest. Caught by the
+        // tracked count not moving when two entries were added.
         let slug = match entry.kind {
-            ToolKind::StudioPlugin { github_repo, .. } | ToolKind::BlenderAddon { github_repo } => {
-                github_slug(github_repo)
-            }
-            _ => None,
+            ToolKind::StudioPlugin { github_repo, .. }
+            | ToolKind::StudioPluginViaCli { github_repo }
+            | ToolKind::StudioPluginManual { github_repo, .. }
+            | ToolKind::BlenderAddon { github_repo } => github_slug(github_repo),
+            // A winget id or a marketplace extension id is not a GitHub
+            // slug, and guessing one from a tool name would check somebody
+            // else's project and report its status as ours.
+            ToolKind::SystemApp { .. }
+            | ToolKind::RokitTool { .. }
+            | ToolKind::VsCodeExtension { .. } => None,
         };
         if let Some(repo) = slug {
             by_repo.entry(repo.clone()).or_insert(Tracked {
@@ -164,6 +176,43 @@ mod tests {
         repos.dedup();
         assert_eq!(before, repos.len(), "duplicate repositories: {repos:?}");
         assert!(before > 10, "expected most of the catalog to be tracked, got {before}");
+    }
+
+    /// **The invariant that stops the previous bug recurring.**
+    ///
+    /// Every catalog entry whose kind names a GitHub repository must be
+    /// tracked. Adding a `ToolKind` variant that carries a `github_repo`
+    /// and forgetting to list it here would silently exclude it from the
+    /// freshness gate - which is exactly what happened when `StudioPlugin`
+    /// was split into three.
+    #[test]
+    fn every_entry_naming_a_repository_is_tracked() {
+        let tracked = tracked_entries();
+        for entry in SYSTEM_APPS
+            .iter()
+            .chain(ROKIT_TOOLS)
+            .chain(PLUGINS)
+            .chain(VSCODE_EXTENSIONS)
+        {
+            let names_a_repo = matches!(
+                entry.kind,
+                ToolKind::StudioPlugin { .. }
+                    | ToolKind::StudioPluginViaCli { .. }
+                    | ToolKind::StudioPluginManual { .. }
+                    | ToolKind::BlenderAddon { .. }
+            );
+            if !names_a_repo {
+                continue;
+            }
+            let slug = github_slug(entry.kind.provider()).unwrap_or_else(|| {
+                panic!("{} names a repo that is not a GitHub slug", entry.key)
+            });
+            assert!(
+                tracked.iter().any(|t| t.repo == slug),
+                "{} ({slug}) is not covered by the badge gate",
+                entry.key
+            );
+        }
     }
 
     /// **The freshness gate.** Queries every tracked repository and fails

@@ -82,10 +82,10 @@ The gate — `lute run check` — regenerates the sourcemap, type-checks with lu
 
 Run `rproj info` for the full listing, or `rproj info <key>` for detail on any entry.
 
-- **System apps** — Git, VS Code, Roblox Studio, Roblox, Blender
+- **System apps** — Git, VS Code, Roblox Studio, Roblox, Blender, Figma
 - **CLI tools** — rojo, wally, wally-package-types, selene, stylua, lute, luau-lsp, tarmac, mantle
-- **Studio plugins** — Rojo, Hoarcekat, luau-lsp companion, Roblox's Blender add-on
-- **VS Code extensions** — luau-lsp, vscode-rojo, selene, StyLua, roblox-ui, TestEZ Companion, and themes
+- **Studio plugins** — Rojo, UI Labs, Hoarcekat, Resurface, luau-lsp companion, Roblox's Blender add-on
+- **VS Code extensions** — luau-lsp, vscode-rojo, selene, StyLua, roblox-ui, TestEZ Companion, and themes including Catppuccin
 - **Wally packages** — React, Vide, Fusion, Reflex, Charm, Lyra, ProfileStore, TestEZ, Janitor, Ripple, Remo, Promise, t, Sift, and their bindings
 
 Maintenance badges are hand-curated rather than checked live.

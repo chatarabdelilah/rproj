@@ -9,8 +9,8 @@ use crate::commands::provision;
 use crate::catalog::artifacts::{self, Selections, Workflow};
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
 use crate::steps::{
-    blender, git, gitattributes, gitignore, modules, quality, rojo, testez, toolchain, vscode,
-    wally,
+    blender, figma, git, gitattributes, gitignore, modules, quality, rojo, testez, toolchain,
+    vscode, wally,
 };
 use crate::ui;
 
@@ -501,6 +501,9 @@ fn scaffold(
     // per project.
     if writes("blender") {
         blender::scaffold_starter_scene(project_dir)?;
+    }
+    if writes("figma") {
+        figma::scaffold_design_folder(project_dir)?;
     }
 
     Ok(())
