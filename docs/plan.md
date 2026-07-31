@@ -270,13 +270,17 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~M2~~ | ~~Catalog additions (§5)~~ | 2–3 | **Shipped** v0.3.1. UI Labs, Resurface, Figma, catppuccin. |
 | ~~M3~~ | ~~`rproj setup <tool>` (§4)~~ | 3–5 | **Shipped** v0.3.2. |
 | ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
-| M4 | jest-lua as a TestEZ peer (§10.1) | 2–4 | New gate step, new artifacts. Testing is already single-pick as of v0.3.0, so this is now just the catalog entry, its artifact set and a gate step. |
+| R1 | Capability layer; delete the "tools" and "files" prompts (`docs/ux-redesign.md` §8) | 4–6 | Re-levels logic that already exists. Do before M4 — it makes M4 smaller. |
+| R2 | The project graph as a real type: ordered nodes, invalidation on edit, `rproj.toml` stores decisions | 3–5 | Unlocks "change something", and re-derivation for `upgrade`/`--like`. |
+| R3 | `rproj info <capability>`; configure hints on the summary | 1–2 | The "shows its work" half of the philosophy. |
+| M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. First capability with more than one implementation, so the first sub-prompt the model permits. |
+| R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
 | M5 | `default.project.json` via `$EDITOR` (§6) | 1–2 | |
 | M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
-| | **total** | **30–50** | ≈ 3–6 months part-time |
-| | *remaining after v0.4.0* | **19–33** | M1–M3 done |
+| | **total** | **42–71** | ≈ 4–8 months part-time |
+| | *remaining after v0.4.0* | **31–54** | M1–M3b done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -285,7 +289,10 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
-Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7. Remaining: **M5 → M4 → M7 → M8**.
+Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
+Remaining: **R1 → R2 → M5 → M4 → R3 → M7 → R4 → M8**.
+
+R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
 
 M1 first because it is a keystone: three later milestones get smaller once artifacts are entries. Every milestone above ships on its own; D1 and D2 are the only items that cannot, which is the second reason they wait.
 
@@ -301,20 +308,23 @@ Deferring the GUI also means **not paying D1's cost yet** — the binary crate k
 
 | | decision |
 | --- | --- |
+| **What rproj is, in one sentence** | *rproj asks for architectural decisions about your project, derives every implementation detail from them, and always shows its work.* Every feature must satisfy it. "About your project" scopes the derivation — rproj orchestrates the toolchain, it never reimplements it. See `docs/ux-redesign.md` §0. |
+| **One unit of choice per level** | The user decides project type, dependency strategy, packages and capabilities. Tools, files, configs, pins and artifacts are **derived**, never asked. A prompt that asks about a consequence is a bug (`ux-redesign.md` §1). |
+| **Packages vs capabilities** | Packages answer *what code does this depend on*; capabilities answer *what workflows does this support*. Not runtime vs dev-time — TestEZ is a dev dependency and still a package. Consequence: **Testing is a capability, TestEZ an implementation of it**, so Testing leaves the package picker. |
+| **Dependency strategy stays a prompt** | Wally is the right default for anyone who does not already know otherwise, and it is still asked — with a recommendation. A summary line reading `✓ via Wally` is a receipt, not an explanation, and this tool exists partly to teach the ecosystem. **A default does not make a question fake.** |
 | **GUI** | Deferred until M1–M8 are in place. Tauri when it happens (§9). |
-| **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. |
+| **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. **Flagged for revisit after R2**: if the project graph is the core, it earns its keep from revision and re-derivation alone, before any second front-end exists (`ux-redesign.md` §8). |
 | **Studio plugin** | Additive and small, beside Rojo's — never replacing it (§8). |
-| **Testing framework** | Neither TestEZ nor jest-lua is default. The user chooses, and `none` is a valid answer. Consequence: **Testing becomes single-pick**, because two runners in one project means two `tests/` conventions, two selene standard libraries and two gate steps. |
+| **Testing framework** | Neither TestEZ nor jest-lua is default. The user chooses, and `none` is a valid answer. Consequence: **Testing becomes single-pick**, because two runners in one project means two `tests/` conventions, two selene standard libraries and two gate steps. After R1 this stops being a special rule: Testing is a capability and a runner is its *implementation*, and a node has one. |
 | **Live badges** | Curated judgement, CI-verified facts. Settled — see `docs/architecture.md`. |
 | **Language** | Rust. A Node-based bootstrapper would need Node installed first, which is the problem rproj exists to solve. |
 | **Toolchain reimplementation** | No (§1). |
 | **Optional vs coherent** | Both. Every generated file is a choice, *and* a file an earlier answer decides is reported with its reason rather than offered. The bar for "already decided" is narrow and per-entry: declining it must make an earlier answer do nothing, or leave a tool that cannot run. "Would be nice to have" keeps its checkbox — `stylua.toml` stays optional because StyLua has working defaults, and `selene.toml` does not because Selene without one lints every Roblox global as undefined. |
-| **Tool pinning** | Per-project, and asked. The machine selection is "what I want available"; a project's `rokit.toml` is "what this project promises a teammate". Pinning nothing is valid, and is what keeps a bare project reachable on a fully provisioned machine. |
+| **Tool pinning** | Per-project, and **derived, not asked** (revised at R1). The machine selection is "what I want available"; a project's `rokit.toml` is "what this project promises a teammate" — but *which* tools follows from the capabilities chosen, so it is not a question. The v0.4.0 "Tools to pin" prompt was a capability question wearing a tool costume; R1 deletes it. The genuine reproducibility question survives as `--no-pin` plus one line on the summary. Pinning nothing stays valid, and is what keeps a bare project reachable on a fully provisioned machine. |
 
 ### Still open
 
 1. **Does `rproj-core` get published to crates.io, or stay path-only?** Publishing means a public API and semver obligations for a library with one real consumer. Not urgent — deferred with the GUI.
 2. **Where does GUI state live?** Sharing the CLI's own config file is the obvious answer, and means both must tolerate the other having written it. Deferred with the GUI.
-proj\config.toml` with the CLI is the obvious answer and means both must tolerate the other having written it. Deferred with the GUI.
 3. **`codify-lib`, `packager`, `roblox-font-list-generator`** — need evaluation before a verdict (§5).
 4. **Is `stylua-lib` published?** §7 assumes the toolchain is available as libraries; that one is unconfirmed and should be checked before M7 is planned around it.
