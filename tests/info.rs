@@ -35,16 +35,20 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
     session.send(ENTER);
 
     // The detail page answers the question the artifact model created:
-    // *why* does my project have this file?
-    session.wait_for("Settled, not asked, when you have:");
+    // *why* does my project have this file? And it answers it by naming a
+    // cause the user can act on, not by describing a mechanism.
+    session.wait_for("when this project uses Wally");
     let screen = session.text();
-    for expected in [
-        "any package at all",
-        "the packages you picked are installed from it",
-        "the way to not have",
-    ] {
-        assert!(screen.contains(expected), "expected {expected:?} in:\n{screen}");
-    }
+    assert!(screen.contains("wally.toml"), "{screen}");
+    assert!(screen.contains("Wally manifest"), "{screen}");
+
+    // A capability-owned file names the capability to drop, which is the
+    // whole point of the layer: the way to not have a file is to not want
+    // the thing that needs it.
+    session.send("selene.toml");
+    session.wait_for("selene.toml - ");
+    session.send(ENTER);
+    session.wait_for("don't choose `lint`");
 
     // Escape backs out of the entry list, then out of the browser. Leaving
     // is not a failure, so it must not be reported as one.

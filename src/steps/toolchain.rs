@@ -173,8 +173,13 @@ pub fn ensure_selene_config(
         // would otherwise have ServerPackages/ linted.
         PackageWorkflow::Wally => r#"exclude = ["Packages/**", "ServerPackages/**"]"#,
         PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
+        // Nothing vendored, so no exclude - an empty one would be a dead
+        // key in a config the user is expected to read and edit.
+        PackageWorkflow::None => "",
     };
-    config = tool_settings::insert_top_level(&config, vendored);
+    if !vendored.is_empty() {
+        config = tool_settings::insert_top_level(&config, vendored);
+    }
     ensure_config_file(project_dir, "selene.toml", &config, |content| {
         content.lines().any(|l| l.trim() == format!(r#"std = "{std_value}""#))
     })

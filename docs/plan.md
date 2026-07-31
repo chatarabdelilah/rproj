@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.2.3**, 121 tests, Windows-only, Luau + Wally.
+Current: **v0.5.0**, 181 tests, Windows-only, Luau + Wally.
 
 ---
 
@@ -270,7 +270,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~M2~~ | ~~Catalog additions (§5)~~ | 2–3 | **Shipped** v0.3.1. UI Labs, Resurface, Figma, catppuccin. |
 | ~~M3~~ | ~~`rproj setup <tool>` (§4)~~ | 3–5 | **Shipped** v0.3.2. |
 | ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
-| R1 | Capability layer; delete the "tools" and "files" prompts (`docs/ux-redesign.md` §8) | 4–6 | Re-levels logic that already exists. Do before M4 — it makes M4 smaller. |
+| ~~R1~~ | ~~Capability layer; delete the "tools" and "files" prompts~~ | 4–6 | **Shipped** v0.5.0. Came in at the low end because it mostly deleted things. Three bugs it surfaced, none of which a reader would have predicted: `rokit.toml` was owned by nothing, so tools were derived and never pinned; the dependency strategy pins its own tools and nothing derived them, so a Wally project pinned no Wally; and `plan` trusted the capability list without re-checking requirements, so CI survived its gate being turned off. All three found by tests, two of them by the live prompt-order pair. |
 | R2 | The project graph as a real type: ordered nodes, invalidation on edit, `rproj.toml` stores decisions | 3–5 | Unlocks "change something", and re-derivation for `upgrade`/`--like`. |
 | R3 | `rproj info <capability>`; configure hints on the summary | 1–2 | The "shows its work" half of the philosophy. |
 | M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. First capability with more than one implementation, so the first sub-prompt the model permits. |
@@ -280,7 +280,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **42–71** | ≈ 4–8 months part-time |
-| | *remaining after v0.4.0* | **31–54** | M1–M3b done |
+| | *remaining after v0.5.0* | **27–48** | M1–M3b, R1 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -290,7 +290,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
 Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
-Remaining: **R1 → R2 → M5 → M4 → R3 → M7 → R4 → M8**.
+Remaining: **R2 → M5 → M4 → R3 → M7 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
 

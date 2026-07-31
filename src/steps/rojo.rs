@@ -95,6 +95,11 @@ pub fn scaffold_project_json(
             // docs/architecture.md.
             replicated_storage.insert("modules".to_string(), json!({ "$path": "modules" }));
         }
+        // No dependency manager, so no vendored folder to mount. Mounting
+        // one anyway would be worse than useless: rojo refuses a `$path`
+        // that does not exist, so the sourcemap and every build would fail
+        // on a folder the project never asked for.
+        PackageWorkflow::None => {}
     }
 
     let mut server_scripts = serde_json::Map::new();

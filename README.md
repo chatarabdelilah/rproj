@@ -45,29 +45,42 @@ Nothing already installed is reinstalled, and one item failing to install is a w
 | `-v`, `--verbose` | Show every sub-process and its output. |
 | `-V`, `--version` | Print the version. |
 
-### Choosing what gets generated
+### What `rproj new` asks
 
-`rproj new` asks which tools this project pins, then which files to generate. Everything is optional except the source tree and `default.project.json` — say no to both and you get a bare Rojo project.
+Four questions, and each one narrows the next:
 
-Files that depend on a choice are only offered when it is present: `selene.toml` needs Selene pinned, `tests/` needs a test framework, `blender/` needs Blender.
+1. **Dependencies** — Wally (recommended), git submodules, or none.
+2. **Packages** — guided, one prompt per category, or one expert list.
+3. **What should this project do?** — capabilities, with the tool named:
 
-Files an earlier answer already decided are **reported, not offered**, with the reason:
+   ```text
+   [x] lint       Catch bugs and risky patterns before they ship   (Selene)
+   [x] format     One consistent code style, applied automatically (StyLua)
+   [x] typecheck  Strict Luau, so type errors are errors           (luau-lsp)
+   [ ] test       Write and run tests against your game's own code (TestEZ)
+   [x] gate       One command that runs every check above          (Lute)
+   [ ] ci         Run that same gate on GitHub for every push      (GitHub Actions)
+   ```
 
-```text
-      Already settled by your answers so far:
-        rokit.toml   it is where this project's tool versions are pinned
-        wally.toml   the packages you picked are installed from it
-        selene.toml  selene defaults to the Lua 5.1 std, so every Roblox global lints as undefined
-      To drop one of these, change the answer it follows from.
-```
+4. **A summary**, not a fourth picker. Every file says why it's there:
 
-Being asked whether you want the manifest your packages install from is not a real question — and answering no used to make the packages silently vanish. So the choice moves to where it belongs: don't want a `wally.toml`, pick no packages; don't want a `rokit.toml`, pin no tools.
+   ```text
+   Creates
+     src                    every Rojo project has this
+     default.project.json   every Rojo project has this
+     rokit.toml             pins 4 tool versions so teammates get the same ones
+     wally.toml             this project uses Wally
+     selene.toml            you chose lint
+     .lute/check.luau       you chose gate
+   ```
 
-The CI workflow is off by default, since it changes what happens on a push.
+You never pick tools or files directly — those follow from what the project does. "Should I pin Selene?" and "generate `selene.toml`?" are the same decision as "do I want linting", asked two levels below where you think. Pick `customize` at the summary to drop anything, including down to just `src/` and `default.project.json`.
+
+CI is off by default, since it changes what happens on a push. Testing is off by default too — the runner is your choice, and none is a valid answer.
 
 ### Choosing packages
 
-`rproj new` offers a **guided** walkthrough — one prompt per category, in order: state management, UI, data and profiles, testing, utilities — or an **expert** flat list across the whole catalog.
+`rproj new` offers a **guided** walkthrough — one prompt per category (state management, UI, data and profiles, utilities) — or an **expert** flat list across the whole catalog. Under git submodules, packages that can't be vendored are named up front rather than silently dropped.
 
 Guided mode adds companion packages for you: pick `react` and you get `react-roblox`; pick `charm` alongside Vide and you get `vide-charm` rather than the React binding.
 

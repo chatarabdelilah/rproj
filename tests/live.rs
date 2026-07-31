@@ -44,8 +44,18 @@ impl LiveProject {
         let _ = std::fs::remove_dir_all(&path);
 
         let mut session = Session::start(&root, &["new", name]);
-        session.wait_for("How do you want to set up this project's packages?");
-        session.send(&format!("{DOWN}{ENTER}"));
+
+        // **Dependency strategy first.** It used to come after the packages,
+        // which is what let a React selection silently overrule it.
+        session.wait_for("How should this project get its dependencies?");
+        if submodules {
+            session.send("git-submodules");
+            session.wait_for("git-submodules - ");
+        }
+        session.send(ENTER);
+
+        session.wait_for("How do you want to pick packages?");
+        session.send(&format!("{DOWN}{ENTER}")); // expert
         session.wait_for("Pick every package this project needs");
         for key in packages {
             session.send(key);
@@ -56,21 +66,15 @@ impl LiveProject {
         }
         session.send(ENTER);
 
-        if !packages.is_empty() {
-            session.wait_for("How do you want to pull in this project's packages?");
-            let keys = if submodules { format!("{DOWN}{ENTER}") } else { ENTER.to_string() };
-            session.send(&keys);
-        }
-
-        // The tool and artifact pickers. These tests are `#[ignore]`d, so when
-        // the artifact picker appeared in v0.3.0 nothing failed - they would
-        // simply have hung here forever waiting for "is ready" while the
-        // prompt waited for them. Enter accepts the defaults at both, which is
-        // what every assertion below already assumes it gets: every machine
-        // tool pinned, every default file written.
-        session.wait_for("Tools to pin in this project");
+        // One capability prompt where there used to be two pickers (tools,
+        // then files). Enter accepts the defaults, which is what every
+        // assertion below assumes: lint, format, typecheck, gate, editor.
+        session.wait_for("What should this project do?");
         session.send(ENTER);
-        session.wait_for("Files to generate");
+
+        // The summary is not a picker - nothing here is a new decision, so
+        // there is exactly one keystroke to confirm it.
+        session.wait_for("Create it?");
         session.send(ENTER);
 
         session.wait_for("is ready");
@@ -181,11 +185,13 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
 /// out is gated off. So it is the cheapest test here and the one that proves
 /// the property the artifact model exists for.
 ///
-/// The three `LEFT`s are the point. `←` is select-none in a `MultiSelect`, and
-/// the tools prompt defaults to *all* of them — on a machine with nine tools
-/// selected, pressing enter there would entail `rokit.toml` and `selene.toml`
-/// and this project would not be bare. That is correct behaviour, and this
-/// test is what pins the escape hatch open.
+/// Two things make it bare, and both are deliberate. `none` is a real answer
+/// to the dependency question, so no manifest is offered for dependencies
+/// that don't exist. And the housekeeping files (`rproj.toml`, `.gitignore`)
+/// are written for every project rather than asked about, so reaching the
+/// absolute minimum goes through the summary's escape hatch — one extra
+/// screen for the person who wants it, none for everyone else. This test is
+/// what pins that hatch open.
 #[test]
 #[ignore]
 fn saying_no_to_everything_yields_only_the_rojo_basics() {
@@ -195,15 +201,29 @@ fn saying_no_to_everything_yields_only_the_rojo_basics() {
     let _ = std::fs::remove_dir_all(&path);
 
     let mut session = Session::start(&root, &["new", name]);
-    session.wait_for("How do you want to set up this project's packages?");
-    session.send(&format!("{DOWN}{ENTER}")); // expert checklist
-    session.wait_for("Pick every package this project needs");
-    session.send(&format!("{LEFT}{ENTER}")); // no packages
-    // No packages, so the workflow question is skipped entirely.
-    session.wait_for("Tools to pin in this project");
-    session.send(&format!("{LEFT}{ENTER}")); // pin nothing
-    session.wait_for("Files to generate");
-    session.send(&format!("{LEFT}{ENTER}")); // generate nothing optional
+    // `none` is now a real answer to the dependency question, and choosing
+    // it skips the package prompts entirely rather than defaulting to Wally
+    // and then offering a manifest for dependencies that don't exist.
+    session.wait_for("How should this project get its dependencies?");
+    session.send("none");
+    session.wait_for("none - ");
+    session.send(ENTER);
+    session.wait_for("What should this project do?");
+    session.send(&format!("{LEFT}{ENTER}")); // no capabilities
+
+    // The housekeeping entries (`rproj.toml`, `.gitignore`) are written for
+    // every project rather than asked about, so reaching the *truly* bare
+    // project goes through the summary's escape hatch. One extra screen for
+    // the person who wants it, none for everyone else - and this test is
+    // what proves the hatch is real rather than decorative.
+    session.wait_for("Create it?");
+    session.send("customize");
+    session.wait_for("customize - ");
+    session.send(ENTER);
+    session.wait_for("Files to keep");
+    session.send(&format!("{LEFT}{ENTER}")); // keep nothing optional
+    session.wait_for("Create it?");
+    session.send(ENTER);
     session.wait_for("is ready");
 
     let outcome = session.finish();
@@ -228,50 +248,59 @@ fn saying_no_to_everything_yields_only_the_rojo_basics() {
     let _ = std::fs::remove_dir_all(&path);
 }
 
-/// **The complaint, end to end.** Pick a package, pin the tools, and the
-/// files prompt must *report* the manifest rather than offering to delete it.
+/// **The redesign, end to end.** Pick a package, accept the capability
+/// defaults, and the summary must *explain* every file rather than offering
+/// it as a checkbox.
 ///
-/// Stops at the files prompt with `ESC` instead of completing, so this needs
-/// no install: what is being checked is the text on screen before any work
+/// Stops at the summary with `ESC` instead of completing, so this needs no
+/// install: what is being checked is the text on screen before any work
 /// happens. The assertions are on the reasons, not just the keys — a line
 /// naming `wally.toml` with no explanation would be a tool announcing
 /// decisions, and the whole point is that the user can see which earlier
 /// answer to change.
 #[test]
 #[ignore]
-fn selecting_a_package_settles_its_manifest_instead_of_offering_to_drop_it() {
+fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
     let root = projects_root();
-    let name = "rproj-settled-report";
+    let name = "rproj-summary-report";
     let path = root.join(name);
     let _ = std::fs::remove_dir_all(&path);
 
     let mut session = Session::start(&root, &["new", name]);
-    session.wait_for("How do you want to set up this project's packages?");
-    session.send(&format!("{DOWN}{ENTER}"));
+    session.wait_for("How should this project get its dependencies?");
+    session.send(ENTER); // Wally, the recommended default
+    session.wait_for("How do you want to pick packages?");
+    session.send(&format!("{DOWN}{ENTER}")); // expert
     session.wait_for("Pick every package this project needs");
     session.send("promise");
     session.wait_for("promise - ");
     session.send(" ");
     session.send(ENTER);
 
-    session.wait_for("How do you want to pull in this project's packages?");
-    session.send(ENTER); // Wally
-    session.wait_for("Tools to pin in this project");
-    session.send(ENTER); // pin everything the machine has
+    session.wait_for("What should this project do?");
+    session.send(ENTER); // accept the defaults
 
-    session.wait_for("Files to generate");
+    session.wait_for("Create it?");
     let screen = session.text();
 
+    // Every file names the answer that caused it. A list without reasons
+    // would be a receipt, and the summary's whole job is showing the work.
     for expected in [
-        "Already settled by your answers so far:",
-        "the packages you picked are installed from it",
-        "it is where this project's tool versions are pinned",
-        "To drop one of these, change the answer it follows from.",
+        "wally.toml",
+        "this project uses Wally",
+        "selene.toml",
+        "you chose lint",
+        "rokit.toml",
     ] {
         assert!(screen.contains(expected), "expected {expected:?} in:\n{screen}");
     }
-    // And the settled ones are absent from the checkbox list. Checked on the
-    // rendered option line, since the settled block names the key too.
+    // The capability names its tool, so a user who enabled "lint" has seen
+    // the word Selene by the time the project exists.
+    assert!(screen.contains("lint (Selene)"), "{screen}");
+    assert!(screen.contains("format (StyLua)"), "{screen}");
+
+    // And none of this is a checkbox: the summary is a summary. The old
+    // flow rendered these as `key - description (badge)` option lines.
     for offered in ["wally.toml - ", "rokit.toml - ", "selene.toml - "] {
         assert!(!screen.contains(offered), "{offered:?} must not be a checkbox:\n{screen}");
     }

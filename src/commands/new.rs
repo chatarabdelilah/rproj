@@ -4,10 +4,10 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use inquire::{MultiSelect, Select};
 
-use crate::catalog::tool_catalog;
+use crate::catalog::artifacts;
+use crate::catalog::capabilities;
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
-use crate::catalog::artifacts::{self, Selections, Workflow};
 use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
 use crate::steps::{
     blender, figma, git, gitattributes, gitignore, modules, quality, rojo, tarmac, testez,
@@ -52,6 +52,15 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     ui::section(&format!("Scaffolding {name}"));
     ui::detail(&project_dir.display().to_string());
 
+    // The order below is the whole redesign. Each answer narrows the next,
+    // and no prompt asks about a consequence of a decision made after it:
+    //
+    //   strategy -> packages -> capabilities -> summary
+    //
+    // Strategy first because it decides which packages can even be
+    // vendored. It used to come *after* packages, which meant picking React
+    // silently overruled the user's architecture - the one decision that
+    // should be theirs was the one rproj made for them.
     let (mode, packages, package_workflow) = match saved {
         Some((setup_name, setup)) => {
             let packages: BTreeSet<String> = setup.packages.into_iter().collect();
@@ -62,8 +71,15 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
             (format!("like:{setup_name}"), packages, setup.package_workflow)
         }
         None => {
-            let (mode, packages) = pick_composition()?;
-            let workflow = pick_package_workflow(&packages)?;
+            let workflow = pick_strategy()?;
+            let (mode, packages) = match workflow {
+                // Nothing to compose. Asking "which packages?" right after
+                // being told there is no package manager is the same class
+                // of question this redesign exists to remove.
+                PackageWorkflow::None => ("none", BTreeSet::new()),
+                _ => pick_composition(workflow)?,
+            };
+            let (workflow, packages) = reconcile_strategy(workflow, packages)?;
             (mode.to_string(), packages, workflow)
         }
     };
@@ -71,8 +87,8 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     // Git submodules have no dependency resolution: the scaffold clones
     // exactly the list it's given. Wally does its own resolution, so its
     // manifest is left as the user picked it.
-    let packages = match package_workflow {
-        PackageWorkflow::Wally => packages,
+    let mut packages = match package_workflow {
+        PackageWorkflow::Wally | PackageWorkflow::None => packages,
         PackageWorkflow::GitSubmodules => {
             let resolved = wally_packages::with_dependencies(&packages);
             let added: Vec<&str> = resolved
@@ -87,24 +103,89 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         }
     };
 
-    // Asked here rather than inside `scaffold`, so every prompt in this
-    // command lives in one place and `scaffold` only ever acts on decisions
-    // already made. A saved setup skips the packages question but still
-    // asks this one - which files you want is a per-project choice, not
-    // part of a package composition.
-    let selected_packages: Vec<String> = packages.iter().cloned().collect();
-    let project_tools = pick_project_tools(&config, package_workflow)?;
-    let chosen_artifacts = pick_artifacts(&Selections {
-        packages: &selected_packages,
-        tools: &project_tools,
+    // What this project should *do*. The one prompt that replaced two: it
+    // used to be asked twice at the wrong level - once as "which tools do
+    // you pin" and once as "which files do you generate" - so the user had
+    // to translate one intent into tool names and then into filenames, and
+    // any disagreement between those two answers became a contradiction.
+    let chosen_capabilities = pick_capabilities()?;
+    let derived = capabilities::derive(&chosen_capabilities);
+    let capability_keys: Vec<String> =
+        chosen_capabilities.iter().map(|(k, _)| k.clone()).collect();
+
+    // A capability can pull in a package - `test` brings TestEZ - which is
+    // why testing left the package picker. Added after the workflow
+    // resolution above because the resolution is about what the *user*
+    // chose; these are consequences, and TestEZ vendors fine either way.
+    for key in &derived.packages {
+        packages.insert(key.clone());
+    }
+
+    // Tools before the plan, because `rokit.toml` exists only to hold them:
+    // with nothing to pin there is no manifest, and the count is what its
+    // summary line reports.
+    //
+    // Capabilities derive most of the list and the dependency strategy
+    // derives the rest - Wally is not a capability, it is how packages
+    // arrive. Merged here so `rokit.toml`, the check script and `rproj.toml`
+    // all read one list; deriving them separately is how the project's pins
+    // and its gate came to disagree about which tools existed.
+    let mut project_tools = derived.tools.clone();
+    for tool in strategy_tools(package_workflow, &packages) {
+        if !project_tools.iter().any(|t| t == tool) {
+            project_tools.push(tool.to_string());
+        }
+    }
+
+    let environment = artifacts::Environment {
         apps: &config.selected_system_apps,
         extensions: &config.selected_vscode_extensions,
-        workflow: match package_workflow {
-            PackageWorkflow::Wally => Workflow::Wally,
-            PackageWorkflow::GitSubmodules => Workflow::GitSubmodules,
-        },
-    })?;
+        strategy: strategy_of(package_workflow),
+    };
+    let planned = artifacts::plan(
+        &environment,
+        &capability_keys,
+        &derived.artifacts,
+        &project_tools,
+        &[],
+    );
 
+    // A loop, not a branch: customizing re-plans and shows the summary
+    // again. Dropping files and then being scaffolded without seeing what
+    // you actually get would make the summary a formality - and the summary
+    // is the whole replacement for the two prompts this redesign deleted.
+    // The undropped plan is kept so customize always offers the full list -
+    // otherwise dropping a file would make it unrecoverable without
+    // restarting the command.
+    let full_plan = planned.clone();
+    let mut planned = planned;
+    let mut dropped: Vec<String> = Vec::new();
+    loop {
+        match confirm_plan(name, &packages, package_workflow, &chosen_capabilities, &planned)? {
+            Outcome::Create => break,
+            Outcome::Customize => {
+                dropped = customize_plan(&full_plan, &dropped)?;
+                // Re-planned rather than filtered, so dropping one thing
+                // still drops whatever only existed to support it.
+                planned = artifacts::plan(
+                    &environment,
+                    &capability_keys,
+                    &derived.artifacts,
+                    &project_tools,
+                    &dropped,
+                );
+            }
+            Outcome::Cancel => {
+                // Nothing has been written yet beyond the directory, so
+                // backing out here leaves no half-project behind.
+                std::fs::remove_dir_all(&project_dir).ok();
+                println!("\nNothing created.");
+                return Ok(());
+            }
+        }
+    }
+
+    let chosen_artifacts: Vec<String> = planned.iter().map(|p| p.key.to_string()).collect();
     scaffold(
         &project_dir,
         name,
@@ -163,81 +244,420 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     Ok(())
 }
 
-fn pick_composition() -> Result<(&'static str, BTreeSet<String>)> {
-    let mode = Select::new(
-        "How do you want to set up this project's packages?",
-        vec![
-            "Guided walkthrough - answer one question per category, with explanations (recommended for beginners)",
-            "Expert checklist - pick anything, no hand-holding",
-        ],
-    )
-    .prompt()?;
-
-    if mode.starts_with("Guided") {
-        Ok(("guided", pick_guided()?))
-    } else {
-        Ok(("expert", pick_expert()?))
-    }
-}
-
-fn pick_package_workflow(packages: &BTreeSet<String>) -> Result<PackageWorkflow> {
-    if packages.is_empty() {
-        return Ok(PackageWorkflow::Wally);
-    }
-
-    // Some packages (the react-lua family) only ship a working module
-    // through an npm/pnpm install step upstream - there's no subfolder of
-    // their repo that resolves on its own, so raw git submodules can't
-    // vendor them at all. Rather than offer a choice that would break for
-    // this selection, go straight to Wally (the workflow that does work
-    // for every catalog entry) and say why.
-    //
-    // Checked over the *transitive* closure, not just what was picked: a
-    // package can be perfectly vendorable itself and still be unusable
-    // because something it requires isn't. `reactReflex` is the real case -
-    // it reaches for React, which upstream only ships through npm - and
-    // before this it scaffolded happily into a submodule project and failed
-    // at runtime in Studio, with no build error anywhere.
-    let blocked = wally_packages::unvendorable_in_closure(packages);
-    if !blocked.is_empty() {
-        for (key, pulled_in_by) in &blocked {
-            match pulled_in_by {
-                Some(dependent) => println!(
-                    "note: {dependent} requires {key}, which upstream only ships through an \
-                     npm/pnpm install step - git submodules can't reproduce that."
-                ),
-                None => println!(
-                    "note: {key} only ships a working module through an npm/pnpm install step \
-                     upstream, which git submodules can't reproduce."
-                ),
-            }
-        }
-        println!("      Using Wally for this project instead.");
-        return Ok(PackageWorkflow::Wally);
-    }
-
+/// How this project's dependencies arrive.
+///
+/// **Asked first, and deliberately still asked at all.** Hiding it behind a
+/// flag and defaulting to Wally is technically correct - Wally is the answer
+/// for anyone who does not already know otherwise - and it was rejected: a
+/// summary line reading `via Wally` is a receipt, not an explanation, and
+/// this is the only place a newcomer meets the concept. A default does not
+/// make a question fake.
+///
+/// It comes before packages because it decides which packages can be
+/// vendored at all. Asked after, as it used to be, selecting React silently
+/// overruled the answer.
+fn pick_strategy() -> Result<PackageWorkflow> {
     let choice = Select::new(
-        "How do you want to pull in this project's packages?",
-        vec![
-            "Wally - the standard Roblox/Luau package manager (recommended)",
-            "Git submodules - clone each package's own repo instead of using Wally",
-        ],
+        "How should this project get its dependencies?",
+        owned(&[
+            "wally - Roblox's package manager. Recommended for almost every project.",
+            "git-submodules - vendor each package's own repo into the project.",
+            "none - no dependency manager. A tutorial project, or one you'll wire up yourself.",
+        ]),
     )
+    .with_formatter(&ui::compact_select_answer)
     .prompt()?;
-    Ok(if choice.starts_with("Wally") {
-        PackageWorkflow::Wally
-    } else {
-        PackageWorkflow::GitSubmodules
+
+    Ok(match ui::option_key(&choice) {
+        "git-submodules" => PackageWorkflow::GitSubmodules,
+        "none" => PackageWorkflow::None,
+        _ => PackageWorkflow::Wally,
     })
 }
 
-fn pick_guided() -> Result<BTreeSet<String>> {
+/// Owns a fixed option list.
+///
+/// inquire types its formatter on the option type, and every picker here
+/// shares one formatter (`ui::compact_select_answer`, which echoes just the
+/// key). Owning the strings keeps that single formatter usable rather than
+/// needing a `&str` twin of it.
+fn owned(options: &[&str]) -> Vec<String> {
+    options.iter().map(|s| (*s).to_string()).collect()
+}
+
+fn strategy_of(workflow: PackageWorkflow) -> artifacts::Strategy {
+    match workflow {
+        PackageWorkflow::Wally => artifacts::Strategy::Wally,
+        PackageWorkflow::GitSubmodules => artifacts::Strategy::GitSubmodules,
+        PackageWorkflow::None => artifacts::Strategy::None,
+    }
+}
+
+/// What this project should *do* - and, in the badge slot, what does it.
+///
+/// One prompt where there used to be two ("Tools to pin" and "Files to
+/// generate"), because those asked the same decision at two levels below the
+/// one the user thinks in. The implementation is always named: a capability
+/// that hides its tool teaches nothing about the ecosystem, and someone who
+/// later asks "how do I configure this?" needs to have seen the word Selene.
+///
+/// Returns `(capability, implementation)` pairs. The implementation is
+/// `None` wherever there is only one, which is every capability but `test`
+/// once jest-lua lands - see `capabilities::needs_an_implementation_prompt`.
+fn pick_capabilities() -> Result<Vec<(String, Option<String>)>> {
+    let offerable: Vec<&'static capabilities::Capability> =
+        capabilities::CAPABILITIES.iter().collect();
+
+    let options: Vec<String> = offerable
+        .iter()
+        .map(|c| ui::option_line(c.key, c.outcome, c.default_implementation().display))
+        .collect();
+    let defaults: Vec<usize> = offerable
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.default_selected)
+        .map(|(i, _)| i)
+        .collect();
+
+    let picked = MultiSelect::new("What should this project do?", options)
+        .with_default(&defaults)
+        .with_help_message(ui::MULTISELECT_HELP)
+        .with_formatter(&ui::compact_multi_answer)
+        .prompt()?;
+
+    let mut chosen: Vec<(String, Option<String>)> = Vec::new();
+    for capability in &offerable {
+        if !picked.iter().any(|p| ui::option_is(p, capability.key)) {
+            continue;
+        }
+        // A capability whose requirement was not chosen contributes nothing
+        // (see `capabilities::derive`), so say so rather than letting the
+        // user believe they enabled it.
+        let keys: Vec<String> = chosen.iter().map(|(k, _)| k.clone()).collect();
+        if !capability.requires.iter().all(|r| keys.iter().any(|k| k == r)) {
+            ui::skip(&format!(
+                "{} needs {} - skipping it",
+                capability.key,
+                capability.requires.join(", ")
+            ));
+            continue;
+        }
+
+        let implementation = if capability.needs_an_implementation_prompt() {
+            let options: Vec<String> = capability
+                .implementations
+                .iter()
+                .map(|i| ui::option_line(i.key, i.display, capability.key))
+                .collect();
+            let picked = Select::new(&format!("{}:", capability.key), options)
+                .with_formatter(&ui::compact_select_answer)
+                .prompt()?;
+            Some(ui::option_key(&picked).to_string())
+        } else {
+            None
+        };
+        chosen.push((capability.key.to_string(), implementation));
+    }
+    Ok(chosen)
+}
+
+fn pick_composition(workflow: PackageWorkflow) -> Result<(&'static str, BTreeSet<String>)> {
+    // Said *before* the picker rather than after the selection. Under git
+    // submodules the react family cannot be vendored at all, and silently
+    // omitting them is how a user ends up wondering where React went.
+    let unavailable = unvendorable_keys();
+    if workflow == PackageWorkflow::GitSubmodules && !unavailable.is_empty() {
+        ui::detail(&format!(
+            "Not listed: {}.\nUpstream ships these only through an npm install step, which git\nsubmodules can't reproduce.",
+            unavailable.join(", ")
+        ));
+    }
+
+    let mode = Select::new(
+        "How do you want to pick packages?",
+        owned(&[
+            "guided - one question per category, with explanations (recommended)",
+            "expert - one flat list of everything, no hand-holding",
+        ]),
+    )
+    .with_formatter(&ui::compact_select_answer)
+    .prompt()?;
+
+    if ui::option_key(&mode) == "guided" {
+        Ok(("guided", pick_guided(workflow)?))
+    } else {
+        Ok(("expert", pick_expert(workflow)?))
+    }
+}
+
+/// Packages a capability brings in on its own, so no picker offers them.
+///
+/// TestEZ is the case: *do I want tests* is a capability question, and it
+/// used to be asked in the package step **and** consequenced four prompts
+/// later in the files step - one intent, two prompts. Derived from the
+/// capability catalog rather than flagged on the package, so the two cannot
+/// drift apart.
+fn capability_owned(key: &str) -> bool {
+    capabilities::CAPABILITIES
+        .iter()
+        .any(|c| c.implementations.iter().any(|i| i.packages.contains(&key)))
+}
+
+/// Keys with no vendorable source, for the note above the package picker.
+fn unvendorable_keys() -> Vec<&'static str> {
+    wally_packages::PACKAGES
+        .iter()
+        .filter(|p| p.submodule.is_none() && !capability_owned(p.key))
+        .map(|p| p.key)
+        .collect()
+}
+
+/// Whether a package may be offered at all, given the strategy already
+/// chosen. Offering one that cannot be installed is offering a broken
+/// project.
+fn offerable_package(spec: &PackageSpec, workflow: PackageWorkflow) -> bool {
+    !capability_owned(spec.key)
+        && (workflow != PackageWorkflow::GitSubmodules || spec.submodule.is_some())
+}
+
+/// The summary, and the last chance to back out.
+///
+/// Not a picker. Every line here is already determined by an earlier answer,
+/// so asking about them again would be the defect this redesign removed -
+/// and every line carries **why**, because files are the one thing a
+/// beginner will actually open and edit, and a list with no reasons is a
+/// receipt rather than an explanation.
+fn confirm_plan(
+    name: &str,
+    packages: &BTreeSet<String>,
+    workflow: PackageWorkflow,
+    chosen: &[(String, Option<String>)],
+    planned: &[artifacts::Planned],
+) -> Result<Outcome> {
+    println!();
+    for line in summary_lines(name, packages, workflow, chosen, planned) {
+        println!("{line}");
+    }
+    println!();
+
+    let choice = Select::new(
+        "Create it?",
+        owned(&[
+            "create - go ahead and scaffold this",
+            "customize - drop individual files first",
+            "cancel - change nothing and exit",
+        ]),
+    )
+    .with_formatter(&ui::compact_select_answer)
+    .prompt()?;
+    match ui::option_key(&choice) {
+        "create" => Ok(Outcome::Create),
+        "customize" => Ok(Outcome::Customize),
+        _ => Ok(Outcome::Cancel),
+    }
+}
+
+/// What the user chose at the summary.
+#[derive(PartialEq, Eq)]
+enum Outcome {
+    Create,
+    Customize,
+    Cancel,
+}
+
+/// The escape hatch, and the reason the summary can be a summary.
+///
+/// Every line on it is already determined, so re-asking about them would be
+/// the defect this redesign removed. But "determined" is not "immutable":
+/// the housekeeping entries in particular (`rproj.toml`, `.gitignore`) are
+/// written for every project on the grounds that nine users in ten want
+/// them, and the tenth needs a way out. **Without this the truly bare
+/// project - `src/` and `default.project.json`, nothing else - stops being
+/// reachable**, which is the property the whole artifact model exists for.
+///
+/// Not a prompt everyone answers: one keystroke past it for the nine, one
+/// extra screen for the tenth.
+fn customize_plan(
+    full_plan: &[artifacts::Planned],
+    dropped: &[String],
+) -> Result<Vec<String>> {
+    let droppable: Vec<&artifacts::Planned> = full_plan
+        .iter()
+        .filter(|p| artifacts::find(p.key).is_some_and(|a| !a.mandatory))
+        .collect();
+    if droppable.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let options: Vec<String> = droppable
+        .iter()
+        .map(|p| ui::option_line(p.key, &p.reason.describe(), "keep"))
+        .collect();
+    // Pre-checked to the current state rather than to "all", so re-entering
+    // shows what you already decided instead of silently undoing it.
+    let keep_now: Vec<usize> = droppable
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| !dropped.iter().any(|d| d == p.key))
+        .map(|(i, _)| i)
+        .collect();
+
+    let kept = MultiSelect::new("Files to keep", options)
+        .with_default(&keep_now)
+        .with_help_message(ui::MULTISELECT_HELP)
+        .with_formatter(&ui::compact_multi_answer)
+        .prompt()?;
+
+    Ok(droppable
+        .iter()
+        .filter(|p| !kept.iter().any(|k| ui::option_is(k, p.key)))
+        .map(|p| p.key.to_string())
+        .collect())
+}
+
+/// The summary as text. Pure, so the wording is a test rather than something
+/// only visible by running the whole flow.
+fn summary_lines(
+    name: &str,
+    packages: &BTreeSet<String>,
+    workflow: PackageWorkflow,
+    chosen: &[(String, Option<String>)],
+    planned: &[artifacts::Planned],
+) -> Vec<String> {
+    let mut lines = vec![format!("  {name}"), String::new()];
+
+    let strategy = match workflow {
+        PackageWorkflow::Wally => "Wally",
+        PackageWorkflow::GitSubmodules => "git submodules",
+        PackageWorkflow::None => "none",
+    };
+    lines.push(format!("  {:<14}{strategy}", "Dependencies"));
+    lines.push(format!(
+        "  {:<14}{}",
+        "Packages",
+        if packages.is_empty() {
+            "none".to_string()
+        } else {
+            packages.iter().cloned().collect::<Vec<_>>().join(", ")
+        }
+    ));
+
+    // Capability, then the thing that provides it - the user should never
+    // have to guess what "linting" actually installed.
+    let does: Vec<String> = chosen
+        .iter()
+        .filter_map(|(key, implementation)| {
+            let capability = capabilities::find(key)?;
+            let implementation = implementation
+                .as_deref()
+                .and_then(|i| capability.implementation(i))
+                .unwrap_or_else(|| capability.default_implementation());
+            Some(format!("{key} ({})", implementation.display))
+        })
+        .collect();
+    lines.push(format!(
+        "  {:<14}{}",
+        "Does",
+        if does.is_empty() { "nothing extra".to_string() } else { does.join(", ") }
+    ));
+
+    lines.push(String::new());
+    lines.push("  Creates".to_string());
+    let width = planned.iter().map(|p| p.key.len()).max().unwrap_or(0);
+    for entry in planned {
+        lines.push(format!(
+            "    {:<width$}  {}",
+            entry.key,
+            entry.reason.describe()
+        ));
+    }
+    lines
+}
+
+/// The strategy the project ends up with, after checking the chosen packages
+/// against it.
+///
+/// Some packages (the react-lua family) only ship a working module through an
+/// npm/pnpm install step upstream, so raw git submodules cannot vendor them
+/// at all. Checked over the **transitive closure**, not just what was picked:
+/// `reactReflex` is vendorable itself and reaches for React, which is not, and
+/// before this it scaffolded happily and failed at runtime in Studio with no
+/// build error anywhere.
+///
+/// This used to run *before* the strategy was chosen and silently force
+/// Wally. Now the user has already said what they want, so the conflict is
+/// put to them as a **forward correction** - the same fact, offered as a
+/// revision of a decision they made knowingly rather than an override
+/// announced after the fact.
+fn reconcile_strategy(
+    workflow: PackageWorkflow,
+    packages: BTreeSet<String>,
+) -> Result<(PackageWorkflow, BTreeSet<String>)> {
+    if workflow != PackageWorkflow::GitSubmodules || packages.is_empty() {
+        return Ok((workflow, packages));
+    }
+    let blocked = wally_packages::unvendorable_in_closure(&packages);
+    if blocked.is_empty() {
+        return Ok((workflow, packages));
+    }
+
+    for (key, pulled_in_by) in &blocked {
+        match pulled_in_by {
+            // Names the dependent, not just the blocker: someone who never
+            // picked react has no way to connect the two otherwise.
+            Some(dependent) => ui::warn(&format!(
+                "{dependent} requires {key}, which upstream only ships through an npm install \
+                 step - git submodules can't reproduce that"
+            )),
+            None => ui::warn(&format!(
+                "{key} only ships through an npm install step upstream, which git submodules \
+                 can't reproduce"
+            )),
+        }
+    }
+
+    let choice = Select::new(
+        "So this selection can't be vendored. What now?",
+        owned(&[
+            "wally - switch this project to Wally, which handles every catalog package",
+            "drop - keep git submodules and remove the packages that can't be vendored",
+        ]),
+    )
+    .with_formatter(&ui::compact_select_answer)
+    .prompt()?;
+
+    if ui::option_key(&choice) != "drop" {
+        return Ok((PackageWorkflow::Wally, packages));
+    }
+    // Keep submodules, and actually remove what cannot be vendored - both
+    // the blockers and anything that reaches them, or the project scaffolds
+    // around a package whose dependency is missing.
+    let removed: Vec<String> = blocked
+        .iter()
+        .flat_map(|(key, via)| [Some((*key).to_string()), via.map(|d| d.to_string())])
+        .flatten()
+        .collect();
+    let kept: BTreeSet<String> = packages.iter().filter(|k| !removed.contains(k)).cloned().collect();
+    ui::skip(&format!("removed: {}", {
+        let mut names: Vec<&str> = removed.iter().map(String::as_str).collect();
+        names.sort_unstable();
+        names.dedup();
+        names.join(", ")
+    }));
+    Ok((PackageWorkflow::GitSubmodules, kept))
+}
+
+fn pick_guided(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
     let mut packages = BTreeSet::new();
 
     for category in Category::ALL {
         let choices: Vec<&PackageSpec> = wally_packages::in_category(category)
-            .filter(|p| p.primary_choice)
+            .filter(|p| p.primary_choice && offerable_package(p, workflow))
             .collect();
+        // Testing empties out here, because a test runner is the
+        // implementation of a capability rather than a package the user
+        // picks. A category with nothing offerable is skipped rather than
+        // shown as a list containing only "none".
         if choices.is_empty() {
             continue;
         }
@@ -262,8 +682,12 @@ fn pick_guided() -> Result<BTreeSet<String>> {
                 }
             }
         } else {
+            // `none` **first**, because `Select` highlights index 0 and the
+            // safe answer must be the resting position. It used to be
+            // appended last, so pressing enter through four categories
+            // handed a beginner four packages they never chose.
             let mut options = options;
-            options.push("none".to_string());
+            options.insert(0, "none".to_string());
             let picked = Select::new(&prompt, options).with_formatter(&ui::compact_select_answer).prompt()?;
             if picked != "none"
                 // Matched on the full "key - " prefix, not a bare
@@ -281,8 +705,17 @@ fn pick_guided() -> Result<BTreeSet<String>> {
     Ok(packages)
 }
 
-fn pick_expert() -> Result<BTreeSet<String>> {
-    let options: Vec<String> = wally_packages::PACKAGES
+fn pick_expert(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
+    // Same filter as the guided path. Without it the flat list would still
+    // offer TestEZ, letting someone take the package with none of the test
+    // layout that makes it useful - the double-ask, reintroduced through the
+    // back door.
+    let offerable: Vec<&PackageSpec> = wally_packages::PACKAGES
+        .iter()
+        .filter(|p| offerable_package(p, workflow))
+        .collect();
+
+    let options: Vec<String> = offerable
         .iter()
         .map(|p| {
             format!(
@@ -300,154 +733,13 @@ fn pick_expert() -> Result<BTreeSet<String>> {
         .with_formatter(&ui::compact_multi_answer)
         .prompt()?;
 
-    Ok(wally_packages::PACKAGES
+    Ok(offerable
         .iter()
         .filter(|p| selected.iter().any(|s| ui::option_is(s, p.key)))
         .map(|p| p.key.to_string())
         .collect())
 }
 
-
-/// Which CLI tools this project pins in its own `rokit.toml`.
-///
-/// This used to be no question at all: every project pinned every tool the
-/// machine had selected. That is the wrong default in both directions - it
-/// pins tools a project will never run, and it made the *files* question
-/// incoherent, because five artifacts follow from which tools are pinned and
-/// the answer was always "all of them".
-///
-/// **Pinning is a reproducibility choice, not a functional one**, which is
-/// why nothing here is entailed and every entry stays a checkbox. Every tool
-/// also resolves from rokit's global manifest (provisioning adds them there),
-/// so a project with no `rokit.toml` still runs `rojo` and `selene` fine on
-/// this machine - it just doesn't promise a teammate the same versions. That
-/// is a preference, the same class as `stylua.toml`, so it is offered rather
-/// than decided.
-///
-/// Pre-checked, so pressing enter keeps the previous behaviour. `←` clears
-/// them all, which is the one keystroke that makes "just the Rojo basics"
-/// reachable without changing machine-wide setup.
-fn pick_project_tools(config: &GlobalConfig, workflow: PackageWorkflow) -> Result<Vec<String>> {
-    let available = tools_for_workflow(config, workflow);
-    if available.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let entries: Vec<&'static tool_catalog::ToolEntry> = available
-        .iter()
-        .filter_map(|key| tool_catalog::find(key))
-        .collect();
-    if entries.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let options: Vec<String> = entries
-        .iter()
-        .map(|t| ui::option_line(t.key, t.description, t.maintenance.short_badge()))
-        .collect();
-    let all: Vec<usize> = (0..options.len()).collect();
-
-    let picked = MultiSelect::new("Tools to pin in this project", options)
-        .with_default(&all)
-        .with_help_message(ui::MULTISELECT_HELP)
-        .with_formatter(&ui::compact_multi_answer)
-        .prompt()?;
-
-    Ok(entries
-        .iter()
-        .filter(|t| picked.iter().any(|p| ui::option_is(p, t.key)))
-        .map(|t| t.key.to_string())
-        .collect())
-}
-
-/// Which optional files this project gets.
-///
-/// One prompt, not one per category: six extra questions to answer before a
-/// project exists is worse than a single list. The category rides along as
-/// the badge slot, which both groups the list visually and keeps
-/// `option_line`'s width handling in charge of truncation.
-///
-/// **Only genuine choices reach the checkbox list.** Two kinds never do:
-///
-/// - *Mandatory* - a Rojo project without a source tree or a project file is
-///   not a project.
-/// - *Entailed* - an earlier answer already decided it. Picking six packages
-///   and then being offered the chance to decline `wally.toml` was a question
-///   with one sane answer, and answering it the other way made the six
-///   packages silently evaporate.
-///
-/// Entailed artifacts are printed with the answer that caused them, before
-/// the prompt. That is the part that makes this honest rather than merely
-/// firmer: the user can see exactly which earlier answer to change, and
-/// "just the Rojo basics" stays reachable by changing it.
-fn pick_artifacts(selections: &Selections) -> Result<Vec<String>> {
-    for line in settled_lines(&artifacts::entailed(selections)) {
-        ui::detail(&line);
-    }
-
-    let offered = artifacts::offered(selections);
-    if offered.is_empty() {
-        // Everything left was either mandatory or already settled, so there
-        // is no question to ask. Saying so beats a prompt with no options.
-        return Ok(resolved_keys(selections, &[]));
-    }
-
-    let options: Vec<String> = offered
-        .iter()
-        .map(|a| ui::option_line(a.key, a.description, a.category.label()))
-        .collect();
-    let defaults: Vec<usize> = offered
-        .iter()
-        .enumerate()
-        .filter(|(_, a)| a.default_selected)
-        .map(|(i, _)| i)
-        .collect();
-
-    let picked = MultiSelect::new("Files to generate", options)
-        .with_default(&defaults)
-        .with_help_message(ui::MULTISELECT_HELP)
-        .with_formatter(&ui::compact_multi_answer)
-        .prompt()?;
-
-    let ticked: Vec<String> = offered
-        .iter()
-        .filter(|a| picked.iter().any(|p| ui::option_is(p, a.key)))
-        .map(|a| a.key.to_string())
-        .collect();
-    Ok(resolved_keys(selections, &ticked))
-}
-
-/// The block printed above the picker naming what earlier answers already
-/// settled, and why.
-///
-/// Pure, and its own function, so the wording is a test rather than something
-/// only visible by running the prompt. The "why" is the load-bearing half:
-/// without it this is a tool announcing decisions, and with it the user can
-/// see which answer to change.
-fn settled_lines(settled: &[(&'static artifacts::Artifact, &'static str)]) -> Vec<String> {
-    if settled.is_empty() {
-        return Vec::new();
-    }
-    let width = settled.iter().map(|(a, _)| a.key.len()).max().unwrap_or(0);
-    let mut lines = vec!["Already settled by your answers so far:".to_string()];
-    lines.extend(
-        settled
-            .iter()
-            .map(|(artifact, why)| format!("  {:<width$}  {why}", artifact.key)),
-    );
-    lines.push("To drop one of these, change the answer it follows from.".to_string());
-    lines
-}
-
-/// Resolution happens here, not in the caller. It drops artifacts whose
-/// dependencies were not ticked and adds back the entailed ones, and doing
-/// it once means `run` and `scaffold` cannot disagree about what is written.
-fn resolved_keys(selections: &Selections, ticked: &[String]) -> Vec<String> {
-    artifacts::resolve(selections, ticked)
-        .iter()
-        .map(|a| a.key.to_string())
-        .collect()
-}
 
 fn add_companions(packages: &mut BTreeSet<String>) {
     let primaries: Vec<String> = packages.iter().cloned().collect();
@@ -652,21 +944,23 @@ fn slugify(name: &str) -> String {
         .collect()
 }
 
-/// The machine-wide tool selection filtered to what this project's chosen
-/// package workflow *could* use - the candidate list `pick_project_tools`
-/// then offers.
+/// The tools the **dependency strategy** pins, as opposed to the ones
+/// capabilities pin.
 ///
-/// Wally and wally-package-types are Wally-workflow-only: under git
-/// submodules there is no wally.toml to install from and no package thunks
-/// to retype, so offering them would be offering noise.
-fn tools_for_workflow(config: &GlobalConfig, workflow: PackageWorkflow) -> Vec<String> {
-    const WALLY_ONLY: &[&str] = &["wally", "wally-package-types"];
-    config
-        .selected_rokit_tools
-        .iter()
-        .filter(|key| workflow == PackageWorkflow::Wally || !WALLY_ONLY.contains(&key.as_str()))
-        .cloned()
-        .collect()
+/// Wally is not a capability - nobody wants "Wally", they want their
+/// packages installed - so it is derived here, from the strategy that
+/// actually needs it. `wally-package-types` travels with it because a plain
+/// `wally install` writes link files with no `export type` lines, so without
+/// it every package silently degrades to `any`.
+///
+/// Empty with no packages: a manifest with nothing in it needs no installer.
+/// Empty under submodules: there is no `wally.toml` to install from and no
+/// thunks to retype, so pinning either would be noise in `rokit.toml`.
+fn strategy_tools(workflow: PackageWorkflow, packages: &BTreeSet<String>) -> &'static [&'static str] {
+    match workflow {
+        PackageWorkflow::Wally if !packages.is_empty() => &["wally", "wally-package-types"],
+        _ => &[],
+    }
 }
 
 /// Resolves `--like`, failing with the list of what *is* available rather
@@ -730,20 +1024,71 @@ fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
 mod tests {
     use super::*;
 
-    fn config_with(tools: &[&str]) -> GlobalConfig {
-        GlobalConfig {
-            selected_rokit_tools: tools.iter().map(|t| t.to_string()).collect(),
-            ..Default::default()
+    /// Wally is derived from the strategy, not chosen as a capability - and
+    /// `wally-package-types` travels with it, because a plain `wally install`
+    /// writes link files with no `export type` lines and every package
+    /// silently degrades to `any`.
+    #[test]
+    fn a_wally_project_with_packages_pins_wally_and_the_retyper() {
+        let packages: BTreeSet<String> = ["reflex".to_string()].into_iter().collect();
+        assert_eq!(
+            strategy_tools(PackageWorkflow::Wally, &packages),
+            ["wally", "wally-package-types"]
+        );
+    }
+
+    /// A manifest with nothing in it needs no installer, so an empty
+    /// selection pins neither - which is what lets a package-free project
+    /// have no `rokit.toml` at all.
+    #[test]
+    fn a_wally_project_with_no_packages_pins_nothing() {
+        assert!(strategy_tools(PackageWorkflow::Wally, &BTreeSet::new()).is_empty());
+    }
+
+    /// **Every package the picker offers is one the strategy can install.**
+    /// Under submodules that excludes the react family, which upstream ships
+    /// only through an npm step - offering them would be offering a project
+    /// that breaks at runtime in Studio with no build error anywhere.
+    #[test]
+    fn the_package_picker_never_offers_what_the_strategy_cannot_install() {
+        for spec in wally_packages::PACKAGES {
+            if offerable_package(spec, PackageWorkflow::GitSubmodules) {
+                assert!(
+                    spec.submodule.is_some(),
+                    "{} has no vendorable source but is offered under submodules",
+                    spec.key
+                );
+            }
+            // Wally installs everything, so only capability-owned entries
+            // are held back there.
+            assert_eq!(
+                offerable_package(spec, PackageWorkflow::Wally),
+                !capability_owned(spec.key),
+                "{}",
+                spec.key
+            );
+        }
+    }
+
+    /// TestEZ left the package picker: *do I want tests* is a capability
+    /// question, and asking it again as a package was one intent asked
+    /// twice, four prompts apart.
+    #[test]
+    fn the_test_runner_is_not_offered_as_a_package() {
+        assert!(capability_owned("testez"), "the test capability must own it");
+        let testez = wally_packages::find("testez").expect("in the catalog");
+        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
+            assert!(!offerable_package(testez, workflow));
         }
     }
 
     /// Choosing git submodules and then having Wally pinned into the
-    /// project anyway is the workflow leaking across its own boundary.
+    /// project anyway is the strategy leaking across its own boundary.
     #[test]
     fn submodule_projects_do_not_pin_wally_tools() {
-        let config = config_with(&["rojo", "wally", "wally-package-types", "selene"]);
-        let tools = tools_for_workflow(&config, PackageWorkflow::GitSubmodules);
-        assert_eq!(tools, vec!["rojo", "selene"]);
+        let packages: BTreeSet<String> = ["charm".to_string()].into_iter().collect();
+        assert!(strategy_tools(PackageWorkflow::GitSubmodules, &packages).is_empty());
+        assert!(strategy_tools(PackageWorkflow::None, &packages).is_empty());
     }
 
     /// A machine that has never been provisioned must still get the
@@ -773,107 +1118,108 @@ mod tests {
         assert_eq!(GlobalConfig::default().machine_summary(), "nothing selected");
     }
 
-    /// **"Just the Rojo basics" has to survive entailment.**
-    ///
-    /// Found by checking the real machine config rather than reasoning: it
-    /// has all nine rokit tools selected, so `rokit.toml` entailed by "any
-    /// tool to pin" would have made a bare project unreachable without
-    /// editing machine-wide setup. That is why which tools a project pins is
-    /// now its own question - with none pinned, nothing is entailed and the
-    /// minimum is still the minimum.
-    #[test]
-    fn pinning_no_tools_keeps_the_bare_project_reachable_on_a_full_machine() {
-        let config = config_with(&[
-            "rojo", "wally", "wally-package-types", "selene", "stylua", "lute", "luau-lsp-cli",
-            "tarmac", "mantle",
-        ]);
-        // What the picker would offer, and what it returns if you press `←`.
-        assert_eq!(tools_for_workflow(&config, PackageWorkflow::Wally).len(), 9);
-        let pinned: Vec<String> = Vec::new();
-
-        let (packages, apps, extensions) = (Vec::new(), Vec::new(), Vec::new());
-        let selections = Selections {
-            packages: &packages,
-            tools: &pinned,
-            apps: &apps,
-            extensions: &extensions,
-            workflow: Workflow::Wally,
-        };
-        assert!(
-            crate::catalog::artifacts::entailed(&selections).is_empty(),
-            "nothing may be forced when nothing is pinned"
-        );
-        let written: Vec<&str> = crate::catalog::artifacts::resolve(&selections, &[])
-            .iter()
-            .map(|a| a.key)
-            .collect();
-        assert_eq!(written, ["src", "default.project.json"]);
+    fn chosen(keys: &[&str]) -> Vec<(String, Option<String>)> {
+        keys.iter().map(|k| (k.to_string(), None)).collect()
     }
 
-    /// The other direction: pinning the tools *does* settle their configs, so
-    /// pressing enter through both prompts gives a project whose linter can
-    /// actually run.
-    #[test]
-    fn pinning_selene_settles_its_config() {
-        let (packages, apps, extensions) = (Vec::new(), Vec::new(), Vec::new());
-        let pinned = vec!["selene".to_string()];
-        let selections = Selections {
-            packages: &packages,
-            tools: &pinned,
-            apps: &apps,
-            extensions: &extensions,
-            workflow: Workflow::Wally,
-        };
-        let written: Vec<&str> = crate::catalog::artifacts::resolve(&selections, &[])
-            .iter()
-            .map(|a| a.key)
-            .collect();
-        assert!(written.contains(&"rokit.toml"), "{written:?}");
-        assert!(written.contains(&"selene.toml"), "{written:?}");
-    }
-
-    /// The exact block a real selection prints. Reviewed as text, because
-    /// this is the whole user-visible half of the fix: the user is told what
-    /// was settled, *why*, and how to change it.
-    #[test]
-    fn the_settled_block_names_each_file_its_reason_and_the_way_out() {
-        let packages = vec!["testez".to_string()];
-        let tools = vec!["rojo".to_string(), "selene".to_string()];
+    fn plan_for(
+        capability_keys: &[&str],
+        workflow: PackageWorkflow,
+    ) -> Vec<artifacts::Planned> {
+        let selected = chosen(capability_keys);
+        let derived = capabilities::derive(&selected);
         let (apps, extensions) = (Vec::new(), Vec::new());
-        let selections = Selections {
-            packages: &packages,
-            tools: &tools,
+        let environment = artifacts::Environment {
             apps: &apps,
             extensions: &extensions,
-            workflow: Workflow::Wally,
+            strategy: strategy_of(workflow),
         };
+        let keys: Vec<String> = capability_keys.iter().map(|k| k.to_string()).collect();
+        artifacts::plan(&environment, &keys, &derived.artifacts, &derived.tools, &[])
+    }
 
-        let lines = settled_lines(&crate::catalog::artifacts::entailed(&selections));
+    /// **"Just the Rojo basics."** No dependency manager, nothing chosen -
+    /// and the result is the source tree, the project file, and the two
+    /// housekeeping entries. Nothing about the machine can change this,
+    /// which is the property the old tools prompt existed to protect and
+    /// this model gets for free.
+    #[test]
+    fn choosing_nothing_yields_only_the_basics() {
+        let planned = plan_for(&[], PackageWorkflow::None);
+        let keys: Vec<&str> = planned.iter().map(|p| p.key).collect();
+        assert_eq!(keys, ["src", "default.project.json", "rproj.toml", ".gitignore"]);
+    }
+
+    /// Choosing a capability derives its tool *and* its file, in one answer.
+    /// This is the pair the user used to have to state twice.
+    #[test]
+    fn one_capability_derives_both_the_tool_and_the_file() {
+        let derived = capabilities::derive(&chosen(&["lint"]));
+        assert_eq!(derived.tools, ["selene"]);
+
+        let keys: Vec<&str> = plan_for(&["lint"], PackageWorkflow::None)
+            .iter()
+            .map(|p| p.key)
+            .collect();
+        assert!(keys.contains(&"selene.toml"), "{keys:?}");
+    }
+
+    /// The summary is the user-visible half, so its exact text is a test.
+    /// Every file names the answer that caused it - that is what makes it an
+    /// explanation rather than a receipt.
+    #[test]
+    fn the_summary_names_every_file_and_why_it_is_there() {
+        let packages: BTreeSet<String> = ["reflex".to_string()].into_iter().collect();
+        let selected = chosen(&["lint", "format"]);
+        let planned = plan_for(&["lint", "format"], PackageWorkflow::Wally);
+        let lines = summary_lines("MyGame", &packages, PackageWorkflow::Wally, &selected, &planned);
+        let text = lines.join("\n");
+
+        assert!(text.contains("  MyGame"), "{text}");
+        assert!(text.contains("Dependencies  Wally"), "{text}");
+        assert!(text.contains("Packages      reflex"), "{text}");
+        // The tool is named beside the capability, never hidden behind it.
+        assert!(text.contains("lint (Selene)"), "{text}");
+        assert!(text.contains("format (StyLua)"), "{text}");
+        assert!(text.contains("selene.toml"), "{text}");
+        assert!(text.contains("you chose lint"), "{text}");
+        assert!(text.contains("wally.toml"), "{text}");
+        assert!(text.contains("this project uses Wally"), "{text}");
+    }
+
+    /// A project with no capabilities still reads sensibly rather than
+    /// showing an empty column.
+    #[test]
+    fn the_summary_says_so_when_nothing_extra_was_chosen() {
+        let planned = plan_for(&[], PackageWorkflow::None);
+        let lines = summary_lines("bare", &BTreeSet::new(), PackageWorkflow::None, &[], &planned);
+        let text = lines.join("\n");
+        assert!(text.contains("Dependencies  none"), "{text}");
+        assert!(text.contains("Packages      none"), "{text}");
+        assert!(text.contains("Does          nothing extra"), "{text}");
+    }
+
+    /// **The gap that opened when tools stopped being asked about.**
+    ///
+    /// Capabilities derive `selene` and friends, but nothing derives the
+    /// package manager - so a Wally project briefly pinned no wally at all,
+    /// and a teammate cloning it got no pinned version of the one tool the
+    /// project cannot build without. The strategy pins its own.
+    #[test]
+    fn a_wally_project_with_packages_pins_the_package_manager() {
+        let packages: BTreeSet<String> = ["reflex".to_string()].into_iter().collect();
         assert_eq!(
-            lines,
-            vec![
-                "Already settled by your answers so far:",
-                "  rokit.toml   it is where this project's tool versions are pinned",
-                "  wally.toml   the packages you picked are installed from it",
-                "  selene.toml  selene defaults to the Lua 5.1 std, so every Roblox global lints as undefined",
-                "  testez.yml   selene.toml sets std = roblox+testez, and selene will not run without it",
-                "To drop one of these, change the answer it follows from.",
-            ]
+            strategy_tools(PackageWorkflow::Wally, &packages),
+            ["wally", "wally-package-types"]
         );
     }
 
-    /// Nothing settled means nothing printed - not a heading with an empty
-    /// list under it.
+    /// An empty manifest needs no installer, so a project that chose Wally
+    /// and then no packages pins nothing - which is what keeps the bare
+    /// project bare.
     #[test]
-    fn the_settled_block_is_silent_when_everything_is_still_a_choice() {
-        assert!(settled_lines(&[]).is_empty());
-    }
-
-    #[test]
-    fn wally_projects_keep_every_selected_tool() {
-        let config = config_with(&["rojo", "wally", "wally-package-types", "selene"]);
-        let tools = tools_for_workflow(&config, PackageWorkflow::Wally);
-        assert_eq!(tools, vec!["rojo", "wally", "wally-package-types", "selene"]);
+    fn wally_with_no_packages_pins_nothing() {
+        assert!(strategy_tools(PackageWorkflow::Wally, &BTreeSet::new()).is_empty());
     }
 }
 

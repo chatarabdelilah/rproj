@@ -252,7 +252,9 @@ fn wally_ci_steps(has_server_packages: bool) -> String {
 pub fn ci_workflow(workflow: PackageWorkflow, has_server_packages: bool) -> String {
     let install = match workflow {
         PackageWorkflow::Wally => wally_ci_steps(has_server_packages),
-        PackageWorkflow::GitSubmodules => String::new(),
+        // Submodules arrive with the checkout, and a project with no
+        // dependency manager has nothing to install in the first place.
+        PackageWorkflow::GitSubmodules | PackageWorkflow::None => String::new(),
     };
     format!(
         r#"name: CI

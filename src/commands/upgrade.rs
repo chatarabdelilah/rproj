@@ -185,10 +185,13 @@ fn overrides(packages: &BTreeSet<String>, testez_selected: bool) -> Vec<(&'stati
     overrides
 }
 
+/// The selene `exclude` for whatever this project vendors. Empty when it
+/// vendors nothing, so no dead key lands in the config.
 fn vendored_exclude(workflow: PackageWorkflow) -> &'static str {
     match workflow {
         PackageWorkflow::Wally => r#"exclude = ["Packages/**", "ServerPackages/**"]"#,
         PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
+        PackageWorkflow::None => "",
     }
 }
 

@@ -56,24 +56,26 @@ Rules that hold regardless of which command triggered provisioning:
 
 ### 2.3 Project scaffolding (`rproj new`, after provisioning)
 
+**The prompt order is the design.** Each answer narrows the next, and no prompt asks about a consequence of a decision made after it — see `docs/ux-redesign.md` for the reasoning and the alternatives rejected on the way.
+
 1. Fails if the target project folder already exists (checked before provisioning even runs).
-2. Package composition — choose one of:
-   - **Guided walkthrough**: one prompt per category, in a fixed order (State management → UI → Data & profiles → Testing → Utilities). State management/UI/Data & profiles are single-pick with a "none" option (these are architecturally exclusive choices); Testing/Utilities are multi-pick (these are additive toolboxes).
-   - **Expert checklist**: one flat multi-select across every package in the catalog, no categorization.
-   - Guided-mode picks automatically add "companion" packages (see §8's companion table); expert mode does not — it expects the user to pick companions themselves from the full flat list.
-3. Package workflow — choose **Wally** (default, and the only option silently applied if zero packages were selected) or **git submodules**. This choice is per-project and applies to every selected package uniformly (not mixed).
-4. **Tools to pin in this project** — one `MultiSelect` over the machine's rokit-tool selection, filtered to what this workflow could use (Wally and wally-package-types are dropped under git submodules), every entry pre-checked. This used to be no question at all: every project pinned every tool the machine had selected.
+2. **Dependency strategy** — `Wally` (recommended) / `git submodules` / `none`. **First**, because it decides which packages can be vendored at all. It used to come *after* the package picker, which is what let selecting React silently overrule the user's architecture: React ships only through an npm step upstream, so submodules cannot vendor it, and rproj responded by switching the project to Wally and printing a note.
 
-   It is a question now because **five artifacts follow from it** and the answer was always "all of them", which made the files prompt below incoherent — and because on a machine with nine tools selected, `rokit.toml` being entailed by "any tool to pin" would otherwise make a minimal project unreachable without editing machine-wide setup. `←` clears the list, and that one keystroke is what keeps "just the Rojo basics" available.
+   Deliberately still a prompt rather than a default behind `--submodules`. Hiding it is technically correct — Wally is right for anyone who does not already know otherwise — and was rejected: a summary line reading `via Wally` is a receipt, not an explanation, and this is the only place a newcomer meets the concept. **A default does not make a question fake.**
 
-   Nothing here is entailed and every entry stays a checkbox, because **pinning is a reproducibility choice, not a functional one**: provisioning also adds every tool to rokit's *global* manifest, so a project with no `rokit.toml` still runs `rojo` and `selene` fine on this machine — it just doesn't promise a teammate the same versions. That is the same class of decision as `stylua.toml`, so it is offered rather than decided.
-5. **Files to generate** — one `MultiSelect` over the artifact catalog (§8.9), which is where every remaining "does this project get X" question is answered. Three things determine what appears:
-   - Artifacts whose requirements the selection doesn't satisfy are **not offered at all** — a Selene config on a project that never pins Selene, a Blender folder on a machine without Blender.
-   - Artifacts an earlier answer **entails** are printed above the prompt with the reason, not offered. The block reads `wally.toml  the packages you picked are installed from it`, followed by `To drop one of these, change the answer it follows from.`
-   - Everything left is a checkbox, pre-checked per its `default_selected`.
+   `none` is a real answer, and it skips the package questions entirely. It used to be unrepresentable: picking no packages silently made the project a Wally project, which was then offered a `wally.toml` for dependencies it did not have.
+3. Package composition — choose one of:
+   - **Guided walkthrough**: one prompt per category (State management → UI → Data & profiles → Utilities). Single-pick with a `none` option, listed **first** so the safe answer is the resting position — `Select` highlights index 0, and appending `none` last meant pressing enter through four categories handed a beginner four packages they never chose. Utilities is multi-pick.
+   - **Expert checklist**: one flat multi-select across the catalog.
+   - Guided-mode picks automatically add "companion" packages (§8.8); expert mode does not.
+   - Both filter to what the strategy can actually install: under submodules the react family is omitted, with a note above the picker naming what was left out and why. Testing is absent from both, because a test runner is the *implementation* of a capability, not a package the user picks (§8.10).
+4. **Capabilities — "What should this project do?"** One `MultiSelect` over §8.10, each entry rendered `key - outcome (Implementation)`. This one prompt replaced two — "Tools to pin" and "Files to generate" — which asked the same decision at the two levels *below* the one the user thinks in. The implementation is always named in the badge slot: a capability that hides its tool teaches nothing about the ecosystem, and someone who later asks "how do I configure this?" needs to have seen the word Selene.
 
-   Resolution then runs to a fixpoint: entailed artifacts are added back regardless of what was ticked, and an artifact whose *artifact* dependency was declined is dropped transitively (unticking the quality script drops the CI workflow that exists only to run it). Resolution happens once, inside the picker, so nothing downstream can disagree with it.
-6. Scaffold. Every write is gated on `writes("<artifact key>")` against that one resolved set — no step invents its own condition, which is how six artifacts came to be written whatever the user answered. The *order* is still a hard requirement (see §6.2 and §7's sourcemap/folder entry); what changed is that each step is now conditional:
+   A capability with more than one implementation asks which; today only `test` qualifies, and that rule is what says when a new prompt is permitted at all.
+5. **Summary** — not a picker. Every line is already determined, and every line carries **why**: `selene.toml   you chose lint`, `wally.toml   this project uses Wally`, `rokit.toml   pins 4 tool versions so teammates get the same ones`. Then `create` / `customize` / `cancel`.
+
+   `customize` is the escape hatch, and it exists for one reason: the housekeeping entries (`rproj.toml`, `.gitignore`) are written for every project rather than asked about, so without it the *truly* bare project — `src/` and `default.project.json`, nothing else — would stop being reachable. It re-plans and shows the summary again rather than scaffolding straight away, so dropping files never means being surprised by the result.
+6. Scaffold. Every write is gated on `writes("<artifact key>")` against that one plan — no step invents its own condition, which is how six artifacts came to be written whatever the user answered. The *order* is still a hard requirement (see §6.2 and §7's sourcemap/folder entry); what changed is that each step is now conditional:
    - `git init` if the folder isn't already a repo.
    - `rokit init` + project-local `rokit add` per selected tool — both behind `writes("rokit.toml")`, together, because `rokit add` writes that file itself.
    - `selene.toml`, `stylua.toml`.
@@ -225,40 +227,56 @@ struct PackageSpec {
     primary_choice: bool,        // false = companion-only, never shown standalone in guided mode
 }
 
-// Artifacts (§8.9) — every file `rproj new` can write, as catalog data.
-enum Requirement {
-    Package(&'static str),     // a wally package key
-    Tool(&'static str),        // a rokit tool key
-    App(&'static str),         // a system app key
-    Extension(&'static str),   // a VS Code extension key
-    Artifact(&'static str),    // another artifact
-    Workflow(Workflow),        // mirrors config::PackageWorkflow; see below
-    AnyPackage,                // at least one package, whichever it was
-    AnyTool,                   // at least one tool to pin
+// Capabilities (§8.10) — what a project *does*. The unit of choice.
+struct Implementation {
+    key: &'static str,          // "selene"
+    display: &'static str,      // "Selene" — always shown in the badge slot
+    tools: &'static [&'static str],      // rokit keys to pin
+    packages: &'static [&'static str],   // wally keys to add
+    artifacts: &'static [&'static str],  // the ONLY capability→artifact edge
+}
+struct Capability {
+    key: &'static str,          // "lint"
+    outcome: &'static str,      // "Catch bugs and risky patterns before they ship"
+    implementations: &'static [Implementation],  // ordered; [0] is the default
+    requires: &'static [&'static str],           // other capability keys
+    default_selected: bool,
 }
 
-// Why an artifact stops being a question, and the reason shown to the user.
-struct Entailment { when: Requirement, because: &'static str }
+// Artifacts (§8.9) — every file `rproj new` can write.
+// Nothing here declares what selects it; the edge lives in Implementation.
+enum Requirement {
+    Capability(&'static str),  // another capability must also be on
+    App(&'static str),         // a system app key
+    Extension(&'static str),   // a VS Code extension key
+    Strategy(Strategy),        // mirrors config::PackageWorkflow; see below
+}
+enum Strategy { Wally, GitSubmodules, None }
 
 struct Artifact {
     key: &'static str,          // also the path it writes, where that is unambiguous
     description: &'static str,
-    category: ArtifactCategory, // rides in the picker's badge slot
-    requires: &'static [Requirement],    // ALL of them => offerable at all
-    entailed_by: &'static [Entailment],  // ANY of them => no longer a question
-    default_selected: bool,     // pre-checked; meaningless if mandatory or entailed
-    mandatory: bool,            // written unconditionally, never offered
+    category: ArtifactCategory,
+    also_requires: &'static [Requirement],  // conditions beyond whatever derived it
+    housekeeping: bool,         // written for every project; droppable, not asked
+    mandatory: bool,            // written unconditionally, never droppable
 }
 
-// What the user answered everywhere else, as the artifact layer reads it.
-// Borrowed, not owned: every field is already held by the caller, and
-// copying four collections per resolution to satisfy a struct would be
-// work in service of the struct.
-struct Selections<'a> {
-    packages: &'a [String], tools: &'a [String],
+// What the *environment* offers. Everything chosen arrives via capabilities.
+struct Environment<'a> {
     apps: &'a [String], extensions: &'a [String],
-    workflow: Workflow,
+    strategy: Strategy,
 }
+
+// Why a file is being written, in the user's terms. The summary's payload.
+enum Reason {
+    Mandatory,            // "every Rojo project has this"
+    Housekeeping,         // "written for every project"
+    Capability(String),   // "you chose lint"
+    Strategy(Strategy),   // "this project uses Wally"
+    Pins(usize),          // "pins 4 tool versions so teammates get the same ones"
+}
+struct Planned { key: &'static str, reason: Reason }
 
 // Place template (§8.3) — what every scaffolded project's DataModel starts with
 enum PropValue { Number(f64), Color(u8, u8, u8) }   // Color authored 0-255, rendered as Rojo 0-1 floats
@@ -299,18 +317,22 @@ struct ConfigurableTool {
 
 `catalog::artifacts` mirrors `Workflow` rather than importing `config::PackageWorkflow`: `catalog` depends on nothing, and inverting that to reach a config type would break the layering the module tree exists to enforce. The two are converted at the single call site in `commands::new`.
 
-Four functions read the artifact catalog against a `Selections`. The first three **partition** it, and that partition is the invariant that matters:
+Two functions carry the whole derivation, one per layer:
 
 ```rust
-fn offerable(&Selections) -> Vec<&Artifact>;                  // requirements met
-fn offered(&Selections) -> Vec<&Artifact>;                    // ...and still a real choice
-fn entailed(&Selections) -> Vec<(&Artifact, &'static str)>;   // ...and already decided, with why
-fn resolve(&Selections, chosen: &[String]) -> Vec<&Artifact>; // what actually gets written
+// capabilities: chosen (capability, implementation) pairs -> everything below
+fn derive(&[(String, Option<String>)]) -> Derived { tools, packages, artifacts }
+
+// artifacts: everything above -> the file list, each with its reason
+fn plan(&Environment, capability_keys, derived_artifacts, pinned_tools, dropped)
+    -> Vec<Planned>
 ```
 
-`offered` and `entailed` never overlap, and together with the mandatory entries they cover exactly `offerable` — asserted by `offered_and_entailed_never_overlap_and_cover_everything_offerable`. An entry in both would be a checkbox whose answer is discarded, which is precisely the defect this model exists to prevent.
+`derive` filters through `capabilities::offerable` first, so a capability whose requirement was not chosen contributes nothing — ticking CI without the gate yields no workflow rather than one whose first command is missing. `plan` filters through the *same* function for the same reason: the two disagreeing about what "chosen" meant is exactly how a CI workflow survived its gate being turned off, caught by `ci_cannot_outlive_the_gate_it_runs`.
 
-`resolve` is the only one that consults what the user ticked, and it ignores `chosen` for mandatory *and* entailed entries. A caller passing a `chosen` list that omits an entailed artifact is describing a project that cannot exist, and silently honouring it is what let six selected packages resolve to no manifest.
+`rokit.toml` is the one artifact neither a capability nor the strategy owns, so `plan` takes the pinned-tool list and writes it if and only if that list is non-empty. Deriving it any other way is how a project computed four tools from its capabilities and then wrote no manifest to pin them in — `rokit add` never ran, and the "same versions as your teammate" promise silently became nothing. Found by a live test, not by reading the code.
+
+The dependency strategy also contributes tools (`wally`, `wally-package-types`), which is why `commands::new` merges the two lists *before* planning. Missing that had the same shape: a Wally project derived Selene and friends from its capabilities and pinned no Wally at all.
 
 ## 4. File / Module Structure
 
@@ -328,8 +350,10 @@ rproj/
     ├── ui.rs                    terminal output: section/ok/skip/warn/detail, Tally, verbosity
     ├── catalog/
     │   ├── mod.rs               Maintenance enum
-    │   ├── artifacts.rs         Requirement, Entailment, Artifact, Selections, ARTIFACTS,
-    │   │                        offerable/offered/entailed/resolve  [+ 25 tests]
+    │   ├── artifacts.rs         Requirement, Artifact, Environment, Reason, Planned,
+    │   │                        ARTIFACTS, plan()  [+ 22 tests]
+    │   ├── capabilities.rs      Capability, Implementation, CAPABILITIES,
+    │   │                        offerable/derive  [+ 15 tests]
     │   ├── tool_catalog.rs      ToolKind, ToolEntry, FAMILY_ORDER, SYSTEM_APPS, ROKIT_TOOLS, PLUGINS, VSCODE_EXTENSIONS
     │   ├── place_template.rs    PropValue, PropertySpec, InstanceSpec, PLACE_TEMPLATE, render()  [+ 3 tests]
     │   ├── quality_checks.rs    CheckStep, CHECK_STEPS, render_check(), CI_WORKFLOW  [+ 12 tests]
@@ -369,7 +393,7 @@ rproj/
         └── notify.rs            desktop toast notification wrapper
 ```
 
-41 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9. `badge_check.rs` is unusual: it contains *only* tests, because what it checks (are the curated maintenance badges still true upstream?) is a CI concern with no runtime caller — see §3's badge rationale.
+42 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9. `badge_check.rs` is unusual: it contains *only* tests, because what it checks (are the curated maintenance badges still true upstream?) is a CI concern with no runtime caller — see §3's badge rationale.
 
 ## 5. Subsystem Map
 
@@ -455,41 +479,44 @@ flowchart TD
     CheckExists -- no --> Provision["provision::run()\n(see 6.3)"]
     Provision --> SaveConfig[Save GlobalConfig]
     SaveConfig --> CreateDir[Create project folder]
-    CreateDir --> PickMode{Guided or\nExpert?}
-    PickMode -- Guided --> Guided["Per-category prompts\n(Select or MultiSelect per\nCategory::allows_multiple)\n+ auto companions"]
-    PickMode -- Expert --> Expert["Flat MultiSelect over\nevery package, no companions"]
-    Guided --> PickWorkflow
-    Expert --> PickWorkflow{Any packages\nselected?}
-    PickWorkflow -- none --> WorkflowWally["workflow = Wally\n(no prompt)"]
-    PickWorkflow -- some --> AskWorkflow["Ask: Wally or\nGit submodules?"]
-    AskWorkflow --> PickTools
-    WorkflowWally --> PickTools["Tools to pin in this project\n(MultiSelect, all pre-checked;\n← clears it)"]
-    PickTools --> PickFiles["pick_artifacts()\n(see 6.1b)"]
-    PickFiles --> Scaffold["scaffold() (see 6.2)"]
-    Scaffold --> WriteProjToml{"writes(rproj.toml)?"}
-    WriteProjToml -- yes --> Write[Write rproj.toml]
-    WriteProjToml -- no --> Skip["ui::skip: rproj upgrade\nwon't know this project"]
-    Write --> Done(["Ready — run rproj watch"])
-    Skip --> Done
+    CreateDir --> Strategy{"Dependencies?\nWally / submodules / none"}
+    Strategy -- none --> Capabilities
+    Strategy -- Wally or submodules --> PickMode{Guided or\nExpert?}
+    PickMode -- Guided --> Guided["Per-category prompts\n(none listed first)\n+ auto companions"]
+    PickMode -- Expert --> Expert["Flat MultiSelect,\nfiltered to what the\nstrategy can install"]
+    Guided --> Reconcile
+    Expert --> Reconcile["reconcile_strategy():\nany unvendorable in the\ntransitive closure?"]
+    Reconcile --> Capabilities["'What should this project do?'\nMultiSelect over CAPABILITIES,\nimplementation in the badge slot"]
+    Capabilities --> Derive["capabilities::derive()\n-> tools, packages, artifacts"]
+    Derive --> Plan["artifacts::plan()\n-> [key, reason]"]
+    Plan --> Summary{"Summary\ncreate / customize / cancel"}
+    Summary -- customize --> Drop["MultiSelect 'Files to keep'\n-> re-plan, show again"]
+    Drop --> Summary
+    Summary -- cancel --> Removed(["Remove the empty dir,\nnothing created"])
+    Summary -- create --> Scaffold["scaffold() (see 6.2)"]
+    Scaffold --> Done(["Ready — run rproj watch"])
 ```
 
-### 6.1b `pick_artifacts()` — one prompt, three buckets
+Four questions on the expert path, seven on the guided one. The count is not the point — **no prompt asks about a consequence of a decision made after it**, and the two that used to ("Tools to pin", "Files to generate") are gone because they asked one decision at the two levels below the one the user thinks in.
 
-The order matters: the settled block prints *before* the prompt, so the user reads what is already decided and why before deciding the rest.
+### 6.1b Derivation — one decision, three consequences
+
+The summary is not a screen with its own logic; it is this pipeline rendered. That is what stops it drifting from what actually gets written.
 
 ```mermaid
 flowchart TD
-    A(["Selections:\npackages, tools, apps,\nextensions, workflow"]) --> B["offerable(): requirements met"]
-    B --> C{"entailed by an\nearlier answer?"}
-    C -- yes --> D["Print: key + reason\n'To drop one of these, change\nthe answer it follows from.'"]
-    C -- no --> E["MultiSelect 'Files to generate'\n(pre-checked per default_selected,\ncategory in the badge slot)"]
-    D --> E
-    E --> F["resolve(): mandatory + entailed\n+ ticked"]
-    F --> G["Fixpoint: drop anything whose\nartifact dependency was declined\n(no script => no CI workflow)"]
-    G --> H(["One resolved key set.\nscaffold() gates every\nwrite on it."])
+    A(["Capabilities chosen\n(key, implementation?)"]) --> B["offerable(): requirement\ncapabilities also chosen"]
+    B --> C["derive(): union of the\nimplementations' tools,\npackages and artifacts"]
+    C --> D["+ strategy_tools():\nwally, wally-package-types\n(Wally with packages)"]
+    D --> E["plan(): mandatory\n+ housekeeping\n+ derived\n- dropped"]
+    E --> F["...each with a Reason:\nMandatory | Housekeeping |\nCapability(key) | Strategy | Pins(n)"]
+    F --> G(["Summary lines, and the\nkey set scaffold() gates on"])
 ```
 
-Mandatory entries (`src`, `default.project.json`) bypass all of this. Entailment is evaluated **before** the prompt, which is why an `Entailment::when` may never be a `Requirement::Artifact`: it would be checked against an empty set and silently never fire. `tests/.luaurc` was written that way first, and the fix was not a smarter evaluator — it was noticing the file is not a separate decision and folding it into `tests`.
+Two properties this shape guarantees, both tested:
+
+- **A file cannot appear without a reason**, because `Planned` carries one by construction — there is no path that adds a key without saying why.
+- **Dropping something drops what only existed for it**, because `customize` re-runs `plan` rather than filtering its output.
 
 ### 6.2 `scaffold()` — internal ordering
 
@@ -656,7 +683,7 @@ Each of these was learned from an actual reproduced failure during this project'
 - **A `git clone` gives you a submodule's *commit*, not its files** — the directory is created and left empty, and `git clone <url>` does not recurse by default. `modules/submodules/default.project.json` maps straight into those directories, so `rproj watch` on a freshly cloned submodule project printed `Watching for changes` and then died: `Rojo project referred to a file using $path that could not be turned into a Roblox Instance … File $path: ./charm/packages/charm/src`. The command's own comment claimed it converged whether run on a fresh clone or an existing checkout, and for **Wally** projects it did — `Packages/` is gitignored, and `wally::sync` reinstalls it. The submodule half was simply missing, and the asymmetry is invisible on any machine where the project was *scaffolded* rather than cloned, since scaffolding clones the submodules in full. `steps::git::sync_submodules` runs `git submodule update --init --recursive` whenever `.gitmodules` is present. Note `add_submodule` cannot stand in for it: its idempotency check is "does the directory exist", and after a clone the directory exists and is empty. Verified by cloning a scaffolded charmSync project without `--recurse-submodules` — red before, and after the fix `submodules synced` → sourcemap containing `Charm`/`CharmSync` → `lute run check` exit 0.
 - **`str::parse::<toml::Value>()` parses a single TOML *value*, not a document.** Reading `std = "roblox"\n…` back through it fails with `unexpected content, expected nothing` at offset 3 — i.e. immediately after the first key — so every current-value lookup silently returned `None` and the fix above appeared not to work at all. `toml::from_str::<toml::Table>(…)` is the document parser. The failure mode is the dangerous kind: a `let Ok(…) else` fallback made it look like the file simply had no values in it.
 - **Every project pinned every tool the machine had selected — except it pinned none of them.** `rokit init` was gated on the `rokit.toml` artifact but the `rokit add` loop that follows it was not, so on a machine with nine tools selected and a project whose `rokit.toml` had been declined, nine `rokit add` calls ran against a directory with no manifest. Rokit resolves by walking up the tree, found the global manifest, and the project pinned **nothing** — silently, because each per-item failure is warned and continued (§7's own rule, doing its job and hiding this). Confirmed on a real scaffold: the project directory contained no `rokit.toml` at all despite nine tools being selected. Both calls now sit behind one gate, which is also the honest position: `rokit add` writes that file itself, so declining it while pinning tools was never an answer that could be honoured. Finding this is also what forced the tools question in §2.3 — `AnyTool` entailment plus "always pin everything" would have made a bare project impossible on any provisioned machine.
-- **A picker that offers a choice an earlier answer already made is worse than no picker.** Making every generated file optional (§8.9) fixed the real complaint — a project could finally be nothing but `src/` and `default.project.json` — and created a new one by having only *half* a model: `requires` answered "may this be offered", and nothing answered "is this still a question". So the picker offered `wally.toml` to someone who had just selected six packages, and unticking it **silently discarded the entire package selection**: no manifest, no install, and the scaffold falling into the branch that treats the project as having no dependencies. `rokit.toml` was the same shape and worse — declining it could not be honoured at all, because the very next step ran `rokit add`, which creates that file itself. `entailed_by` closes it: an artifact an earlier answer decides is written and *reported with the reason*, never offered. The reason is the load-bearing half — without it this is a tool announcing decisions; with it the user can see which answer to change, so "just the Rojo basics" stays reachable by changing that answer rather than by unticking a box whose answer was going to be ignored.
+- **A picker that offers a choice an earlier answer already made is worse than no picker.** Making every generated file optional (§8.9) fixed the real complaint — a project could finally be nothing but `src/` and `default.project.json` — and created a new one by having only *half* a model: `requires` answered "may this be offered", and nothing answered "is this still a question". So the picker offered `wally.toml` to someone who had just selected six packages, and unticking it **silently discarded the entire package selection**: no manifest, no install, and the scaffold falling into the branch that treats the project as having no dependencies. `rokit.toml` was the same shape and worse — declining it could not be honoured at all, because the very next step ran `rokit add`, which creates that file itself. `entailed_by` closes it: an artifact an earlier answer decides is written and *reported with the reason*, never offered. The reason is the load-bearing half — without it this is a tool announcing decisions; with it the user can see which answer to change, so "just the Rojo basics" stays reachable by changing that answer rather than by unticking a box whose answer was going to be ignored. **Superseded in v0.5.0, and the reason is the more useful lesson**: `entailed_by` made the contradiction *legible* rather than unrepresentable, which is a patch, not a fix. The tell was in `rproj info` — four artifacts reported as "always settled", i.e. entries whose entailment condition was also their requirement, i.e. entries with no independent existence. That is a model saying it has a level too many. Adding `catalog::capabilities` removed the level, and with it the whole mechanism: a picker that cannot express the contradiction needs nothing to report it.
 - **The bar for entailment has to be narrow, or it eats the picker.** "This tool would work better with its config" is true of every config file, and applying it uniformly walks straight back to the unconditional scaffold. The line drawn here is: declining it must make an earlier answer **do nothing**, or leave a tool that **cannot run**. Both halves were measured against the real binaries rather than reasoned about. `selene.toml` is entailed: `selene .` with no config on a file using `game`, `script` and `workspace` reports all three as `undefined_variable` and exits 1, because the default standard library is Lua 5.1 — the lint doesn't degrade, it fails on every Roblox file. `stylua.toml` is *not* entailed: StyLua formats fine on its defaults, so declining it is a preference. `.lute/check.luau` is not entailed either — Lute is a general Luau runtime, and a project can pin it to run its own scripts. The contrast is the point, and `a_tool_with_working_defaults_keeps_its_config_optional` exists so that a future "configs are important" instinct fails a test instead of quietly re-forcing half the catalog.
 - **A checkbox for a file that only makes the file you just asked for correct is not a decision.** `tests/.luaurc` was its own catalog entry, so a user who selected the TestEZ folder was then asked whether they wanted the specs in it to typecheck. It also could not be entailed, because entailment is evaluated *before* the picker collects the answers, so a condition naming another artifact would be checked against an empty set and never fire — a rule that looks present in the table and does nothing. Both problems have the same fix and it is not a smarter evaluator: the file is part of `tests`, and `tests` writes it. `no_entailment_depends_on_another_artifact` keeps the dead-rule shape from coming back.
 - **A config file for a tool the user never installed is the mirror image of the same defect.** `testez-companion.toml` required only the TestEZ *package*, so the common outcome was a config file for a VS Code extension the user had never installed and would never install. It now requires `Extension("testez-companion")`, which meant giving `Selections` a fourth answer source — the model had `packages`, `tools` and `apps` but no way to say "this only matters if that extension is present", so the requirement could not be expressed at all rather than being expressed wrongly.
@@ -937,46 +964,78 @@ Guided mode applies these automatically after the category prompts finish; exper
 
 `catalog::artifacts::ARTIFACTS` is every file `rproj new` can write, in the order it writes them. Scaffolding used to be a hardcoded sequence with four ad-hoc gates, so artifacts fell into two classes with no principle separating them: some were conditional on a selection, and six were written whatever the user answered — a CI workflow, a quality-gate script, editor settings, a `.luaurc`, `.gitattributes` and a Blender scene. There was no answer to `rproj new` that omitted them, which is backwards for a tool whose whole job is composing a project from choices.
 
-Each entry answers **two** questions independently. `requires` (all of them) decides whether it is *offerable*. `entailed_by` (any of them) decides whether it is still a *question* — §7 has why the bar for that is deliberately narrow, and why `stylua.toml` sits on the other side of it from `selene.toml`.
+**Nothing here declares what selects it.** The edge from a decision to a file is recorded once, in §8.10's implementation, so the two catalogs cannot disagree. Every entry is in exactly one of four states:
 
-`Requirement::Tool(...)` means **pinned in this project**, not present on the machine. That distinction is what keeps the model from collapsing: with all nine machine tools pinned, `rokit.toml` and `selene.toml` are both entailed, which is correct; with none pinned, nothing is entailed and the minimum is still `src` + `default.project.json`. Both directions are held by tests — `pinning_no_tools_keeps_the_bare_project_reachable_on_a_full_machine` and `pinning_selene_settles_its_config`.
+| state | count | meaning |
+|---|---|---|
+| `mandatory` | 2 | Without it there is no Rojo project. Never asked, never droppable. |
+| `housekeeping` | 2 | Written for every project; not worth a question nine users clear to serve one. Droppable through the summary's `customize`. |
+| derived by a **capability** | 14 | Written because §8.10 asked for it. |
+| derived by the **strategy** or the **pins** | 3 | `wally.toml`, `modules`, `rokit.toml`. |
 
-| key | category | requires | entailed by | default | ever asked? |
-|---|---|---|---|---|---|
-| `src` | Project structure | — | — | — | **never** — mandatory |
-| `default.project.json` | Project structure | — | — | — | **never** — mandatory |
-| `rokit.toml` | Project structure | — | any tool to pin | on | only when there are no tools |
-| `rproj.toml` | Project structure | — | — | on | yes |
-| `.gitignore` | Project structure | — | — | on | yes |
-| `.gitattributes` | Project structure | — | — | on | yes |
-| `wally.toml` | Dependencies | Wally workflow | any package | on | only with no packages |
-| `modules` | Dependencies | submodule workflow | any package | on | only with no packages |
-| `selene.toml` | Linting & formatting | `selene` | `selene` | on | **never** — always settled |
-| `stylua.toml` | Linting & formatting | `stylua` | — | on | yes |
-| `.luaurc` | Linting & formatting | — | — | on | yes |
-| `sourcemap.json` | Linting & formatting | `rojo` | — | on | yes |
-| `tests` | Testing | `testez` | — | on | yes |
-| `testez.yml` | Testing | `testez` + `selene` | `selene` | on | **never** — always settled |
-| `testez-companion.toml` | Testing | `testez` + the companion extension | the companion extension | on | **never** — always settled |
-| `.vscode/settings.json` | Editor integration | `vscode` app | — | on | yes |
-| `.lute/check.luau` | Automation | `lute` | — | on | yes |
-| `.github/workflows/ci.yml` | Automation | `.lute/check.luau` | — | **off** | yes |
-| `blender` | Assets | `blender` app | — | **off** | yes |
-| `figma` | Assets | `figma` app | — | **off** | yes |
-| `tarmac.toml` | Assets | `tarmac` | `tarmac` | off | **never** — always settled |
+`also_requires` is the residue — conditions that are not the thing that derived it. Four entries use it, and it is deliberately not a general mechanism.
+
+| key | category | derived by | also requires |
+|---|---|---|---|
+| `src` | Project structure | *mandatory* | — |
+| `default.project.json` | Project structure | *mandatory* | — |
+| `rokit.toml` | Project structure | having any tool to pin | — |
+| `rproj.toml` | Project structure | *housekeeping* | — |
+| `.gitignore` | Project structure | *housekeeping* | — |
+| `.gitattributes` | Project structure | `format` | — |
+| `wally.toml` | Dependencies | strategy | Wally |
+| `modules` | Dependencies | strategy | git submodules |
+| `selene.toml` | Linting & formatting | `lint` | — |
+| `stylua.toml` | Linting & formatting | `format` | — |
+| `.luaurc` | Linting & formatting | `typecheck` | — |
+| `sourcemap.json` | Linting & formatting | `editor` | — |
+| `tests` | Testing | `test` | — |
+| `testez.yml` | Testing | `test` | the `lint` capability |
+| `testez-companion.toml` | Testing | `test` | the companion extension |
+| `.vscode/settings.json` | Editor integration | `editor` | the `vscode` app |
+| `.lute/check.luau` | Automation | `gate` | — |
+| `.github/workflows/ci.yml` | Automation | `ci` | — |
+| `blender` | Assets | `assets-3d` | the `blender` app |
+| `figma` | Assets | `assets-2d` | — |
+| `tarmac.toml` | Assets | `assets-2d` | — |
 
 Notes on the rows that are not obvious:
 
-- **Only two are mandatory.** Without a source tree and a project file there is no Rojo project to speak of, so asking would be a question with one acceptable answer. `mandatory_artifacts_require_nothing` holds the other half: a mandatory entry with a requirement could be required away, which contradicts being mandatory.
-- **`ci.yml` is the one artifact that changes what happens on a push**, so opting into that is a decision rather than something a scaffolder assumes — hence default off despite everything else in Automation being on. It also `requires` the script it runs, which is the one artifact-to-artifact edge: unticking `.lute/check.luau` drops the workflow transitively rather than committing a workflow whose first command is missing.
-- **`blender` and `figma` default off even when the app is installed.** "I have Blender" is not "every project of mine gets a `blender/` folder" — that conflation is exactly what the old `config.blender_enabled()` check did, silently adding a folder to every project because the app was ticked once at setup.
-- **"Always settled" means the entailment condition is also a requirement**, so whenever the entry applies at all it is already decided and it can never appear in the picker. `rproj info <key>` reports this as a distinct state from "sometimes asked", because saying "yes, unless something settles it" for `selene.toml` would be true and useless — the "unless" always holds.
+- **`.gitattributes` belongs to `format`, not to housekeeping.** It exists for exactly one reason: StyLua writes LF, Git for Windows checks out CRLF, and without it every fresh clone fails `stylua --check` on every file. No formatter, nothing to protect.
+- **`testez.yml` needs two capabilities.** It is a *Selene standard library*, so it needs the test capability that names it and the lint capability that reads it. Measured: with `std = "roblox+testez"` and no `testez.yml`, selene prints "Could not find all standard library files" and lints nothing at all — `src/` included.
+- **`testez-companion.toml` needs the extension that reads it.** It used to be written for everyone who picked TestEZ, so the usual outcome was a config file for an extension the user had never installed.
+- **`rokit.toml` is skipped when nothing is pinned**, which is what lets a capability-free project have no manifest. Its summary line reports the count, because "pins 4 tool versions" is more use than "pins tools".
 
-**Adding a generated file requires an `ARTIFACTS` entry plus one `writes("<key>")`-gated call in the scaffolder — no new conditions anywhere else.** Four structural tests hold that shape: every artifact requirement resolves to a real entry, the artifact graph is acyclic (a cycle would make the fixpoint drop both entries with nothing saying why), no entailment names an artifact, and nothing entailed can be dropped by resolution. A fifth, `every_offered_artifact_is_gated_in_the_scaffolder`, scans the scaffolder's source for the gate — see §7 for the three real defects that found.
+**Adding a generated file requires an `ARTIFACTS` entry plus one line in the capability that wants it — and one `writes("<key>")`-gated call in the scaffolder.** Two structural tests hold the shape, and they replaced the old source-scan with data: `every_artifact_is_reachable_from_something` (an entry nothing derives is a promise the CLI silently fails to keep) and `every_capability_artifact_exists` (a capability naming a missing artifact is a silent no-op at scaffold time).
+
+### 8.10 Capabilities (data-driven)
+
+`catalog::capabilities::CAPABILITIES` is the level §8.9 used to be missing. A capability is the **unit of choice**; it owns an *implementation*, and the implementation owns the tools, packages and artifacts. Swap the implementation and everything below re-derives.
+
+| capability | outcome | implementation | pins | packages | artifacts | default |
+|---|---|---|---|---|---|---|
+| `lint` | Catch bugs and risky patterns | Selene | `selene` | — | `selene.toml` | **on** |
+| `format` | One consistent code style | StyLua | `stylua` | — | `stylua.toml`, `.gitattributes` | **on** |
+| `typecheck` | Strict Luau; type errors are errors | luau-lsp | `luau-lsp-cli` | — | `.luaurc` | **on** |
+| `test` | Write and run tests | TestEZ | — | `testez` | `tests`, `testez.yml`, `testez-companion.toml` | off |
+| `gate` | One command that runs every check | Lute | `lute` | — | `.lute/check.luau` | **on** |
+| `ci` | Run that gate on every push | GitHub Actions | — | — | `.github/workflows/ci.yml` | off |
+| `editor` | VS Code resolves requires; Studio bridge | VS Code + luau-lsp | `rojo` | — | `.vscode/settings.json`, `sourcemap.json` | **on** |
+| `assets-2d` | Upload images, reference them by name | Tarmac | `tarmac` | — | `figma`, `tarmac.toml` | off |
+| `assets-3d` | Blender scene at Roblox's unit scale | Blender | — | — | `blender` | off |
+
+**The rule this gives for free: an implementation prompt appears only when a capability has more than one implementation.** Same rule as everywhere else — never ask a question with one answer — and it says exactly when a new prompt is permitted. Today no capability qualifies, so the flow has none; `test` becomes the first when jest-lua lands, which is why that milestone is one catalog entry rather than a new gate step. `exactly_one_capability_offers_a_choice_of_implementation` fails if that changes by accident.
+
+Two more entries worth their reasoning:
+
+- **`ci` requires `gate`.** Not "better with": the workflow's entire body *is* the gate script, so without it the first command of every CI run is missing. A capability whose requirement is off is not offered, and `derive` contributes nothing for it even if a stale `rproj.toml` names it.
+- **`assets-2d` owns both `figma/` and `tarmac.toml`**, because they are one pipeline — `figma/exports/` is where designs land and `tarmac.toml` is what uploads them. As two separate checkboxes they were two folders that ignored each other.
+
+Implementations are not all the same kind of thing: TestEZ is a Wally package, Selene is a rokit tool, GitHub Actions is neither — a hosted service the artifact targets. The implementation points at whichever, so the other catalogs stay flat inventories that capabilities reference into.
 
 ## 9. Testing Strategy
 
-172 automated tests run under a plain `cargo test`: 155 inline `#[cfg(test)]` unit tests and 17 integration tests in `tests/` that drive the real binary. A further 6 live in `tests/live.rs` and are `#[ignore]`d, plus one ignored unit test — see below. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, clippy on stable only, a `package` job that builds from the published tarball, and a weekly `badges` job on ubuntu that runs the maintenance-badge freshness gate authenticated (§3). `cargo fmt --check` is deliberately absent — rustfmt produces 309 hunks against this codebase and no configuration reconciles the two, so a check nobody can pass is worse than no check; the reason is recorded in the workflow itself.
+181 automated tests run under a plain `cargo test`: 164 inline `#[cfg(test)]` unit tests and 17 integration tests in `tests/` that drive the real binary. A further 6 live in `tests/live.rs` and are `#[ignore]`d, plus one ignored unit test — see below. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, clippy on stable only, a `package` job that builds from the published tarball, and a weekly `badges` job on ubuntu that runs the maintenance-badge freshness gate authenticated (§3). `cargo fmt --check` is deliberately absent — rustfmt produces 309 hunks against this codebase and no configuration reconciles the two, so a check nobody can pass is worse than no check; the reason is recorded in the workflow itself.
 
 Two dev-dependencies, both only for the integration tests. `portable-pty` because inquire reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever — a real pseudo-terminal is the only way to answer a prompt without a human. `vt100` because the pty byte stream is not what the program printed: ConPTY re-renders the screen and may express a line break as `\n` or as a cursor-position escape, and which one it picks varies with machine load. Matching the raw bytes passed when the test ran alone and failed three runs in five under a parallel `cargo test`; rendering the bytes to a screen first made it deterministic. Synchronisation is by expecting output, never by sleeping — the whole suite finishes in under a second.
 
@@ -995,7 +1054,7 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | `tests/upgrade.rs` (7 tests) | `rproj upgrade` against hand-built fixture projects — no scaffolding and no network, since the command only rewrites generated config. A stale `selene.toml` gains the Vide `mixed_table` waiver, the TestEZ `std` and the vendored `exclude` **while keeping a lint level the user set themselves**; a project without a create-style UI library keeps the lint; deprecated editor settings are replaced rather than merely supplemented, with unrelated keys surviving; a second run reports nothing to do and rewrites nothing; `stylua.toml` and `default.project.json` are left untouched; and a directory with no `rproj.toml`, or no `default.project.json` at all, is refused with a reason rather than half-upgraded. |
 | `tests/info.rs` (3 tests) | `rproj info` end to end. The browser is driven through a pty: filter to a section, filter to an entry, land on its detail page, read back the settled explanation, then Esc out of both levels and confirm **exit 0** — leaving a browser is not a failure and must not be reported as one. Plus the two non-interactive paths: with stdin redirected it prints the flat listing rather than prompting (the failure this prevents is not a wrong answer but a *hang* — inquire reads the console input handle, so a prompt with nothing attached renders and waits forever), and a named lookup prints one entry rather than the catalog. |
 | `tests/configure.rs` (7 tests) | `rproj configure` end to end — real binary, real prompts, real files, driven through a pseudo-terminal. Agreeing with every prompt leaves a scaffolded `selene.toml` **byte-identical** (which is simultaneously the `exclude`-survives and `std`-survives check); a changed answer rewrites only its own line; an unreadable config is refused before a single question; an unknown tool name lists the real ones; the no-arg picker offers all four tools and running the chosen one writes its file; `.vscode/settings.json` is merged rather than replaced; and a second run proposes what you chose the first time, checked on the prompt itself (`(y/N)`) as well as the written file. The prompt headings are passed in as literals, so renaming or reordering a setting fails a test instead of silently changing what users are asked. |
-| `src/commands/new.rs` (8 tests) | A submodule project doesn't offer Wally tools it can't use; a Wally project keeps all of them; a fresh machine is provisioned but an already-provisioned one isn't re-asked; the machine summary describes what's set up and omits empty groups. Plus the exact text of the settled block, asserted line by line — it is the whole user-visible half of the entailment fix, and reviewing it as text is the only way to check that it names each file, its reason, *and* the way out; and that nothing at all prints when everything is still a choice, rather than a heading over an empty list. Plus both directions of the tools/entailment interaction: pinning nothing on a nine-tool machine still yields exactly `src` + `default.project.json`, and pinning Selene settles its config. That first one was written *after* reading the real machine config rather than reasoning about it — nine tools are selected there, so `AnyTool` entailment would have made a bare project unreachable. |
+| `src/commands/new.rs` (8 tests) | A submodule project doesn't pin Wally tools it can't use, and a Wally project with packages does — the gap that opened when tools stopped being asked about, where capabilities derived Selene and friends and **nothing derived the package manager**. A fresh machine is provisioned but an already-provisioned one isn't re-asked; the machine summary omits empty groups. Plus the exact text of the summary, asserted as text: every file names the answer that caused it, every capability names its tool (`lint (Selene)`), and a project with nothing chosen reads "nothing extra" rather than showing an empty column. And the property the whole model exists for — choosing nothing yields exactly `src`, `default.project.json` and the two housekeeping entries. |
 | `src/commands/info.rs` (6 tests) | Every browser section is non-empty (an empty list is a dead end that says nothing about why); every row resolves to a detail page, so the menu can't offer something `show_one` then fails to find; every row survives rendering as a picker option and still round-trips through `option_key` after width truncation; the "← back" sentinel cannot collide with a rendered row; section labels are unique, since the selected label is matched by exact string to find the section again. Plus the four states of the "asked" line, each pinned to the entry that motivated it — `selene.toml` reads "sometimes, unless…" if the always-settled case isn't detected, and that "unless" never fails. |
 | `src/steps/badge_check.rs` (5 tests) | The weekly freshness gate (§3), plus its own coverage: `every_entry_naming_a_repository_is_tracked` exists because the `ToolKind` split silently dropped two variants from the check and nothing failed — the tracked-repo count simply stopped growing. The match is exhaustive with no catch-all, so a new variant is a compile error. |
 | `src/steps/tarmac.rs` (4 tests) | The rendered `tarmac.toml` parses and carries the *hyphenated* keys Tarmac actually reads (`codegen-path`, not `codegen_path` — verified against Tarmac's README, not recalled); a project with `figma/exports/` gets that as its input glob, so selecting Figma and Tarmac together composes into one pipeline rather than two folders that ignore each other; an existing config is never overwritten; and the glob's folder is created, since Tarmac errors on a glob matching nothing rather than treating it as empty. |
@@ -1043,7 +1102,7 @@ No code-level migrations are pending for the tool itself. The following are outs
 - [x] ~~Confirm a full `rproj new <name>` run completes with zero warnings once GitHub's unauthenticated rate limit window has reset.~~ Done — a zero-package Wally project scaffolded clean, all nine rokit tools reporting installed and no warnings anywhere in the run.
 - [x] ~~`rproj watch`, run against a project scaffolded by this version of `rproj new`, has not yet been manually re-verified after the `default.project.json`/sourcemap-ordering changes in §7.~~ Done, both workflows, and the submodule half was broken — see §7. Verified steady-state (adding `src/shared/watchprobe.luau` to a running watcher regenerated `sourcemap.json` with it in) and the fresh-clone case (clone without `--recurse-submodules` → `rproj watch` → `lute run check` exit 0).
 - [x] ~~`rproj configure` has been exercised only on its non-interactive paths.~~ Done, and it was broken — see §7. All four tools, both `ConfigTarget` writers, all three `SettingKind` prompts, the no-arg picker and every error path were driven end-to-end through a ConPTY harness against a real scaffolded project.
-- [x] ~~The artifact picker (§8.9) has only been reasoned about, not driven.~~ Done, in both directions. Ticking nothing at "Files to generate" produces a project containing exactly `src/` and `default.project.json` — confirmed by hand on a real `rproj new`. `rproj setup tarmac` was verified in a scratch project: it found the project root by walking ancestors, ran `rokit init`, wrote a `tarmac.toml` whose glob was `figma/exports/**/*.png` *because that folder existed*, and printed the usage notes plus the first command; both error paths (not in a project, unknown tool) were exercised too.
+- [x] ~~The capability flow has only been reasoned about, not driven.~~ Done, in both directions, by two `#[ignore]`d live tests that need no network. Saying `none` to dependencies and clearing the capabilities, then dropping the housekeeping via the summary's `customize`, produces a project containing exactly `.git`, `src/` and `default.project.json`. The other drives a real package selection and asserts the summary explains every file rather than offering it. `rproj setup tarmac` was verified in a scratch project: it found the project root by walking ancestors, ran `rokit init`, wrote a `tarmac.toml` whose glob was `figma/exports/**/*.png` *because that folder existed*, and printed the usage notes plus the first command; both error paths (not in a project, unknown tool) were exercised too.
 - [ ] **The live suite is the only thing that drives `rproj new`'s prompts, and it is `#[ignore]`d** — so a change to the prompt sequence breaks it without failing anything (§9). Re-run `cargo test --test live -- --ignored --test-threads=1` after any change to `commands::new`'s question order, not just after changes to what it writes. The two prompt-order tests are the cheap ones (no network, sub-second), so there is no excuse for skipping at least `cargo test --test live -- --ignored saying_no selecting_a_package`.
 - [ ] **Drop the pinned `wally-package-types` source build as soon as upstream cuts a release past `1.6.2`** (see §7 for the bug). Two places currently carry it, and they must be retired together or local and CI diverge:
   - The development machine has a build of commit `daf5c97` copied over `~/.rokit/tool-storage/johnnymorganz/wally-package-types/1.6.2/wally-package-types.exe`, with the genuine upstream binary kept beside it as `wally-package-types.exe.upstream-1.6.2.bak`.

@@ -20,6 +20,7 @@ use anyhow::Result;
 use inquire::{InquireError, Select};
 
 use crate::catalog::artifacts::{self, Artifact};
+use crate::catalog::capabilities;
 use crate::catalog::place_template::PLACE_TEMPLATE;
 use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
@@ -89,6 +90,19 @@ fn sections() -> Vec<Section> {
                     key: t.key.to_string(),
                     description: t.description.to_string(),
                     badge: t.kind.label().to_string(),
+                })
+                .collect(),
+        },
+        Section::Entries {
+            label: "Capabilities - what a project can be set up to do",
+            rows: capabilities::CAPABILITIES
+                .iter()
+                .map(|c| Row {
+                    key: c.key.to_string(),
+                    description: c.outcome.to_string(),
+                    // The tool, always. A capability that hides what provides
+                    // it teaches nothing about the ecosystem.
+                    badge: c.default_implementation().display.to_string(),
                 })
                 .collect(),
         },
@@ -252,6 +266,12 @@ fn show_one(key: &str) -> Result<()> {
         }
         return Ok(());
     }
+    // Before artifacts, because a capability is the level a user is more
+    // likely to be asking about - "what is lint" beats "what is selene.toml".
+    if let Some(capability) = capabilities::find(key) {
+        print_capability(capability);
+        return Ok(());
+    }
     // Checked after tools and packages: an artifact key like `wally.toml`
     // can't collide with either, and putting it last keeps the common
     // lookups first.
@@ -277,60 +297,98 @@ fn heading(title: &str) {
 /// created and nothing answered until now. `requires` says when it can be
 /// offered at all; `entailed_by` says when it stops being a question, and
 /// carries the reason the picker prints.
-/// Whether `rproj new` will ever put this artifact in front of the user, in
-/// one line.
+/// Why a project has this file, in one line.
 ///
-/// Four states, not three. The one worth separating out is an artifact whose
-/// entailment condition is also one of its requirements - `selene.toml` is
-/// only offerable when Selene is pinned, and being pinned is exactly what
-/// settles it, so it is *never* a question. Saying "yes, unless something
-/// settles it" there would be true and useless: the "unless" always holds.
-/// Whether the thing that entails this artifact is also what makes it
-/// offerable - in which case it can never come up as a question.
-fn always_settled(artifact: &Artifact) -> bool {
-    artifact
-        .entailed_by
-        .iter()
-        .any(|e| artifact.requires.contains(&e.when))
+/// No artifact is asked about directly any more, so this names what *causes*
+/// it instead: a capability, the dependency strategy, or the fact that every
+/// project gets it. That is the question the artifact model created and
+/// nothing answered until the capability layer existed.
+fn cause_line(artifact: &Artifact) -> String {
+    if artifact.mandatory {
+        return "always - every Rojo project has this".to_string();
+    }
+    if artifact.housekeeping {
+        return "always - written for every project, droppable from the summary".to_string();
+    }
+    if let Some(owner) = owning_capability(artifact.key) {
+        return format!("when you choose the `{owner}` capability");
+    }
+    match artifact.key {
+        "wally.toml" => "when this project uses Wally".to_string(),
+        "modules" => "when this project vendors packages as git submodules".to_string(),
+        "rokit.toml" => "when anything pins a tool version".to_string(),
+        _ => "derived from your answers".to_string(),
+    }
 }
 
-fn asked_line(artifact: &Artifact) -> String {
-    if artifact.mandatory {
-        return "never - every project gets it, or it isn't a Rojo project".to_string();
-    }
-    if always_settled(artifact) {
-        return "never - whenever it applies at all, it is already settled (below)".to_string();
-    }
-    if artifact.entailed_by.is_empty() {
-        return format!(
-            "yes, in `rproj new` ({} by default)",
-            if artifact.default_selected { "on" } else { "off" }
-        );
-    }
-    "sometimes - unless an earlier answer settles it (below)".to_string()
+/// The capability whose implementation writes this artifact, if any. The
+/// edge lives only in `capabilities`, so this reads it rather than
+/// duplicating it.
+fn owning_capability(key: &str) -> Option<&'static str> {
+    capabilities::CAPABILITIES
+        .iter()
+        .find(|c| {
+            c.implementations
+                .iter()
+                .any(|i| i.artifacts.contains(&key))
+        })
+        .map(|c| c.key)
 }
 
 fn print_artifact(artifact: &Artifact) {
     heading(artifact.key);
     println!("category: {}", artifact.category.label());
-    println!("asked:    {}", asked_line(artifact));
-    if !artifact.requires.is_empty() {
-        let needs: Vec<String> = artifact.requires.iter().map(|r| r.describe()).collect();
+    println!("written:  {}", cause_line(artifact));
+    if !artifact.also_requires.is_empty() {
+        let needs: Vec<String> = artifact.also_requires.iter().map(|r| r.describe()).collect();
         println!("needs:    {}", needs.join(", and "));
     }
     println!();
     println!("{}", artifact.description);
 
-    if !artifact.entailed_by.is_empty() {
-        println!("\nSettled, not asked, when you have:");
-        for entailment in artifact.entailed_by {
-            println!("  {}", entailment.when.describe());
-            println!("      {}", entailment.because);
+    if let Some(owner) = owning_capability(artifact.key) {
+        println!("\nTo not have this file, don't choose `{owner}`.");
+        println!("Run `rproj info {owner}` for what that capability does.");
+    }
+}
+
+/// A capability: what it gets you, what provides it, and what it writes.
+///
+/// The page that makes "shows its work" true after the fact - someone who
+/// enabled Linting three weeks ago and now wants to configure it needs to
+/// find the word Selene somewhere.
+fn print_capability(capability: &'static capabilities::Capability) {
+    heading(capability.key);
+    println!("provides: {}", capability.outcome);
+    if !capability.requires.is_empty() {
+        println!("needs:    {}", capability.requires.join(", "));
+    }
+    println!(
+        "default:  {}",
+        if capability.default_selected { "on" } else { "off" }
+    );
+
+    for implementation in capability.implementations {
+        println!("\n  {} ({})", implementation.display, implementation.key);
+        if !implementation.tools.is_empty() {
+            println!("    pins:    {}", implementation.tools.join(", "));
         }
-        println!(
-            "\nDeclining it would contradict that answer, so the way to not have\n\
-             this file is to change the answer above."
-        );
+        if !implementation.packages.is_empty() {
+            println!("    adds:    {}", implementation.packages.join(", "));
+        }
+        if !implementation.artifacts.is_empty() {
+            println!("    writes:  {}", implementation.artifacts.join(", "));
+        }
+        // The tool's own page is where the commands and the gotchas live.
+        if tool_catalog::find(implementation.key).is_some()
+            || tool_usage::find(implementation.key).is_some()
+        {
+            println!("    more:    rproj info {}", implementation.key);
+        }
+    }
+
+    if capability.needs_an_implementation_prompt() {
+        println!("\n`rproj new` asks which of these to use, because there is a real choice.");
     }
 }
 
@@ -384,20 +442,21 @@ fn list_all() -> Result<()> {
         }
     }
 
+    println!("\nCAPABILITIES (what `rproj new` asks about)");
+    for capability in capabilities::CAPABILITIES {
+        println!(
+            "    {:<12} {:<18} {}",
+            capability.key,
+            capability.default_implementation().display,
+            if capability.default_selected { "on by default" } else { "off by default" }
+        );
+    }
+
     println!("\nGENERATED FILES (rproj info <key> for why a project gets one)");
     for artifact in artifacts::ARTIFACTS {
-        // Same four states the detail page reports, so the two views cannot
-        // disagree about whether something is ever asked.
-        let when = if artifact.mandatory {
-            "always"
-        } else if always_settled(artifact) {
-            "always, when it applies"
-        } else if artifact.entailed_by.is_empty() {
-            "optional"
-        } else {
-            "optional, or settled by an earlier answer"
-        };
-        println!("    {:<24} {when}", artifact.key);
+        // The same cause the detail page reports, so the two views cannot
+        // disagree about why a project has a file.
+        println!("    {:<24} {}", artifact.key, cause_line(artifact));
     }
 
     println!("\nCONFIGURABLE (rproj configure <key>)");
@@ -477,6 +536,7 @@ mod tests {
                 for row in rows {
                     let found = wally_packages::find(&row.key).is_some()
                         || tool_catalog::find(&row.key).is_some()
+                        || capabilities::find(&row.key).is_some()
                         || artifacts::find(&row.key).is_some()
                         || tool_usage::find(&row.key).is_some();
                     assert!(found, "{label}: `{}` has no detail page", row.key);
@@ -515,25 +575,51 @@ mod tests {
         }
     }
 
-    /// The four states, each pinned to the entry that motivated it. The
-    /// third is the one that is easy to get wrong: `selene.toml` reads
-    /// "sometimes - unless ..." if the always-settled case is not detected,
-    /// and the "unless" is a condition that never fails.
+    /// Every artifact page answers *why does my project have this file*, and
+    /// the answer names a cause the user can act on - a capability they
+    /// chose, the strategy they picked, or "every project gets it". A file
+    /// whose page said only "derived from your answers" would be the receipt
+    /// problem all over again.
     #[test]
-    fn the_asked_line_separates_never_from_sometimes() {
-        let line = |key: &str| asked_line(artifacts::find(key).expect(key));
+    fn every_artifact_names_the_thing_that_causes_it() {
+        for artifact in artifacts::ARTIFACTS {
+            let line = cause_line(artifact);
+            assert!(
+                line != "derived from your answers",
+                "{} has no nameable cause",
+                artifact.key
+            );
+            assert!(line.chars().next().is_some_and(|c| c.is_lowercase()), "{line}");
+        }
+    }
 
-        assert!(line("src").starts_with("never -"), "{}", line("src"));
-        assert_eq!(
-            line("selene.toml"),
-            "never - whenever it applies at all, it is already settled (below)"
-        );
-        assert!(line("wally.toml").starts_with("sometimes -"), "{}", line("wally.toml"));
-        assert_eq!(line("stylua.toml"), "yes, in `rproj new` (on by default)");
-        assert_eq!(
-            line(".github/workflows/ci.yml"),
-            "yes, in `rproj new` (off by default)"
-        );
+    /// The three shapes, each pinned to the entry that motivated it.
+    #[test]
+    fn the_cause_line_distinguishes_capability_from_strategy_from_always() {
+        let line = |key: &str| cause_line(artifacts::find(key).expect(key));
+
+        assert_eq!(line("src"), "always - every Rojo project has this");
+        assert_eq!(line("selene.toml"), "when you choose the `lint` capability");
+        assert_eq!(line("wally.toml"), "when this project uses Wally");
+        assert!(line(".gitignore").starts_with("always -"), "{}", line(".gitignore"));
+    }
+
+    /// A capability page must name what actually provides it - the whole
+    /// point of the layer is that the user still learns the tool's name.
+    #[test]
+    fn every_capability_resolves_to_a_detail_page_naming_its_tool() {
+        for capability in capabilities::CAPABILITIES {
+            let implementation = capability.default_implementation();
+            assert!(!implementation.display.is_empty(), "{}", capability.key);
+            for key in implementation.artifacts {
+                assert_eq!(
+                    owning_capability(key),
+                    Some(capability.key),
+                    "{key} should be owned by {}",
+                    capability.key
+                );
+            }
+        }
     }
 
     /// Section labels are matched by exact string to find the section again,

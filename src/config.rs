@@ -100,11 +100,23 @@ fn dirs_documents() -> Result<PathBuf> {
 /// How a project's packages get pulled in. Wally is the default; git
 /// submodules clone each selected package's repo into `modules/submodules/`
 /// instead of writing a `wally.toml`. See `steps::modules`.
+///
+/// `None` is a real answer, not the absence of one. Before it existed, a
+/// project with no packages silently became a Wally project - and was then
+/// offered a `wally.toml` for dependencies it did not have. A tutorial
+/// project, or one that vendors by hand, genuinely has no dependency
+/// manager, and saying so is what stops the scaffold pretending otherwise.
+///
+/// Adding the variant is deliberately *not* modelled as `Option<..>`: it is
+/// a third case for the code that mounts package folders, and an `Option`
+/// would only move the exhaustiveness check somewhere the compiler cannot
+/// help.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PackageWorkflow {
     Wally,
     GitSubmodules,
+    None,
 }
 
 /// Per-project record, written by `rproj new` into the project root.
