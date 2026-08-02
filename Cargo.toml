@@ -1,6 +1,6 @@
 [package]
 name = "rproj"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 # Not the edition's floor (1.85), which would be a claim that doesn't
 # build: notify-rust declares 1.89, the highest in the dependency tree.

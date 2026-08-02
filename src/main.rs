@@ -11,6 +11,7 @@ mod catalog;
 mod cli;
 mod commands;
 mod config;
+mod graph;
 mod steps;
 mod ui;
 

@@ -8,7 +8,8 @@ use crate::catalog::artifacts;
 use crate::catalog::capabilities;
 use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
 use crate::commands::provision;
-use crate::config::{GlobalConfig, PackageWorkflow, ProjectConfig, SavedSetup};
+use crate::config::{project_file, GlobalConfig, PackageWorkflow, Setups};
+use crate::graph::{Node, ProjectGraph};
 use crate::steps::{
     blender, figma, git, gitattributes, gitignore, modules, quality, rojo, tarmac, testez,
     toolchain, vscode, wally,
@@ -61,119 +62,60 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     // vendored. It used to come *after* packages, which meant picking React
     // silently overruled the user's architecture - the one decision that
     // should be theirs was the one rproj made for them.
-    let (mode, packages, package_workflow) = match saved {
+    let mut graph = match saved {
         Some((setup_name, setup)) => {
-            let packages: BTreeSet<String> = setup.packages.into_iter().collect();
             ui::ok(&format!(
                 "using saved setup `{setup_name}`: {}",
-                if packages.is_empty() { "no packages".to_string() } else { packages.iter().cloned().collect::<Vec<_>>().join(", ") }
+                if setup.packages.is_empty() {
+                    "no packages".to_string()
+                } else {
+                    setup.packages.join(", ")
+                }
             ));
-            (format!("like:{setup_name}"), packages, setup.package_workflow)
+            // The whole composition replays. It used to reuse the packages
+            // and then ask three more questions, which is "reuse my setup"
+            // half kept.
+            ProjectGraph { mode: format!("like:{setup_name}"), ..setup }
         }
-        None => {
-            let workflow = pick_strategy()?;
-            let (mode, packages) = match workflow {
-                // Nothing to compose. Asking "which packages?" right after
-                // being told there is no package manager is the same class
-                // of question this redesign exists to remove.
-                PackageWorkflow::None => ("none", BTreeSet::new()),
-                _ => pick_composition(workflow)?,
-            };
-            let (workflow, packages) = reconcile_strategy(workflow, packages)?;
-            (mode.to_string(), packages, workflow)
-        }
+        None => ask_for_graph()?,
     };
-
-    // Git submodules have no dependency resolution: the scaffold clones
-    // exactly the list it's given. Wally does its own resolution, so its
-    // manifest is left as the user picked it.
-    let mut packages = match package_workflow {
-        PackageWorkflow::Wally | PackageWorkflow::None => packages,
-        PackageWorkflow::GitSubmodules => {
-            let resolved = wally_packages::with_dependencies(&packages);
-            let added: Vec<&str> = resolved
-                .iter()
-                .filter(|k| !packages.contains(*k))
-                .map(String::as_str)
-                .collect();
-            if !added.is_empty() {
-                ui::ok(&format!("added required dependencies: {}", added.join(", ")));
-            }
-            resolved
-        }
-    };
-
-    // What this project should *do*. The one prompt that replaced two: it
-    // used to be asked twice at the wrong level - once as "which tools do
-    // you pin" and once as "which files do you generate" - so the user had
-    // to translate one intent into tool names and then into filenames, and
-    // any disagreement between those two answers became a contradiction.
-    let chosen_capabilities = pick_capabilities()?;
-    let derived = capabilities::derive(&chosen_capabilities);
-    let capability_keys: Vec<String> =
-        chosen_capabilities.iter().map(|(k, _)| k.clone()).collect();
 
     // A capability can pull in a package - `test` brings TestEZ - which is
-    // why testing left the package picker. Added after the workflow
-    // resolution above because the resolution is about what the *user*
-    // chose; these are consequences, and TestEZ vendors fine either way.
-    for key in &derived.packages {
+    // why testing left the package picker. Applied after the graph is built
+    // because it is a consequence, not an answer.
+    let derived_packages = graph.derived().packages;
+    let mut packages = graph.package_set();
+    for key in &derived_packages {
         packages.insert(key.clone());
     }
+    graph.packages = packages.iter().cloned().collect();
 
-    // Tools before the plan, because `rokit.toml` exists only to hold them:
-    // with nothing to pin there is no manifest, and the count is what its
-    // summary line reports.
-    //
-    // Capabilities derive most of the list and the dependency strategy
-    // derives the rest - Wally is not a capability, it is how packages
-    // arrive. Merged here so `rokit.toml`, the check script and `rproj.toml`
-    // all read one list; deriving them separately is how the project's pins
-    // and its gate came to disagree about which tools existed.
-    let mut project_tools = derived.tools.clone();
-    for tool in strategy_tools(package_workflow, &packages) {
-        if !project_tools.iter().any(|t| t == tool) {
-            project_tools.push(tool.to_string());
-        }
-    }
-
-    let environment = artifacts::Environment {
-        apps: &config.selected_system_apps,
-        extensions: &config.selected_vscode_extensions,
-        strategy: strategy_of(package_workflow),
-    };
-    let planned = artifacts::plan(
-        &environment,
-        &capability_keys,
-        &derived.artifacts,
-        &project_tools,
-        &[],
+    let (apps, extensions) = (
+        config.selected_system_apps.clone(),
+        config.selected_vscode_extensions.clone(),
     );
 
-    // A loop, not a branch: customizing re-plans and shows the summary
-    // again. Dropping files and then being scaffolded without seeing what
-    // you actually get would make the summary a formality - and the summary
-    // is the whole replacement for the two prompts this redesign deleted.
-    // The undropped plan is kept so customize always offers the full list -
-    // otherwise dropping a file would make it unrecoverable without
-    // restarting the command.
-    let full_plan = planned.clone();
-    let mut planned = planned;
-    let mut dropped: Vec<String> = Vec::new();
-    loop {
-        match confirm_plan(name, &packages, package_workflow, &chosen_capabilities, &planned)? {
-            Outcome::Create => break,
+    // Revision, not navigation. Every branch re-derives from the graph, so
+    // the summary can never describe a project different from the one that
+    // gets written - and changing an early answer invalidates exactly what
+    // it makes stale (`graph::Node::invalidates`) rather than everything
+    // after it.
+    let planned = loop {
+        let planned = graph.plan(&apps, &extensions);
+        match confirm_plan(name, &graph, &planned)? {
+            Outcome::Create => break planned,
             Outcome::Customize => {
-                dropped = customize_plan(&full_plan, &dropped)?;
-                // Re-planned rather than filtered, so dropping one thing
-                // still drops whatever only existed to support it.
-                planned = artifacts::plan(
-                    &environment,
-                    &capability_keys,
-                    &derived.artifacts,
-                    &project_tools,
-                    &dropped,
-                );
+                graph.dropped = customize_plan(&graph.full_plan(&apps, &extensions), &graph.dropped)?;
+            }
+            Outcome::Change => {
+                revise(&mut graph)?;
+                // Re-applied because a capability may have been added or
+                // removed, and `test` owns a package.
+                for key in &graph.derived().packages {
+                    if !graph.packages.iter().any(|p| p == key) {
+                        graph.packages.push(key.clone());
+                    }
+                }
             }
             Outcome::Cancel => {
                 // Nothing has been written yet beyond the directory, so
@@ -183,8 +125,11 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
                 return Ok(());
             }
         }
-    }
+    };
 
+    let packages = graph.package_set();
+    let package_workflow = graph.package_workflow;
+    let project_tools = graph.tools();
     let chosen_artifacts: Vec<String> = planned.iter().map(|p| p.key.to_string()).collect();
     scaffold(
         &project_dir,
@@ -201,27 +146,19 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
     // `rproj upgrade` then has nothing to read, which its own error says.
     let writes = |key: &str| chosen_artifacts.iter().any(|k| k == key);
     if writes("rproj.toml") {
-        ProjectConfig {
-            mode,
-            package_workflow,
-            packages: packages.iter().cloned().collect(),
-            // What *this project* pins, not what the machine has selected.
-            // `rproj upgrade` re-renders the check script from this field, so
-            // recording the machine list gave a submodule project a script
-            // with Wally steps in it - for tools the project never pinned.
-            tools_at_creation: project_tools.clone(),
-        }
-        .save_to(&project_dir)?;
+        // The graph itself, decisions and all - not a summary of what came
+        // out. That is what lets `rproj upgrade` re-derive from intent, so a
+        // changed default reaches a project made months ago instead of
+        // stranding it.
+        project_file::save_to(&graph, &project_dir)?;
     } else {
         ui::skip("rproj.toml not written, so `rproj upgrade` won't know this project");
     }
 
     if let Some(setup_name) = save_setup {
-        let setup = SavedSetup {
-            packages: packages.iter().cloned().collect(),
-            package_workflow,
-        };
-        setup.save(setup_name)?;
+        // The whole graph, so `--like` replays the composition rather than
+        // reusing the packages and asking three more questions.
+        Setups::save(&graph, setup_name)?;
         ui::ok(&format!("saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"));
     }
 
@@ -242,6 +179,157 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         project_dir.display()
     );
     Ok(())
+}
+
+/// Builds the graph by asking each node in order.
+///
+/// One function per node, and each takes only what the nodes *before* it
+/// decided. That is the design principle made structural: a prompt cannot
+/// ask about a consequence of a later answer because it cannot see one.
+fn ask_for_graph() -> Result<ProjectGraph> {
+    let mut graph = ProjectGraph::default();
+    ask_node(&mut graph, Node::Strategy)?;
+    ask_node(&mut graph, Node::Packages)?;
+    ask_node(&mut graph, Node::Capabilities)?;
+    Ok(graph)
+}
+
+/// Asks one node and clears whatever that makes stale.
+///
+/// The invalidation is the whole reason revision is tractable: re-answering
+/// the strategy clears the packages (some may no longer be vendorable) and
+/// the file list, and leaves the capabilities alone. Nothing here decides
+/// *what* goes stale - `Node::invalidates` does, in four rows.
+fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
+    graph.invalidate(node);
+    match node {
+        Node::Strategy => {
+            graph.package_workflow = pick_strategy()?;
+        }
+        Node::Packages => {
+            let (mode, packages) = match graph.package_workflow {
+                // Nothing to compose. Asking "which packages?" right after
+                // being told there is no package manager is the same class
+                // of question this redesign exists to remove.
+                PackageWorkflow::None => ("none", BTreeSet::new()),
+                workflow => pick_composition(workflow)?,
+            };
+            let (workflow, packages) = reconcile_strategy(graph.package_workflow, packages)?;
+            graph.mode = mode.to_string();
+            graph.package_workflow = workflow;
+            graph.packages = resolve_dependencies(workflow, packages).into_iter().collect();
+        }
+        Node::Capabilities => {
+            graph.capabilities.clear();
+            for (key, implementation) in pick_capabilities()? {
+                graph.choose(&key, implementation.as_deref());
+            }
+        }
+        // Handled by `customize_plan`, which needs the plan rather than the
+        // graph alone.
+        Node::Files => {}
+    }
+    Ok(())
+}
+
+/// Which earlier answer to change, then re-ask it.
+///
+/// This is "change something" as *invalidation* rather than navigation:
+/// there is no back stack, no screen count, and no way to end up with a
+/// graph whose later nodes contradict an earlier one - because re-answering
+/// a node clears what it made stale before the next question is asked.
+fn revise(graph: &mut ProjectGraph) -> Result<()> {
+    // Derived from `Node::ALL` rather than repeated, so adding a node to the
+    // graph cannot leave it uneditable. `Files` is excluded because
+    // `customize` already edits it, with the plan in hand.
+    let editable: Vec<Node> = Node::ALL.into_iter().filter(|n| *n != Node::Files).collect();
+    let options: Vec<String> = editable
+        .iter()
+        .map(|node| {
+            ui::option_line(node.label(), &describe_node(graph, *node), "change")
+        })
+        .collect();
+
+    let picked = Select::new("Change which answer?", options)
+        .with_formatter(&ui::compact_select_answer)
+        .prompt()?;
+    let Some(node) = editable
+        .iter()
+        .find(|node| ui::option_is(&picked, node.label()))
+    else {
+        return Ok(());
+    };
+
+    // Say what else is about to be re-asked, before re-asking it. A prompt
+    // that silently discards two later answers is the "go back three
+    // screens and lose your work" behaviour this replaces.
+    let stale: Vec<&str> = node
+        .invalidates()
+        .iter()
+        .filter(|n| **n != Node::Files)
+        .map(|n| n.label())
+        .collect();
+    if !stale.is_empty() {
+        ui::detail(&format!("changing this re-asks: {}", stale.join(", ")));
+    }
+
+    ask_node(graph, *node)?;
+    // Re-ask whatever that invalidated, in order, so the graph is complete
+    // again before the summary re-renders.
+    for stale in node.invalidates() {
+        if *stale != Node::Files {
+            ask_node(graph, *stale)?;
+        }
+    }
+    Ok(())
+}
+
+/// One line describing a node's current answer, for the revision menu.
+fn describe_node(graph: &ProjectGraph, node: Node) -> String {
+    match node {
+        Node::Strategy => match graph.package_workflow {
+            PackageWorkflow::Wally => "Wally".to_string(),
+            PackageWorkflow::GitSubmodules => "git submodules".to_string(),
+            PackageWorkflow::None => "none".to_string(),
+        },
+        Node::Packages => {
+            if graph.packages.is_empty() {
+                "none".to_string()
+            } else {
+                graph.packages.join(", ")
+            }
+        }
+        Node::Capabilities => {
+            if graph.capabilities.is_empty() {
+                "nothing extra".to_string()
+            } else {
+                graph.capability_keys().join(", ")
+            }
+        }
+        Node::Files => "the generated files".to_string(),
+    }
+}
+
+/// Git submodules have no dependency resolution: the scaffold clones exactly
+/// the list it is given. Wally does its own, so its manifest is left as the
+/// user picked it.
+fn resolve_dependencies(
+    workflow: PackageWorkflow,
+    packages: BTreeSet<String>,
+) -> BTreeSet<String> {
+    if workflow != PackageWorkflow::GitSubmodules {
+        return packages;
+    }
+    let resolved = wally_packages::with_dependencies(&packages);
+    let added: Vec<&str> = resolved
+        .iter()
+        .filter(|k| !packages.contains(*k))
+        .map(String::as_str)
+        .collect();
+    if !added.is_empty() {
+        ui::ok(&format!("added required dependencies: {}", added.join(", ")));
+    }
+    resolved
 }
 
 /// How this project's dependencies arrive.
@@ -283,14 +371,6 @@ fn pick_strategy() -> Result<PackageWorkflow> {
 /// needing a `&str` twin of it.
 fn owned(options: &[&str]) -> Vec<String> {
     options.iter().map(|s| (*s).to_string()).collect()
-}
-
-fn strategy_of(workflow: PackageWorkflow) -> artifacts::Strategy {
-    match workflow {
-        PackageWorkflow::Wally => artifacts::Strategy::Wally,
-        PackageWorkflow::GitSubmodules => artifacts::Strategy::GitSubmodules,
-        PackageWorkflow::None => artifacts::Strategy::None,
-    }
 }
 
 /// What this project should *do* - and, in the badge slot, what does it.
@@ -429,13 +509,11 @@ fn offerable_package(spec: &PackageSpec, workflow: PackageWorkflow) -> bool {
 /// receipt rather than an explanation.
 fn confirm_plan(
     name: &str,
-    packages: &BTreeSet<String>,
-    workflow: PackageWorkflow,
-    chosen: &[(String, Option<String>)],
+    graph: &ProjectGraph,
     planned: &[artifacts::Planned],
 ) -> Result<Outcome> {
     println!();
-    for line in summary_lines(name, packages, workflow, chosen, planned) {
+    for line in summary_lines(name, graph, planned) {
         println!("{line}");
     }
     println!();
@@ -444,6 +522,7 @@ fn confirm_plan(
         "Create it?",
         owned(&[
             "create - go ahead and scaffold this",
+            "change - go back to an earlier answer",
             "customize - drop individual files first",
             "cancel - change nothing and exit",
         ]),
@@ -452,6 +531,7 @@ fn confirm_plan(
     .prompt()?;
     match ui::option_key(&choice) {
         "create" => Ok(Outcome::Create),
+        "change" => Ok(Outcome::Change),
         "customize" => Ok(Outcome::Customize),
         _ => Ok(Outcome::Cancel),
     }
@@ -461,6 +541,9 @@ fn confirm_plan(
 #[derive(PartialEq, Eq)]
 enum Outcome {
     Create,
+    /// Go back to an earlier answer. Revision, not navigation - see
+    /// `graph::Node::invalidates`.
+    Change,
     Customize,
     Cancel,
 }
@@ -519,14 +602,14 @@ fn customize_plan(
 /// only visible by running the whole flow.
 fn summary_lines(
     name: &str,
-    packages: &BTreeSet<String>,
-    workflow: PackageWorkflow,
-    chosen: &[(String, Option<String>)],
+    graph: &ProjectGraph,
     planned: &[artifacts::Planned],
 ) -> Vec<String> {
+    let packages = &graph.package_set();
+    let chosen = &graph.choices();
     let mut lines = vec![format!("  {name}"), String::new()];
 
-    let strategy = match workflow {
+    let strategy = match graph.package_workflow {
         PackageWorkflow::Wally => "Wally",
         PackageWorkflow::GitSubmodules => "git submodules",
         PackageWorkflow::None => "none",
@@ -944,25 +1027,6 @@ fn slugify(name: &str) -> String {
         .collect()
 }
 
-/// The tools the **dependency strategy** pins, as opposed to the ones
-/// capabilities pin.
-///
-/// Wally is not a capability - nobody wants "Wally", they want their
-/// packages installed - so it is derived here, from the strategy that
-/// actually needs it. `wally-package-types` travels with it because a plain
-/// `wally install` writes link files with no `export type` lines, so without
-/// it every package silently degrades to `any`.
-///
-/// Empty with no packages: a manifest with nothing in it needs no installer.
-/// Empty under submodules: there is no `wally.toml` to install from and no
-/// thunks to retype, so pinning either would be noise in `rokit.toml`.
-fn strategy_tools(workflow: PackageWorkflow, packages: &BTreeSet<String>) -> &'static [&'static str] {
-    match workflow {
-        PackageWorkflow::Wally if !packages.is_empty() => &["wally", "wally-package-types"],
-        _ => &[],
-    }
-}
-
 /// Resolves `--like`, failing with the list of what *is* available rather
 /// than a bare "not found" - the names are user-chosen, so a typo is the
 /// likely cause and the correction is right there.
@@ -972,8 +1036,8 @@ fn strategy_tools(workflow: PackageWorkflow, packages: &BTreeSet<String>) -> &'s
 /// some earlier point; a package can stop being vendorable since (or the
 /// file can be edited by hand), and scaffolding a submodule project around
 /// a package that has no vendorable source produces a broken tree.
-fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
-    if let Some(mut setup) = SavedSetup::load(name)? {
+fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
+    if let Some(mut setup) = Setups::load(name)? {
         // Same transitive check as the interactive path: a saved setup can
         // name only vendorable packages and still be unbuildable because one
         // of them requires something that isn't.
@@ -1010,7 +1074,7 @@ fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
 
         return Ok((name.to_string(), setup));
     }
-    let available = SavedSetup::list();
+    let available = Setups::list();
     if available.is_empty() {
         bail!(
             "no saved setup called `{name}` - none have been saved yet. \
@@ -1023,27 +1087,6 @@ fn load_setup(name: &str) -> Result<(String, SavedSetup)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Wally is derived from the strategy, not chosen as a capability - and
-    /// `wally-package-types` travels with it, because a plain `wally install`
-    /// writes link files with no `export type` lines and every package
-    /// silently degrades to `any`.
-    #[test]
-    fn a_wally_project_with_packages_pins_wally_and_the_retyper() {
-        let packages: BTreeSet<String> = ["reflex".to_string()].into_iter().collect();
-        assert_eq!(
-            strategy_tools(PackageWorkflow::Wally, &packages),
-            ["wally", "wally-package-types"]
-        );
-    }
-
-    /// A manifest with nothing in it needs no installer, so an empty
-    /// selection pins neither - which is what lets a package-free project
-    /// have no `rokit.toml` at all.
-    #[test]
-    fn a_wally_project_with_no_packages_pins_nothing() {
-        assert!(strategy_tools(PackageWorkflow::Wally, &BTreeSet::new()).is_empty());
-    }
 
     /// **Every package the picker offers is one the strategy can install.**
     /// Under submodules that excludes the react family, which upstream ships
@@ -1082,15 +1125,6 @@ mod tests {
         }
     }
 
-    /// Choosing git submodules and then having Wally pinned into the
-    /// project anyway is the strategy leaking across its own boundary.
-    #[test]
-    fn submodule_projects_do_not_pin_wally_tools() {
-        let packages: BTreeSet<String> = ["charm".to_string()].into_iter().collect();
-        assert!(strategy_tools(PackageWorkflow::GitSubmodules, &packages).is_empty());
-        assert!(strategy_tools(PackageWorkflow::None, &packages).is_empty());
-    }
-
     /// A machine that has never been provisioned must still get the
     /// questions; one that has must not be asked again.
     #[test]
@@ -1118,35 +1152,27 @@ mod tests {
         assert_eq!(GlobalConfig::default().machine_summary(), "nothing selected");
     }
 
-    fn chosen(keys: &[&str]) -> Vec<(String, Option<String>)> {
-        keys.iter().map(|k| (k.to_string(), None)).collect()
-    }
-
-    fn plan_for(
-        capability_keys: &[&str],
-        workflow: PackageWorkflow,
-    ) -> Vec<artifacts::Planned> {
-        let selected = chosen(capability_keys);
-        let derived = capabilities::derive(&selected);
-        let (apps, extensions) = (Vec::new(), Vec::new());
-        let environment = artifacts::Environment {
-            apps: &apps,
-            extensions: &extensions,
-            strategy: strategy_of(workflow),
+    /// A graph built the way `run` builds one, so the tests exercise the
+    /// same path the command does.
+    fn graph_of(workflow: PackageWorkflow, packages: &[&str], caps: &[&str]) -> ProjectGraph {
+        let mut graph = ProjectGraph {
+            package_workflow: workflow,
+            packages: packages.iter().map(|p| p.to_string()).collect(),
+            ..Default::default()
         };
-        let keys: Vec<String> = capability_keys.iter().map(|k| k.to_string()).collect();
-        artifacts::plan(&environment, &keys, &derived.artifacts, &derived.tools, &[])
+        for key in caps {
+            graph.choose(key, None);
+        }
+        graph
     }
 
     /// **"Just the Rojo basics."** No dependency manager, nothing chosen -
     /// and the result is the source tree, the project file, and the two
-    /// housekeeping entries. Nothing about the machine can change this,
-    /// which is the property the old tools prompt existed to protect and
-    /// this model gets for free.
+    /// housekeeping entries. Nothing about the machine can change this.
     #[test]
     fn choosing_nothing_yields_only_the_basics() {
-        let planned = plan_for(&[], PackageWorkflow::None);
-        let keys: Vec<&str> = planned.iter().map(|p| p.key).collect();
+        let graph = graph_of(PackageWorkflow::None, &[], &[]);
+        let keys: Vec<&str> = graph.plan(&[], &[]).iter().map(|p| p.key).collect();
         assert_eq!(keys, ["src", "default.project.json", "rproj.toml", ".gitignore"]);
     }
 
@@ -1154,13 +1180,9 @@ mod tests {
     /// This is the pair the user used to have to state twice.
     #[test]
     fn one_capability_derives_both_the_tool_and_the_file() {
-        let derived = capabilities::derive(&chosen(&["lint"]));
-        assert_eq!(derived.tools, ["selene"]);
-
-        let keys: Vec<&str> = plan_for(&["lint"], PackageWorkflow::None)
-            .iter()
-            .map(|p| p.key)
-            .collect();
+        let graph = graph_of(PackageWorkflow::None, &[], &["lint"]);
+        assert_eq!(graph.tools(), ["selene"]);
+        let keys: Vec<&str> = graph.plan(&[], &[]).iter().map(|p| p.key).collect();
         assert!(keys.contains(&"selene.toml"), "{keys:?}");
     }
 
@@ -1169,11 +1191,10 @@ mod tests {
     /// explanation rather than a receipt.
     #[test]
     fn the_summary_names_every_file_and_why_it_is_there() {
-        let packages: BTreeSet<String> = ["reflex".to_string()].into_iter().collect();
-        let selected = chosen(&["lint", "format"]);
-        let planned = plan_for(&["lint", "format"], PackageWorkflow::Wally);
-        let lines = summary_lines("MyGame", &packages, PackageWorkflow::Wally, &selected, &planned);
-        let text = lines.join("\n");
+        let graph = graph_of(PackageWorkflow::Wally, &["reflex"], &["lint", "format"]);
+        let planned = graph.plan(&[], &[]);
+        let text = summary_lines("MyGame", &graph, &planned).join("
+");
 
         assert!(text.contains("  MyGame"), "{text}");
         assert!(text.contains("Dependencies  Wally"), "{text}");
@@ -1191,36 +1212,29 @@ mod tests {
     /// showing an empty column.
     #[test]
     fn the_summary_says_so_when_nothing_extra_was_chosen() {
-        let planned = plan_for(&[], PackageWorkflow::None);
-        let lines = summary_lines("bare", &BTreeSet::new(), PackageWorkflow::None, &[], &planned);
-        let text = lines.join("\n");
+        let graph = graph_of(PackageWorkflow::None, &[], &[]);
+        let planned = graph.plan(&[], &[]);
+        let text = summary_lines("bare", &graph, &planned).join("
+");
         assert!(text.contains("Dependencies  none"), "{text}");
         assert!(text.contains("Packages      none"), "{text}");
         assert!(text.contains("Does          nothing extra"), "{text}");
     }
 
-    /// **The gap that opened when tools stopped being asked about.**
-    ///
-    /// Capabilities derive `selene` and friends, but nothing derives the
-    /// package manager - so a Wally project briefly pinned no wally at all,
-    /// and a teammate cloning it got no pinned version of the one tool the
-    /// project cannot build without. The strategy pins its own.
+    /// The revision menu shows what each answer currently *is*, so "change
+    /// which answer?" is answerable without remembering what was said.
     #[test]
-    fn a_wally_project_with_packages_pins_the_package_manager() {
-        let packages: BTreeSet<String> = ["reflex".to_string()].into_iter().collect();
-        assert_eq!(
-            strategy_tools(PackageWorkflow::Wally, &packages),
-            ["wally", "wally-package-types"]
-        );
+    fn the_revision_menu_describes_the_current_answers() {
+        let graph = graph_of(PackageWorkflow::GitSubmodules, &["charm"], &["lint"]);
+        assert_eq!(describe_node(&graph, Node::Strategy), "git submodules");
+        assert_eq!(describe_node(&graph, Node::Packages), "charm");
+        assert_eq!(describe_node(&graph, Node::Capabilities), "lint");
+
+        let empty = ProjectGraph::default();
+        assert_eq!(describe_node(&empty, Node::Packages), "none");
+        assert_eq!(describe_node(&empty, Node::Capabilities), "nothing extra");
     }
 
-    /// An empty manifest needs no installer, so a project that chose Wally
-    /// and then no packages pins nothing - which is what keeps the bare
-    /// project bare.
-    #[test]
-    fn wally_with_no_packages_pins_nothing() {
-        assert!(strategy_tools(PackageWorkflow::Wally, &BTreeSet::new()).is_empty());
-    }
 }
 
 

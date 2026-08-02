@@ -34,7 +34,8 @@ use serde_json::json;
 use crate::catalog::quality_checks::{ci_workflow, render_check};
 use crate::catalog::tool_settings::{self, SettingSpec};
 use crate::catalog::wally_packages;
-use crate::config::{PackageWorkflow, ProjectConfig};
+use crate::config::{project_file, PackageWorkflow};
+use crate::graph::ProjectGraph;
 use crate::steps::{gitignore, quality, testez, vscode};
 use crate::ui;
 
@@ -57,7 +58,7 @@ pub fn run(assume_yes: bool) -> Result<()> {
     }
     // The package list is what decides most of these files, and guessing it
     // from what's on disk would be guessing.
-    let Some(project) = ProjectConfig::load_from(&project_dir)? else {
+    let Some(project) = project_file::load_from(&project_dir)? else {
         bail!(
             "no rproj.toml here - `rproj upgrade` needs the package list it records to know \
              what this project's config should say. Projects scaffolded by `rproj new` have one"
@@ -113,32 +114,51 @@ pub fn run(assume_yes: bool) -> Result<()> {
 
 fn plan(
     project_dir: &Path,
-    project: &ProjectConfig,
+    project: &ProjectGraph,
     packages: &BTreeSet<String>,
     workflow: PackageWorkflow,
     testez_selected: bool,
 ) -> Result<Vec<Rewrite>> {
     let mut rewrites = Vec::new();
 
-    if let Some(contents) = selene_config(project_dir, packages, workflow, testez_selected)? {
+    // **Upgrade re-derives from the graph.** Every rewrite below is gated on
+    // the project's own plan, so an upgrade cannot restore a file this
+    // project never wanted: a project that declined CI does not silently
+    // acquire a workflow because a newer rproj generates one, and a file
+    // dropped at the summary stays dropped. Before the graph existed there
+    // was nothing to ask - upgrade rewrote whatever it could render.
+    let planned = project.maintenance_plan();
+    let wants = |key: &str| planned.iter().any(|p| p.key == key);
+
+    if wants("selene.toml")
+        && let Some(contents) = selene_config(project_dir, packages, workflow, testez_selected)?
+    {
         push(&mut rewrites, project_dir, "selene.toml", contents, "std, mixed_table and exclude follow this project's packages and workflow")?;
     }
 
-    let settings = vscode::merged_settings(project_dir, &vscode::project_settings(workflow))?;
-    push(&mut rewrites, project_dir, ".vscode/settings.json", settings, "editor settings rproj manages; your other keys are kept")?;
+    if wants(".vscode/settings.json") {
+        let settings = vscode::merged_settings(project_dir, &vscode::project_settings(workflow))?;
+        push(&mut rewrites, project_dir, ".vscode/settings.json", settings, "editor settings rproj manages; your other keys are kept")?;
+    }
 
     // The gate script names the tools this project pinned, so it has to be
     // rebuilt from the same list - not from what the machine has today.
-    if let Some(contents) = render_check(&project.tools_at_creation, testez_selected) {
+    if wants(".lute/check.luau")
+        && let Some(contents) = render_check(&project.tools(), testez_selected)
+    {
         push(&mut rewrites, project_dir, ".lute/check.luau", contents, "the generated quality gate")?;
 
-        let has_server_packages =
-            workflow == PackageWorkflow::Wally && wally_packages::has_server_realm(packages);
-        push(&mut rewrites, project_dir, ".github/workflows/ci.yml", ci_workflow(workflow, has_server_packages), "the generated CI workflow")?;
+        if wants(".github/workflows/ci.yml") {
+            let has_server_packages =
+                workflow == PackageWorkflow::Wally && wally_packages::has_server_realm(packages);
+            push(&mut rewrites, project_dir, ".github/workflows/ci.yml", ci_workflow(workflow, has_server_packages), "the generated CI workflow")?;
+        }
     }
 
-    if testez_selected {
+    if wants("testez.yml") {
         push(&mut rewrites, project_dir, "testez.yml", testez::TESTEZ_STD.to_string(), "selene's TestEZ standard library")?;
+    }
+    if wants("testez-companion.toml") {
         push(&mut rewrites, project_dir, "testez-companion.toml", testez::companion_config(), "TestEZ Companion's test roots")?;
     }
 

@@ -111,63 +111,76 @@ fn dirs_documents() -> Result<PathBuf> {
 /// a third case for the code that mounts package folders, and an `Option`
 /// would only move the exhaustiveness check somewhere the compiler cannot
 /// help.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PackageWorkflow {
+    /// The default in the `Default` sense only - which strategy a *project*
+    /// gets is always an explicit answer, never this.
+    #[default]
     Wally,
     GitSubmodules,
     None,
 }
 
-/// Per-project record, written by `rproj new` into the project root.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProjectConfig {
-    /// How the packages were chosen: "guided", "expert", or
-    /// "like:<setup>" when reused from a saved setup.
-    pub mode: String,
-    pub package_workflow: PackageWorkflow,
-    pub packages: Vec<String>,
-    /// Snapshot of which machine-wide tool keys were active when this
-    /// project was created (for future "what did I pick before" reference).
-    pub tools_at_creation: Vec<String>,
-}
+/// Reading and writing `rproj.toml`, the per-project record.
+///
+/// **The file *is* the project graph** - the decisions the project was built
+/// from, rather than the files that came out. That is what lets `rproj
+/// upgrade` re-derive from intent, so a changed default reaches a project
+/// made months ago instead of stranding it.
+///
+/// Free functions rather than an `impl`, because the graph type lives in
+/// `graph` and owning its persistence here keeps `graph` free of filesystem
+/// concerns.
+pub mod project_file {
+    use super::*;
+    use crate::graph::ProjectGraph;
 
-impl ProjectConfig {
     pub fn path_in(project_dir: &Path) -> PathBuf {
         project_dir.join("rproj.toml")
     }
 
-    pub fn load_from(project_dir: &Path) -> Result<Option<Self>> {
-        let path = Self::path_in(project_dir);
+    /// Loads and **migrates**: a pre-0.5 file records the tools it pinned and
+    /// nothing about why, so the capabilities are reconstructed from them
+    /// before anything reads the graph. Without that, upgrading an old
+    /// project would conclude it wants no linter and rewrite its config to
+    /// match.
+    pub fn load_from(project_dir: &Path) -> Result<Option<ProjectGraph>> {
+        let path = path_in(project_dir);
         if !path.exists() {
             return Ok(None);
         }
         let text = fs::read_to_string(&path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        Ok(Some(
-            toml::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))?,
-        ))
+        let graph: ProjectGraph = toml::from_str(&text)
+            .with_context(|| format!("failed to parse {}", path.display()))?;
+        Ok(Some(graph.with_legacy_capabilities()))
     }
 
-    pub fn save_to(&self, project_dir: &Path) -> Result<()> {
-        let path = Self::path_in(project_dir);
-        let text = toml::to_string_pretty(self)?;
+    pub fn save_to(graph: &ProjectGraph, project_dir: &Path) -> Result<()> {
+        let path = path_in(project_dir);
+        let text = toml::to_string_pretty(graph)?;
         fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))
     }
 }
+
 
 /// A saved project composition, reusable for the next project.
 ///
 /// Deliberately *not* the old hardcoded presets: this is whatever a real
 /// project ended up with, saved under a name you chose, so the set of
 /// available setups is yours rather than a curated list that goes stale.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SavedSetup {
-    pub packages: Vec<String>,
-    pub package_workflow: PackageWorkflow,
-}
+/// A saved setup **is a project graph**. It used to be packages plus a
+/// workflow, so `--like` replayed half a composition and then asked three
+/// more questions - "reuse my setup" that reuses some of it is a promise
+/// half kept. Storing the graph means a saved setup replays straight to the
+/// summary.
+pub type SavedSetup = crate::graph::ProjectGraph;
 
-impl SavedSetup {
+/// Reading and writing `<config>/setups/<name>.toml`.
+pub struct Setups;
+
+impl Setups {
     fn dir() -> Result<PathBuf> {
         Ok(GlobalConfig::dirs()?.config_dir().join("setups"))
     }
@@ -176,18 +189,18 @@ impl SavedSetup {
         Ok(Self::dir()?.join(format!("{name}.toml")))
     }
 
-    pub fn save(&self, name: &str) -> Result<PathBuf> {
+    pub fn save(setup: &SavedSetup, name: &str) -> Result<PathBuf> {
         let path = Self::path_for(name)?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        fs::write(&path, toml::to_string_pretty(self)?)
+        fs::write(&path, toml::to_string_pretty(setup)?)
             .with_context(|| format!("failed to write {}", path.display()))?;
         Ok(path)
     }
 
-    pub fn load(name: &str) -> Result<Option<Self>> {
+    pub fn load(name: &str) -> Result<Option<SavedSetup>> {
         let path = Self::path_for(name)?;
         if !path.exists() {
             return Ok(None);
@@ -263,11 +276,10 @@ mod tests {
     /// is not. A rename in Rust must not silently change the file format.
     #[test]
     fn the_workflow_enum_is_written_in_kebab_case() {
-        let text = toml::to_string_pretty(&ProjectConfig {
+        let text = toml::to_string_pretty(&crate::graph::ProjectGraph {
             mode: "guided".into(),
             package_workflow: PackageWorkflow::GitSubmodules,
-            packages: vec![],
-            tools_at_creation: vec![],
+            ..Default::default()
         })
         .expect("serialise");
         assert!(text.contains("package_workflow = \"git-submodules\""), "{text}");

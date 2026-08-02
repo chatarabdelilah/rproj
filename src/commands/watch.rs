@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 
-use crate::config::ProjectConfig;
+use crate::config::project_file;
 use crate::steps::{git, rojo, toolchain, wally};
 
 pub fn run() -> Result<()> {
@@ -13,7 +13,7 @@ pub fn run() -> Result<()> {
         );
     }
 
-    if let Some(project) = ProjectConfig::load_from(&project_dir)? {
+    if let Some(project) = project_file::load_from(&project_dir)? {
         println!("Packages: {}", project.packages.join(", "));
     }
 

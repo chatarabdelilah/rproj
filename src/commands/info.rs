@@ -26,7 +26,7 @@ use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
 use crate::catalog::tool_usage::{self, Usage};
 use crate::catalog::wally_packages;
-use crate::config::SavedSetup;
+use crate::config::Setups;
 use crate::ui;
 
 pub fn run(key: Option<&str>) -> Result<()> {
@@ -147,7 +147,7 @@ fn sections() -> Vec<Section> {
 
     // Only when there are any: an empty section is a dead end that teaches
     // the user nothing about why it is empty.
-    if !SavedSetup::list().is_empty() {
+    if !Setups::list().is_empty() {
         sections.push(Section::Page {
             label: "Saved setups - package compositions you saved",
             render: print_saved_setups,
@@ -467,7 +467,7 @@ fn list_all() -> Result<()> {
     println!("\nPLACE TEMPLATE (applied to every new project's default.project.json)");
     print_place_template();
 
-    let setups = SavedSetup::list();
+    let setups = Setups::list();
     if !setups.is_empty() {
         println!("\nSAVED SETUPS (rproj new <name> --like <setup>)");
         print_saved_setups();
@@ -496,7 +496,7 @@ fn print_place_template() {
 }
 
 fn print_saved_setups() {
-    for setup in SavedSetup::list() {
+    for setup in Setups::list() {
         println!("    {setup}");
     }
 }

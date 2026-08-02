@@ -132,3 +132,55 @@ fn a_directory_that_is_not_a_project_is_refused() {
     assert_eq!(outcome.code, 1, "{}", outcome.text);
     outcome.assert_contains("no default.project.json");
 }
+
+/// **The graph is what upgrade re-derives from.** A project that never
+/// chose CI must not acquire a workflow because a newer rproj knows how to
+/// generate one - "picks up fixes made since" is not "picks up decisions you
+/// declined".
+///
+/// Before `rproj.toml` recorded decisions there was nothing to ask: upgrade
+/// rewrote whatever it could render, so every project got every file the
+/// current version knew about.
+#[test]
+fn upgrade_does_not_restore_a_capability_the_project_declined() {
+    let project = TempProject::new("declined-ci");
+    project.write("default.project.json", "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n");
+    // Lint and the gate, but no `ci` - and no `.github/` on disk.
+    project.write(
+        "rproj.toml",
+        "mode = \"expert\"\npackage_workflow = \"none\"\npackages = []\n\n\
+         [capabilities]\nlint = \"selene\"\ngate = \"lute\"\n",
+    );
+
+    let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+
+    assert!(project.exists(".lute/check.luau"), "the gate was chosen:\n{}", outcome.text);
+    assert!(
+        !project.exists(".github/workflows/ci.yml"),
+        "CI was never chosen and must not appear:\n{}",
+        outcome.text
+    );
+}
+
+/// A file dropped at the summary stays dropped. `dropped` is part of the
+/// graph precisely so an upgrade cannot helpfully undo a deliberate removal.
+#[test]
+fn upgrade_respects_files_dropped_at_creation() {
+    let project = TempProject::new("dropped-gate");
+    project.write("default.project.json", "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n");
+    project.write(
+        "rproj.toml",
+        "mode = \"expert\"\npackage_workflow = \"none\"\npackages = []\n\
+         dropped = [\".lute/check.luau\"]\n\n\
+         [capabilities]\ngate = \"lute\"\n",
+    );
+
+    let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert!(
+        !project.exists(".lute/check.luau"),
+        "a dropped file must not come back:\n{}",
+        outcome.text
+    );
+}

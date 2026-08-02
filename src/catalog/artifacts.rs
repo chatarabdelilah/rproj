@@ -313,6 +313,28 @@ pub fn find(key: &str) -> Option<&'static Artifact> {
     ARTIFACTS.iter().find(|a| a.key == key)
 }
 
+/// Every app and extension key any artifact conditions on.
+///
+/// For `graph::ProjectGraph::maintenance_plan`, which needs to treat the
+/// machine half of the conditions as satisfied: upgrading a project is not
+/// the moment to re-litigate whether this desk has Blender installed.
+/// Derived from the table rather than listed, so a new condition cannot be
+/// forgotten here.
+pub fn every_machine_requirement() -> (Vec<String>, Vec<String>) {
+    let mut apps = Vec::new();
+    let mut extensions = Vec::new();
+    for artifact in ARTIFACTS {
+        for requirement in artifact.also_requires {
+            match requirement {
+                Requirement::App(key) => apps.push((*key).to_string()),
+                Requirement::Extension(key) => extensions.push((*key).to_string()),
+                Requirement::Capability(_) | Requirement::Strategy(_) => {}
+            }
+        }
+    }
+    (apps, extensions)
+}
+
 /// What the environment offers, as the artifact layer needs it. Everything
 /// *chosen* arrives through capabilities instead.
 #[derive(Debug, Clone, Copy)]

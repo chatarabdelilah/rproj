@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.5.0**, 181 tests, Windows-only, Luau + Wally.
+Current: **v0.6.0**, 195 tests, Windows-only, Luau + Wally.
 
 ---
 
@@ -271,7 +271,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~M3~~ | ~~`rproj setup <tool>` (§4)~~ | 3–5 | **Shipped** v0.3.2. |
 | ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
 | ~~R1~~ | ~~Capability layer; delete the "tools" and "files" prompts~~ | 4–6 | **Shipped** v0.5.0. Came in at the low end because it mostly deleted things. Three bugs it surfaced, none of which a reader would have predicted: `rokit.toml` was owned by nothing, so tools were derived and never pinned; the dependency strategy pins its own tools and nothing derived them, so a Wally project pinned no Wally; and `plan` trusted the capability list without re-checking requirements, so CI survived its gate being turned off. All three found by tests, two of them by the live prompt-order pair. |
-| R2 | The project graph as a real type: ordered nodes, invalidation on edit, `rproj.toml` stores decisions | 3–5 | Unlocks "change something", and re-derivation for `upgrade`/`--like`. |
+| ~~R2~~ | ~~The project graph as a real type~~ | 3–5 | **Shipped** v0.6.0. `graph::ProjectGraph`, four-row invalidation table, `rproj.toml` stores decisions. Brought `change` at the summary, `--like` replaying whole compositions, and an `upgrade` that cannot restore a declined capability. |
 | R3 | `rproj info <capability>`; configure hints on the summary | 1–2 | The "shows its work" half of the philosophy. |
 | M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. First capability with more than one implementation, so the first sub-prompt the model permits. |
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
@@ -280,7 +280,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **42–71** | ≈ 4–8 months part-time |
-| | *remaining after v0.5.0* | **27–48** | M1–M3b, R1 done |
+| | *remaining after v0.6.0* | **24–43** | M1–M3b, R1, R2 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -290,7 +290,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
 Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
-Remaining: **R2 → M5 → M4 → R3 → M7 → R4 → M8**.
+Remaining: **M5 → M4 → R3 → M7 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
 
@@ -313,7 +313,7 @@ Deferring the GUI also means **not paying D1's cost yet** — the binary crate k
 | **Packages vs capabilities** | Packages answer *what code does this depend on*; capabilities answer *what workflows does this support*. Not runtime vs dev-time — TestEZ is a dev dependency and still a package. Consequence: **Testing is a capability, TestEZ an implementation of it**, so Testing leaves the package picker. |
 | **Dependency strategy stays a prompt** | Wally is the right default for anyone who does not already know otherwise, and it is still asked — with a recommendation. A summary line reading `✓ via Wally` is a receipt, not an explanation, and this tool exists partly to teach the ecosystem. **A default does not make a question fake.** |
 | **GUI** | Deferred until M1–M8 are in place. Tauri when it happens (§9). |
-| **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. **Flagged for revisit after R2**: if the project graph is the core, it earns its keep from revision and re-derivation alone, before any second front-end exists (`ux-redesign.md` §8). |
+| **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. **Revisit is now due** (R2 shipped): `graph::ProjectGraph` is ~300 lines with no I/O and no prompting, and it already earns its keep from revision and re-derivation alone. Extraction would still cost the dead-code guarantee, so the question is whether a second front-end is close enough to pay for it. Unresolved, deliberately - see "still open". |
 | **Studio plugin** | Additive and small, beside Rojo's — never replacing it (§8). |
 | **Testing framework** | Neither TestEZ nor jest-lua is default. The user chooses, and `none` is a valid answer. Consequence: **Testing becomes single-pick**, because two runners in one project means two `tests/` conventions, two selene standard libraries and two gate steps. After R1 this stops being a special rule: Testing is a capability and a runner is its *implementation*, and a node has one. |
 | **Live badges** | Curated judgement, CI-verified facts. Settled — see `docs/architecture.md`. |
@@ -324,7 +324,8 @@ Deferring the GUI also means **not paying D1's cost yet** — the binary crate k
 
 ### Still open
 
-1. **Does `rproj-core` get published to crates.io, or stay path-only?** Publishing means a public API and semver obligations for a library with one real consumer. Not urgent — deferred with the GUI.
-2. **Where does GUI state live?** Sharing the CLI's own config file is the obvious answer, and means both must tolerate the other having written it. Deferred with the GUI.
-3. **`codify-lib`, `packager`, `roblox-font-list-generator`** — need evaluation before a verdict (§5).
-4. **Is `stylua-lib` published?** §7 assumes the toolchain is available as libraries; that one is unconfirmed and should be checked before M7 is planned around it.
+1. **Is `rproj-core` worth extracting now that the graph exists?** R2 made `graph::ProjectGraph` a ~300-line value with no I/O and no prompting — the natural core of a second front-end, and already valuable to the CLI alone. The deferral's premise ("no benefit with one front-end") is weaker than it was, but the cost is unchanged: a library crate forfeits the binary's dead-code guarantee, which has caught real omissions. **Not resolved here.** Revisit when a second front-end is actually close, not because the shape now permits it.
+2. **Does `rproj-core` get published to crates.io, or stay path-only?** Publishing means a public API and semver obligations for a library with one real consumer. Downstream of the question above.
+3. **Where does GUI state live?** Sharing the CLI's own config file is the obvious answer, and means both must tolerate the other having written it. Deferred with the GUI.
+4. **`codify-lib`, `packager`, `roblox-font-list-generator`** — need evaluation before a verdict (§5).
+5. **Is `stylua-lib` published?** §7 assumes the toolchain is available as libraries; that one is unconfirmed and should be checked before M7 is planned around it.

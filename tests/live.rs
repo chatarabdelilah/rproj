@@ -310,6 +310,84 @@ fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
     let _ = std::fs::remove_dir_all(&path);
 }
 
+/// **Revision, not navigation.** Change an early answer from the summary and
+/// the later ones that it makes stale are re-asked - the ones it does not
+/// touch are left alone.
+///
+/// Needs no network: it changes the strategy to `none`, which is the branch
+/// where nothing installs. What is being checked is that the graph
+/// re-derives rather than that anything is written, so it cancels at the end.
+#[test]
+#[ignore]
+fn changing_an_early_answer_reasks_only_what_it_invalidates() {
+    let root = projects_root();
+    let name = "rproj-revise";
+    let path = root.join(name);
+    let _ = std::fs::remove_dir_all(&path);
+
+    let mut session = Session::start(&root, &["new", name]);
+    session.wait_for("How should this project get its dependencies?");
+    session.send(ENTER); // Wally
+    session.wait_for("How do you want to pick packages?");
+    session.send(&format!("{DOWN}{ENTER}")); // expert
+    session.wait_for("Pick every package this project needs");
+    session.send("promise");
+    session.wait_for("promise - ");
+    session.send(" ");
+    session.send(ENTER);
+    session.wait_for("What should this project do?");
+    session.send(&format!("{LEFT}{ENTER}")); // nothing, so nothing installs
+
+    // The first summary: a Wally project with a package and a manifest.
+    session.wait_for("Create it?");
+    let before = session.text();
+    assert!(before.contains("Dependencies  Wally"), "{before}");
+    assert!(before.contains("wally.toml"), "{before}");
+
+    session.send("change");
+    session.wait_for("change - ");
+    session.send(ENTER);
+
+    // The menu shows what each answer currently is, so it is answerable
+    // without remembering what was said four prompts ago.
+    session.wait_for("Change which answer?");
+    let menu = session.text();
+    assert!(menu.contains("dependencies - Wally"), "{menu}");
+    assert!(menu.contains("packages - promise"), "{menu}");
+
+    session.send("dependencies");
+    session.wait_for("dependencies - ");
+    session.send(ENTER);
+
+    // Says what it is about to discard *before* discarding it.
+    session.wait_for("changing this re-asks: packages");
+    session.wait_for("How should this project get its dependencies?");
+    session.send("none");
+    session.wait_for("none - ");
+    session.send(ENTER);
+
+    // With no dependency manager the package question is skipped entirely,
+    // and the manifest that only existed for Wally is gone with it.
+    session.wait_for("Dependencies  none");
+    let after = session.text();
+    assert!(after.contains("Packages      none"), "packages were invalidated:
+{after}");
+    assert!(
+        after.rfind("wally.toml").is_none_or(|at| at < after.rfind("Dependencies  none").unwrap()),
+        "the manifest must not survive the strategy that wanted it:
+{after}"
+    );
+
+    session.send("cancel");
+    session.wait_for("cancel - ");
+    session.send(ENTER);
+
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "cancelling is a clean exit:
+{}", outcome.text);
+    assert!(!path.exists(), "cancel must leave nothing behind");
+}
+
 /// The whole Wally chain, from picker to a green gate.
 ///
 /// Every link here is a step that shells out or hits the network, which is

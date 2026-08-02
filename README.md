@@ -38,7 +38,7 @@ Nothing already installed is reinstalled, and one item failing to install is a w
 | `rproj setup` | Machine provisioning on its own. Optional — `rproj new` is self-sufficient. Safe to re-run. |
 | `rproj setup <tool>` | Set one tool up in the current project: pin it, write its config, and explain the steps that need a human. |
 | `rproj configure [tool]` | Walk through a tool's settings one at a time, explaining each, then merge them into its config file. Covers `stylua`, `selene`, `luau-lsp`. |
-| `rproj upgrade` | Re-apply generated config to an existing project, so it picks up fixes shipped since. Shows the plan and asks first. |
+| `rproj upgrade` | Re-apply generated config to an existing project, so it picks up fixes shipped since. Never restores something you declined. Shows the plan and asks first. |
 | `rproj watch` | From inside a project: install anything missing, then run Rojo's sourcemap watcher. |
 | `rproj copy` | Copy everything under `src/` to the clipboard, with path headers. |
 | `rproj info` | Browse the catalog: pick a section, then type to filter. `rproj info <key>` prints one entry — what it's for, when to reach for it, and the commands to type. |
@@ -62,7 +62,7 @@ Four questions, and each one narrows the next:
    [ ] ci         Run that same gate on GitHub for every push      (GitHub Actions)
    ```
 
-4. **A summary**, not a fourth picker. Every file says why it's there:
+4. **A summary**, not a fourth picker. Pick `change` to go back to an earlier answer — rproj re-asks only what that makes stale — or `customize` to drop individual files. Every file says why it's there:
 
    ```text
    Creates

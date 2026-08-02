@@ -120,29 +120,31 @@ struct GlobalConfig {
     last_checked: Option<String>,               // unix timestamp as a string, informational only
 }
 
-// <project_dir>/rproj.toml
-// Written once by `rproj new`; read (packages list only) by `rproj watch`.
-// Saved package composition, at <config>/setups/<name>.toml. Not the old
-// hardcoded presets: these are whatever a real project ended up with,
-// under a name the user chose.
-struct SavedSetup {
-    packages: Vec<String>,
-    package_workflow: PackageWorkflow,
-}
-
-struct ProjectConfig {
-    mode: String,                // "guided" | "expert" | "like:<setup>"                    // "guided" | "expert"
+// <project_dir>/rproj.toml, and <config>/setups/<name>.toml.
+//
+// Both files are the same type: the project GRAPH. They record the
+// *decisions* a project was built from, not the files that came out - see
+// §3b. `SavedSetup` and `ProjectConfig` are aliases of it.
+struct ProjectGraph {
+    mode: String,                    // "guided" | "expert" | "none" | "like:<setup>"
     package_workflow: PackageWorkflow,
     packages: Vec<String>,           // catalog keys, including auto-added companions
-    tools_at_creation: Vec<String>,  // snapshot of GlobalConfig.selected_rokit_tools at creation time
+    dropped: Vec<String>,            // artifacts declined at the summary
+    tools_at_creation: Vec<String>,  // legacy, read-only; see the migration below
+    capabilities: BTreeMap<String, String>,  // capability key -> implementation key
 }
 
-#[serde(rename_all = "kebab-case")]  // serializes as "wally" | "git-submodules"
+#[serde(rename_all = "kebab-case")]  // serializes as "wally" | "git-submodules" | "none"
 enum PackageWorkflow {
     Wally,
     GitSubmodules,
+    None,
 }
 ```
+
+Field order is load-bearing: `capabilities` serialises as a `[capabilities]` table, and TOML requires every bare key to precede the first table header. `the_graph_round_trips_through_toml` asserts that rather than trusting it.
+
+`capabilities` stores the implementation **concretely** rather than as an `Option`. The file records what this project *has*, so a later change to which implementation is the default cannot silently re-point an existing project at a different test runner.
 
 Static, in-memory-only catalog data (not persisted, compiled into the binary as `const` slices):
 
@@ -334,6 +336,60 @@ fn plan(&Environment, capability_keys, derived_artifacts, pinned_tools, dropped)
 
 The dependency strategy also contributes tools (`wally`, `wally-package-types`), which is why `commands::new` merges the two lists *before* planning. Missing that had the same shape: a Wally project derived Selene and friends from its capabilities and pinned no Wally at all.
 
+## 3b. The project graph
+
+`rproj new` is not asking questions; it is **constructing a model**. Each answer adds a node, and each node determines the next:
+
+```text
+Project
+├── Dependency strategy    Wally | git submodules | none
+├── Packages               constrained by the strategy
+├── Capabilities           what the project should do
+└── Files                  derived from all of the above
+```
+
+`graph::ProjectGraph` is that model as one value, and three things follow from making it explicit. Each was either impossible or duplicated before.
+
+**The summary is a render, not a screen.** It walks the same value the scaffolder does, so it cannot describe a project different from the one that gets written. Before this, `run` held four locals and both the summary and the scaffolder re-derived from them separately.
+
+**Revision is invalidation, not navigation.** `Node::invalidates` is the whole model, and it is four rows:
+
+| changing… | makes stale | leaves alone |
+|---|---|---|
+| Strategy | packages, files | capabilities |
+| Packages | files | strategy, capabilities |
+| Capabilities | files | strategy, packages |
+| Files | — | everything |
+
+What is *absent* matters as much as what is present. The strategy does not touch capabilities — linting does not care where packages come from. Packages do not touch the strategy, which is what stopped React silently switching a project to Wally. And `invalidation_only_points_forward` asserts every edge points later in the order, so re-answering a node can never clear an answer given before it.
+
+The packages are **cleared** rather than filtered on a strategy change: the user is about to be asked again, and silently keeping the subset that survives would be a third party editing their answer. `revise` also names what it is about to discard before discarding it (`changing this re-asks: packages`).
+
+**`rproj.toml` records decisions rather than outcomes.** Two commands get their behaviour from that:
+
+- **`rproj upgrade` re-derives from intent**, so a changed default reaches a project made months ago — and, newly, *cannot* restore something the project declined. A project that never chose CI does not acquire a workflow because a newer rproj knows how to generate one, and a file dropped at the summary stays dropped. Two integration tests hold both directions.
+- **`--like` replays the whole composition** straight to the summary. It used to reuse the packages and then ask three more questions, which is "reuse my setup" half kept.
+
+Upgrade plans through `maintenance_plan()` rather than `plan()`: the app and extension conditions are treated as satisfied, because a `.vscode/settings.json` that exists is a file this project asked for, and whether *this* machine has VS Code today says nothing about that — you might be upgrading on a different machine than you scaffolded on. The capability and strategy conditions still apply, because those are properties of the project rather than of the desk it is sitting on.
+
+### Migrating a pre-0.5 project
+
+A pre-0.5 `rproj.toml` records the tools it pinned and nothing about *why*. Loading one without a bridge would derive an empty capability set, conclude the project wants no linter, no formatter and no gate, and rewrite its config to match — not an upgrade, a demolition. `with_legacy_capabilities` inverts §8.10's table:
+
+| evidence | capability |
+|---|---|
+| `selene` in `tools_at_creation` | `lint` |
+| `stylua` | `format` |
+| `luau-lsp-cli` | `typecheck` |
+| `lute` | `gate` |
+| `tarmac` | `assets-2d` |
+| `testez` in `packages` | `test` |
+| *(unconditional)* | `editor` |
+
+`editor` is unconditional because pre-0.5 rproj wrote `.vscode/settings.json` and `sourcemap.json` for **every** project that had VS Code, gated on the app rather than on any recorded choice — so no tool in `tools_at_creation` distinguishes a project that had them from one that did not. Assuming yes is the safe direction: the alternative is an upgrade that stops maintaining editor settings it wrote itself.
+
+The bridge only runs when `capabilities` is empty, so a 0.5-or-later project is never second-guessed — inferring on top of a recorded graph would resurrect something deliberately dropped.
+
 ## 4. File / Module Structure
 
 ```
@@ -346,7 +402,8 @@ rproj/
 └── src/
     ├── main.rs                  clap dispatch to commands::*
     ├── cli.rs                   clap derive: Cli, Command (Setup | New{name} | Configure{key} | Watch | Copy | Info{key})
-    ├── config.rs                GlobalConfig, PackageWorkflow, ProjectConfig
+    ├── config.rs                GlobalConfig, PackageWorkflow, project_file, Setups
+    ├── graph.rs                 ProjectGraph, Node invalidation, derivation  [+ 17 tests]
     ├── ui.rs                    terminal output: section/ok/skip/warn/detail, Tally, verbosity
     ├── catalog/
     │   ├── mod.rs               Maintenance enum
@@ -1035,12 +1092,13 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-181 automated tests run under a plain `cargo test`: 164 inline `#[cfg(test)]` unit tests and 17 integration tests in `tests/` that drive the real binary. A further 6 live in `tests/live.rs` and are `#[ignore]`d, plus one ignored unit test — see below. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, clippy on stable only, a `package` job that builds from the published tarball, and a weekly `badges` job on ubuntu that runs the maintenance-badge freshness gate authenticated (§3). `cargo fmt --check` is deliberately absent — rustfmt produces 309 hunks against this codebase and no configuration reconciles the two, so a check nobody can pass is worse than no check; the reason is recorded in the workflow itself.
+195 automated tests run under a plain `cargo test`: 176 inline `#[cfg(test)]` unit tests and 19 integration tests in `tests/` that drive the real binary. A further 7 live in `tests/live.rs` and are `#[ignore]`d, plus one ignored unit test — see below. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, clippy on stable only, a `package` job that builds from the published tarball, and a weekly `badges` job on ubuntu that runs the maintenance-badge freshness gate authenticated (§3). `cargo fmt --check` is deliberately absent — rustfmt produces 309 hunks against this codebase and no configuration reconciles the two, so a check nobody can pass is worse than no check; the reason is recorded in the workflow itself.
 
 Two dev-dependencies, both only for the integration tests. `portable-pty` because inquire reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever — a real pseudo-terminal is the only way to answer a prompt without a human. `vt100` because the pty byte stream is not what the program printed: ConPTY re-renders the screen and may express a line break as `\n` or as a cursor-position escape, and which one it picks varies with machine load. Matching the raw bytes passed when the test ran alone and failed three runs in five under a parallel `cargo test`; rendering the bytes to a screen first made it deterministic. Synchronisation is by expecting output, never by sleeping — the whole suite finishes in under a second.
 
 | Test file | Covers |
 | --- | --- |
+| `src/graph.rs` (17 tests) | §3b's whole model. **Invalidation**: changing the strategy clears the packages but not the capabilities; everything upstream of the file list makes it stale and nothing else does; and every edge points *forward*, so re-answering a node can never clear an answer given before it. **Derivation**: a capability choice is recorded concretely; the tool list merges the capability and strategy halves; a Wally project with no packages pins no installer and a submodule project never pins Wally at all. **Persistence**: the graph round-trips through TOML with `[capabilities]` last (bare keys must precede the first table header, and field order is what puts it there); a pre-0.5 file still loads; migration reconstructs what the old project had, and never second-guesses a graph that already records its capabilities. |
 | `src/catalog/artifacts.rs` (25 tests) | §8.9's whole model, in three groups. **Structure**, holding for any future entry: keys unique; every artifact requirement resolves; the graph is acyclic; mandatory entries require nothing and are never also entailed; no entailment names an artifact (it would be checked against an empty set and never fire); nothing entailed depends on an artifact (resolution could then drop something declared non-negotiable); every reason reads as a lowercase clause with no full stop, since it is printed mid-line. **The user story that used to fail**: a minimal answer writes exactly `src` + `default.project.json`, and all six previously-unconditional artifacts are droppable. **The incoherence** (§7): picking packages settles the manifest they install from, under both workflows, and `resolve` writes it even when handed a `chosen` list that omits it; pinning tools settles `rokit.toml`; a pinned linter settles the config without which it cannot run; a tool with working defaults keeps its config optional *and* declining it is honoured; the companion config needs the companion extension; `offered` and `entailed` never overlap and together with the mandatory entries cover exactly `offerable`; and with no packages the manifest is a question again, so "just the Rojo basics" stays reachable. Plus the property test: over every subset of a representative selection × both workflows × tick-everything and tick-nothing, nothing is written with an unmet requirement and the mandatory two are always present. |
 | `src/steps/modules.rs` (5 tests) | Every row of §8.2's requirement matrix: no mapped path is a repo root; monorepo siblings are mounted under the names their own source requires; unvendorable packages are excluded; link files require the name the package is mounted under; packages sharing a repo share one clone dir. |
 | `src/catalog/place_template.rs` (3 tests) | Studio 0–255 colours convert to Rojo's 0–1 floats and stay in range; child instances nest under their declared parent rather than leaking to top level; every declared parent actually exists in the table (otherwise `render` silently drops the child). |
