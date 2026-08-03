@@ -24,13 +24,17 @@ On a fresh PC it can install the development tools you need, configure them, and
 
 ## Installation
 
+```sh
 cargo install rproj
+```
 
-Quick Start
+### Quick Start
 
 Create a new project:
 
+```sh
 rproj new my-first-game
+```
 
 The first run offers to install any missing applications, CLI tools, Studio plugins, and editor extensions before asking about your project.
 
