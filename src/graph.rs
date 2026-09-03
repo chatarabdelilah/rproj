@@ -1,38 +1,6 @@
-//! The decisions a project was built from, as one value.
-//!
-//! # Why this is a type rather than four locals
-//!
-//! `rproj new` is not asking questions; it is **constructing a model**. Each
-//! answer adds a node, and each node determines the next:
-//!
-//! ```text
-//! Project
-//! ├── Dependency strategy    Wally | git submodules | none
-//! ├── Packages               constrained by the strategy
-//! ├── Capabilities           what the project should do
-//! └── Files                  derived from all of the above
-//! ```
-//!
-//! Three things follow from making that explicit, and each of them was
-//! either impossible or duplicated before:
-//!
-//! - **The summary is a render, not a screen.** It walks the same value the
-//!   scaffolder does, so it cannot describe a project different from the one
-//!   that gets written.
-//! - **Revision is invalidation, not navigation.** Changing the strategy
-//!   invalidates the packages (some are no longer vendorable) and therefore
-//!   the file list; it leaves the capabilities alone. That is a table
-//!   (`Node::invalidates`), not a pile of "go back two screens" logic.
-//! - **`rproj.toml` records decisions rather than outcomes**, so `rproj
-//!   upgrade` re-derives from intent - a changed default reaches an old
-//!   project - and `--like` replays a graph straight to the summary.
-//!
-//! # What is deliberately *not* here
-//!
-//! No prompting, no filesystem, no process spawning. The graph is a value;
-//! `commands::new` fills it in and `steps::*` acts on what it derives. That
-//! split is what lets the same graph be built by a CLI today and by
-//! something else later without moving any of this logic.
+//! Project decision graph. It records intent, derives tools/files/packages,
+//! and stays independent of prompting or filesystem work. See
+//! `docs/architecture.md` §3b.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -53,7 +21,12 @@ pub enum Node {
 }
 
 impl Node {
-    pub const ALL: [Node; 4] = [Node::Strategy, Node::Packages, Node::Capabilities, Node::Files];
+    pub const ALL: [Node; 4] = [
+        Node::Strategy,
+        Node::Packages,
+        Node::Capabilities,
+        Node::Files,
+    ];
 
     pub fn label(&self) -> &'static str {
         match self {
@@ -126,24 +99,34 @@ impl ProjectGraph {
     /// Records a capability choice, resolving `None` to whatever the default
     /// implementation is *now* so the file never carries an ambiguity.
     pub fn choose(&mut self, capability: &str, implementation: Option<&str>) {
-        let Some(entry) = capabilities::find(capability) else { return };
+        let Some(entry) = capabilities::find(capability) else {
+            return;
+        };
         let resolved = implementation
             .and_then(|key| entry.implementation(key))
             .unwrap_or_else(|| entry.default_implementation());
         self.capabilities
-            .insert(capability.to_string(), resolved.key.to_string());
+            .insert(entry.key.to_string(), resolved.key.to_string());
     }
 
     /// The `(capability, implementation)` pairs the catalog's `derive` takes.
     pub fn choices(&self) -> Vec<(String, Option<String>)> {
-        self.capabilities
-            .iter()
-            .map(|(k, v)| (k.clone(), Some(v.clone())))
-            .collect()
+        let mut choices = Vec::new();
+        for (key, implementation) in &self.capabilities {
+            let key = capabilities::canonical_key(key).to_string();
+            if choices
+                .iter()
+                .any(|(existing, _): &(String, Option<String>)| existing == &key)
+            {
+                continue;
+            }
+            choices.push((key, Some(implementation.clone())));
+        }
+        choices
     }
 
     pub fn capability_keys(&self) -> Vec<String> {
-        self.capabilities.keys().cloned().collect()
+        self.choices().into_iter().map(|(key, _)| key).collect()
     }
 
     pub fn package_set(&self) -> BTreeSet<String> {
@@ -181,7 +164,11 @@ impl ProjectGraph {
 
     /// The files this project gets, each with the reason it gets them.
     pub fn plan(&self, apps: &[String], extensions: &[String]) -> Vec<Planned> {
-        let environment = Environment { apps, extensions, strategy: self.strategy() };
+        let environment = Environment {
+            apps,
+            extensions,
+            strategy: self.strategy(),
+        };
         artifacts::plan(
             &environment,
             &self.capability_keys(),
@@ -244,16 +231,20 @@ impl ProjectGraph {
         if !self.capabilities.is_empty() {
             return self;
         }
-        const FROM_TOOL: &[(&str, &str)] = &[
-            ("selene", "lint"),
-            ("stylua", "format"),
-            ("luau-lsp-cli", "typecheck"),
-            ("lute", "gate"),
-            ("tarmac", "assets-2d"),
+        const FROM_TOOL: &[(&str, &str, Option<&str>)] = &[
+            ("selene", "lint", None),
+            ("stylua", "format", None),
+            ("luau-lsp-cli", "typecheck", None),
+            ("lute", "gate", None),
+            // Tarmac was removed from active support after its last push
+            // aged past a year; old projects fall to the current default.
+            ("tarmac", "asset-pipeline", Some("asphalt")),
+            ("asphalt", "asset-pipeline", Some("asphalt")),
+            ("tungsten", "asset-pipeline", Some("tungsten")),
         ];
-        for (tool, capability) in FROM_TOOL {
+        for (tool, capability, implementation) in FROM_TOOL {
             if self.tools_at_creation.iter().any(|t| t == tool) {
-                self.choose(capability, None);
+                self.choose(capability, *implementation);
             }
         }
         // The one capability whose evidence is a package rather than a tool.
@@ -321,8 +312,15 @@ mod tests {
         g.invalidate(Node::Strategy);
 
         assert!(g.packages.is_empty(), "packages must be re-asked");
-        assert!(g.dropped.is_empty(), "the file list is downstream of everything");
-        assert_eq!(g.capability_keys(), ["format", "lint"], "capabilities are orthogonal");
+        assert!(
+            g.dropped.is_empty(),
+            "the file list is downstream of everything"
+        );
+        assert_eq!(
+            g.capability_keys(),
+            ["format", "lint"],
+            "capabilities are orthogonal"
+        );
     }
 
     /// Everything upstream of the file list makes the file list stale, and
@@ -336,7 +334,10 @@ mod tests {
                 node
             );
         }
-        assert!(Node::Files.invalidates().is_empty(), "nothing is downstream of files");
+        assert!(
+            Node::Files.invalidates().is_empty(),
+            "nothing is downstream of files"
+        );
     }
 
     /// Invalidation must only ever point *forward*, or re-answering one node
@@ -347,7 +348,10 @@ mod tests {
         for (i, node) in Node::ALL.iter().enumerate() {
             for stale in node.invalidates() {
                 let at = Node::ALL.iter().position(|n| n == stale).expect("in ALL");
-                assert!(at > i, "{node:?} invalidates {stale:?}, which comes before it");
+                assert!(
+                    at > i,
+                    "{node:?} invalidates {stale:?}, which comes before it"
+                );
             }
         }
     }
@@ -366,7 +370,10 @@ mod tests {
     #[test]
     fn a_capability_choice_is_recorded_concretely() {
         let g = graph(PackageWorkflow::None, &[], &["lint"]);
-        assert_eq!(g.capabilities.get("lint").map(String::as_str), Some("selene"));
+        assert_eq!(
+            g.capabilities.get("lint").map(String::as_str),
+            Some("selene")
+        );
     }
 
     #[test]
@@ -383,7 +390,10 @@ mod tests {
         assert!(tools.contains(&"selene".to_string()), "{tools:?}");
         assert!(tools.contains(&"lute".to_string()), "{tools:?}");
         assert!(tools.contains(&"wally".to_string()), "{tools:?}");
-        assert!(tools.contains(&"wally-package-types".to_string()), "{tools:?}");
+        assert!(
+            tools.contains(&"wally-package-types".to_string()),
+            "{tools:?}"
+        );
     }
 
     #[test]
@@ -395,7 +405,11 @@ mod tests {
     #[test]
     fn submodule_projects_never_pin_wally() {
         let g = graph(PackageWorkflow::GitSubmodules, &["charm"], &["lint"]);
-        assert!(!g.tools().iter().any(|t| t.starts_with("wally")), "{:?}", g.tools());
+        assert!(
+            !g.tools().iter().any(|t| t.starts_with("wally")),
+            "{:?}",
+            g.tools()
+        );
     }
 
     /// The bare project, from the graph rather than from the command.
@@ -403,7 +417,10 @@ mod tests {
     fn an_empty_graph_plans_only_the_basics_and_housekeeping() {
         let g = graph(PackageWorkflow::None, &[], &[]);
         let keys: Vec<&str> = g.plan(&[], &[]).iter().map(|p| p.key).collect();
-        assert_eq!(keys, ["src", "default.project.json", "rproj.toml", ".gitignore"]);
+        assert_eq!(
+            keys,
+            ["src", "default.project.json", "rproj.toml", ".gitignore"]
+        );
     }
 
     /// And `dropped` reaches the housekeeping entries, so the absolute
@@ -435,18 +452,28 @@ mod tests {
     /// last, so this asserts the file is valid rather than trusting it.
     #[test]
     fn the_graph_round_trips_through_toml() {
-        let mut g = graph(PackageWorkflow::GitSubmodules, &["charm", "vide"], &["lint", "test"]);
+        let mut g = graph(
+            PackageWorkflow::GitSubmodules,
+            &["charm", "vide"],
+            &["lint", "test"],
+        );
         g.dropped = vec![".gitignore".into()];
 
         let text = toml::to_string_pretty(&g).expect("serialise");
-        assert!(!text.contains("tools_at_creation"), "legacy field must not be written: {text}");
+        assert!(
+            !text.contains("tools_at_creation"),
+            "legacy field must not be written: {text}"
+        );
 
         let back: ProjectGraph = toml::from_str(&text).expect("parse back");
         assert_eq!(back.package_workflow, PackageWorkflow::GitSubmodules);
         assert_eq!(back.packages, ["charm", "vide"]);
         assert_eq!(back.dropped, [".gitignore"]);
         assert_eq!(back.capability_keys(), ["lint", "test"]);
-        assert_eq!(back.capabilities.get("test").map(String::as_str), Some("testez"));
+        assert_eq!(
+            back.capabilities.get("test").map(String::as_str),
+            Some("testez")
+        );
     }
 
     /// A pre-0.5 file has none of the new keys. It must still load, and must
@@ -465,7 +492,11 @@ tools_at_creation = ["rojo", "selene", "stylua", "lute"]
 
         let migrated = g.with_legacy_capabilities();
         let keys = migrated.capability_keys();
-        assert_eq!(keys, ["editor", "format", "gate", "lint", "test"], "{keys:?}");
+        assert_eq!(
+            keys,
+            ["editor", "format", "gate", "lint", "test"],
+            "{keys:?}"
+        );
     }
 
     /// **The demolition this prevents.** Without the bridge, upgrading a
@@ -479,8 +510,16 @@ tools_at_creation = ["rojo", "selene", "stylua", "lute"]
             tools_at_creation: vec!["selene".into(), "stylua".into(), "lute".into()],
             ..Default::default()
         };
-        let before: Vec<&str> = legacy.clone().plan(&[], &[]).iter().map(|p| p.key).collect();
-        assert!(!before.contains(&"selene.toml"), "no capabilities recorded yet: {before:?}");
+        let before: Vec<&str> = legacy
+            .clone()
+            .plan(&[], &[])
+            .iter()
+            .map(|p| p.key)
+            .collect();
+        assert!(
+            !before.contains(&"selene.toml"),
+            "no capabilities recorded yet: {before:?}"
+        );
 
         let after: Vec<&str> = legacy
             .with_legacy_capabilities()

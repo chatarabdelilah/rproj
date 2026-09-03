@@ -1,8 +1,5 @@
-// Test-only: this is a CI gate, not a runtime feature, and the module
-// docs explain why. Gated rather than `#[allow(dead_code)]` because
-// `#[cfg(test)]` is the accurate statement - nothing in the shipped
-// binary calls it. The attribute comes off in the same commit that gives
-// it a caller.
+pub mod asphalt;
+// Test-only: this is a CI freshness gate, not runtime code.
 #[cfg(test)]
 pub mod badge_check;
 pub mod blender;
@@ -16,9 +13,9 @@ pub mod notify;
 pub mod quality;
 pub mod rojo;
 pub mod studio_plugin;
-pub mod tarmac;
 pub mod testez;
 pub mod toolchain;
+pub mod tungsten;
 pub mod update_check;
 pub mod vscode;
 pub mod wally;
@@ -26,7 +23,7 @@ pub mod wally;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::ui;
 
@@ -85,7 +82,9 @@ pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captu
     if let Some(dir) = dir {
         cmd.current_dir(dir);
     }
-    let output = cmd.output().with_context(|| format!("failed to spawn `{program}`"))?;
+    let output = cmd
+        .output()
+        .with_context(|| format!("failed to spawn `{program}`"))?;
     Ok(Captured {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -111,7 +110,10 @@ pub fn probe(program: &str, args: &[&str]) -> bool {
 /// make, so it's easy to reach while iterating quickly during testing.
 pub fn github_get_text(url: &str) -> Result<String> {
     match ureq::get(url).header("User-Agent", "rproj").call() {
-        Ok(mut response) => response.body_mut().read_to_string().context("failed to read response body"),
+        Ok(mut response) => response
+            .body_mut()
+            .read_to_string()
+            .context("failed to read response body"),
         Err(ureq::Error::StatusCode(403)) => bail!(
             "GitHub's unauthenticated API rate limit (60 requests/hour per IP) was hit while \
              calling {url}. Wait for it to reset (up to an hour) and try again."

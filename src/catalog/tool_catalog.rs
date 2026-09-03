@@ -45,7 +45,10 @@ pub enum ToolKind {
     /// A Studio plugin installed by downloading the latest GitHub release
     /// asset whose filename ends in `asset_suffix`, into the Studio plugins
     /// folder (see `steps::studio_plugin`).
-    StudioPlugin { github_repo: &'static str, asset_suffix: &'static str },
+    StudioPlugin {
+        github_repo: &'static str,
+        asset_suffix: &'static str,
+    },
     /// A Studio plugin installed by its own tool's CLI, e.g.
     /// `rojo plugin install`.
     ///
@@ -62,7 +65,10 @@ pub enum ToolKind {
     /// Marketplace plugins land in the same folder under a filename derived
     /// from the asset id, so their presence cannot be reliably detected
     /// either - which is why this reports rather than checks.
-    StudioPluginManual { github_repo: &'static str, install_url: &'static str },
+    StudioPluginManual {
+        github_repo: &'static str,
+        install_url: &'static str,
+    },
     /// The official Roblox Blender add-on - installed into Blender itself,
     /// not Roblox Studio, via headless Python (see steps::blender). Only
     /// relevant if Blender is also selected, and surfaced as a contextual
@@ -121,8 +127,7 @@ pub const FAMILY_ORDER: &[&str] = &[
     "Selene",
     "StyLua",
     "Lute",
-    "Tarmac",
-    "Mantle",
+    "Asset pipeline",
     "Luau Language Server",
     "Blender",
     "Themes",
@@ -134,7 +139,10 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "git",
         description: "Version control - required for any real team workflow",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Git.Git", detect: Detect::Winget },
+        kind: ToolKind::SystemApp {
+            winget_id: "Git.Git",
+            detect: Detect::Winget,
+        },
         family: "System apps",
         default_selected: true,
         docs_url: "https://git-scm.com/",
@@ -143,7 +151,10 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "vscode",
         description: "Code editor",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Microsoft.VisualStudioCode", detect: Detect::Winget },
+        kind: ToolKind::SystemApp {
+            winget_id: "Microsoft.VisualStudioCode",
+            detect: Detect::Winget,
+        },
         family: "System apps",
         default_selected: true,
         docs_url: "https://code.visualstudio.com/",
@@ -169,7 +180,10 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "roblox",
         description: "Roblox client - needed to play/test published games",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Roblox.Roblox", detect: Detect::Winget },
+        kind: ToolKind::SystemApp {
+            winget_id: "Roblox.Roblox",
+            detect: Detect::Winget,
+        },
         family: "System apps",
         default_selected: true,
         docs_url: "https://www.roblox.com/",
@@ -178,7 +192,10 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "blender",
         description: "3D modeling tool, for building custom meshes/animations (optional, heavier install)",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "BlenderFoundation.Blender", detect: Detect::Winget },
+        kind: ToolKind::SystemApp {
+            winget_id: "BlenderFoundation.Blender",
+            detect: Detect::Winget,
+        },
         family: "System apps",
         default_selected: false,
         docs_url: "https://www.blender.org/",
@@ -187,7 +204,10 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
         key: "figma",
         description: "UI design tool - for laying out interfaces before building them (optional)",
         maintenance: Maintenance::Active,
-        kind: ToolKind::SystemApp { winget_id: "Figma.Figma", detect: Detect::Winget },
+        kind: ToolKind::SystemApp {
+            winget_id: "Figma.Figma",
+            detect: Detect::Winget,
+        },
         family: "System apps",
         default_selected: false,
         docs_url: "https://www.figma.com/",
@@ -199,7 +219,9 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "rojo",
         description: "Syncs your filesystem code into Roblox Studio",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "rojo" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "rojo",
+        },
         family: "Rojo",
         default_selected: true,
         docs_url: "https://rojo.space/",
@@ -208,7 +230,9 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "wally",
         description: "Package manager for Roblox/Luau, similar to npm or cargo",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "wally" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "wally",
+        },
         family: "Wally",
         default_selected: true,
         docs_url: "https://wally.run/",
@@ -217,7 +241,9 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "wally-package-types",
         description: "Generates Luau type definitions for your installed Wally packages",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "wally-package-types" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "wally-package-types",
+        },
         family: "Wally",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/wally-package-types",
@@ -226,7 +252,9 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "selene",
         description: "Static analysis linter for Luau",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "selene" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "selene",
+        },
         family: "Selene",
         default_selected: true,
         docs_url: "https://kampfkarren.github.io/selene/",
@@ -235,7 +263,9 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "stylua",
         description: "Deterministic code formatter for Luau",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "JohnnyMorganz/StyLua" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "JohnnyMorganz/StyLua",
+        },
         family: "StyLua",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/StyLua",
@@ -244,7 +274,9 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "lute",
         description: "Standalone Luau runtime - runs the project's `.lute/check.luau` quality gate locally and in CI",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "luau-lang/lute" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "luau-lang/lute",
+        },
         family: "Lute",
         default_selected: true,
         docs_url: "https://lute.luau.org/",
@@ -253,28 +285,34 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         key: "luau-lsp-cli",
         description: "Luau language server as a command-line type checker - this is what `luau-lsp analyze` in the quality gate runs, separate from the VS Code extension of the same name",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "JohnnyMorganz/luau-lsp" },
+        kind: ToolKind::RokitTool {
+            rokit_source: "JohnnyMorganz/luau-lsp",
+        },
         family: "Luau Language Server",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
     },
     ToolEntry {
-        key: "tarmac",
-        description: "Roblox's own asset-sync tool - uploads images/sounds/meshes and generates Luau references for them",
+        key: "asphalt",
+        description: "Modern Roblox asset-sync tool with Open Cloud, Studio/debug targets, and Luau/TypeScript code generation",
         maintenance: Maintenance::Active,
-        kind: ToolKind::RokitTool { rokit_source: "Roblox/tarmac" },
-        family: "Tarmac",
+        kind: ToolKind::RokitTool {
+            rokit_source: "jacktabscode/asphalt",
+        },
+        family: "Asset pipeline",
         default_selected: false,
-        docs_url: "https://github.com/Roblox/tarmac",
+        docs_url: "https://github.com/jackTabsCode/asphalt",
     },
     ToolEntry {
-        key: "mantle",
-        description: "Infrastructure-as-code deployment tool for Roblox places - no longer maintained upstream (the author's own words: \"do not expect responses to tickets, bug fixes, or new features\"), but still the most complete option for scripted deploys",
-        maintenance: Maintenance::Legacy,
-        kind: ToolKind::RokitTool { rokit_source: "blake-mealey/mantle" },
-        family: "Mantle",
+        key: "tungsten",
+        description: "Roblox asset-sync tool with Open Cloud targets, watch mode, Luau/TypeScript code generation, and spritesheet packing",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::RokitTool {
+            rokit_source: "pwnwrkz/tungsten",
+        },
+        family: "Asset pipeline",
         default_selected: false,
-        docs_url: "https://mantledeploy.vercel.app/",
+        docs_url: "https://pwnwrkz.github.io/tungsten-docs/",
     },
 ];
 
@@ -287,7 +325,9 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "rojo-plugin",
         description: "Studio-side companion for Rojo's file sync (installed via `rojo plugin install`)",
         maintenance: Maintenance::Active,
-        kind: ToolKind::StudioPluginViaCli { github_repo: "rojo-rbx/rojo" },
+        kind: ToolKind::StudioPluginViaCli {
+            github_repo: "rojo-rbx/rojo",
+        },
         family: "Rojo",
         default_selected: true,
         docs_url: "https://rojo.space/",
@@ -296,7 +336,10 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "hoarcekat",
         description: "Storybook-style previewer for isolated UI components, especially useful with React/Roact",
         maintenance: Maintenance::Active,
-        kind: ToolKind::StudioPlugin { github_repo: "Kampfkarren/hoarcekat", asset_suffix: ".rbxm" },
+        kind: ToolKind::StudioPlugin {
+            github_repo: "Kampfkarren/hoarcekat",
+            asset_suffix: ".rbxm",
+        },
         family: "Testing & extras",
         default_selected: false,
         docs_url: "https://github.com/Kampfkarren/hoarcekat",
@@ -305,7 +348,10 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "luau-lsp-plugin",
         description: "Companion for the Luau language server - exposes Studio's live DataModel (instances not in your Rojo files) for better autocomplete",
         maintenance: Maintenance::Active,
-        kind: ToolKind::StudioPlugin { github_repo: "JohnnyMorganz/luau-lsp", asset_suffix: ".rbxm" },
+        kind: ToolKind::StudioPlugin {
+            github_repo: "JohnnyMorganz/luau-lsp",
+            asset_suffix: ".rbxm",
+        },
         family: "Luau Language Server",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md",
@@ -314,7 +360,10 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "ui-labs",
         description: "Storybook-style UI component previewer - the actively developed successor to Hoarcekat",
         maintenance: Maintenance::Active,
-        kind: ToolKind::StudioPlugin { github_repo: "PepeElToro41/ui-labs", asset_suffix: ".rbxm" },
+        kind: ToolKind::StudioPlugin {
+            github_repo: "PepeElToro41/ui-labs",
+            asset_suffix: ".rbxm",
+        },
         family: "Testing & extras",
         default_selected: false,
         docs_url: "https://pepeeltoro41.github.io/ui-labs/",
@@ -323,8 +372,8 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "resurface",
         description: "Converts surface GUIs to studs and back, plus alignment and sizing helpers",
         maintenance: Maintenance::Active,
-        // No GitHub releases and no tags - the repo is source, built with
-        // Rojo/darklua/tarmac, and shipped through the creator marketplace.
+        // No GitHub releases and no tags - the repo is source, built from
+        // Roblox tooling, and shipped through the creator marketplace.
         // Verified: both the releases and tags endpoints return zero.
         kind: ToolKind::StudioPluginManual {
             github_repo: "cxmeel/resurface-plugin",
@@ -338,7 +387,9 @@ pub const PLUGINS: &[ToolEntry] = &[
         key: "blender-plugin",
         description: "Roblox's official Blender add-on (\"Roblox Upload\") - uploads meshes/assets to Roblox via the Open Cloud API",
         maintenance: Maintenance::Active,
-        kind: ToolKind::BlenderAddon { github_repo: "Roblox/roblox-blender-plugin" },
+        kind: ToolKind::BlenderAddon {
+            github_repo: "Roblox/roblox-blender-plugin",
+        },
         family: "Blender",
         default_selected: true,
         docs_url: "https://create.roblox.com/docs/art/modeling/roblox-blender-plugin",
@@ -350,7 +401,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "luau-lsp",
         description: "Luau language server - autocomplete, type checking, go-to-definition",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "JohnnyMorganz.luau-lsp" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "JohnnyMorganz.luau-lsp",
+        },
         family: "Luau Language Server",
         default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
@@ -359,7 +412,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "vscode-rojo",
         description: "Rojo commands and status from inside the editor - hasn't been updated since 2022, but still functions",
         maintenance: Maintenance::CommunityStable,
-        kind: ToolKind::VsCodeExtension { extension_id: "evaera.vscode-rojo" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "evaera.vscode-rojo",
+        },
         family: "Rojo",
         default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=evaera.vscode-rojo",
@@ -368,7 +423,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "selene-vscode",
         description: "Inline Selene lint diagnostics",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "Kampfkarren.selene-vscode" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "Kampfkarren.selene-vscode",
+        },
         family: "Selene",
         default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=Kampfkarren.selene-vscode",
@@ -377,7 +434,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "stylua-vscode",
         description: "Format Luau files with StyLua on save",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "JohnnyMorganz.stylua" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "JohnnyMorganz.stylua",
+        },
         family: "StyLua",
         default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.stylua",
@@ -386,7 +445,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "roblox-ui",
         description: "Explorer panel for your Rojo project inside VS Code - browse the file tree as the Roblox instances it becomes",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "filiptibell.roblox-ui" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "filiptibell.roblox-ui",
+        },
         family: "Rojo",
         default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=filiptibell.roblox-ui",
@@ -395,7 +456,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "testez-companion",
         description: "Runs your TestEZ tests from VS Code and shows the results inline, talking to a Studio-side plugin",
         maintenance: Maintenance::CommunityStable,
-        kind: ToolKind::VsCodeExtension { extension_id: "tacheometrist.testez-companion" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "tacheometrist.testez-companion",
+        },
         family: "Testing & extras",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=tacheometrist.testez-companion",
@@ -404,7 +467,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "github-actions",
         description: "Shows CI workflow runs and their logs in the editor, and gives you completion when editing workflow YAML",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "github.vscode-github-actions" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "github.vscode-github-actions",
+        },
         family: "Testing & extras",
         default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=github.vscode-github-actions",
@@ -413,7 +478,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "theme-one-dark",
         description: "Atom One Dark Theme, by Mahmoud Ali - a faithful port of Atom's iconic dark theme",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "akamud.vscode-theme-onedark" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "akamud.vscode-theme-onedark",
+        },
         family: "Themes",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=akamud.vscode-theme-onedark",
@@ -422,7 +489,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "theme-monospace",
         description: "Monospace Theme, by Keksi - a minimalistic theme with subtle purple accents",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "keksiqc.idx-monospace-theme" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "keksiqc.idx-monospace-theme",
+        },
         family: "Themes",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=keksiqc.idx-monospace-theme",
@@ -431,7 +500,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "theme-horizon",
         description: "Horizon Theme, by Alexander Nanberg - a warm dual (light/dark) theme",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "alexandernanberg.horizon-theme-vscode" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "alexandernanberg.horizon-theme-vscode",
+        },
         family: "Themes",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=alexandernanberg.horizon-theme-vscode",
@@ -440,7 +511,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "theme-catppuccin",
         description: "Catppuccin, four pastel themes (Latte, Frappe, Macchiato, Mocha) with a large ecosystem",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "Catppuccin.catppuccin-vsc" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "Catppuccin.catppuccin-vsc",
+        },
         family: "Themes",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc",
@@ -449,7 +522,9 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
         key: "theme-catppuccin-icons",
         description: "Catppuccin's matching file-icon set - only worth it alongside the theme",
         maintenance: Maintenance::Active,
-        kind: ToolKind::VsCodeExtension { extension_id: "Catppuccin.catppuccin-vsc-icons" },
+        kind: ToolKind::VsCodeExtension {
+            extension_id: "Catppuccin.catppuccin-vsc-icons",
+        },
         family: "Themes",
         default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc-icons",

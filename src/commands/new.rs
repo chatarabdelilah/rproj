@@ -1,22 +1,27 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use inquire::{MultiSelect, Select};
 
 use crate::catalog::artifacts;
 use crate::catalog::capabilities;
-use crate::catalog::wally_packages::{self, companions_for, Category, PackageSpec};
+use crate::catalog::wally_packages::{self, Category, PackageSpec, companions_for};
 use crate::commands::provision;
-use crate::config::{project_file, GlobalConfig, PackageWorkflow, Setups};
+use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file};
 use crate::graph::{Node, ProjectGraph};
 use crate::steps::{
-    blender, figma, git, gitattributes, gitignore, modules, quality, rojo, tarmac, testez,
-    toolchain, vscode, wally,
+    asphalt, blender, figma, git, gitattributes, gitignore, modules, quality, rojo, testez,
+    toolchain, tungsten, vscode, wally,
 };
 use crate::ui;
 
-pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option<&str>) -> Result<()> {
+pub fn run(
+    name: &str,
+    reconfigure: bool,
+    like: Option<&str>,
+    save_setup: Option<&str>,
+) -> Result<()> {
     let mut config = GlobalConfig::load()?;
 
     let project_dir = config.projects_root()?.join(name);
@@ -75,7 +80,10 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
             // The whole composition replays. It used to reuse the packages
             // and then ask three more questions, which is "reuse my setup"
             // half kept.
-            ProjectGraph { mode: format!("like:{setup_name}"), ..setup }
+            ProjectGraph {
+                mode: format!("like:{setup_name}"),
+                ..setup
+            }
         }
         None => ask_for_graph()?,
     };
@@ -105,7 +113,8 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         match confirm_plan(name, &graph, &planned)? {
             Outcome::Create => break planned,
             Outcome::Customize => {
-                graph.dropped = customize_plan(&graph.full_plan(&apps, &extensions), &graph.dropped)?;
+                graph.dropped =
+                    customize_plan(&graph.full_plan(&apps, &extensions), &graph.dropped)?;
             }
             Outcome::Change => {
                 revise(&mut graph)?;
@@ -159,7 +168,9 @@ pub fn run(name: &str, reconfigure: bool, like: Option<&str>, save_setup: Option
         // The whole graph, so `--like` replays the composition rather than
         // reusing the packages and asking three more questions.
         Setups::save(&graph, setup_name)?;
-        ui::ok(&format!("saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"));
+        ui::ok(&format!(
+            "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
+        ));
     }
 
     // A new project is exactly when someone doesn't yet know what to run,
@@ -217,7 +228,9 @@ fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
             let (workflow, packages) = reconcile_strategy(graph.package_workflow, packages)?;
             graph.mode = mode.to_string();
             graph.package_workflow = workflow;
-            graph.packages = resolve_dependencies(workflow, packages).into_iter().collect();
+            graph.packages = resolve_dependencies(workflow, packages)
+                .into_iter()
+                .collect();
         }
         Node::Capabilities => {
             graph.capabilities.clear();
@@ -242,12 +255,13 @@ fn revise(graph: &mut ProjectGraph) -> Result<()> {
     // Derived from `Node::ALL` rather than repeated, so adding a node to the
     // graph cannot leave it uneditable. `Files` is excluded because
     // `customize` already edits it, with the plan in hand.
-    let editable: Vec<Node> = Node::ALL.into_iter().filter(|n| *n != Node::Files).collect();
+    let editable: Vec<Node> = Node::ALL
+        .into_iter()
+        .filter(|n| *n != Node::Files)
+        .collect();
     let options: Vec<String> = editable
         .iter()
-        .map(|node| {
-            ui::option_line(node.label(), &describe_node(graph, *node), "change")
-        })
+        .map(|node| ui::option_line(node.label(), &describe_node(graph, *node), "change"))
         .collect();
 
     let picked = Select::new("Change which answer?", options)
@@ -313,10 +327,7 @@ fn describe_node(graph: &ProjectGraph, node: Node) -> String {
 /// Git submodules have no dependency resolution: the scaffold clones exactly
 /// the list it is given. Wally does its own, so its manifest is left as the
 /// user picked it.
-fn resolve_dependencies(
-    workflow: PackageWorkflow,
-    packages: BTreeSet<String>,
-) -> BTreeSet<String> {
+fn resolve_dependencies(workflow: PackageWorkflow, packages: BTreeSet<String>) -> BTreeSet<String> {
     if workflow != PackageWorkflow::GitSubmodules {
         return packages;
     }
@@ -327,7 +338,10 @@ fn resolve_dependencies(
         .map(String::as_str)
         .collect();
     if !added.is_empty() {
-        ui::ok(&format!("added required dependencies: {}", added.join(", ")));
+        ui::ok(&format!(
+            "added required dependencies: {}",
+            added.join(", ")
+        ));
     }
     resolved
 }
@@ -382,8 +396,8 @@ fn owned(options: &[&str]) -> Vec<String> {
 /// later asks "how do I configure this?" needs to have seen the word Selene.
 ///
 /// Returns `(capability, implementation)` pairs. The implementation is
-/// `None` wherever there is only one, which is every capability but `test`
-/// once jest-lua lands - see `capabilities::needs_an_implementation_prompt`.
+/// `None` wherever there is only one; `asset-pipeline` names its provider
+/// because Asphalt and Tungsten are real alternatives.
 fn pick_capabilities() -> Result<Vec<(String, Option<String>)>> {
     let offerable: Vec<&'static capabilities::Capability> =
         capabilities::CAPABILITIES.iter().collect();
@@ -414,7 +428,11 @@ fn pick_capabilities() -> Result<Vec<(String, Option<String>)>> {
         // (see `capabilities::derive`), so say so rather than letting the
         // user believe they enabled it.
         let keys: Vec<String> = chosen.iter().map(|(k, _)| k.clone()).collect();
-        if !capability.requires.iter().all(|r| keys.iter().any(|k| k == r)) {
+        if !capability
+            .requires
+            .iter()
+            .all(|r| keys.iter().any(|k| k == r))
+        {
             ui::skip(&format!(
                 "{} needs {} - skipping it",
                 capability.key,
@@ -560,10 +578,7 @@ enum Outcome {
 ///
 /// Not a prompt everyone answers: one keystroke past it for the nine, one
 /// extra screen for the tenth.
-fn customize_plan(
-    full_plan: &[artifacts::Planned],
-    dropped: &[String],
-) -> Result<Vec<String>> {
+fn customize_plan(full_plan: &[artifacts::Planned], dropped: &[String]) -> Result<Vec<String>> {
     let droppable: Vec<&artifacts::Planned> = full_plan
         .iter()
         .filter(|p| artifacts::find(p.key).is_some_and(|a| !a.mandatory))
@@ -600,11 +615,7 @@ fn customize_plan(
 
 /// The summary as text. Pure, so the wording is a test rather than something
 /// only visible by running the whole flow.
-fn summary_lines(
-    name: &str,
-    graph: &ProjectGraph,
-    planned: &[artifacts::Planned],
-) -> Vec<String> {
+fn summary_lines(name: &str, graph: &ProjectGraph, planned: &[artifacts::Planned]) -> Vec<String> {
     let packages = &graph.package_set();
     let chosen = &graph.choices();
     let mut lines = vec![format!("  {name}"), String::new()];
@@ -641,7 +652,11 @@ fn summary_lines(
     lines.push(format!(
         "  {:<14}{}",
         "Does",
-        if does.is_empty() { "nothing extra".to_string() } else { does.join(", ") }
+        if does.is_empty() {
+            "nothing extra".to_string()
+        } else {
+            does.join(", ")
+        }
     ));
 
     lines.push(String::new());
@@ -720,7 +735,11 @@ fn reconcile_strategy(
         .flat_map(|(key, via)| [Some((*key).to_string()), via.map(|d| d.to_string())])
         .flatten()
         .collect();
-    let kept: BTreeSet<String> = packages.iter().filter(|k| !removed.contains(k)).cloned().collect();
+    let kept: BTreeSet<String> = packages
+        .iter()
+        .filter(|k| !removed.contains(k))
+        .cloned()
+        .collect();
     ui::skip(&format!("removed: {}", {
         let mut names: Vec<&str> = removed.iter().map(String::as_str).collect();
         names.sort_unstable();
@@ -771,7 +790,9 @@ fn pick_guided(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
             // handed a beginner four packages they never chose.
             let mut options = options;
             options.insert(0, "none".to_string());
-            let picked = Select::new(&prompt, options).with_formatter(&ui::compact_select_answer).prompt()?;
+            let picked = Select::new(&prompt, options)
+                .with_formatter(&ui::compact_select_answer)
+                .prompt()?;
             if picked != "none"
                 // Matched on the full "key - " prefix, not a bare
                 // starts_with: two keys where one prefixes the other
@@ -822,7 +843,6 @@ fn pick_expert(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
         .map(|p| p.key.to_string())
         .collect())
 }
-
 
 fn add_companions(packages: &mut BTreeSet<String>) {
     let primaries: Vec<String> = packages.iter().cloned().collect();
@@ -1012,10 +1032,13 @@ fn scaffold(
     if writes("figma") {
         figma::scaffold_design_folder(project_dir)?;
     }
-    // After figma/, so `asset_source` can see the exports folder and point
-    // Tarmac at it rather than at a generic assets/ directory.
-    if writes("tarmac.toml") {
-        tarmac::ensure_config(project_dir, &slugify(name))?;
+    // After figma/, so each asset pipeline can see the exports folder and
+    // point at it rather than at a generic assets/ directory.
+    if writes("asphalt.toml") {
+        asphalt::ensure_config(project_dir)?;
+    }
+    if writes("tungsten.toml") {
+        tungsten::ensure_config(project_dir)?;
     }
 
     Ok(())
@@ -1023,7 +1046,13 @@ fn scaffold(
 
 fn slugify(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -1037,7 +1066,7 @@ fn slugify(name: &str) -> String {
 /// file can be edited by hand), and scaffolding a submodule project around
 /// a package that has no vendorable source produces a broken tree.
 fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
-    if let Some(mut setup) = Setups::load(name)? {
+    if let Some(mut setup) = Setups::load(name)?.map(ProjectGraph::with_legacy_capabilities) {
         // Same transitive check as the interactive path: a saved setup can
         // name only vendorable packages and still be unbuildable because one
         // of them requires something that isn't.
@@ -1081,7 +1110,10 @@ fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
              Add `--save-setup <name>` to a `rproj new` run to create one."
         );
     }
-    bail!("no saved setup called `{name}`. Available: {}", available.join(", "))
+    bail!(
+        "no saved setup called `{name}`. Available: {}",
+        available.join(", ")
+    )
 }
 
 #[cfg(test)]
@@ -1118,7 +1150,10 @@ mod tests {
     /// twice, four prompts apart.
     #[test]
     fn the_test_runner_is_not_offered_as_a_package() {
-        assert!(capability_owned("testez"), "the test capability must own it");
+        assert!(
+            capability_owned("testez"),
+            "the test capability must own it"
+        );
         let testez = wally_packages::find("testez").expect("in the catalog");
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
             assert!(!offerable_package(testez, workflow));
@@ -1130,10 +1165,19 @@ mod tests {
     #[test]
     fn machine_is_only_configured_once() {
         let fresh = GlobalConfig::default();
-        assert!(!fresh.machine_configured(), "a fresh config needs provisioning");
+        assert!(
+            !fresh.machine_configured(),
+            "a fresh config needs provisioning"
+        );
 
-        let provisioned = GlobalConfig { last_checked: Some("123".into()), ..Default::default() };
-        assert!(provisioned.machine_configured(), "already provisioned, don't re-ask");
+        let provisioned = GlobalConfig {
+            last_checked: Some("123".into()),
+            ..Default::default()
+        };
+        assert!(
+            provisioned.machine_configured(),
+            "already provisioned, don't re-ask"
+        );
     }
 
     /// The skip path prints this instead of the pickers, so it has to say
@@ -1148,8 +1192,14 @@ mod tests {
         let summary = config.machine_summary();
         assert!(summary.contains("2 apps"), "{summary}");
         assert!(summary.contains("1 tools"), "{summary}");
-        assert!(!summary.contains("plugins"), "empty groups shouldn't be listed: {summary}");
-        assert_eq!(GlobalConfig::default().machine_summary(), "nothing selected");
+        assert!(
+            !summary.contains("plugins"),
+            "empty groups shouldn't be listed: {summary}"
+        );
+        assert_eq!(
+            GlobalConfig::default().machine_summary(),
+            "nothing selected"
+        );
     }
 
     /// A graph built the way `run` builds one, so the tests exercise the
@@ -1173,7 +1223,10 @@ mod tests {
     fn choosing_nothing_yields_only_the_basics() {
         let graph = graph_of(PackageWorkflow::None, &[], &[]);
         let keys: Vec<&str> = graph.plan(&[], &[]).iter().map(|p| p.key).collect();
-        assert_eq!(keys, ["src", "default.project.json", "rproj.toml", ".gitignore"]);
+        assert_eq!(
+            keys,
+            ["src", "default.project.json", "rproj.toml", ".gitignore"]
+        );
     }
 
     /// Choosing a capability derives its tool *and* its file, in one answer.
@@ -1193,8 +1246,10 @@ mod tests {
     fn the_summary_names_every_file_and_why_it_is_there() {
         let graph = graph_of(PackageWorkflow::Wally, &["reflex"], &["lint", "format"]);
         let planned = graph.plan(&[], &[]);
-        let text = summary_lines("MyGame", &graph, &planned).join("
-");
+        let text = summary_lines("MyGame", &graph, &planned).join(
+            "
+",
+        );
 
         assert!(text.contains("  MyGame"), "{text}");
         assert!(text.contains("Dependencies  Wally"), "{text}");
@@ -1214,8 +1269,10 @@ mod tests {
     fn the_summary_says_so_when_nothing_extra_was_chosen() {
         let graph = graph_of(PackageWorkflow::None, &[], &[]);
         let planned = graph.plan(&[], &[]);
-        let text = summary_lines("bare", &graph, &planned).join("
-");
+        let text = summary_lines("bare", &graph, &planned).join(
+            "
+",
+        );
         assert!(text.contains("Dependencies  none"), "{text}");
         assert!(text.contains("Packages      none"), "{text}");
         assert!(text.contains("Does          nothing extra"), "{text}");
@@ -1234,7 +1291,4 @@ mod tests {
         assert_eq!(describe_node(&empty, Node::Packages), "none");
         assert_eq!(describe_node(&empty, Node::Capabilities), "nothing extra");
     }
-
 }
-
-

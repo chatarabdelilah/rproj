@@ -12,7 +12,8 @@ On a fresh PC it can install the development tools you need, configure them, and
 - Provision a Windows machine with the Roblox development toolchain
 - Scaffold Roblox/Luau projects with sensible defaults
 - Configure tools instead of only installing them
-- Guide package selection with explanations
+- Guide package and capability selection with explanations
+- Choose an asset pipeline: Asphalt or Tungsten
 - Generate optional quality gates and CI
 - Upgrade generated configuration as `rproj` evolves
 
@@ -77,6 +78,8 @@ my-first-game/
 ├── tests/                   # optional
 ├── .lute/check.luau         # optional
 ├── .github/workflows/ci.yml # optional
+├── figma/                   # optional asset export folder
+├── asphalt.toml             # optional, or tungsten.toml
 └── .vscode/settings.json
 ```
 
@@ -87,10 +90,10 @@ The exact output depends on the features you choose during project creation.
 `rproj` can work with:
 
 - System applications (Git, VS Code, Roblox Studio, Blender, Figma)
-- CLI tools (Rojo, Wally, Selene, StyLua, luau-lsp, Lute, Mantle, Tarmac, and others)
+- CLI tools (Rojo, Wally, Selene, StyLua, luau-lsp, Lute, Asphalt, Tungsten, and others)
 - Roblox Studio plugins
 - VS Code extensions
-- Wally packages
+- Wally packages, including Matter, Scribe, and React ecosystem utilities
 
 Run `rproj info` to browse the complete catalog.
 

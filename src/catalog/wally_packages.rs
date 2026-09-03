@@ -6,6 +6,7 @@ use super::Maintenance;
 pub enum Category {
     StateManagement,
     Ui,
+    Architecture,
     DataProfile,
     Testing,
     Utility,
@@ -16,15 +17,17 @@ impl Category {
         match self {
             Category::StateManagement => "State management",
             Category::Ui => "UI",
+            Category::Architecture => "Architecture",
             Category::DataProfile => "Data & profiles",
             Category::Testing => "Testing",
             Category::Utility => "Utilities",
         }
     }
 
-    pub const ALL: [Category; 5] = [
+    pub const ALL: [Category; 6] = [
         Category::StateManagement,
         Category::Ui,
+        Category::Architecture,
         Category::DataProfile,
         Category::Testing,
         Category::Utility,
@@ -32,12 +35,12 @@ impl Category {
 
     /// Whether more than one pick makes sense in this category.
     ///
-    /// State management, UI, data/profile and testing are architecturally
-    /// exclusive choices - you don't run two UI frameworks, and you don't
-    /// run two test runners: that would mean two `tests/` layouts, two
-    /// selene standard libraries and two quality-gate steps. Those are
-    /// single-select, so picking one means not picking the other, and
-    /// `none` is always available.
+    /// State management, UI, architecture, data/profile and testing are
+    /// architecturally exclusive choices - you don't run two UI frameworks,
+    /// and you don't run two test runners: that would mean two `tests/`
+    /// layouts, two selene standard libraries and two quality-gate steps.
+    /// Those are single-select, so picking one means not picking the other,
+    /// and `none` is always available.
     ///
     /// Utilities is the exception: an additive toolbox where wanting
     /// several at once (janitor + promise + greentea, say) is normal.
@@ -101,7 +104,9 @@ const MIXED_TABLE_IDIOM: &[&str] = &["vide"];
 
 /// Whether this selection's UI library forces mixed tables on the user.
 pub fn allows_mixed_tables<'a>(selected: impl IntoIterator<Item = &'a String>) -> bool {
-    selected.into_iter().any(|key| MIXED_TABLE_IDIOM.contains(&key.as_str()))
+    selected
+        .into_iter()
+        .any(|key| MIXED_TABLE_IDIOM.contains(&key.as_str()))
 }
 
 pub struct PackageSpec {
@@ -230,7 +235,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/centau/vide",
         module_name: "Vide",
-        submodule: Some(Submodule { dir: "vide", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "vide",
+            path: "src",
+        }),
         requires: &[],
         description: "Lightweight reactive UI + state library built for Luau",
         maintenance: Maintenance::Active,
@@ -244,12 +252,33 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/dphfox/Fusion",
         module_name: "Fusion",
-        submodule: Some(Submodule { dir: "fusion", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "fusion",
+            path: "src",
+        }),
         requires: &[],
         description: "Reactive UI library with state management built in",
         maintenance: Maintenance::Active,
         category: Category::Ui,
         docs_url: "https://elttob.uk/Fusion/",
+        primary_choice: true,
+    },
+    // --- Architecture ---
+    PackageSpec {
+        key: "matter",
+        source: "matter-ecs/matter@0.8.4",
+        realm: Realm::Shared,
+        git_repo: "https://github.com/matter-ecs/matter",
+        module_name: "Matter",
+        submodule: Some(Submodule {
+            dir: "matter",
+            path: "lib",
+        }),
+        requires: &[],
+        description: "Entity Component System architecture library for data-oriented Roblox gameplay",
+        maintenance: Maintenance::Active,
+        category: Category::Architecture,
+        docs_url: "https://matter-ecs.github.io/matter/",
         primary_choice: true,
     },
     // --- State management ---
@@ -262,7 +291,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/reflex",
         module_name: "Reflex",
-        submodule: Some(Submodule { dir: "reflex", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "reflex",
+            path: "src",
+        }),
         requires: &["promise"],
         description: "Redux-inspired predictable state container",
         maintenance: Maintenance::Active,
@@ -276,7 +308,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/react-reflex",
         module_name: "ReactReflex",
-        submodule: Some(Submodule { dir: "react-reflex", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "react-reflex",
+            path: "src",
+        }),
         requires: &["react", "reflex"],
         description: "React bindings for Reflex",
         maintenance: Maintenance::Active,
@@ -290,7 +325,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "Charm",
-        submodule: Some(Submodule { dir: "charm", path: "packages/charm/src" }),
+        submodule: Some(Submodule {
+            dir: "charm",
+            path: "packages/charm/src",
+        }),
         requires: &[],
         description: "Atom-based state management, inspired by Jotai/Nanostores",
         maintenance: Maintenance::Active,
@@ -304,7 +342,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "CharmSync",
-        submodule: Some(Submodule { dir: "charm", path: "packages/charm-sync/src" }),
+        submodule: Some(Submodule {
+            dir: "charm",
+            path: "packages/charm-sync/src",
+        }),
         requires: &["charm"],
         description: "Client/server atom synchronization for Charm",
         maintenance: Maintenance::Active,
@@ -332,7 +373,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/charm",
         module_name: "VideCharm",
-        submodule: Some(Submodule { dir: "charm", path: "packages/vide-charm/src" }),
+        submodule: Some(Submodule {
+            dir: "charm",
+            path: "packages/vide-charm/src",
+        }),
         requires: &["charm", "vide"],
         description: "Bridge between Vide and Charm, for using Charm atoms in Vide UI",
         maintenance: Maintenance::Active,
@@ -347,7 +391,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/paradoxum-games/lyra",
         module_name: "Lyra",
-        submodule: Some(Submodule { dir: "lyra", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "lyra",
+            path: "src",
+        }),
         requires: &["promise", "t"],
         description: "Full game framework with a built-in player-data/profile layer",
         maintenance: Maintenance::Active,
@@ -361,12 +408,32 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Server,
         git_repo: "https://github.com/MadStudioRoblox/ProfileStore",
         module_name: "ProfileStore",
-        submodule: Some(Submodule { dir: "profilestore", path: "ProfileStore.luau" }),
+        submodule: Some(Submodule {
+            dir: "profilestore",
+            path: "ProfileStore.luau",
+        }),
         requires: &[],
         description: "DataStore session-locking wrapper - the successor to ProfileService, recommended for new projects",
         maintenance: Maintenance::Active,
         category: Category::DataProfile,
         docs_url: "https://madstudioroblox.github.io/ProfileStore/",
+        primary_choice: true,
+    },
+    PackageSpec {
+        key: "scribe",
+        source: "ericplane/scribe@2.2.0",
+        realm: Realm::Shared,
+        git_repo: "https://github.com/ericplane/Scribe",
+        module_name: "Scribe",
+        submodule: Some(Submodule {
+            dir: "scribe",
+            path: "src",
+        }),
+        requires: &[],
+        description: "Typed replicated player-data layer built on ProfileStore, with schemas, migrations and visibility rules",
+        maintenance: Maintenance::Active,
+        category: Category::DataProfile,
+        docs_url: "https://ericplane.github.io/Scribe/",
         primary_choice: true,
     },
     // --- Testing ---
@@ -376,7 +443,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/Roblox/testez",
         module_name: "TestEZ",
-        submodule: Some(Submodule { dir: "testez", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "testez",
+            path: "src",
+        }),
         requires: &[],
         description: "Roblox's own BDD-style unit testing framework - archived by Roblox in Sept 2024, no longer receiving updates upstream, but still the most common Wally-installable test framework in existing projects",
         maintenance: Maintenance::Legacy,
@@ -391,7 +461,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/howmanysmall/Janitor",
         module_name: "Janitor",
-        submodule: Some(Submodule { dir: "janitor", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "janitor",
+            path: "src",
+        }),
         requires: &[],
         description: "Cleanup/connection-management utility (a faster, typed Maid)",
         maintenance: Maintenance::Active,
@@ -405,7 +478,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/ripple",
         module_name: "Ripple",
-        submodule: Some(Submodule { dir: "ripple", path: "packages/ripple/src" }),
+        submodule: Some(Submodule {
+            dir: "ripple",
+            path: "packages/ripple/src",
+        }),
         requires: &[],
         description: "Spring/tween-based animation library for Roblox UI, inspired by react-spring",
         maintenance: Maintenance::Active,
@@ -428,12 +504,32 @@ pub const PACKAGES: &[PackageSpec] = &[
         primary_choice: false,
     },
     PackageSpec {
+        key: "prettyReactHooks",
+        source: "notmirrox/pretty-react-hooks@0.1.1",
+        realm: Realm::Shared,
+        git_repo: "https://github.com/NotMirrox/pretty-react-hooks-luau",
+        module_name: "PrettyReactHooks",
+        // It has Luau source, but its useful install path depends on the
+        // Wally React and typed-promise dependency graph. Do not offer it
+        // as a raw submodule package.
+        submodule: None,
+        requires: &["react"],
+        description: "Opinionated hook collection for React Lua projects",
+        maintenance: Maintenance::Active,
+        category: Category::Utility,
+        docs_url: "https://github.com/NotMirrox/pretty-react-hooks-luau",
+        primary_choice: false,
+    },
+    PackageSpec {
         key: "videRipple",
         source: "littensy/vide-ripple@0.10.2",
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/ripple",
         module_name: "VideRipple",
-        submodule: Some(Submodule { dir: "ripple", path: "packages/vide-ripple/src" }),
+        submodule: Some(Submodule {
+            dir: "ripple",
+            path: "packages/vide-ripple/src",
+        }),
         requires: &["ripple", "vide"],
         description: "Vide bindings for Ripple's animation primitives",
         maintenance: Maintenance::Active,
@@ -447,7 +543,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/littensy/remo",
         module_name: "Remo",
-        submodule: Some(Submodule { dir: "remo", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "remo",
+            path: "src",
+        }),
         requires: &["promise"],
         description: "Type-safe remote event/networking wrapper",
         maintenance: Maintenance::Active,
@@ -461,7 +560,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/evaera/roblox-lua-promise",
         module_name: "Promise",
-        submodule: Some(Submodule { dir: "promise", path: "lib" }),
+        submodule: Some(Submodule {
+            dir: "promise",
+            path: "lib",
+        }),
         requires: &[],
         description: "Promise/A+-style async utility for Luau",
         maintenance: Maintenance::CommunityStable,
@@ -475,7 +577,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/corecii/greentea",
         module_name: "gt",
-        submodule: Some(Submodule { dir: "greentea", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "greentea",
+            path: "src",
+        }),
         requires: &[],
         description: "Runtime type-checking utility",
         maintenance: Maintenance::CommunityStable,
@@ -489,7 +594,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/osyrisrblx/t",
         module_name: "t",
-        submodule: Some(Submodule { dir: "t", path: "lib" }),
+        submodule: Some(Submodule {
+            dir: "t",
+            path: "lib",
+        }),
         requires: &[],
         description: "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions",
         maintenance: Maintenance::CommunityStable,
@@ -503,7 +611,10 @@ pub const PACKAGES: &[PackageSpec] = &[
         realm: Realm::Shared,
         git_repo: "https://github.com/csqrl/sift",
         module_name: "Sift",
-        submodule: Some(Submodule { dir: "sift", path: "src" }),
+        submodule: Some(Submodule {
+            dir: "sift",
+            path: "src",
+        }),
         requires: &[],
         description: "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used",
         maintenance: Maintenance::CommunityStable,
@@ -525,7 +636,6 @@ impl PackageSpec {
     pub fn version(&self) -> &'static str {
         self.source.rsplit('@').next().unwrap_or("")
     }
-
 }
 
 pub fn find(key: &str) -> Option<&'static PackageSpec> {
@@ -545,7 +655,9 @@ pub fn in_category(category: Category) -> impl Iterator<Item = &'static PackageS
 /// and wally-package-types fails on a directory argument that doesn't
 /// exist. Deriving them all from one predicate keeps them from drifting.
 pub fn has_server_realm<'a>(keys: impl IntoIterator<Item = &'a String>) -> bool {
-    keys.into_iter().filter_map(|k| find(k)).any(|p| p.realm == Realm::Server)
+    keys.into_iter()
+        .filter_map(|k| find(k))
+        .any(|p| p.realm == Realm::Server)
 }
 
 /// `selected` plus everything it transitively requires.
@@ -583,7 +695,9 @@ pub fn with_dependencies(selected: &BTreeSet<String>) -> BTreeSet<String> {
 /// reaches for React, which upstream ships solely through an npm install.
 /// Told just "react can't be vendored", someone who never picked react has
 /// no way to connect that to what they did pick.
-pub fn unvendorable_in_closure(selected: &BTreeSet<String>) -> Vec<(&'static str, Option<&'static str>)> {
+pub fn unvendorable_in_closure(
+    selected: &BTreeSet<String>,
+) -> Vec<(&'static str, Option<&'static str>)> {
     let mut blocked = Vec::new();
     for key in with_dependencies(selected) {
         let Some(spec) = find(&key) else { continue };
@@ -631,7 +745,10 @@ mod tests {
     #[test]
     fn profilestore_is_the_server_realm_package() {
         let profilestore = find("profilestore").expect("profilestore is in the catalog");
-        assert!(profilestore.realm == Realm::Server, "ProfileStore is published server-realm");
+        assert!(
+            profilestore.realm == Realm::Server,
+            "ProfileStore is published server-realm"
+        );
 
         // Verified by installing all 22 catalog packages together: the
         // install succeeds only with ProfileStore under
@@ -656,7 +773,11 @@ mod tests {
     fn every_required_key_names_a_real_package() {
         for spec in PACKAGES {
             for dep in spec.requires {
-                assert!(find(dep).is_some(), "{}'s requires names unknown `{dep}`", spec.key);
+                assert!(
+                    find(dep).is_some(),
+                    "{}'s requires names unknown `{dep}`",
+                    spec.key
+                );
                 assert_ne!(*dep, spec.key, "{} requires itself", spec.key);
             }
         }
@@ -669,8 +790,14 @@ mod tests {
     /// `require("../Charm")`.
     #[test]
     fn dependencies_are_pulled_in_transitively() {
-        assert_eq!(with_dependencies(&owned(&["lyra"])), owned(&["lyra", "promise", "t"]));
-        assert_eq!(with_dependencies(&owned(&["charmSync"])), owned(&["charm", "charmSync"]));
+        assert_eq!(
+            with_dependencies(&owned(&["lyra"])),
+            owned(&["lyra", "promise", "t"])
+        );
+        assert_eq!(
+            with_dependencies(&owned(&["charmSync"])),
+            owned(&["charm", "charmSync"])
+        );
         // ripple itself needs nothing, so the closure stops at one level.
         assert_eq!(
             with_dependencies(&owned(&["videRipple"])),
@@ -695,7 +822,10 @@ mod tests {
         assert_eq!(blocked, vec![("react", Some("reactReflex"))], "{blocked:?}");
 
         // Directly selected: no "required by", because nothing pulled it in.
-        assert_eq!(unvendorable_in_closure(&owned(&["react"])), vec![("react", None)]);
+        assert_eq!(
+            unvendorable_in_closure(&owned(&["react"])),
+            vec![("react", None)]
+        );
 
         // A fully vendorable selection blocks nothing.
         assert!(unvendorable_in_closure(&owned(&["lyra", "charm"])).is_empty());

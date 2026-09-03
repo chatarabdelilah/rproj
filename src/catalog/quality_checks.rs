@@ -376,7 +376,7 @@ mod tests {
     /// whether to write a CI workflow at all.
     #[test]
     fn renders_nothing_when_no_step_applies() {
-        assert!(render_check(&tools(&["wally", "tarmac"]), false).is_none());
+        assert!(render_check(&tools(&["wally", "asphalt"]), false).is_none());
         assert!(render_check(&[], false).is_none());
     }
 

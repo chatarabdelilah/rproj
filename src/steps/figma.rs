@@ -6,7 +6,7 @@
 //!
 //! What *is* worth scaffolding is the place exported assets land, because
 //! that is the part with a pipeline attached: design in Figma, export to
-//! `figma/exports/`, let Tarmac upload them and generate the Luau asset
+//! `figma/exports/`, let the asset pipeline upload them and generate Luau
 //! references. The folder plus a README documenting that is honest and
 //! useful; a placeholder file pretending to be a design would not be.
 
@@ -28,12 +28,13 @@ worth committing. This folder is for what comes *out* of it.
 Export images from Figma into `exports/`. PNG at 2x or 3x for anything
 scaled in-game; SVG is not usable by Roblox.
 
-If this project has Tarmac (`tarmac.toml` in the root), it will upload
-them and generate Luau modules holding the resulting asset ids, so you
-write `Assets.button` instead of pasting `rbxassetid://` numbers:
+If this project has an asset-pipeline config (`asphalt.toml` or
+`tungsten.toml` in the root), it will upload them and
+generate Luau modules holding the resulting asset ids, so you write
+`Assets.button` instead of pasting `rbxassetid://` numbers:
 
-    tarmac sync --target roblox     # upload changed assets, update ids
-    tarmac sync --target none       # dry run, see what would upload
+    asphalt sync studio             # sync locally to Studio
+    tungsten sync studio            # sync locally to Studio
 
 Uploads go through Roblox moderation and are not usable until approved.
 
@@ -85,7 +86,8 @@ mod tests {
     #[test]
     fn the_readme_explains_the_export_pipeline() {
         assert!(README.contains("exports/"), "names the folder");
-        assert!(README.contains("tarmac sync"), "names the command");
+        assert!(README.contains("asphalt sync"), "names Asphalt");
+        assert!(README.contains("tungsten sync"), "names Tungsten");
         assert!(
             README.contains("moderation"),
             "warns that uploads are not immediately usable"

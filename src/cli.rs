@@ -20,7 +20,7 @@ pub enum Command {
     /// With a tool name, sets that one tool up in the current project instead:
     /// pins it, writes its config, and explains the steps that need a human.
     Setup {
-        /// A tool to set up in this project, e.g. `tarmac`. Omit for
+        /// A tool to set up in this project, e.g. `asphalt`. Omit for
         /// machine-wide setup.
         tool: Option<String>,
     },

@@ -560,7 +560,7 @@ mod tests {
         let mut tally = Tally::new();
         for name in [
             "rojo", "wally", "wally-package-types", "selene", "stylua", "lute",
-            "luau-lsp-cli", "tarmac", "mantle",
+            "luau-lsp-cli", "asphalt", "tungsten",
         ] {
             tally.already(name);
         }
@@ -572,7 +572,7 @@ mod tests {
         }
         // Every tool is still named somewhere.
         let joined = lines.join(" ");
-        for name in ["rojo", "wally-package-types", "mantle"] {
+        for name in ["rojo", "wally-package-types", "tungsten"] {
             assert!(joined.contains(name), "{name} missing from {lines:?}");
         }
         assert!(lines[1].starts_with("  "), "hanging indent: {lines:?}");
