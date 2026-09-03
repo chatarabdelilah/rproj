@@ -15,18 +15,23 @@ use common::{Session, TempProject};
 fn fixture(label: &str, packages: &str) -> TempProject {
     let project = TempProject::new(label);
     project.write("default.project.json", "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n");
+    let test_capability = if packages.contains("testez") {
+        "test = \"testez\"\n"
+    } else {
+        ""
+    };
     project.write(
         "rproj.toml",
         &format!(
-            "mode = \"expert\"\npackage_workflow = \"wally\"\npackages = [{packages}]\ntools_at_creation = [\"selene\", \"stylua\"]\n"
+            "mode = \"expert\"\npackage_workflow = \"wally\"\npackages = [{packages}]\n\n\
+             [capabilities]\nlint = \"selene\"\nformat = \"stylua\"\neditor = \"vscode\"\n{test_capability}"
         ),
     );
     project
 }
 
-/// The whole reason the command exists: a project scaffolded before the
-/// Vide fix keeps `mixed_table = "warn"`, which fails its own quality gate
-/// on every UI file, and nothing tells it otherwise.
+/// A project scaffolded before the Vide fix keeps `mixed_table = "warn"`,
+/// which fails its own quality gate on every UI file.
 #[test]
 fn a_stale_selene_config_is_brought_up_to_date() {
     let project = fixture("selene-stale", "\"vide\", \"testez\"");

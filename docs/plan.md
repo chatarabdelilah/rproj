@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.7.0**, 200 passing tests plus 8 ignored live/API checks, Windows-only, Luau + Wally.
+Current: **v0.7.0 pre-release alpha**, 195 passing tests plus 8 ignored live/API checks, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -168,8 +168,6 @@ The old answer to "how do I start using an asset pipeline" was `rproj info <tool
 
 Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli` (the CLI; `luau-lsp` is the VS Code extension's key).
 
-Tarmac and Mantle are removed from the supported catalog. Tarmac's latest release is `v0.8.2` from 2025-01-31 and its last repository push was 2025-07-23. Mantle's own README says it is no longer maintained. Old project files that mention Tarmac still load and migrate to the current default asset pipeline.
-
 ---
 
 ## 5. Catalog additions
@@ -278,7 +276,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
 | ~~R1~~ | ~~Capability layer; delete the "tools" and "files" prompts~~ | 4–6 | **Shipped** v0.5.0. Came in at the low end because it mostly deleted things. Three bugs it surfaced, none of which a reader would have predicted: `rokit.toml` was owned by nothing, so tools were derived and never pinned; the dependency strategy pins its own tools and nothing derived them, so a Wally project pinned no Wally; and `plan` trusted the capability list without re-checking requirements, so CI survived its gate being turned off. All three found by tests, two of them by the live prompt-order pair. |
 | ~~R2~~ | ~~The project graph as a real type~~ | 3–5 | **Shipped** v0.6.0. `graph::ProjectGraph`, four-row invalidation table, `rproj.toml` stores decisions. Brought `change` at the summary, `--like` replaying whole compositions, and an `upgrade` that cannot restore a declined capability. |
-| ~~R2b~~ | ~~Catalog refresh and dead-tool removal~~ | 1–2 | **Shipped** v0.7.0. Added Asphalt/Tungsten asset pipelines plus Matter, Scribe and Pretty React Hooks Luau; removed Tarmac and Mantle from supported tooling; old Tarmac project evidence migrates to Asphalt. |
+| ~~R2b~~ | ~~Catalog refresh and dead-tool removal~~ | 1–2 | **Shipped** v0.7.0. Added Asphalt/Tungsten asset pipelines plus Matter, Scribe and Pretty React Hooks Luau; removed obsolete external integrations and their compatibility code. |
 | R3 | `rproj info <capability>`; configure hints on the summary | 1–2 | The "shows its work" half of the philosophy. |
 | M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. Asset pipeline has already proven the multi-implementation prompt shape. |
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |

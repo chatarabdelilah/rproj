@@ -120,12 +120,4 @@ mod tests {
             assert!(known, "usage note `{}` matches no catalog entry", usage.key);
         }
     }
-
-    #[test]
-    fn removed_external_tools_are_not_supported() {
-        for key in ["tarmac", "mantle"] {
-            assert!(tool_catalog::find(key).is_none(), "{key} returned to the tool catalog");
-            assert!(tool_usage::find(key).is_none(), "{key} returned to usage notes");
-        }
-    }
 }

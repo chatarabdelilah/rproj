@@ -27,9 +27,6 @@ const CHECK_EVERY_SECS: u64 = 60 * 60 * 24;
 /// version check, so there is no `Result` to handle (the `probe` argument
 /// from the process boundary, applied to a network call).
 pub fn nudge_if_outdated() {
-    if std::env::var_os("RPROJ_NO_UPDATE_CHECK").is_some() {
-        return;
-    }
     let Some(latest) = latest_version() else { return };
     if is_newer(&latest, CURRENT) {
         ui::detail(&format!(

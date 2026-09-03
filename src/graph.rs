@@ -76,11 +76,6 @@ pub struct ProjectGraph {
     /// not helpfully restore a file the user deliberately removed.
     #[serde(default)]
     pub dropped: Vec<String>,
-    /// Legacy, read-only. Pre-0.5 projects recorded the tools they pinned
-    /// and nothing about *why*; `with_legacy_capabilities` reads this to
-    /// reconstruct the intent. Never written by this version.
-    #[serde(default, skip_serializing)]
-    pub tools_at_creation: Vec<String>,
     /// Capability key -> the implementation actually used.
     ///
     /// Concrete rather than `Option`, deliberately: the file records what
@@ -113,7 +108,7 @@ impl ProjectGraph {
     pub fn choices(&self) -> Vec<(String, Option<String>)> {
         let mut choices = Vec::new();
         for (key, implementation) in &self.capabilities {
-            let key = capabilities::canonical_key(key).to_string();
+            let key = key.to_string();
             if choices
                 .iter()
                 .any(|(existing, _): &(String, Option<String>)| existing == &key)
@@ -216,51 +211,6 @@ impl ProjectGraph {
         }
     }
 
-    /// Reconstructs the intent of a project scaffolded before capabilities
-    /// existed.
-    ///
-    /// A pre-0.5 `rproj.toml` records the tools it pinned and nothing about
-    /// why. Without this, `rproj upgrade` on such a project would derive an
-    /// empty capability set and conclude the project wants no linter, no
-    /// formatter and no gate - then rewrite its config to match. That is not
-    /// an upgrade, it is a demolition.
-    ///
-    /// The mapping is the inverse of §8.10's table, and it is only consulted
-    /// when `capabilities` is empty, so a 0.5 project is never second-guessed.
-    pub fn with_legacy_capabilities(mut self) -> Self {
-        if !self.capabilities.is_empty() {
-            return self;
-        }
-        const FROM_TOOL: &[(&str, &str, Option<&str>)] = &[
-            ("selene", "lint", None),
-            ("stylua", "format", None),
-            ("luau-lsp-cli", "typecheck", None),
-            ("lute", "gate", None),
-            // Tarmac was removed from active support after its last push
-            // aged past a year; old projects fall to the current default.
-            ("tarmac", "asset-pipeline", Some("asphalt")),
-            ("asphalt", "asset-pipeline", Some("asphalt")),
-            ("tungsten", "asset-pipeline", Some("tungsten")),
-        ];
-        for (tool, capability, implementation) in FROM_TOOL {
-            if self.tools_at_creation.iter().any(|t| t == tool) {
-                self.choose(capability, *implementation);
-            }
-        }
-        // The one capability whose evidence is a package rather than a tool.
-        if self.packages.iter().any(|p| p == "testez") {
-            self.choose("test", None);
-        }
-        // Unconditional, unlike the rest: pre-0.5 rproj wrote
-        // `.vscode/settings.json` and `sourcemap.json` for *every* project
-        // that had VS Code, gated on the app rather than on any recorded
-        // choice - so there is no tool in `tools_at_creation` that
-        // distinguishes a project which had them from one which did not.
-        // Assuming yes is the safe direction: the alternative is an upgrade
-        // that stops maintaining editor settings it wrote itself.
-        self.choose("editor", None);
-        self
-    }
 }
 
 /// The tools the **dependency strategy** pins, as opposed to the ones
@@ -460,11 +410,6 @@ mod tests {
         g.dropped = vec![".gitignore".into()];
 
         let text = toml::to_string_pretty(&g).expect("serialise");
-        assert!(
-            !text.contains("tools_at_creation"),
-            "legacy field must not be written: {text}"
-        );
-
         let back: ProjectGraph = toml::from_str(&text).expect("parse back");
         assert_eq!(back.package_workflow, PackageWorkflow::GitSubmodules);
         assert_eq!(back.packages, ["charm", "vide"]);
@@ -476,69 +421,4 @@ mod tests {
         );
     }
 
-    /// A pre-0.5 file has none of the new keys. It must still load, and must
-    /// not silently become a project that wants nothing.
-    #[test]
-    fn a_pre_capability_file_still_loads() {
-        let legacy = r#"
-mode = "guided"
-package_workflow = "wally"
-packages = ["testez", "reflex"]
-tools_at_creation = ["rojo", "selene", "stylua", "lute"]
-"#;
-        let g: ProjectGraph = toml::from_str(legacy).expect("parse legacy");
-        assert_eq!(g.packages, ["testez", "reflex"]);
-        assert!(g.capabilities.is_empty(), "nothing recorded yet");
-
-        let migrated = g.with_legacy_capabilities();
-        let keys = migrated.capability_keys();
-        assert_eq!(
-            keys,
-            ["editor", "format", "gate", "lint", "test"],
-            "{keys:?}"
-        );
-    }
-
-    /// **The demolition this prevents.** Without the bridge, upgrading a
-    /// pre-0.5 project derives no capabilities, so its selene and stylua
-    /// configs stop being wanted and the gate disappears.
-    #[test]
-    fn migration_keeps_what_the_old_project_had() {
-        let legacy = ProjectGraph {
-            package_workflow: PackageWorkflow::Wally,
-            packages: vec!["reflex".into()],
-            tools_at_creation: vec!["selene".into(), "stylua".into(), "lute".into()],
-            ..Default::default()
-        };
-        let before: Vec<&str> = legacy
-            .clone()
-            .plan(&[], &[])
-            .iter()
-            .map(|p| p.key)
-            .collect();
-        assert!(
-            !before.contains(&"selene.toml"),
-            "no capabilities recorded yet: {before:?}"
-        );
-
-        let after: Vec<&str> = legacy
-            .with_legacy_capabilities()
-            .plan(&[], &[])
-            .iter()
-            .map(|p| p.key)
-            .collect();
-        assert!(after.contains(&"selene.toml"), "{after:?}");
-        assert!(after.contains(&"stylua.toml"), "{after:?}");
-        assert!(after.contains(&".lute/check.luau"), "{after:?}");
-    }
-
-    /// A 0.5 project records its capabilities, so the bridge must not touch
-    /// it - inferring on top would resurrect something deliberately dropped.
-    #[test]
-    fn migration_never_second_guesses_a_recorded_graph() {
-        let g = graph(PackageWorkflow::Wally, &["testez"], &["lint"]);
-        let migrated = g.clone().with_legacy_capabilities();
-        assert_eq!(migrated.capability_keys(), g.capability_keys());
-        assert!(!migrated.capability_keys().contains(&"test".to_string()));
-    }
 }

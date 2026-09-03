@@ -37,19 +37,8 @@ pub struct Capability {
     pub default_selected: bool,
 }
 
-/// Older projects recorded the asset pipeline as `assets-2d`.
-/// Keep that spelling readable, but write the broader name from now on.
-pub fn canonical_key(key: &str) -> &str {
-    match key {
-        "assets-2d" => "asset-pipeline",
-        _ => key,
-    }
-}
-
 fn chosen_has(chosen: &[String], key: &str) -> bool {
-    chosen
-        .iter()
-        .any(|candidate| canonical_key(candidate) == key)
+    chosen.iter().any(|candidate| candidate == key)
 }
 
 impl Capability {
@@ -217,7 +206,6 @@ pub const CAPABILITIES: &[Capability] = &[
 ];
 
 pub fn find(key: &str) -> Option<&'static Capability> {
-    let key = canonical_key(key);
     CAPABILITIES.iter().find(|c| c.key == key)
 }
 
@@ -257,12 +245,11 @@ pub fn derive(selected: &[(String, Option<String>)]) -> Derived {
     // gate that workflow runs was turned off.
     let keys: Vec<String> = selected
         .iter()
-        .map(|(k, _)| canonical_key(k).to_string())
+        .map(|(k, _)| k.to_string())
         .collect();
     let live = offerable(&keys);
 
     for (key, implementation) in selected {
-        let key = canonical_key(key);
         let Some(capability) = live.iter().find(|c| c.key == key) else {
             continue;
         };
@@ -412,9 +399,6 @@ mod tests {
         assert_eq!(derived.tools, ["asphalt"]);
         assert_eq!(derived.artifacts, ["figma", "asphalt.toml"]);
 
-        let legacy = derive(&chosen(&["assets-2d"]));
-        assert_eq!(legacy.tools, ["asphalt"]);
-        assert_eq!(legacy.artifacts, ["figma", "asphalt.toml"]);
     }
 
     /// CI's whole body is the gate script, so without the gate it must

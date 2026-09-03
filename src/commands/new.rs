@@ -175,12 +175,7 @@ pub fn run(
 
     // A new project is exactly when someone doesn't yet know what to run,
     // so end with the next steps rather than just "done".
-    // All plain double-width emoji: 🛡 and friends need a variation
-    // selector to render as emoji at all, and land narrow without one.
-    let (party, folder, eye, gate, book) = match ui::emoji_enabled() {
-        true => ("🎉  ", "📁", "👀", "🧪", "📖"),
-        false => ("", " ", " ", " ", " "),
-    };
+    let (party, folder, eye, gate, book) = ("🎉  ", "📁", "👀", "🧪", "📖");
     println!(
         "\n{party}{name} is ready.\n\n\
          \x20 {folder}  cd {}\n\
@@ -1066,7 +1061,7 @@ fn slugify(name: &str) -> String {
 /// file can be edited by hand), and scaffolding a submodule project around
 /// a package that has no vendorable source produces a broken tree.
 fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
-    if let Some(mut setup) = Setups::load(name)?.map(ProjectGraph::with_legacy_capabilities) {
+    if let Some(mut setup) = Setups::load(name)? {
         // Same transitive check as the interactive path: a saved setup can
         // name only vendorable packages and still be unbuildable because one
         // of them requires something that isn't.

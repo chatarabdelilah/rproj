@@ -2,8 +2,6 @@
 name = "rproj"
 version = "0.7.0"
 edition = "2024"
-# Not the edition's floor (1.85), which would be a claim that doesn't
-# build: notify-rust declares 1.89, the highest in the dependency tree.
 rust-version = "1.89"
 description = "Guided bootstrap-to-game-dev CLI for Roblox: takes a fresh Windows PC to a working Roblox/Luau setup, then scaffolds projects on it"
 authors = ["Chatar Abdelilah <chatar.abdelilah.s@gmail.com>"]
@@ -11,34 +9,19 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/chatarabdelilah/rproj"
 
-# `exclude` keeps the architecture doc out of the published archive. It is
-# an internal design reference written for whoever maintains this, not
-# documentation for someone installing it, and shipping it to every
-# consumer of the crate puts 80KB of internal reasoning on the crate page.
-# It is in the repository, which is where a maintainer looks.
-exclude = ["docs/", ".github/"]
+exclude = ["docs/", ".github/", ".codegraph/"]
 keywords = ["roblox", "luau", "rojo", "wally", "scaffold"]
 categories = ["command-line-utilities", "development-tools", "game-development"]
 
 [dependencies]
 anyhow = "1.0.104"
-# `image-data` is a default feature and pulls in a whole image-decoding
-# stack - image, png, moxcms, pxfm, bytemuck, byteorder-lite, fdeflate,
-# num-traits. Eight crates for a capability `rproj copy` never uses; it
-# copies text. Measured: 115 packages -> 107.
 arboard = { version = "3.6.1", default-features = false }
 clap = { version = "4.6.4", features = ["derive"] }
 directories = "6.0.0"
 inquire = "0.9.4"
 notify-rust = "4.18.0"
-# Already in the tree via clap, so these cost no new packages. `anstream`
-# strips colour when stderr is not a terminal, which is what makes it
-# safe to colour errors at all (see ui::error).
 anstream = "1.0.0"
 anstyle = "1.0.14"
-# Also already in the tree, via inquire. Needed to keep picker option
-# lines from wrapping, which corrupts inquire's redraw - see
-# ui::option_line.
 crossterm = "0.29.0"
 unicode-width = "0.2.2"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -48,10 +31,6 @@ ureq = "3.3.0"
 walkdir = "2.5.0"
 
 [dev-dependencies]
-# Drives rproj's own prompts in the integration tests. inquire reads the
-# console input handle directly, so piped stdin is ignored and the process
-# hangs forever - a real pseudo-terminal is the only way to answer it
-# without a human at the keyboard.
 portable-pty = "0.8.1"
 # Turns the pty byte stream back into a screen. ConPTY is free to express
 # the same output as newlines or as cursor moves, and which one it picks
