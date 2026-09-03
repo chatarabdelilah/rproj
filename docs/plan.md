@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.7.0 pre-release alpha**, 195 passing tests plus 8 ignored live/API checks, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.8.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -277,7 +277,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~R1~~ | ~~Capability layer; delete the "tools" and "files" prompts~~ | 4–6 | **Shipped** v0.5.0. Came in at the low end because it mostly deleted things. Three bugs it surfaced, none of which a reader would have predicted: `rokit.toml` was owned by nothing, so tools were derived and never pinned; the dependency strategy pins its own tools and nothing derived them, so a Wally project pinned no Wally; and `plan` trusted the capability list without re-checking requirements, so CI survived its gate being turned off. All three found by tests, two of them by the live prompt-order pair. |
 | ~~R2~~ | ~~The project graph as a real type~~ | 3–5 | **Shipped** v0.6.0. `graph::ProjectGraph`, four-row invalidation table, `rproj.toml` stores decisions. Brought `change` at the summary, `--like` replaying whole compositions, and an `upgrade` that cannot restore a declined capability. |
 | ~~R2b~~ | ~~Catalog refresh and dead-tool removal~~ | 1–2 | **Shipped** v0.7.0. Added Asphalt/Tungsten asset pipelines plus Matter, Scribe and Pretty React Hooks Luau; removed obsolete external integrations and their compatibility code. |
-| R3 | `rproj info <capability>`; configure hints on the summary | 1–2 | The "shows its work" half of the philosophy. |
+| ~~R3~~ | ~~Capability information pages and configure hints on the summary~~ | 1–2 | **Shipped** v0.8.0. Capability pages identify their implementations; project summaries list only configuration commands that apply to the artifacts being created. |
 | M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. Asset pipeline has already proven the multi-implementation prompt shape. |
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
 | M5 | `default.project.json` via `$EDITOR` (§6) | 1–2 | |
@@ -285,7 +285,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **42–71** | ≈ 4–8 months part-time |
-| | *remaining after v0.7.0* | **23–41** | M1–M3b, R1, R2, R2b done |
+| | *remaining after v0.8.0* | **22–39** | M1–M3b and R1–R3 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -295,7 +295,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
 Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
-Remaining: **M5 → M4 → R3 → M7 → R4 → M8**.
+Remaining: **M5 → M4 → M7 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
 

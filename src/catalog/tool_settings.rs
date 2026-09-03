@@ -66,7 +66,16 @@ pub struct ConfigurableTool {
     pub summary: &'static str,
     pub target: ConfigTarget,
     pub docs_url: &'static str,
+    pub requires_artifacts: &'static [&'static str],
     pub settings: &'static [SettingSpec],
+}
+
+impl ConfigurableTool {
+    pub fn applies_to(&self, artifacts: &[&str]) -> bool {
+        self.requires_artifacts
+            .iter()
+            .all(|required| artifacts.contains(required))
+    }
 }
 
 /// Selene lint rules worth offering. Every lint takes the same three
@@ -84,6 +93,7 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
         summary: "Code formatter. These settings decide how your Luau is reshaped on format/save.",
         target: ConfigTarget::ProjectToml { filename: "stylua.toml" },
         docs_url: "https://github.com/JohnnyMorganz/StyLua#options",
+        requires_artifacts: &["stylua.toml"],
         settings: &[
             SettingSpec {
                 key: "syntax",
@@ -192,6 +202,7 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
         summary: "Linter. `std` tells it which globals exist; the rest turn individual lints up or down.",
         target: ConfigTarget::ProjectToml { filename: "selene.toml" },
         docs_url: "https://kampfkarren.github.io/selene/usage/configuration.html",
+        requires_artifacts: &["selene.toml"],
         settings: &[
             SettingSpec {
                 key: "std",
@@ -263,6 +274,7 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
         summary: "Autocomplete, type checking and inlay hints. Sourcemap settings are what make requires resolve.",
         target: ConfigTarget::VsCodeSettings,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
+        requires_artifacts: &[".vscode/settings.json"],
         settings: &[
             SettingSpec {
                 key: "luau-lsp.sourcemap.enabled",
@@ -369,6 +381,7 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
         summary: "How the editor applies StyLua - the formatting rules themselves live in stylua.toml (`rproj configure stylua`).",
         target: ConfigTarget::VsCodeSettings,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.stylua",
+        requires_artifacts: &[".vscode/settings.json", "stylua.toml"],
         settings: &[
             SettingSpec {
                 key: "editor.formatOnSave",
@@ -900,6 +913,20 @@ mod tests {
     fn every_configurable_tool_is_findable_by_key() {
         for tool in CONFIGURABLE_TOOLS {
             assert!(find(tool.key).is_some(), "{} not findable", tool.key);
+        }
+    }
+
+    #[test]
+    fn every_configuration_requirement_names_a_real_artifact() {
+        for tool in CONFIGURABLE_TOOLS {
+            assert!(!tool.requires_artifacts.is_empty(), "{} applies everywhere", tool.key);
+            for key in tool.requires_artifacts {
+                assert!(
+                    crate::catalog::artifacts::find(key).is_some(),
+                    "{} requires unknown artifact {key}",
+                    tool.key
+                );
+            }
         }
     }
 }

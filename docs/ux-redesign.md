@@ -231,7 +231,7 @@ So the prompt is gated on the build targets being real. Adding it before then wo
 | --- | --- | ---: | --- |
 | **R1** | Capability catalog; collapse "tools" + "files" into capabilities + summary; `provided_by` replaces the `requires`/`entailed_by` pair | — | Pure re-levelling of logic that already exists |
 | **R2** | The tree as a real type: ordered nodes, invalidation on edit, `rproj.toml` stores decisions | R1 | Unlocks "change something", and re-derivation for `upgrade`/`--like` |
-| **R3** | `rproj info <capability>` pages; `rproj configure` hints on the summary | R1 | The "shows its work" half |
+| **R3 (shipped v0.8.0)** | `rproj info <capability>` pages; applicable `rproj configure` hints on the summary | R1 | The "shows its work" half |
 | **R4** | Project type — after Package and Studio-plugin build targets exist | new scaffolding | §7 |
 
 R1 makes **M4 (jest-lua) cheaper**: "which test runner" stops needing its own gate step and becomes the implementation node of the Testing capability. The asset-pipeline prompt is the proof that this shape works.

@@ -6,6 +6,7 @@ use inquire::{MultiSelect, Select};
 
 use crate::catalog::artifacts;
 use crate::catalog::capabilities;
+use crate::catalog::tool_settings;
 use crate::catalog::wally_packages::{self, Category, PackageSpec, companions_for};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file};
@@ -654,6 +655,27 @@ fn summary_lines(name: &str, graph: &ProjectGraph, planned: &[artifacts::Planned
         }
     ));
 
+    let artifact_keys: Vec<&str> = planned.iter().map(|entry| entry.key).collect();
+    let configurable: Vec<_> = tool_settings::CONFIGURABLE_TOOLS
+        .iter()
+        .filter(|tool| tool.applies_to(&artifact_keys))
+        .collect();
+    if !configurable.is_empty() {
+        lines.push(String::new());
+        lines.push("  Configure after creation".to_string());
+        let width = configurable
+            .iter()
+            .map(|tool| tool.key.len())
+            .max()
+            .unwrap_or(0);
+        for tool in configurable {
+            lines.push(format!(
+                "    rproj configure {:<width$}  {}",
+                tool.key, tool.display_name
+            ));
+        }
+    }
+
     lines.push(String::new());
     lines.push("  Creates".to_string());
     let width = planned.iter().map(|p| p.key.len()).max().unwrap_or(0);
@@ -1252,6 +1274,10 @@ mod tests {
         // The tool is named beside the capability, never hidden behind it.
         assert!(text.contains("lint (Selene)"), "{text}");
         assert!(text.contains("format (StyLua)"), "{text}");
+        assert!(text.contains("rproj configure selene"), "{text}");
+        assert!(text.contains("rproj configure stylua"), "{text}");
+        assert!(!text.contains("rproj configure luau-lsp"), "{text}");
+        assert!(!text.contains("rproj configure stylua-vscode"), "{text}");
         assert!(text.contains("selene.toml"), "{text}");
         assert!(text.contains("you chose lint"), "{text}");
         assert!(text.contains("wally.toml"), "{text}");
@@ -1271,6 +1297,22 @@ mod tests {
         assert!(text.contains("Dependencies  none"), "{text}");
         assert!(text.contains("Packages      none"), "{text}");
         assert!(text.contains("Does          nothing extra"), "{text}");
+        assert!(!text.contains("Configure after creation"), "{text}");
+    }
+
+    #[test]
+    fn editor_summary_offers_only_relevant_editor_configuration() {
+        let graph = graph_of(PackageWorkflow::None, &[], &["editor"]);
+        let planned = graph.plan(&["vscode".to_string()], &[]);
+        let text = summary_lines("editor", &graph, &planned).join("\n");
+
+        assert!(text.contains("rproj configure luau-lsp"), "{text}");
+        assert!(!text.contains("rproj configure stylua-vscode"), "{text}");
+
+        let formatted = graph_of(PackageWorkflow::None, &[], &["format", "editor"]);
+        let planned = formatted.plan(&["vscode".to_string()], &[]);
+        let text = summary_lines("formatted-editor", &formatted, &planned).join("\n");
+        assert!(text.contains("rproj configure stylua-vscode"), "{text}");
     }
 
     /// The revision menu shows what each answer currently *is*, so "change
