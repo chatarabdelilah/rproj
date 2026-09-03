@@ -27,7 +27,7 @@ After the matching version is visible on crates.io:
 ```powershell
 git tag -a vX.Y.Z -m "rproj vX.Y.Z"
 git push origin vX.Y.Z
-gh release create vX.Y.Z --verify-tag --generate-notes --title "rproj vX.Y.Z"
+gh release create vX.Y.Z --verify-tag --generate-notes --prerelease --title "rproj vX.Y.Z"
 ```
 
-Verify that the GitHub release points to the same commit as the tag and that crates.io reports `X.Y.Z` as the current version.
+Verify that the GitHub release points to the same commit as the tag, remains marked as a prerelease throughout the alpha phase, and that crates.io reports `X.Y.Z` as the current version.
