@@ -72,7 +72,7 @@ Rules that hold regardless of which command triggered provisioning:
 4. **Capabilities — "What should this project do?"** One `MultiSelect` over §8.10, each entry rendered `key - outcome (Implementation)`. This one prompt replaced two — "Tools to pin" and "Files to generate" — which asked the same decision at the two levels *below* the one the user thinks in. The implementation is always named in the badge slot: a capability that hides its tool teaches nothing about the ecosystem, and someone who later asks "how do I configure this?" needs to have seen the word Selene.
 
    A capability with more than one implementation asks which; today `asset-pipeline` qualifies because Asphalt and Tungsten are real alternatives. The same rule will apply to `test` when jest-lua lands.
-5. **Summary** — not a picker. Every line is already determined, and every line carries **why**: `selene.toml   you chose lint`, `wally.toml   this project uses Wally`, `rokit.toml   pins 4 tool versions so teammates get the same ones`. Then `create` / `customize` / `cancel`.
+5. **Summary** — not a picker. Every line is already determined, and every line carries **why**: `selene.toml   you chose lint`, `wally.toml   this project uses Wally`, `rokit.toml   pins 4 tool versions so teammates get the same ones`. Before the artifact list, it shows the `rproj configure <tool>` commands whose required artifacts are in this exact plan. Then `create` / `customize` / `cancel`.
 
    `customize` is the escape hatch, and it exists for one reason: the housekeeping entries (`rproj.toml`, `.gitignore`) are written for every project rather than asked about, so without it the *truly* bare project — `src/` and `default.project.json`, nothing else — would stop being reachable. It re-plans and shows the summary again rather than scaffolding straight away, so dropping files never means being surprised by the result.
 6. Scaffold. Every write is gated on `writes("<artifact key>")` against that one plan — no step invents its own condition, which is how six artifacts came to be written whatever the user answered. The *order* is still a hard requirement (see §6.2 and §7's sourcemap/folder entry); what changed is that each step is now conditional:
@@ -813,6 +813,8 @@ Packages with `submodule: None` are the deliberate exception: they cannot be ven
 ### 8.4 Tool settings (data-driven)
 
 `catalog::tool_settings::CONFIGURABLE_TOOLS` backs `rproj configure`. Each setting carries its own explanation, accepted values, and what each value means; `commands::configure` renders prompts from the table and knows nothing about any specific tool.
+
+Each configurable tool also names the artifacts that make its command applicable. The creation summary filters against the final artifact plan, including machine requirements and files dropped through `customize`. For example, `stylua-vscode` requires both `.vscode/settings.json` and `stylua.toml`, so an editor-only project is not told to configure formatter behavior it does not have.
 
 | Tool key | Written to | Settings covered |
 |---|---|---|
