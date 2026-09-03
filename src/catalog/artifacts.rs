@@ -1,35 +1,5 @@
-//! Every file `rproj new` can write, as catalog data.
-//!
-//! # What this module stopped being
-//!
-//! It used to answer two questions per entry: `requires` said *may this be
-//! offered*, and `entailed_by` said *is this still a question*. Both were
-//! hand-written, and for four entries they were the **same condition** -
-//! `selene.toml` was only offerable when Selene was pinned, and being pinned
-//! was exactly what settled it. `rproj info` reported those as "always
-//! settled", which was the model saying it had a level too many.
-//!
-//! That level is now `catalog::capabilities`. A capability owns its
-//! artifacts, so "why does this project have this file" is answered by
-//! naming the capability that asked for it. Nothing here declares what
-//! selects it - the edge is recorded once, in the implementation - so the
-//! two cannot disagree.
-//!
-//! # What is left
-//!
-//! Three kinds of entry, and that is the whole taxonomy:
-//!
-//! - **`mandatory`** - without it there is no Rojo project. Two entries.
-//! - **`housekeeping`** - written for every project because every project
-//!   wants them, and not worth a question nine users clear to serve one.
-//!   Droppable from the summary's escape hatch, not from a prompt.
-//! - everything else - **derived from a capability or the dependency
-//!   strategy**, and never asked directly.
-//!
-//! `also_requires` is the residue: conditions that are not the capability
-//! itself. `testez.yml` is a Selene standard library, so it needs the test
-//! capability *and* the lint one. Four entries use it. It is deliberately
-//! not a general mechanism.
+//! Artifact catalog: every file `rproj new` can write, plus the conditions
+//! needed before it is written. See `docs/architecture.md` §8.9.
 
 /// An extra condition on an artifact, beyond whatever derived it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -293,15 +263,23 @@ pub const ARTIFACTS: &[Artifact] = &[
     },
     Artifact {
         key: "figma",
-        description: "Folder for exported design assets, wired to the Tarmac upload pipeline",
+        description: "Folder for exported design assets, wired to the chosen asset pipeline",
         category: ArtifactCategory::Assets,
         also_requires: &[],
         housekeeping: false,
         mandatory: false,
     },
     Artifact {
-        key: "tarmac.toml",
-        description: "Tarmac asset-sync configuration",
+        key: "asphalt.toml",
+        description: "Asphalt asset-sync configuration",
+        category: ArtifactCategory::Assets,
+        also_requires: &[],
+        housekeeping: false,
+        mandatory: false,
+    },
+    Artifact {
+        key: "tungsten.toml",
+        description: "Tungsten asset-sync configuration",
         category: ArtifactCategory::Assets,
         also_requires: &[],
         housekeeping: false,
@@ -388,7 +366,10 @@ impl Reason {
             }
             Reason::Strategy(Strategy::None) => "no dependency manager".to_string(),
             Reason::Pins(n) => {
-                format!("pins {n} tool version{} so teammates get the same ones", if *n == 1 { "" } else { "s" })
+                format!(
+                    "pins {n} tool version{} so teammates get the same ones",
+                    if *n == 1 { "" } else { "s" }
+                )
             }
         }
     }
@@ -452,7 +433,10 @@ pub fn plan(
         } else {
             continue;
         };
-        planned.push(Planned { key: artifact.key, reason });
+        planned.push(Planned {
+            key: artifact.key,
+            reason,
+        });
     }
     planned
 }
@@ -508,7 +492,11 @@ mod tests {
         extensions: &[&str],
     ) -> Vec<Planned> {
         let (apps, extensions) = (owned(apps), owned(extensions));
-        let environment = Environment { apps: &apps, extensions: &extensions, strategy };
+        let environment = Environment {
+            apps: &apps,
+            extensions: &extensions,
+            strategy,
+        };
         let selected: Vec<(String, Option<String>)> = capabilities_chosen
             .iter()
             .map(|k| (k.to_string(), None))
@@ -615,8 +603,18 @@ mod tests {
     #[test]
     fn dropping_the_housekeeping_leaves_only_the_mandatory_two() {
         let (apps, extensions, strategy) = env(Strategy::None);
-        let environment = Environment { apps: &apps, extensions: &extensions, strategy };
-        let planned = plan(&environment, &[], &[], &[], &owned(&["rproj.toml", ".gitignore"]));
+        let environment = Environment {
+            apps: &apps,
+            extensions: &extensions,
+            strategy,
+        };
+        let planned = plan(
+            &environment,
+            &[],
+            &[],
+            &[],
+            &owned(&["rproj.toml", ".gitignore"]),
+        );
         assert_eq!(keys_of(&planned), ["src", "default.project.json"]);
     }
 
@@ -644,11 +642,20 @@ mod tests {
 
     #[test]
     fn reasons_read_as_clauses_after_the_key() {
-        assert_eq!(Reason::Capability("lint".into()).describe(), "you chose lint");
-        assert_eq!(Reason::Strategy(Strategy::Wally).describe(), "this project uses Wally");
+        assert_eq!(
+            Reason::Capability("lint".into()).describe(),
+            "you chose lint"
+        );
+        assert_eq!(
+            Reason::Strategy(Strategy::Wally).describe(),
+            "this project uses Wally"
+        );
         for reason in [Reason::Mandatory, Reason::Housekeeping] {
             let text = reason.describe();
-            assert!(text.chars().next().is_some_and(|c| c.is_lowercase()), "{text}");
+            assert!(
+                text.chars().next().is_some_and(|c| c.is_lowercase()),
+                "{text}"
+            );
             assert!(!text.ends_with('.'), "{text}");
         }
     }
@@ -662,10 +669,18 @@ mod tests {
     #[test]
     fn the_testez_selene_library_needs_both_capabilities() {
         let with = plan_from(&["test", "lint"], Strategy::Wally, &[], &[]);
-        assert!(keys_of(&with).contains(&"testez.yml"), "{:?}", keys_of(&with));
+        assert!(
+            keys_of(&with).contains(&"testez.yml"),
+            "{:?}",
+            keys_of(&with)
+        );
 
         let without = plan_from(&["test"], Strategy::Wally, &[], &[]);
-        assert!(!keys_of(&without).contains(&"testez.yml"), "{:?}", keys_of(&without));
+        assert!(
+            !keys_of(&without).contains(&"testez.yml"),
+            "{:?}",
+            keys_of(&without)
+        );
         // The test folders still arrive - only the lint bridge is skipped.
         assert!(keys_of(&without).contains(&"tests"));
     }
@@ -713,7 +728,10 @@ mod tests {
         assert!(with.contains(&".github/workflows/ci.yml"), "{with:?}");
 
         let without = keys_of(&plan_from(&["ci"], Strategy::None, &[], &[]));
-        assert!(!without.contains(&".github/workflows/ci.yml"), "{without:?}");
+        assert!(
+            !without.contains(&".github/workflows/ci.yml"),
+            "{without:?}"
+        );
     }
 
     /// The property that must hold for every combination: nothing is
@@ -735,8 +753,11 @@ mod tests {
                     let keys = keys_of(&planned);
                     let chosen_owned = owned(&chosen);
                     let (apps_owned, ext) = (owned(&apps), owned(&["testez-companion"]));
-                    let environment =
-                        Environment { apps: &apps_owned, extensions: &ext, strategy };
+                    let environment = Environment {
+                        apps: &apps_owned,
+                        extensions: &ext,
+                        strategy,
+                    };
                     for entry in &planned {
                         let artifact = find(entry.key).expect("from ARTIFACTS");
                         for requirement in artifact.also_requires {

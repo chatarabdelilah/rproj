@@ -1,15 +1,4 @@
-//! The screen `rproj` shows with no arguments.
-//!
-//! Deliberately not clap's `--help` dump. Someone typing `rproj` on a fresh
-//! PC has not decided to use this yet - they need to know what it is, what
-//! it will do to their machine, and which single command to type next.
-//! `--help` answers none of those; it lists flags.
-//!
-//! Laid out after `rokit list`, which is the closest thing this toolchain
-//! has to a house style: an emoji-led header, then aligned rows with the
-//! name on the left and the detail on the right.
-
-use crate::ui;
+//! The task-oriented welcome screen shown when no command is supplied.
 
 /// Command rows. Kept as data so the column stays aligned by construction -
 /// hand-padded columns in a string literal drift the moment one row
@@ -56,10 +45,7 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
 
 pub fn run() {
     let version = env!("CARGO_PKG_VERSION");
-    let (rocket, book, sparkle) = match ui::emoji_enabled() {
-        true => ("🎮  ", "📚  ", "✨  "),
-        false => ("", "", ""),
-    };
+    let (rocket, book, sparkle) = ("🎮  ", "📚  ", "✨  ");
 
     println!("\n{rocket}rproj {version} - guided bootstrap-to-game-dev CLI for Roblox\n");
     println!("    Takes a fresh PC all the way to a working Roblox dev setup, then");
@@ -70,11 +56,11 @@ pub fn run() {
     let width = COMMANDS.iter().map(|(_, name, _)| name.len()).max().unwrap_or(0);
     // Terminal *columns* the icon occupies, not `char`s: every icon above is
     // one char and two columns wide, plus two spaces of gutter.
-    let icon_columns = if ui::emoji_enabled() { 4 } else { 0 };
+    let icon_columns = 4;
     for (icon, name, lines) in COMMANDS {
         for (i, line) in lines.iter().enumerate() {
-            let lead = match (i, ui::emoji_enabled()) {
-                (0, true) => format!("{icon}  "),
+            let lead = match i {
+                0 => format!("{icon}  "),
                 // Continuation rows leave the icon and name columns blank,
                 // so a multi-line description reads as one paragraph rather
                 // than as several commands.

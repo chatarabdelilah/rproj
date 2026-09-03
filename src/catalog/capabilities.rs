@@ -1,44 +1,5 @@
-//! What a project *does*, as catalog data.
-//!
-//! # The level this module exists to add
-//!
-//! rproj used to ask one decision at three abstraction levels, and never at
-//! the level the user thinks in:
-//!
-//! | level          | the user thinks       | rproj asked          |
-//! |----------------|-----------------------|----------------------|
-//! | intent         | "I want code linted"  | never                |
-//! | implementation | `selene`              | "Tools to pin"       |
-//! | artifact       | `selene.toml`         | "Files to generate"  |
-//!
-//! Only the first row is a decision. The other two derive from it. Asking
-//! the bottom two and never the top forced the user to reverse-engineer
-//! their own intent into tool names and filenames - twice - and any
-//! disagreement between those two answers became a contradiction the CLI
-//! then had to patch. (`artifacts::Entailment` was that patch. It made the
-//! contradiction legible rather than unrepresentable, which is why it is
-//! gone now: this module makes it unrepresentable.)
-//!
-//! A capability is the unit of choice. It owns an **implementation**, and
-//! the implementation owns the tools, packages and artifacts. Swap the
-//! implementation and everything below re-derives; the capability does not
-//! change.
-//!
-//! ```text
-//! Capability        Testing
-//!     -> Implementation   TestEZ  (or jest-lua, or none)
-//!         -> Packages     testez
-//!         -> Artifacts    tests/, testez.yml, testez-companion.toml
-//!         -> Commands     lute test
-//! ```
-//!
-//! # The rule this gives for free
-//!
-//! **An implementation prompt appears only when a capability has more than
-//! one implementation.** Same rule as everywhere else - never ask a question
-//! with one answer - and it says exactly when a new prompt is permitted.
-//! Today exactly one capability qualifies (`test`), and it is the reason
-//! adding jest-lua is one catalog entry rather than a new gate step.
+//! Capability catalog: user intent maps to concrete tools, packages, and
+//! generated artifacts. See `docs/architecture.md` §8.10 for the rationale.
 
 /// One way of providing a capability.
 ///
@@ -74,6 +35,10 @@ pub struct Capability {
     /// requirement is off is not offered at all.
     pub requires: &'static [&'static str],
     pub default_selected: bool,
+}
+
+fn chosen_has(chosen: &[String], key: &str) -> bool {
+    chosen.iter().any(|candidate| candidate == key)
 }
 
 impl Capability {
@@ -145,9 +110,8 @@ pub const CAPABILITIES: &[Capability] = &[
     },
     Capability {
         key: "test",
-        // Default off, and deliberately: neither runner is rproj's choice to
-        // make, and `none` is a valid answer. Once jest-lua lands this is the
-        // one capability that asks which.
+        // Default off, deliberately: a project without tests is valid, and
+        // once jest-lua lands the runner becomes an implementation choice.
         outcome: "Write and run tests against your game's own code",
         implementations: &[Implementation {
             key: "testez",
@@ -205,19 +169,24 @@ pub const CAPABILITIES: &[Capability] = &[
         default_selected: true,
     },
     Capability {
-        key: "assets-2d",
-        outcome: "Upload images and reference them by name instead of by id",
-        implementations: &[Implementation {
-            key: "tarmac",
-            display: "Tarmac",
-            tools: &["tarmac"],
-            packages: &[],
-            // Both, because they are one pipeline: `figma/exports/` is where
-            // designs land and `tarmac.toml` is what uploads them. Splitting
-            // them into two checkboxes was two folders that ignored each
-            // other.
-            artifacts: &["figma", "tarmac.toml"],
-        }],
+        key: "asset-pipeline",
+        outcome: "Upload Roblox assets and reference them by name instead of by id",
+        implementations: &[
+            Implementation {
+                key: "asphalt",
+                display: "Asphalt",
+                tools: &["asphalt"],
+                packages: &[],
+                artifacts: &["figma", "asphalt.toml"],
+            },
+            Implementation {
+                key: "tungsten",
+                display: "Tungsten",
+                tools: &["tungsten"],
+                packages: &[],
+                artifacts: &["figma", "tungsten.toml"],
+            },
+        ],
         requires: &[],
         default_selected: false,
     },
@@ -249,7 +218,7 @@ pub fn find(key: &str) -> Option<&'static Capability> {
 pub fn offerable(chosen: &[String]) -> Vec<&'static Capability> {
     CAPABILITIES
         .iter()
-        .filter(|c| c.requires.iter().all(|r| chosen.iter().any(|k| k == r)))
+        .filter(|c| c.requires.iter().all(|r| chosen_has(chosen, r)))
         .collect()
 }
 
@@ -274,7 +243,10 @@ pub fn derive(selected: &[(String, Option<String>)]) -> Derived {
     // Requirements first: a capability whose requirement was dropped
     // contributes nothing, or CI would still write its workflow after the
     // gate that workflow runs was turned off.
-    let keys: Vec<String> = selected.iter().map(|(k, _)| k.clone()).collect();
+    let keys: Vec<String> = selected
+        .iter()
+        .map(|(k, _)| k.to_string())
+        .collect();
     let live = offerable(&keys);
 
     for (key, implementation) in selected {
@@ -343,7 +315,8 @@ mod tests {
         for (i, capability) in CAPABILITIES.iter().enumerate() {
             for required in capability.requires {
                 let at = CAPABILITIES.iter().position(|c| c.key == *required);
-                let at = at.unwrap_or_else(|| panic!("{} requires unknown {required}", capability.key));
+                let at =
+                    at.unwrap_or_else(|| panic!("{} requires unknown {required}", capability.key));
                 // Backwards-only keeps `offerable` a single pass. A forward
                 // edge would need a fixpoint, and nothing here wants one.
                 assert!(
@@ -366,10 +339,7 @@ mod tests {
             .filter(|c| c.needs_an_implementation_prompt())
             .map(|c| c.key)
             .collect();
-        assert!(
-            with_a_choice.is_empty() || with_a_choice == ["test"],
-            "only `test` may ask which implementation (jest-lua is the peer): {with_a_choice:?}"
-        );
+        assert_eq!(with_a_choice, ["asset-pipeline"]);
     }
 
     /// The picker shows the tool in the badge slot, so it has to be there.
@@ -423,16 +393,29 @@ mod tests {
         assert!(derived.artifacts.contains(&"testez.yml".to_string()));
     }
 
+    #[test]
+    fn choosing_an_asset_pipeline_implementation_derives_that_tool_and_config() {
+        let derived = derive(&[("asset-pipeline".to_string(), Some("asphalt".to_string()))]);
+        assert_eq!(derived.tools, ["asphalt"]);
+        assert_eq!(derived.artifacts, ["figma", "asphalt.toml"]);
+
+    }
+
     /// CI's whole body is the gate script, so without the gate it must
     /// contribute nothing - not a workflow whose first command is missing.
     #[test]
     fn ci_without_the_gate_derives_nothing() {
         let with = derive(&chosen(&["gate", "ci"]));
-        assert!(with.artifacts.contains(&".github/workflows/ci.yml".to_string()));
+        assert!(
+            with.artifacts
+                .contains(&".github/workflows/ci.yml".to_string())
+        );
 
         let without = derive(&chosen(&["ci"]));
         assert!(
-            !without.artifacts.contains(&".github/workflows/ci.yml".to_string()),
+            !without
+                .artifacts
+                .contains(&".github/workflows/ci.yml".to_string()),
             "{without:?}"
         );
         assert!(!offerable(&["ci".to_string()]).iter().any(|c| c.key == "ci"));
@@ -466,7 +449,7 @@ mod tests {
     /// runner is rproj's choice to make.
     #[test]
     fn the_deliberately_off_capabilities_are_off() {
-        for key in ["test", "ci", "assets-2d", "assets-3d"] {
+        for key in ["test", "ci", "asset-pipeline", "assets-3d"] {
             assert!(
                 !find(key).expect(key).default_selected,
                 "{key} must not be pre-checked"

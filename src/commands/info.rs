@@ -393,7 +393,7 @@ fn print_capability(capability: &'static capabilities::Capability) {
 }
 
 /// The "how do I actually use this" half of an entry. Printed after the
-/// identifying details, since someone running `rproj info tarmac` almost
+/// identifying details, since someone running `rproj info asphalt` almost
 /// always wants this rather than the version string.
 fn print_usage(usage: &Usage) {
     println!("\n{}", usage.what);

@@ -39,7 +39,7 @@ That patching is visible in the code. `entailed_by` (v0.4.0) reports artifacts a
 2. **Workflow chosen, then "pin Wally?"** Untick it and the scaffold still runs `wally install` from rokit's global manifest — so the answer was not merely contradictory, it was *inert*. The project just failed to record the version of the tool it depends on.
 3. **"Tools to pin" was two questions in one costume.** *Do I want this project linted* (a workflow decision) and *should the version be pinned for teammates* (a reproducibility decision) have different answers, different audiences and different defaults.
 4. **Testing asked twice, four prompts apart.** `testez` in the package step; `tests/` as a checkbox in the files step; `testez.yml` and `testez-companion.toml` as further consequences.
-5. **CI, Blender, Figma and Tarmac presented as files.** Nobody thinks *"I want a `.github/workflows/ci.yml`"*.
+5. **CI, Blender, Figma and asset-pipeline configs presented as files.** Nobody thinks *"I want a `.github/workflows/ci.yml`"*.
 6. **`--like <setup>` skipped one prompt and still asked three.** Reuse should mean reuse.
 7. **`none` sits last in every guided category**, and `Select` highlights index 0 — a package. Enter-through hands a beginner five packages they never chose. The safe answer must be the resting position.
 
@@ -117,11 +117,11 @@ Swap the implementation and everything below re-derives. The capability never ch
 | Type checking | luau-lsp | no |
 | Quality gate | Lute | no |
 | Continuous integration | GitHub Actions | no |
-| Asset pipeline | Tarmac (Figma as source) | no |
+| **Asset pipeline** | **Asphalt, Tungsten** | **yes — the first one** |
 | 3D assets | Blender | no |
-| **Testing** | **TestEZ, jest-lua, none** | **yes — the first and only one** |
+| Testing | TestEZ | no |
 
-M4 (jest-lua) is therefore the first milestone that adds a prompt, and it adds it because the model says it may — not as a special case. This is the answer to the open question in `plan.md` §11 about how a second test runner should be offered.
+The asset pipeline is now the first capability with an implementation prompt. M4 (jest-lua) uses the same mechanism when Testing gains a second runner, instead of adding a special-case test-runner prompt.
 
 ### Implementations are not all the same kind of thing
 
@@ -186,9 +186,9 @@ Every file carries its reason. Files are the one thing a beginner will actually 
 
 And `entailed_by` shrinks: with artifacts owned by capabilities, the per-entry `requires`/`entailed_by` pair collapses to `provided_by`. Entailment survives only for genuine cross-level implications (strategy → `wally.toml`) — a handful of edges instead of a field on every entry.
 
-**Honest accounting: this is 8 questions on the guided path against today's 9.** The redesign's value was never the count. It is that no prompt asks about a consequence, every prompt names its implementation, and the two that vanished were the two asking the user to think at the wrong level.
+**Honest accounting: this is 8 questions on the guided baseline, plus one sub-prompt for each selected capability with multiple implementations.** The redesign's value was never the count. It is that no prompt asks about a consequence, every prompt names its implementation, and the two that vanished were the two asking the user to think at the wrong level.
 
-Which redirects the compression question to where it belongs: the **four remaining guided package prompts** are now the largest block, and most are "none" for a beginner — with `none` currently last in each list (failure ⑦). That is the part worth optimising, not the architectural questions.
+Which redirects the compression question to where it belongs: the **five guided package prompts** are now the largest block, and most are "none" for a beginner. That is the part worth optimising, not the architectural questions.
 
 ---
 
@@ -234,7 +234,7 @@ So the prompt is gated on the build targets being real. Adding it before then wo
 | **R3** | `rproj info <capability>` pages; `rproj configure` hints on the summary | R1 | The "shows its work" half |
 | **R4** | Project type — after Package and Studio-plugin build targets exist | new scaffolding | §7 |
 
-R1 makes **M4 (jest-lua) cheaper**: "which test runner" stops needing its own gate step and becomes the implementation node of the Testing capability.
+R1 makes **M4 (jest-lua) cheaper**: "which test runner" stops needing its own gate step and becomes the implementation node of the Testing capability. The asset-pipeline prompt is the proof that this shape works.
 
 ### One decision this reopens
 

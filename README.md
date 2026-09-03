@@ -3,111 +3,130 @@
 [![crates.io](https://img.shields.io/crates/v/rproj.svg)](https://crates.io/crates/rproj)
 [![license](https://img.shields.io/crates/l/rproj.svg)](#license)
 
-`rproj` is a guided CLI that provisions a Windows machine for Roblox/Luau development and scaffolds production-ready projects.
+`rproj` is a guided Windows CLI for setting up Roblox/Luau development and creating consistent projects.
 
-On a fresh PC it can install the development tools you need, configure them, and generate a project that is ready to open in Roblox Studio or VS Code. On machines that are already configured, it skips setup and goes straight to creating projects.
+> **Status: pre-release alpha.** The main workflows work, but the command surface, generated files, and `rproj.toml` schema may change without migration support. Use it for real projects only when you are willing to review generated changes and update with the tool.
 
-## Features
+## What rproj does
 
-- Provision a Windows machine with the Roblox development toolchain
-- Scaffold Roblox/Luau projects with sensible defaults
-- Configure tools instead of only installing them
-- Guide package selection with explanations
-- Generate optional quality gates and CI
-- Upgrade generated configuration as `rproj` evolves
+rproj connects two layers that are usually assembled by hand:
+
+1. **Machine setup** installs and configures development applications, command-line tools, Roblox Studio plugins, and VS Code extensions.
+2. **Project setup** turns your choices into a Roblox project with pinned tools, dependencies, editor settings, quality checks, and optional asset workflows.
+
+It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
+
+## Ecosystems
+
+| Layer | What rproj manages |
+| --- | --- |
+| Windows applications | Git, VS Code, Roblox Studio, Blender, Figma, and related prerequisites |
+| CLI toolchain | Rokit plus pinned tools such as Rojo, Wally, Selene, StyLua, luau-lsp, Lute, Asphalt, and Tungsten |
+| Packages | Wally packages or Git submodules, including UI, state, networking, data, testing, and ECS libraries |
+| Roblox Studio | Development plugins selected during machine setup |
+| VS Code | Recommended extensions and project-scoped settings |
+| Generated project | Rojo mapping, source tree, dependency manifests, lint/format/type configuration, tests, CI, and asset configuration |
+
+Use `rproj info` to browse the complete current catalog and `rproj info <key>` to inspect one entry.
 
 ## Requirements
 
-- Windows
-- `winget`
-- Rust (for installation via Cargo)
+- Windows with `winget`
+- Rust and Cargo for installation from crates.io or source
+- Network access while installing tools and packages
 
-## Installation
+## Install
 
-```sh
+```powershell
 cargo install rproj
 ```
 
-## Quick Start
+The repository version can be installed with:
 
-Create a new project:
+```powershell
+git clone https://github.com/chatarabdelilah/rproj.git
+cd rproj
+cargo install --path .
+```
 
-```sh
+## First project
+
+```powershell
 rproj new my-first-game
 ```
 
-The first run offers to install any missing applications, CLI tools, Studio plugins, and editor extensions before asking about your project.
+On a new machine, rproj first offers the missing machine-level tools. It then asks how the project should manage packages, which packages and capabilities it needs, and which generated files to keep. The final summary is reviewable before anything is created.
 
-Future runs skip machine setup unless you explicitly reconfigure it.
+After creation:
+
+```powershell
+cd my-first-game
+rproj watch
+```
+
+`rproj watch` restores missing project dependencies, regenerates the Rojo sourcemap, and starts the development watcher.
 
 ## Commands
 
-| Command | Description |
+| Command | Purpose |
 | --- | --- |
-| `rproj` | Show the welcome screen. |
-| `rproj new <name>` | Create a new project. |
-| `rproj setup` | Configure the current machine. |
-| `rproj setup <tool>` | Configure a single tool for the current project. |
-| `rproj configure [tool]` | Modify a tool's configuration interactively. |
-| `rproj upgrade` | Update generated configuration in an existing project. |
-| `rproj watch` | Install missing project tools and start the Rojo watcher. |
-| `rproj copy` | Copy everything under `src/` to the clipboard. |
-| `rproj info` | Browse the catalog of supported tools and packages. |
-| `-v`, `--verbose` | Show detailed output. |
-| `-V`, `--version` | Print the version. |
+| `rproj` | Show the product overview and command list |
+| `rproj new <name>` | Set up the machine when needed and create a project |
+| `rproj setup` | Review or change machine-level tools |
+| `rproj setup <tool>` | Set up one supported tool for the current project |
+| `rproj configure [tool]` | Edit supported generated configuration interactively |
+| `rproj upgrade` | Re-render maintained files from the current `rproj.toml` decisions |
+| `rproj watch` | Restore dependencies and start the Rojo development loop |
+| `rproj copy` | Copy source files with path headers |
+| `rproj info [key]` | Browse tools, packages, capabilities, and usage notes |
+| `rproj --verbose ...` | Include commands and captured subprocess output |
 
-## What gets generated
+## Generated project
 
-A project typically looks like this:
+The exact tree follows your choices. A full project can include:
 
 ```text
 my-first-game/
-├── default.project.json
-├── rokit.toml
-├── wally.toml
-├── selene.toml
-├── stylua.toml
-├── .luaurc
-├── .gitattributes
-├── rproj.toml
-├── src/
-│   ├── client/
-│   ├── server/
-│   └── shared/
-├── tests/                   # optional
-├── .lute/check.luau         # optional
-├── .github/workflows/ci.yml # optional
-└── .vscode/settings.json
+|-- default.project.json
+|-- rokit.toml
+|-- wally.toml
+|-- selene.toml
+|-- stylua.toml
+|-- .luaurc
+|-- .gitattributes
+|-- .gitignore
+|-- rproj.toml
+|-- src/
+|   |-- client/
+|   |-- server/
+|   `-- shared/
+|-- tests/
+|-- .lute/check.luau
+|-- .github/workflows/ci.yml
+|-- figma/
+|-- asphalt.toml or tungsten.toml
+`-- .vscode/settings.json
 ```
 
-The exact output depends on the features you choose during project creation.
+`rproj.toml` records the current project decisions used by `rproj upgrade`. During alpha, re-scaffolding is preferred when the schema changes substantially.
 
-## Supported tooling
+## Behavior and scope
 
-`rproj` can work with:
+- rproj asks before optional machine-level installation and project generation.
+- External command output is summarized; `--verbose` exposes the underlying commands and captured output.
+- Existing user-owned configuration is preserved where a command supports merging. Unreadable configuration is refused rather than replaced.
+- The current implementation targets Windows. Cross-platform support is not claimed.
+- rproj is a development orchestrator, not a package registry, build system, game framework, or Roblox Studio replacement.
 
-- System applications (Git, VS Code, Roblox Studio, Blender, Figma)
-- CLI tools (Rojo, Wally, Selene, StyLua, luau-lsp, Lute, Mantle, Tarmac, and others)
-- Roblox Studio plugins
-- VS Code extensions
-- Wally packages
+## Development
 
-Run `rproj info` to browse the complete catalog.
-
-## Environment variables
-
-| Variable | Description |
-| --- | --- |
-| `RPROJ_NO_EMOJI=1` | Replace emoji with plain text markers. |
-| `RPROJ_NO_UPDATE_CHECK=1` | Disable update checks. |
-
-## Building from source
-
-```sh
-cargo build
+```powershell
 cargo test
 cargo clippy --all-targets -- -D warnings
+cargo package
 ```
+
+The codebase separates CLI dispatch, decision modeling, catalogs, command orchestration, and filesystem/process steps. See [Architecture](https://github.com/chatarabdelilah/rproj/blob/main/docs/architecture.md), [Development plan](https://github.com/chatarabdelilah/rproj/blob/main/docs/plan.md), and [UX redesign](https://github.com/chatarabdelilah/rproj/blob/main/docs/ux-redesign.md).
 
 ## License
 

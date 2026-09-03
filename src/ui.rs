@@ -1,67 +1,12 @@
-//! Terminal output.
-//!
-//! The rule: **one line per thing that happened.** Sub-processes rproj
-//! shells out to (winget, rokit, git, blender, rojo) are chatty in ways
-//! that are noise to someone running rproj - `rokit add --global` prints a
-//! five-line ERROR block for a tool that's simply already installed, `git
-//! submodule add` prints clone progress for every package, `rokit init`
-//! prints a banner. Multiply that by nine tools and six packages and the
-//! actual outcome is invisible.
-//!
-//! So sub-process output is captured, not inherited, and only surfaced
-//! when something actually went wrong (or when `--verbose` asks for all of
-//! it). Callers report outcomes through `ok`/`skip`/`warn` instead, and
-//! batch repetitive ones through `Tally`.
+//! Terminal output and picker formatting. See `docs/architecture.md` §2.4.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static VERBOSE: AtomicBool = AtomicBool::new(false);
 
-/// Whether to draw the emoji markers.
-///
-/// On by default - rproj's own terminal output already relies on non-ASCII
-/// (the multi-select help line's arrows), and every tool it drives renders
-/// box-drawing characters, so a console that can't show these is a console
-/// the whole workflow already looks wrong in. `RPROJ_NO_EMOJI` exists for
-/// the exceptions: a log file, a CI transcript, a screen reader, or a
-/// console still on a legacy code page, where a mojibake marker on every
-/// line is worse than no marker at all.
-fn emoji() -> bool {
-    !matches!(std::env::var("RPROJ_NO_EMOJI").as_deref(), Ok("1" | "true"))
-}
-
-/// Whether callers laying out their own emoji should draw them.
-pub fn emoji_enabled() -> bool {
-    emoji()
-}
-
-/// The marker starting an outcome line, with its ASCII fallback.
-///
-/// Every icon here is a single scalar value with no VARIATION SELECTOR, so
-/// all three are unambiguously double-width and take one space of padding.
-///
-/// `warn` used to be `⚠️` with *two* spaces, on the theory that a base
-/// character plus VS-16 renders one column narrower. Measured with
-/// `unicode-width`: VS-16 requests emoji presentation, which is wide, so
-/// the standard makes it two columns and the extra space put warn one
-/// column right of its neighbours. The legacy console ignores VS-16 and
-/// draws it narrow, where the extra space was right - and nothing the
-/// program can query tells the two apart.
-///
-/// `❗` (U+2757) removes the question: one char, two columns, no selector,
-/// same as `✅` and `➖`. Alignment is now a property of the glyphs rather
-/// than a guess about the terminal.
-fn marker(icon: &str, pad: &str, fallback: &str) -> String {
-    render_marker(emoji(), icon, pad, fallback)
-}
-
-/// The pure half of `marker`, so both branches are testable without
-/// touching the environment (which every other test in the process shares).
-fn render_marker(emoji: bool, icon: &str, pad: &str, fallback: &str) -> String {
-    match emoji {
-        true => format!("{icon}{pad}"),
-        false => format!("{fallback} "),
-    }
+/// Outcome markers are single-scalar, double-width emoji.
+fn marker(icon: &str, pad: &str) -> String {
+    format!("{icon}{pad}")
 }
 
 pub fn set_verbose(on: bool) {
@@ -74,25 +19,22 @@ pub fn is_verbose() -> bool {
 
 /// A top-level phase, e.g. "Machine setup" or "Scaffolding creamy".
 pub fn section(title: &str) {
-    match emoji() {
-        true => println!("\n📦  {title}"),
-        false => println!("\n{title}"),
-    }
+    println!("\n📦  {title}");
 }
 
 /// Something was done, or was already the case.
 pub fn ok(msg: &str) {
-    println!("  {}{msg}", marker("✅", " ", "+"));
+    println!("  {}{msg}", marker("✅", " "));
 }
 
 /// Deliberately not done, with the reason.
 pub fn skip(msg: &str) {
-    println!("  {}{msg}", marker("➖", " ", "-"));
+    println!("  {}{msg}", marker("➖", " "));
 }
 
 /// Something failed but the run continues.
 pub fn warn(msg: &str) {
-    println!("  {}{msg}", marker("❗", " ", "!"));
+    println!("  {}{msg}", marker("❗", " "));
 }
 
 /// A failure that ends the run, with its full cause chain.
@@ -113,7 +55,7 @@ pub fn error(err: &anyhow::Error) {
     let reset = red.render_reset();
     let red = red.render();
 
-    anstream::eprintln!("\n{red}{}{}{reset}", marker("❗", " ", "!"), err);
+    anstream::eprintln!("\n{red}{}{}{reset}", marker("❗", " "), err);
     // Each `with_context` layer, innermost last - the OS or library error
     // that actually stopped things is the deepest one.
     for cause in err.chain().skip(1) {
@@ -478,22 +420,6 @@ mod tests {
         assert_eq!(option_key("none"), "none");
     }
 
-    /// Turning emoji off has to give back a marker of the *same* width, or
-    /// every outcome line shifts and the output stops lining up.
-    #[test]
-    fn both_marker_styles_are_the_same_width() {
-        assert_eq!(render_marker(true, "✅", " ", "+"), "✅ ");
-        assert_eq!(render_marker(false, "✅", " ", "+"), "+ ");
-        // Two `char`s either way: one emoji plus one space, or one ASCII
-        // character plus one space. All three markers, not just two - see
-        // `no_marker_icon_carries_a_variation_selector`.
-        for (icon, pad, fallback) in [("✅", " ", "+"), ("➖", " ", "-"), ("❗", " ", "!")] {
-            let on = render_marker(true, icon, pad, fallback);
-            let off = render_marker(false, icon, pad, fallback);
-            assert_eq!(on.chars().count(), off.chars().count(), "{icon}");
-        }
-    }
-
     /// The alignment guarantee, and it is a property of the glyphs.
     ///
     /// A base character plus VARIATION SELECTOR-16 is two `char`s whose
@@ -560,7 +486,7 @@ mod tests {
         let mut tally = Tally::new();
         for name in [
             "rojo", "wally", "wally-package-types", "selene", "stylua", "lute",
-            "luau-lsp-cli", "tarmac", "mantle",
+            "luau-lsp-cli", "asphalt", "tungsten",
         ] {
             tally.already(name);
         }
@@ -572,7 +498,7 @@ mod tests {
         }
         // Every tool is still named somewhere.
         let joined = lines.join(" ");
-        for name in ["rojo", "wally-package-types", "mantle"] {
+        for name in ["rojo", "wally-package-types", "tungsten"] {
             assert!(joined.contains(name), "{name} missing from {lines:?}");
         }
         assert!(lines[1].starts_with("  "), "hanging indent: {lines:?}");

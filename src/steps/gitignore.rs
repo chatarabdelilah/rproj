@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::Result;
 use crate::ui;
+use anyhow::Result;
 
 // wally.lock is deliberately NOT here - like Cargo.lock, it should be
 // committed so everyone building the project resolves the same package
@@ -36,6 +36,8 @@ const ENTRIES: &[&str] = &[
     // Fetched fresh by .lute/check.luau each run and deleted afterwards;
     // listed so an interrupted run can't leave it staged.
     "roblox.d.luau",
+    ".asphalt-debug/",
+    ".tungsten-debug/",
     "*.blend1",
     "*.blend2",
     "Thumbs.db",
@@ -44,10 +46,13 @@ const ENTRIES: &[&str] = &[
 
 pub fn ensure_entries(project_dir: &Path) -> Result<()> {
     let path = project_dir.join(".gitignore");
-    let content = if path.exists() { fs::read_to_string(&path)? } else { String::new() };
+    let content = if path.exists() {
+        fs::read_to_string(&path)?
+    } else {
+        String::new()
+    };
 
-    let existing: std::collections::HashSet<&str> =
-        content.lines().map(str::trim).collect();
+    let existing: std::collections::HashSet<&str> = content.lines().map(str::trim).collect();
     let missing: Vec<&str> = ENTRIES
         .iter()
         .copied()

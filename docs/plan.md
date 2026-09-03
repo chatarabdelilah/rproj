@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.6.0**, 195 tests, Windows-only, Luau + Wally.
+Current: **v0.7.0 pre-release alpha**, 195 passing tests plus 8 ignored live/API checks, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -131,8 +131,9 @@ pub enum Requirement {
 | `.github/workflows/ci.yml` | artifact `.lute/check.luau` | **off** | |
 | `sourcemap.json` | tool `rojo` | on | |
 | `blender/scene.blend` | app `blender` | **off** | |
-| `figma/` | app `figma` | **off** | |
-| `tarmac.toml` | tool `tarmac` | **off** | |
+| `figma/` | capability `asset-pipeline` | **off** | |
+| `asphalt.toml` | `asset-pipeline` implementation `asphalt` | **off** | |
+| `tungsten.toml` | `asset-pipeline` implementation `tungsten` | **off** | |
 
 Two entries are mandatory because a project without them is not a project. Everything else is a question — and a minimal answer yields `src/` plus `default.project.json`, which is what "just the Rojo basics" means.
 
@@ -143,8 +144,8 @@ Two entries are mandatory because a project without them is not a project. Every
 Once artifacts are entries with requirements, these stop being separate work:
 
 - **`blender/` no longer appears unasked** — it requires the `blender` app *and* is default-off.
-- **Figma** is one app entry plus one artifact entry.
-- **`tarmac.toml`** becomes an artifact, which is most of `rproj setup tarmac` (§4).
+- **Figma** is the export folder for whichever asset pipeline the project chooses.
+- **Asset-pipeline configs** become artifacts, which is most of `rproj setup asphalt` and `rproj setup tungsten` (§4).
 - **`rproj upgrade`** can diff selected-vs-present per artifact instead of re-running the sequence.
 
 ### Verification
@@ -163,11 +164,9 @@ The gate that makes it real: **for every subset of selections, every emitted art
 rproj setup <tool>
 ```
 
-Today the answer to "how do I start using Tarmac" is `rproj info tarmac`, read the commands, and do it by hand. `setup <tool>` does it: writes the tool's config with sane defaults, adds it to `rokit.toml` if missing, explains the one-time manual steps that cannot be scripted, and prints the first command to run.
+The old answer to "how do I start using an asset pipeline" was `rproj info <tool>`, read the commands, and do it by hand. `setup <tool>` does it: writes the tool's config with sane defaults, adds it to `rokit.toml` if missing, explains the one-time manual steps that cannot be scripted, and prints the first command to run.
 
-Candidates, in order of payoff: `tarmac`, `mantle`, `lute`, `luau-lsp-cli` (the CLI; `luau-lsp` is the VS Code extension's key).
-
-`mantle` carries an honest Legacy badge and still gets support, on the same principle as TestEZ — the tool telling you a thing is unmaintained is more useful than the tool pretending it does not exist.
+Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli` (the CLI; `luau-lsp` is the VS Code extension's key).
 
 ---
 
@@ -178,6 +177,11 @@ Candidates, in order of payoff: `tarmac`, `mantle`, `lute`, `luau-lsp-cli` (the 
 | **UI Labs** | Studio plugin | The maintained Hoarcekat successor. Add both; badge accordingly. |
 | **Resurface** | Studio plugin | Confirmed must-have. |
 | **rbxm-to-rojo** | CLI tool | Strongest of the researched list — converts a Studio-built model into a Rojo tree, which is the missing bridge for "here is a default spawn". |
+| **Asphalt** | CLI tool | Added as a maintained asset-pipeline implementation with Studio/cloud targets and Open Cloud auth. |
+| **Tungsten** | CLI tool | Added as a second modern asset-pipeline implementation; keep it external because it is GPL-3.0. |
+| **Matter** | package | Added as the first Architecture-category package: ECS/data-oriented gameplay structure. |
+| **Scribe** | package | Added beside ProfileStore as a higher-level typed data/profile layer. |
+| **Pretty React Hooks Luau** | package | Added as a React-dependent utility, Wally-only rather than raw-submodule vendored. |
 | **jest-lua** | package | Live alternative to TestEZ, which is effectively unmaintained. Needs a `Testing` category peer, its own artifact set, and a gate step. |
 | **Figma** | system app | Install plus optional project folder. No scriptable Roblox configuration exists — it is a web app — so this is an install and a pointer to the community UI kits. |
 | **catppuccin** | VS Code theme | Cheap, cosmetic, fits the existing theme entries. |
@@ -272,15 +276,16 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
 | ~~R1~~ | ~~Capability layer; delete the "tools" and "files" prompts~~ | 4–6 | **Shipped** v0.5.0. Came in at the low end because it mostly deleted things. Three bugs it surfaced, none of which a reader would have predicted: `rokit.toml` was owned by nothing, so tools were derived and never pinned; the dependency strategy pins its own tools and nothing derived them, so a Wally project pinned no Wally; and `plan` trusted the capability list without re-checking requirements, so CI survived its gate being turned off. All three found by tests, two of them by the live prompt-order pair. |
 | ~~R2~~ | ~~The project graph as a real type~~ | 3–5 | **Shipped** v0.6.0. `graph::ProjectGraph`, four-row invalidation table, `rproj.toml` stores decisions. Brought `change` at the summary, `--like` replaying whole compositions, and an `upgrade` that cannot restore a declined capability. |
+| ~~R2b~~ | ~~Catalog refresh and dead-tool removal~~ | 1–2 | **Shipped** v0.7.0. Added Asphalt/Tungsten asset pipelines plus Matter, Scribe and Pretty React Hooks Luau; removed obsolete external integrations and their compatibility code. |
 | R3 | `rproj info <capability>`; configure hints on the summary | 1–2 | The "shows its work" half of the philosophy. |
-| M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. First capability with more than one implementation, so the first sub-prompt the model permits. |
+| M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. Asset pipeline has already proven the multi-implementation prompt shape. |
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
 | M5 | `default.project.json` via `$EDITOR` (§6) | 1–2 | |
 | M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **42–71** | ≈ 4–8 months part-time |
-| | *remaining after v0.6.0* | **24–43** | M1–M3b, R1, R2 done |
+| | *remaining after v0.7.0* | **23–41** | M1–M3b, R1, R2, R2b done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 

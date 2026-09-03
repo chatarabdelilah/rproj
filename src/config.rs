@@ -140,11 +140,6 @@ pub mod project_file {
         project_dir.join("rproj.toml")
     }
 
-    /// Loads and **migrates**: a pre-0.5 file records the tools it pinned and
-    /// nothing about why, so the capabilities are reconstructed from them
-    /// before anything reads the graph. Without that, upgrading an old
-    /// project would conclude it wants no linter and rewrite its config to
-    /// match.
     pub fn load_from(project_dir: &Path) -> Result<Option<ProjectGraph>> {
         let path = path_in(project_dir);
         if !path.exists() {
@@ -154,7 +149,7 @@ pub mod project_file {
             .with_context(|| format!("failed to read {}", path.display()))?;
         let graph: ProjectGraph = toml::from_str(&text)
             .with_context(|| format!("failed to parse {}", path.display()))?;
-        Ok(Some(graph.with_legacy_capabilities()))
+        Ok(Some(graph))
     }
 
     pub fn save_to(graph: &ProjectGraph, project_dir: &Path) -> Result<()> {
