@@ -210,7 +210,26 @@ pub fn validate_template_structure(template: &Value) -> Result<()> {
             );
         }
     }
+    validate_instance_names(tree, "tree")?;
     validate_paths(template, "")
+}
+
+fn validate_instance_names(node: &Map<String, Value>, location: &str) -> Result<()> {
+    if node
+        .get("$properties")
+        .and_then(Value::as_object)
+        .is_some_and(|properties| properties.contains_key("Name"))
+    {
+        bail!(
+            "`{location}.$properties.Name` cannot be set manually; rename the `{location}` tree key instead"
+        );
+    }
+    for (name, child) in node.iter().filter(|(name, _)| !name.starts_with('$')) {
+        if let Some(child) = child.as_object() {
+            validate_instance_names(child, &format!("{location}.{name}"))?;
+        }
+    }
+    Ok(())
 }
 
 fn validate_paths(value: &Value, location: &str) -> Result<()> {
@@ -619,5 +638,20 @@ mod tests {
             rojo_preflight_error("ERROR Failed to find tool 'rojo' in any project manifest file.");
         assert!(error.contains("rokit add --global rojo"), "{error}");
         assert!(!error.contains("Rojo rejected"), "{error}");
+    }
+
+    #[test]
+    fn instance_name_property_is_rejected_before_rojo_ignores_it() {
+        let mut template = builtin_project_template();
+        template["tree"]["Part"] = json!({
+            "$className": "Part",
+            "$properties": { "Name": "IgnoredName" }
+        });
+
+        let error = validate_template_structure(&template)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("tree.Part.$properties.Name"), "{error}");
+        assert!(error.contains("rename the `tree.Part` tree key"), "{error}");
     }
 }

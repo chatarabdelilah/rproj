@@ -79,7 +79,8 @@ impl Metadata {
         let mut properties = BTreeMap::new();
         for class in self.database.superclasses_iter(class) {
             for property in class.properties.values() {
-                if property.tags.contains(&PropertyTag::Deprecated)
+                if property.name == "Name"
+                    || property.tags.contains(&PropertyTag::Deprecated)
                     || property.tags.contains(&PropertyTag::Hidden)
                     || property.tags.contains(&PropertyTag::NotBrowsable)
                     || property.tags.contains(&PropertyTag::ReadOnly)
@@ -324,5 +325,11 @@ mod tests {
         assert_eq!(ValueKind::Integer.parse("42").unwrap(), json!(42));
         assert!(ValueKind::Bool.accepts(&json!(true)));
         assert!(!ValueKind::Bool.accepts(&json!("true")));
+    }
+
+    #[test]
+    fn instance_name_is_owned_by_the_tree_key() {
+        let metadata = Metadata::bundled();
+        assert!(metadata.property("Part", "Name").is_none());
     }
 }
