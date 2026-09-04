@@ -15,8 +15,10 @@ Every public version must use the same version number in `Cargo.toml`, `Cargo.lo
 The repository owner publishes from a clean `main` checkout:
 
 ```powershell
-cargo publish
+cargo publish --locked
 ```
+
+`--locked` requires Cargo to use the exact dependency versions in `Cargo.lock`; publication fails instead of silently resolving a newer dependency graph than the one tested.
 
 Do not create the version tag before crates.io accepts the package. A failed publication must leave no public tag claiming that the version shipped.
 

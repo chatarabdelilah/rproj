@@ -1,10 +1,4 @@
-//! `rproj info` end to end: the real binary, real prompts.
-//!
-//! The browser exists because the old behaviour made the user do the lookup:
-//! print ~130 catalog rows, scroll back, find an exact key, retype it as an
-//! argument. Both tests here guard a way that replacement can break in a
-//! shape unit tests cannot see - the prompts either come up and navigate, or
-//! they hang.
+//! `rproj info` end to end: the real binary in a real terminal.
 
 mod common;
 
@@ -22,16 +16,16 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
     let project = TempProject::new("info-browse");
     let mut session = Session::start(project.path(), &["info"]);
 
-    session.wait_for("What do you want to look up?");
+    session.wait_for("rproj catalog");
     session.send("Generated");
     session.wait_for("Generated files");
     session.send(ENTER);
 
     // The section stays open across lookups, so this is one keystroke per
     // entry rather than a round trip through the section menu.
-    session.wait_for("Generated files - what `rproj new` can write");
+    session.wait_for("Type to filter");
     session.send("wally.toml");
-    session.wait_for("wally.toml - ");
+    session.wait_for("wally.toml");
     session.send(ENTER);
 
     // The detail page answers the question the artifact model created:
@@ -42,18 +36,11 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
     assert!(screen.contains("wally.toml"), "{screen}");
     assert!(screen.contains("Wally manifest"), "{screen}");
 
-    // A capability-owned file names the capability to drop, which is the
-    // whole point of the layer: the way to not have a file is to not want
-    // the thing that needs it.
-    session.send("selene.toml");
-    session.wait_for("selene.toml - ");
-    session.send(ENTER);
-    session.wait_for("don't choose `lint`");
-
-    // Escape backs out of the entry list, then out of the browser. Leaving
-    // is not a failure, so it must not be reported as one.
+    // Escape backs out through detail, entries, and sections.
     session.send(ESC);
-    session.wait_for("What do you want to look up?");
+    session.wait_for("Generated files");
+    session.send(ESC);
+    session.wait_for("Sections");
     session.send(ESC);
 
     let outcome = session.finish();

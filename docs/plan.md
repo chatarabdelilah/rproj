@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.10.2 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.11.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -277,11 +277,12 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
 | ~~M5~~ | ~~Validated `default.project.json` customization (§6)~~ | 1–2 | **Shipped** v0.9.0. Global validated template through `rproj configure project`; generated mounts remain protected. |
 | ~~M5b~~ | ~~Built-in project-template Explorer (§6)~~ | 3–5 | **Shipped** v0.10.0. Added a Rojo-aware TUI, typed Inspector, history, and internal JSON repair mode. |
+| ~~T1~~ | ~~Shared TUI foundation and workspace hub~~ | 3–5 | **Shipped** v0.11.0. Bare `rproj` is a context-aware task hub, interactive `rproj info` is the shared Catalog, and the project editor now uses common terminal/widget infrastructure. Direct commands remain scriptable. |
 | M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **45–76** | ≈ 4–8 months part-time |
-| | *remaining after v0.10.0* | **21–37** | M1–M3b, R1–R3, M5 and M5b done |
+| | *remaining after v0.11.0* | **21–37** | M1–M3b, R1–R3, M5, M5b and T1 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -290,7 +291,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
-Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5 → M5b**.
+Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5 → M5b → T1**.
 Remaining: **M4 → M7 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.

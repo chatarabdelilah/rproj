@@ -8,14 +8,17 @@
 #![forbid(unsafe_code)]
 
 mod catalog;
+mod catalog_view;
 mod cli;
 mod commands;
 mod config;
 mod graph;
 mod project_editor;
 mod steps;
+mod tui;
 mod ui;
 
+use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -41,8 +44,12 @@ fn main() -> ExitCode {
 fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         None => {
-            commands::welcome::run();
-            Ok(())
+            if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+                dispatch_hub(commands::hub::run()?)
+            } else {
+                commands::welcome::run();
+                Ok(())
+            }
         }
         Some(Command::Setup { tool }) => commands::setup::run(tool.as_deref()),
         Some(Command::New {
@@ -56,5 +63,20 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Watch) => commands::watch::run(),
         Some(Command::Copy) => commands::copy::run(),
         Some(Command::Info { key }) => commands::info::run(key.as_deref()),
+    }
+}
+
+fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
+    use commands::hub::HubOutcome;
+
+    match outcome {
+        HubOutcome::Quit => Ok(()),
+        HubOutcome::New { name } => commands::new::run(&name, false, None, None),
+        HubOutcome::EditProjectTemplate => commands::project_template::run(),
+        HubOutcome::ConfigureTools => commands::configure::run(None),
+        HubOutcome::SetupMachine => commands::setup::run(None),
+        HubOutcome::Upgrade => commands::upgrade::run(false),
+        HubOutcome::Watch => commands::watch::run(),
+        HubOutcome::CopySource => commands::copy::run(),
     }
 }

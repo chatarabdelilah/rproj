@@ -1,5 +1,7 @@
+pub mod catalog_browser;
 pub mod configure;
 pub mod copy;
+pub mod hub;
 pub mod info;
 pub mod new;
 pub mod project_template;

@@ -175,6 +175,12 @@ Every file carries its reason. Files are the one thing a beginner will actually 
 
 The Rojo tree itself is configured outside this project flow. `rproj configure project` edits one machine-wide, Rojo-validated template for future projects through a built-in Explorer and Inspector; it is a default input to scaffolding, not another per-project question. rproj retains the source, package, and test mounts derived by the graph, while user-authored static instances and properties flow into `default.project.json`. Advanced JSON editing remains inside the same TUI for values the guided controls do not cover. Existing projects remain user-owned and are never rewritten from the global template.
 
+### The workspace hub
+
+Bare `rproj` now opens a task-oriented workspace hub rather than a static welcome page. The hub is a discovery and context surface, not a second command implementation: it reads the exact current directory, shows which actions are available and why, then restores the terminal before invoking the existing command. Long-running and script-oriented work therefore keeps its normal output and direct syntax.
+
+The Catalog is the first workflow retained inside the hub because browsing is itself a full-screen navigation task. `rproj info` opens the same Catalog directly, while `rproj info <key>` and redirected output remain plain. This hybrid boundary is deliberate: use the TUI for orientation and selection, and the CLI for automation and repeatability.
+
 ---
 
 ## 5. What disappears

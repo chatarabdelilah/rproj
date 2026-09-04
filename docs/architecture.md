@@ -6,7 +6,7 @@
 
 Every choice `rproj` presents — which system app, which CLI tool, which Studio plugin, which VS Code extension, which Roblox package — is shown with a plain-language description and a maintenance-status badge, so a newcomer is guided toward a working, professional setup without needing to already know the ecosystem, while an experienced developer can move through the same prompts quickly by picking exactly what they want.
 
-`rproj new <name>` is the single, self-sufficient entry point: it asks what the machine still needs (installing/skipping each item idempotently), then walks through a project's package workflow, package composition, and capabilities, then scaffolds one Roblox project. `rproj setup` runs the same machine-provisioning step standalone, for pre-provisioning a machine without creating a project yet — it is optional, not a prerequisite; `rproj setup <tool>` instead adds one tool to the project you are standing in. `rproj configure project` edits the validated global Rojo tree inherited by future projects. `rproj upgrade` re-applies generated config to an existing project. `rproj watch` resumes the dev loop for an existing project (installs anything missing, then starts Rojo's sourcemap watcher). `rproj copy` is a small clipboard utility that concatenates everything under `./src`. `rproj info` browses the catalog, or prints one entry with `rproj info <key>`.
+Interactive bare `rproj` is a workspace hub over the existing commands. It reports machine, template, saved-setup, update, and exact-current-directory project state, but it does not absorb command execution: selecting a task restores the terminal and dispatches the same command implementation used by direct CLI invocation. `rproj new <name>` remains the self-sufficient project entry point. `rproj setup` handles machine provisioning, `rproj setup <tool>` adds one tool to a project, `rproj configure project` edits the global Rojo template, `rproj upgrade` re-applies generated config, `rproj watch` runs the development loop, `rproj copy` copies `src`, and `rproj info` opens the shared Catalog or prints one named entry.
 
 **Every generated file is a catalog entry, not a step in a script** (§8.9). A project is composed from answers the same way its package list is, so the minimum `rproj new` can produce is `src/` plus `default.project.json` — no CI workflow, no editor settings, no quality script. What keeps that from becoming *incoherent* freedom is the other half of the same model: an artifact an earlier answer has already decided is reported rather than offered, because a checkbox whose only sane answer is yes is not a question, and answering it the other way used to make the packages the user had just picked silently evaporate.
 
@@ -18,7 +18,8 @@ This version is Windows-only (installs go through `winget`).
 
 | Command | Behavior |
 |---|---|
-| `rproj` (no args) | Prints a welcome/intro screen listing every command with a one-line description. Does not touch the filesystem or network. |
+| `rproj` (no args, terminal) | Opens the workspace hub. Reads the current directory and machine-wide rproj state, shows every task, disables unavailable project actions with a reason, and refreshes stale version information on a detached worker. Selecting a command restores terminal state before dispatch. |
+| `rproj` (redirected) | Prints the plain welcome and command list without terminal escape sequences. |
 | `rproj setup` | Runs machine provisioning only (see 2.2): system apps, global CLI tools, Studio plugins, editor extensions. Does not create a project. Safe to re-run any time to add or remove tools. |
 | `rproj setup <tool>` | Sets one tool up **in the project you are standing in** (found by walking ancestors for `default.project.json`). Runs `rokit init` if needed, pins the tool, writes its config where rproj knows the format (§8.4), then prints the tool's usage notes and the first command to run. Replaces the previous workflow of reading `rproj info <tool>` and performing four steps by hand. Errors with the valid keys on an unknown name, and with a reason when not inside a project. |
 | `rproj new <name>` | Project scaffolding (see 2.3). Runs machine provisioning inline **only** on a machine that has never been provisioned, or with `--reconfigure`; otherwise prints a one-line machine summary and goes straight to the project questions. Fails immediately if `<RobloxProjects>/<name>` already exists, or if `--like` names a setup that doesn't exist (checked before any work). Asks three things: dependency strategy, package composition, and capabilities (§8.10). |
@@ -29,8 +30,8 @@ This version is Windows-only (installs go through `winget`).
 | `rproj watch` | Must be run from inside an existing project directory (one containing `default.project.json`); otherwise errors. Syncs the project's own tools/packages, then starts and blocks on Rojo's sourcemap watcher until interrupted (Ctrl+C). |
 | `rproj copy` | Recursively walks `./src`, concatenates every file's contents (each prefixed with a `// --- relative/path ---` header) and copies the result to the system clipboard. Prints a message and exits cleanly (not an error) if `src/` doesn't exist or contains no readable files. |
 | `rproj upgrade` | Re-applies rproj's generated config to an existing project so it picks up fixes made since it was scaffolded (see 6.3b). `--yes` skips the confirmation. |
-| `rproj info` (in a terminal) | Opens a two-level browser: pick a section (packages, tools, generated files, topics, configurable, place template, saved setups), then pick an entry or type to filter. Esc leaves, and leaving is a clean exit rather than an error. Replaces printing ~130 rows and leaving the user to scroll back, find an exact key, and retype it as an argument — a lookup the tool was making the user perform on its behalf. |
-| `rproj info` (stdin not a terminal) | Prints the flat, categorized listing instead of prompting, so `rproj info > notes.txt` and CI steps keep working. Not a nicety: inquire reads the console input handle rather than stdin, so a prompt with nothing attached renders and then **hangs forever** rather than failing. |
+| `rproj info` (in a terminal) | Opens the full-screen Catalog using the same pure section/detail model as direct lookup. Type to filter; Enter descends; Esc returns through detail, entries, and sections with exit 0. The hub embeds the same screen and returns to the task list at its root. |
+| `rproj info` (redirected) | Prints the flat, categorized listing without terminal control sequences, so `rproj info > notes.txt` and CI steps keep working. |
 | `rproj info <key>` | Prints full detail for one catalog entry: description, maintenance status, source/provider, docs link, then — where one exists — its usage notes (§8.6). Resolves wally packages first, then tools, then **artifacts** (`rproj info wally.toml` answers "why does my project have this?", §8.9), then topics (`ci`, `check`), so `rproj info ci` works even though CI isn't an installable thing. |
 | `--verbose` / `-v` | Global flag on every command. Prints each sub-process command and all of its output. Without it, sub-process output is shown only when a step fails (§2.4). |
 | `--version` / `-V` | clap's own, from `Cargo.toml`. Capital `V`, because lowercase `-v` is `--verbose` above. |
@@ -97,6 +98,8 @@ The rule is **one line per thing that happened**. Sub-processes rproj shells out
 - Repetitive per-item outcomes are collapsed with `ui::Tally`: it names up to four items and counts beyond that, so "9 rokit tools already present" replaces nine paragraphs. Anything that actually needed attention still gets its own line.
 - Long guidance (the winget hash-mismatch recovery options, Blender's manual account-link steps) is `ui::detail` under its warning, not top-level prose — it's guidance, not an outcome, and it reappears on every run.
 - `rojo sourcemap --watch`'s stdout is discarded outright: it reprints on every write, and the scaffold moves on while it is still running.
+
+Full-screen interfaces use the internal `tui` foundation: one RAII terminal owner enables raw mode, the alternate screen, and bracketed paste, and restores all three on normal return, error, or unwind. Shared responsive layouts switch from side-by-side panes at 100 columns to stacked panes below that, while terminals below 60x16 receive a resize screen. Picker, Unicode-safe single-line input, confirmation, footer, and modal rendering are shared by the hub and project-template editor; application routing and domain state remain local to each feature.
 
 Outcome lines carry an emoji marker — `✅` done or already so, `➖` deliberately skipped, `❗` failed but continuing, `📦` section heading — following `rokit list`, the closest thing this toolchain has to a house style. The glyphs used for aligned output must remain predictable:
 
@@ -387,10 +390,15 @@ rproj/
 ├── docs/
 │   └── architecture.md          this document
 └── src/
-    ├── main.rs                  clap dispatch to commands::*
+    ├── main.rs                  clap dispatch and post-TUI HubOutcome dispatch
     ├── cli.rs                   clap derive: Cli, Command (Setup | New{name} | Configure{key} | Watch | Copy | Info{key})
     ├── config.rs                GlobalConfig, PackageWorkflow, project_file, Setups, project_template  [+ 5 tests]
     ├── graph.rs                 ProjectGraph, Node invalidation, derivation  [+ 16 tests]
+    ├── catalog_view.rs          pure Catalog sections, entries and detail pages  [+ 3 tests]
+    ├── tui/
+    │   ├── terminal.rs          RAII alternate-screen lifecycle and event polling
+    │   ├── layout.rs            responsive panes, minimum size and modal placement  [+ 1 test]
+    │   └── widgets.rs           Unicode input, picker, confirm and footer primitives  [+ 2 tests]
     ├── project_editor/
     │   ├── mod.rs               public TUI entry point and outcome
     │   ├── app.rs               event loop, responsive rendering, Inspector and modal workflows  [+ 7 tests]
@@ -412,7 +420,9 @@ rproj/
     │   └── wally_packages.rs    Category, Submodule, PackageSpec, PACKAGES, companions_for()  [+ 9 tests]
     ├── commands/
     │   ├── mod.rs               module declarations only
-    │   ├── welcome.rs           bare `rproj` intro screen  [+ 3 tests]
+    │   ├── welcome.rs           redirected bare-`rproj` overview  [+ 3 tests]
+    │   ├── hub.rs               workspace context, task hub and HubOutcome  [+ 4 tests]
+    │   ├── catalog_browser.rs   shared full-screen Catalog navigation  [+ 2 tests]
     │   ├── setup.rs             `rproj setup [tool]` — machine provisioning, or one tool into this project  [+ 2 tests]
     │   ├── provision.rs         shared picker+installer for system apps/rokit tools/plugins/vscode ext
     │   ├── new.rs               `rproj new <name>` — composition, artifact picker, project scaffold  [+ 9 tests]
@@ -421,7 +431,7 @@ rproj/
     │   ├── upgrade.rs           `rproj upgrade` — re-derive generated config for an existing project
     │   ├── watch.rs             `rproj watch` — resume dev loop
     │   ├── copy.rs              `rproj copy` — clipboard utility
-    │   └── info.rs              `rproj info [key]` — catalog browser, detail pages, flat listing  [+ 8 tests]
+    │   └── info.rs              `rproj info [key]` — TUI/plain routing and flat listing  [+ 2 tests]
     └── steps/
         ├── mod.rs               run / run_in / probe / github_get_text — shared process + HTTP helpers
         ├── bootstrap.rs         winget install/detect, rokit self-install, RobloxProjects folder creation  [+ 6 tests]
@@ -441,11 +451,11 @@ rproj/
         ├── figma.rs             figma/exports/ + the asset-pipeline README  [+ 2 tests]
         ├── blender.rs           Blender add-on install (headless Python), starter-scene scaffold
         ├── badge_check.rs       `#[cfg(test)]` only — the weekly CI freshness gate for maintenance badges  [+ 5 tests]
-        ├── update_check.rs      "a newer rproj exists, here is how to upgrade"  [+ 5 tests]
+        ├── update_check.rs      cached/background update status and upgrade nudge  [+ 6 tests]
         └── notify.rs            desktop toast notification wrapper
 ```
 
-50 source files. Tests live inline in `#[cfg(test)]` modules beside the code they cover — see §9. `badge_check.rs` is unusual: it contains *only* tests, because what it checks (are the curated maintenance badges still true upstream?) is a CI concern with no runtime caller — see §3's badge rationale.
+Source tests live inline in `#[cfg(test)]` modules beside the code they cover, with PTY integration tests for interactive command boundaries — see §9. `badge_check.rs` is unusual: it contains *only* tests, because what it checks (are the curated maintenance badges still true upstream?) is a CI concern with no runtime caller — see §3's badge rationale.
 
 ## 5. Subsystem Map
 
@@ -453,7 +463,8 @@ rproj/
 graph TD
     User["User terminal"] --> Main["main.rs / cli.rs"]
 
-    Main --> Welcome["commands::welcome"]
+    Main --> Hub["commands::hub"]
+    Main --> Welcome["commands::welcome (redirected)"]
     Main --> Setup["commands::setup"]
     Main --> New["commands::new"]
     Main --> Configure["commands::configure"]
@@ -461,6 +472,12 @@ graph TD
     Main --> Watch["commands::watch"]
     Main --> Copy["commands::copy"]
     Main --> Info["commands::info"]
+
+    Hub --> Tui["tui::*"]
+    Hub --> CatalogBrowser["commands::catalog_browser"]
+    Info --> CatalogBrowser
+    CatalogBrowser --> CatalogView["catalog_view"]
+    ProjectEditor["project_editor"] --> Tui
 
     Setup --> Provision["commands::provision"]
     Setup --> SetupTool["setup::setup_tool\n(one tool into this project)"]
@@ -1121,7 +1138,7 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-242 tests are discovered by `cargo test`: 215 unit tests and 27 integration tests. The upstream-badge check, two real-Rojo template checks, and seven live project tests are ignored in the ordinary suite, so 232 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from the published tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3).
+253 tests are discovered by `cargo test`: 222 unit tests and 31 integration tests. The upstream-badge check, two real-Rojo template checks, and seven live project tests are ignored in the ordinary suite, so 243 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from the published tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3).
 
 Two dev-dependencies, both only for the integration tests. `portable-pty` because inquire reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever — a real pseudo-terminal is the only way to answer a prompt without a human. `vt100` because the pty byte stream is not what the program printed: ConPTY re-renders the screen and may express a line break as `\n` or as a cursor-position escape, and which one it picks varies with machine load. Matching the raw bytes passed when the test ran alone and failed three runs in five under a parallel `cargo test`; rendering the bytes to a screen first made it deterministic. Synchronisation is by expecting output, never by sleeping — the whole suite finishes in under a second.
 
@@ -1133,6 +1150,7 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | `src/steps/rojo.rs` (11 tests) | The built-in document keeps the established source/place shape; custom nodes and top-level settings survive while the real project name and workflow mounts are injected; core mounts cannot move; every dynamic mount name is reserved; arbitrary and conditionally generated `$path` targets are rejected; Wally/submodule outputs receive only their own dependency mount; missing Rokit configuration is distinguished from template rejection; and manually setting `Name` is rejected before Rojo ignores it. The ignored real-tool tests materialize and validate all eight reachable mount combinations through Rojo, and prove an invalid Roblox property value is rejected. |
 | `src/config.rs` (6 tests) | Project graphs keep their on-disk enum spelling; setup listing ignores non-files; the global project template round-trips in an injected location and atomically replaces an existing file; corrupt JSON names the repair command; and reset removes only the custom template, leaving unrelated machine configuration intact. |
 | `src/project_editor` (21 tests) | Bundled metadata filters services, creatable classes and common properties, including the tree-owned `Name`; structural edits preserve unknown fields, enforce canonical unique root services, and respect ownership; inferred services retain their class when renamed or duplicated; incompatible classes and malformed common values are flagged without dropping data; undo/redo restores complete operations; the JSON buffer handles Unicode and multiline paste; valid, malformed and ownership-damaged documents select the right mode; save/reset/exit transitions retain drafts until confirmation and successful validation; common settings and attributes encode correctly; and Ratatui's test backend verifies wide, narrow and minimum-size rendering. |
+| `src/tui`, `src/commands/hub.rs`, `src/commands/catalog_browser.rs`, `src/catalog_view.rs` (12 tests) | Shared Unicode input and picker filtering, responsive boundaries, pure Catalog resolution/parity, workspace context and exact-directory detection, disabled-action reasons, New Project name handling, Catalog hierarchy, and wide/narrow/minimum/help rendering. |
 | `src/catalog/place_template.rs` (3 tests) | Studio 0–255 colours convert to Rojo's 0–1 floats and stay in range; child instances nest under their declared parent rather than leaking to top level; every declared parent actually exists in the table (otherwise `render` silently drops the child). |
 | `src/steps/testez.rs` (5 tests) | TestEZ Companion roots are service-rooted (not `game/`-prefixed) and name the same lowercase instances the project file creates — a mismatched root finds no tests, which is indistinguishable from every test passing; the bundled `testez.yml` declares every global selene would otherwise reject; `tests/.luaurc`'s globals are parsed back out of `testez.yml` and compared, since the two tools don't read each other's config and would otherwise drift; and the starter spec has no stray leading spaces, which would fail the project's own formatter check. |
 | `src/catalog/mod.rs` | Catalog integrity: keys are unique across tools and packages; every tool family is ordered; companion rules name real packages; entries have descriptions and secure documentation URLs; package sources parse as versioned Wally coordinates; and usage notes resolve to catalog entries. |
@@ -1142,10 +1160,10 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | `src/steps/vscode.rs` (11 tests) | The vendored-code globs extend luau-lsp's defaults rather than replacing them, so Wally's `_Index` stays covered for projects using both workflows, and they stay submodule-only since luau-lsp already ignores `_Index` itself. Plus the §7 editor-settings landmines: **both** workflows get settings written (this used to write nothing at all unless the project used submodules); the Studio-plugin bridge is on, without which nothing made in Studio is ever known to autocomplete; a stale machine-wide `stylua.configPath` is neutralised; sourcemap autogeneration is left to `rproj watch` rather than run twice; new files are created with Unix line endings, without which `stylua --check` reports a whole-file diff whose two sides are identical; and the deprecated `luau-lsp.types.roblox` spelling is not written. Plus the superseded-key rule: a deprecated setting is dropped once its replacement lands, *survives* until then (so `rproj configure stylua-vscode` on an older project can't strip the Studio bridge while writing nothing in its place), and every replacement named is one rproj actually writes. |
 | `src/ui.rs` | Option matching uses the full `key - ` prefix, marker icons are single scalars without variation selectors, and truncation preserves the key and maintenance badge within terminal width. Tallies wrap while retaining every item, and multi-select summaries list keys instead of repeating descriptions. |
 | `tests/upgrade.rs` (9 tests) | `rproj upgrade` against hand-built fixture projects — no scaffolding and no network, since the command only rewrites generated config. A stale `selene.toml` gains the Vide `mixed_table` waiver, the TestEZ `std` and the vendored `exclude` **while keeping a lint level the user set themselves**; a project without a create-style UI library keeps the lint; deprecated editor settings are replaced rather than merely supplemented, with unrelated keys surviving; a second run reports nothing to do and rewrites nothing; `stylua.toml` and `default.project.json` are left untouched; a dropped capability stays dropped; and a directory with no `rproj.toml`, or no `default.project.json` at all, is refused with a reason rather than half-upgraded. |
-| `tests/info.rs` (3 tests) | `rproj info` end to end. The browser is driven through a pty: filter to a section, filter to an entry, land on its detail page, read back the settled explanation, then Esc out of both levels and confirm **exit 0** — leaving a browser is not a failure and must not be reported as one. Plus the two non-interactive paths: with stdin redirected it prints the flat listing rather than prompting (the failure this prevents is not a wrong answer but a *hang* — inquire reads the console input handle, so a prompt with nothing attached renders and waits forever), and a named lookup prints one entry rather than the catalog. |
+| `tests/hub.rs` (4 tests) | Bare `rproj` opens and exits without terminal damage; Catalog opens inside the hub and returns; unavailable project actions explain the missing prerequisite without dispatching; redirected execution remains plain text without escape sequences. |
+| `tests/info.rs` (3 tests) | `rproj info` end to end. The Catalog is driven through a pty: filter to a section, filter to an entry, land on its detail page, read the explanation, then Esc through every level and confirm exit 0. Redirected output remains flat and a named lookup prints one entry rather than the Catalog. |
 | `tests/configure.rs` (8 tests) | `rproj configure` end to end — real binary, real prompts, and real files. The project-template command refuses redirected input instead of hanging. The tool flows verify byte-identical no-op configuration, single-setting changes, early parse failure, unknown-key guidance, picker discoverability, JSON merging, and remembered defaults. |
 | `src/commands/new.rs` (9 tests) | A submodule project doesn't pin Wally tools it can't use, and a Wally project with packages does — the gap that opened when tools stopped being asked about, where capabilities derived Selene and friends and **nothing derived the package manager**. A fresh machine is provisioned but an already-provisioned one isn't re-asked; the machine summary omits empty groups. Plus the exact text of the summary, asserted as text: every file names the answer that caused it, every capability names its tool (`lint (Selene)`), and a project with nothing chosen reads "nothing extra" rather than showing an empty column. And the property the whole model exists for — choosing nothing yields exactly `src`, `default.project.json` and the two housekeeping entries. |
-| `src/commands/info.rs` (8 tests) | Every browser section is non-empty (an empty list is a dead end that says nothing about why); every row resolves to a detail page, so the menu can't offer something `show_one` then fails to find; every row survives rendering as a picker option and still round-trips through `option_key` after width truncation; the "← back" sentinel cannot collide with a rendered row; section labels are unique, since the selected label is matched by exact string to find the section again. Plus the four states of the "asked" line, each pinned to the entry that motivated it — `selene.toml` reads "sometimes, unless…" if the always-settled case isn't detected, and that "unless" never fails. |
 | `src/steps/badge_check.rs` (5 tests) | The weekly freshness gate (§3), plus its own coverage: `every_entry_naming_a_repository_is_tracked` exists because the `ToolKind` split silently dropped two variants from the check and nothing failed — the tracked-repo count simply stopped growing. The match is exhaustive with no catch-all, so a new variant is a compile error. |
 | `src/steps/asphalt.rs` (4 tests) | The rendered `asphalt.toml` parses with Asphalt's creator/codegen/input shape; a project with `figma/exports/` reads from there; an existing config is never overwritten; and the asset folder is created. |
 | `src/steps/tungsten.rs` (4 tests) | The rendered `tungsten.toml` parses with Tungsten's file-output config shape; a project with `figma/exports/` reads from there; an existing config is never overwritten; and the asset folder is created. |
@@ -1174,10 +1192,10 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 |---|---|---|
 | `clap` (derive) | CLI argument/subcommand parsing (`cli.rs`) | Standard, derive-based, minimal boilerplate for a small fixed command set. |
 | `inquire` | Interactive setup, package and settings prompts | Provides arrow-key prompts, filtering, and custom answer formatters for the existing short question flows. |
-| `ratatui` | Built-in project-template Explorer and Inspector | Supplies deterministic retained-mode terminal rendering and a test backend without imposing a tree or text-editor data model. |
+| `ratatui` | Workspace hub, Catalog, and project-template Explorer | Supplies deterministic retained-mode rendering and a test backend. rproj shares terminal/layout/widget primitives but keeps each application's state machine explicit. |
 | `rbx_reflection`, `rbx_reflection_database`, `rbx_types` | Roblox class, service, property, enum and value metadata | The bundled database makes searchable guided controls deterministic and avoids network or machine-local metadata overrides; Rojo validation remains authoritative. |
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
-| `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui; the project editor also enables bracketed paste and restores the terminal through an RAII guard. |
+| `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |
 | `unicode-width` | Display width of option lines and markers | Also already in the tree via `inquire`. Truncating by `char` count or byte length overshoots on any double-width character, and it is what settled the `⚠️` padding question empirically rather than by guess (§2.4). |
 | `anstream`, `anstyle` | Red, bold error output (`ui::error`) | Both already in the tree via `clap`. `anstream` is what makes colouring errors safe at all: it strips escape codes when stderr is redirected to a file or CI log rather than emitting them into it, and honours `NO_COLOR`/`CLICOLOR=0` for free. |
 | `serde` (derive), `toml` | `GlobalConfig`/`ProjectConfig` (de)serialization | TOML chosen for both config files to match the Rust/Rokit/Wally ecosystem's own convention (`Cargo.toml`, `rokit.toml`, `wally.toml`). |

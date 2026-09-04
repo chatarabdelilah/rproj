@@ -3,13 +3,7 @@ use std::io::{self, IsTerminal};
 
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::execute;
-use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
-};
-use ratatui::Terminal;
-use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
@@ -20,6 +14,10 @@ use super::metadata::{Metadata, ValueKind};
 use super::model::{EditorModel, TreeRow, representable};
 use super::text_buffer::TextBuffer;
 use crate::steps::rojo;
+use crate::tui::{
+    ConfirmState, InputState, PickerItem, PickerState, TerminalSession, centered, is_too_small,
+    render_confirm, render_footer, render_input, render_picker, responsive_panes,
+};
 
 const SETTINGS: &[(&str, &str, SettingKind)] = &[
     ("servePort", "Serve port", SettingKind::Port),
@@ -121,19 +119,16 @@ enum Modal {
     Input {
         title: String,
         hint: String,
-        text: String,
-        error: Option<String>,
+        state: InputState,
         action: InputAction,
     },
     Picker {
         title: String,
-        options: Vec<PickOption>,
-        query: String,
-        selected: usize,
+        state: PickerState<PickOption>,
         action: PickAction,
     },
     Confirm {
-        title: String,
+        state: ConfirmState,
         action: ConfirmAction,
     },
 }
@@ -314,11 +309,11 @@ pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Resu
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         anyhow::bail!("`rproj configure project` requires an interactive terminal");
     }
-    let mut guard = TerminalGuard::enter()?;
+    let mut terminal = TerminalSession::enter()?;
     let mut app = App::from_text(text);
     loop {
-        guard.terminal.draw(|frame| render(frame, &app))?;
-        let event = event::read()?;
+        terminal.draw(|frame| render(frame, &app))?;
+        let event = terminal.read_event()?;
         let request = match event {
             Event::Key(key) if key.kind != event::KeyEventKind::Release => {
                 handle_key(&mut app, key)
@@ -333,7 +328,7 @@ pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Resu
         match request {
             Some(Request::Save(value)) => {
                 app.status = "Validating every generated Rojo project variant...".into();
-                guard.terminal.draw(|frame| render(frame, &app))?;
+                terminal.draw(|frame| render(frame, &app))?;
                 if let Some(outcome) = validate_save(&mut app, value, &mut validate) {
                     return Ok(outcome);
                 }
@@ -378,19 +373,16 @@ fn handle_key(app: &mut App, key: KeyEvent) -> Option<Request> {
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
         if app.dirty() || app.initially_corrupt {
-            app.modal = Some(Modal::Confirm {
-                title: "Discard changes and exit?".into(),
-                action: ConfirmAction::Exit,
-            });
+            app.modal = Some(confirm("Discard changes and exit?", ConfirmAction::Exit));
             return None;
         }
         return Some(Request::Cancel);
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('r') {
-        app.modal = Some(Modal::Confirm {
-            title: "Restore the built-in template and discard this draft?".into(),
-            action: ConfirmAction::Reset,
-        });
+        app.modal = Some(confirm(
+            "Restore the built-in template and discard this draft?",
+            ConfirmAction::Reset,
+        ));
         return None;
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
@@ -422,10 +414,10 @@ fn handle_json_key(app: &mut App, key: KeyEvent) -> Option<Request> {
     match key.code {
         KeyCode::Esc => {
             if app.initially_corrupt && app.model.is_none() {
-                app.modal = Some(Modal::Confirm {
-                    title: "Exit without repairing the saved template?".into(),
-                    action: ConfirmAction::Exit,
-                });
+                app.modal = Some(confirm(
+                    "Exit without repairing the saved template?",
+                    ConfirmAction::Exit,
+                ));
             } else {
                 app.leave_json();
             }
@@ -486,10 +478,10 @@ fn handle_explorer_key(app: &mut App, key: KeyEvent) -> Option<Request> {
         }
         KeyCode::Esc => {
             if app.dirty() {
-                app.modal = Some(Modal::Confirm {
-                    title: "Discard all unsaved template changes?".into(),
-                    action: ConfirmAction::Exit,
-                });
+                app.modal = Some(confirm(
+                    "Discard all unsaved template changes?",
+                    ConfirmAction::Exit,
+                ));
             } else {
                 return Some(Request::Cancel);
             }
@@ -570,17 +562,15 @@ fn open_class_picker(app: &mut App, add: bool) {
             service: class.service,
         })
         .collect();
-    app.modal = Some(Modal::Picker {
-        title: if add { "Add instance" } else { "Change class" }.into(),
+    app.modal = Some(picker(
+        if add { "Add instance" } else { "Change class" },
         options,
-        query: String::new(),
-        selected: 0,
-        action: if add {
+        if add {
             PickAction::AddClass(path)
         } else {
             PickAction::ChangeClass(path)
         },
-    });
+    ));
 }
 
 fn open_rename(app: &mut App) {
@@ -590,13 +580,12 @@ fn open_rename(app: &mut App) {
         return;
     }
     let text = path.last().cloned().unwrap_or_default();
-    app.modal = Some(Modal::Input {
-        title: "Rename instance".into(),
-        hint: "Instance name".into(),
+    app.modal = Some(input(
+        "Rename instance",
+        "Instance name",
         text,
-        error: None,
-        action: InputAction::Rename(path),
-    });
+        InputAction::Rename(path),
+    ));
 }
 
 fn duplicate_selected(app: &mut App) {
@@ -632,13 +621,7 @@ fn open_move_picker(app: &mut App) {
             service: false,
         })
         .collect();
-    app.modal = Some(Modal::Picker {
-        title: "Move under".into(),
-        options,
-        query: String::new(),
-        selected: 0,
-        action: PickAction::Move(path),
-    });
+    app.modal = Some(picker("Move under", options, PickAction::Move(path)));
 }
 
 fn open_delete(app: &mut App) {
@@ -648,10 +631,10 @@ fn open_delete(app: &mut App) {
         return;
     }
     let name = path.last().cloned().unwrap_or_else(|| "DataModel".into());
-    app.modal = Some(Modal::Confirm {
-        title: format!("Delete `{name}` and all of its children?"),
-        action: ConfirmAction::Delete(path),
-    });
+    app.modal = Some(confirm(
+        format!("Delete `{name}` and all of its children?"),
+        ConfirmAction::Delete(path),
+    ));
 }
 
 fn activate_inspector(app: &mut App) {
@@ -682,13 +665,12 @@ fn activate_inspector(app: &mut App) {
             "This attribute type is preserved but can only be edited in Advanced JSON mode.",
         ),
         InspectorRow::AddAttribute => {
-            app.modal = Some(Modal::Input {
-                title: "Add attribute".into(),
-                hint: "Attribute name".into(),
-                text: String::new(),
-                error: None,
-                action: InputAction::AttributeName(path),
-            })
+            app.modal = Some(input(
+                "Add attribute",
+                "Attribute name",
+                "",
+                InputAction::AttributeName(path),
+            ))
         }
         InspectorRow::Setting(key, _, SettingKind::Bool) => {
             let current = app
@@ -703,13 +685,12 @@ fn activate_inspector(app: &mut App) {
         }
         InspectorRow::Setting(key, _, kind) => {
             let text = setting_text(app.model().value().get(key));
-            app.modal = Some(Modal::Input {
-                title: format!("Edit {key}"),
-                hint: "Leave empty to remove this setting".into(),
+            app.modal = Some(input(
+                format!("Edit {key}"),
+                "Leave empty to remove this setting",
                 text,
-                error: None,
-                action: InputAction::Setting(key, kind),
-            });
+                InputAction::Setting(key, kind),
+            ));
         }
     }
 }
@@ -752,13 +733,11 @@ fn open_property_picker(app: &mut App, path: Vec<String>) {
             service: false,
         })
         .collect();
-    app.modal = Some(Modal::Picker {
-        title: format!("Add {class} property"),
+    app.modal = Some(picker(
+        format!("Add {class} property"),
         options,
-        query: String::new(),
-        selected: 0,
-        action: PickAction::AddProperty(path),
-    });
+        PickAction::AddProperty(path),
+    ));
 }
 
 fn open_value_editor(
@@ -777,13 +756,11 @@ fn open_value_editor(
                 service: false,
             })
             .collect();
-        app.modal = Some(Modal::Picker {
-            title: format!("Set {name}"),
+        app.modal = Some(picker(
+            format!("Set {name}"),
             options,
-            query: String::new(),
-            selected: 0,
-            action: PickAction::EnumProperty(path, name, kind),
-        });
+            PickAction::EnumProperty(path, name, kind),
+        ));
         return;
     }
     let current = if attribute {
@@ -799,17 +776,53 @@ fn open_value_editor(
             .and_then(|n| n.get("$properties"))
             .and_then(|p| p.get(&name))
     };
-    app.modal = Some(Modal::Input {
-        title: format!("Set {name}"),
-        hint: kind.label().into(),
-        text: value_text(current),
-        error: None,
-        action: if attribute {
+    app.modal = Some(input(
+        format!("Set {name}"),
+        kind.label(),
+        value_text(current),
+        if attribute {
             InputAction::AttributeValue(path, name, kind)
         } else {
             InputAction::Property(path, name, kind)
         },
-    });
+    ));
+}
+
+fn input(
+    title: impl Into<String>,
+    hint: impl Into<String>,
+    text: impl Into<String>,
+    action: InputAction,
+) -> Modal {
+    Modal::Input {
+        title: title.into(),
+        hint: hint.into(),
+        state: InputState::new(text),
+        action,
+    }
+}
+
+fn picker(title: impl Into<String>, options: Vec<PickOption>, action: PickAction) -> Modal {
+    let items = options
+        .into_iter()
+        .map(|option| PickerItem {
+            label: option.label.clone(),
+            detail: option.detail.clone(),
+            value: option,
+        })
+        .collect();
+    Modal::Picker {
+        title: title.into(),
+        state: PickerState::new(items),
+        action,
+    }
+}
+
+fn confirm(prompt: impl Into<String>, action: ConfirmAction) -> Modal {
+    Modal::Confirm {
+        state: ConfirmState::new(prompt),
+        action,
+    }
 }
 
 fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
@@ -823,7 +836,7 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
                 None
             }
         }
-        Modal::Confirm { title, action } => match key.code {
+        Modal::Confirm { state, action } => match key.code {
             KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => match action {
                 ConfirmAction::Reset => Some(Request::Reset),
                 ConfirmAction::Exit => Some(Request::Cancel),
@@ -838,60 +851,36 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
             },
             KeyCode::Esc | KeyCode::Char('n') | KeyCode::Char('N') => None,
             _ => {
-                app.modal = Some(Modal::Confirm { title, action });
+                app.modal = Some(Modal::Confirm { state, action });
                 None
             }
         },
         Modal::Input {
             title,
             hint,
-            mut text,
-            mut error,
+            mut state,
             action,
         } => match key.code {
             KeyCode::Esc => None,
-            KeyCode::Backspace => {
-                text.pop();
-                app.modal = Some(Modal::Input {
-                    title,
-                    hint,
-                    text,
-                    error: None,
-                    action,
-                });
-                None
-            }
-            KeyCode::Char(character) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                text.push(character);
-                app.modal = Some(Modal::Input {
-                    title,
-                    hint,
-                    text,
-                    error: None,
-                    action,
-                });
-                None
-            }
-            KeyCode::Enter => match apply_input(app, action.clone(), &text) {
+            KeyCode::Enter => match apply_input(app, action.clone(), state.text()) {
                 Ok(()) => None,
                 Err(message) => {
-                    error = Some(message);
+                    state.error = Some(message);
                     app.modal = Some(Modal::Input {
                         title,
                         hint,
-                        text,
-                        error,
+                        state,
                         action,
                     });
                     None
                 }
             },
             _ => {
+                state.handle_key(key);
                 app.modal = Some(Modal::Input {
                     title,
                     hint,
-                    text,
-                    error,
+                    state,
                     action,
                 });
                 None
@@ -899,89 +888,35 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
         },
         Modal::Picker {
             title,
-            options,
-            mut query,
-            mut selected,
+            mut state,
             action,
-        } => {
-            let filtered = filtered_options(&options, &query);
-            match key.code {
-                KeyCode::Esc => None,
-                KeyCode::Up => {
-                    selected = selected.saturating_sub(1);
-                    app.modal = Some(Modal::Picker {
-                        title,
-                        options,
-                        query,
-                        selected,
-                        action,
-                    });
-                    None
-                }
-                KeyCode::Down => {
-                    selected = (selected + 1).min(filtered.len().saturating_sub(1));
-                    app.modal = Some(Modal::Picker {
-                        title,
-                        options,
-                        query,
-                        selected,
-                        action,
-                    });
-                    None
-                }
-                KeyCode::Backspace => {
-                    query.pop();
-                    selected = 0;
-                    app.modal = Some(Modal::Picker {
-                        title,
-                        options,
-                        query,
-                        selected,
-                        action,
-                    });
-                    None
-                }
-                KeyCode::Char(character) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    query.push(character);
-                    selected = 0;
-                    app.modal = Some(Modal::Picker {
-                        title,
-                        options,
-                        query,
-                        selected,
-                        action,
-                    });
-                    None
-                }
-                KeyCode::Enter => {
-                    let picked = filtered.get(selected).copied().cloned();
-                    if let Some(picked) = picked {
-                        if let Err(error) = apply_pick(app, action, picked) {
-                            app.error(error);
-                        }
-                    } else {
-                        app.modal = Some(Modal::Picker {
-                            title,
-                            options,
-                            query,
-                            selected,
-                            action,
-                        });
+        } => match key.code {
+            KeyCode::Esc => None,
+            KeyCode::Enter => {
+                let picked = state.selected_value().cloned();
+                if let Some(picked) = picked {
+                    if let Err(error) = apply_pick(app, action, picked) {
+                        app.error(error);
                     }
-                    None
-                }
-                _ => {
+                } else {
                     app.modal = Some(Modal::Picker {
                         title,
-                        options,
-                        query,
-                        selected,
+                        state,
                         action,
                     });
-                    None
                 }
+                None
             }
-        }
+            _ => {
+                state.handle_key(key);
+                app.modal = Some(Modal::Picker {
+                    title,
+                    state,
+                    action,
+                });
+                None
+            }
+        },
     }
 }
 
@@ -1010,13 +945,11 @@ fn apply_input(app: &mut App, action: InputAction, text: &str) -> std::result::R
                     service: false,
                 })
                 .collect();
-            app.modal = Some(Modal::Picker {
-                title: format!("Type for {name}"),
+            app.modal = Some(picker(
+                format!("Type for {name}"),
                 options,
-                query: String::new(),
-                selected: 0,
-                action: PickAction::AttributeKind(path, name.into()),
-            });
+                PickAction::AttributeKind(path, name.into()),
+            ));
             Ok(())
         }
         InputAction::AttributeValue(path, name, kind) => {
@@ -1210,14 +1143,6 @@ fn parse_explorer_json(text: &str) -> Result<Value> {
     Ok(value)
 }
 
-fn filtered_options<'a>(options: &'a [PickOption], query: &str) -> Vec<&'a PickOption> {
-    let query = query.to_ascii_lowercase();
-    options
-        .iter()
-        .filter(|option| option.label.to_ascii_lowercase().contains(&query))
-        .collect()
-}
-
 fn select_path(app: &mut App, path: &[String]) {
     if let Some(index) = app.visible_rows().iter().position(|row| row.path == path) {
         app.selected_tree = index;
@@ -1252,47 +1177,9 @@ fn setting_text(value: Option<&Value>) -> String {
     }
 }
 
-struct TerminalGuard {
-    terminal: Terminal<CrosstermBackend<io::Stdout>>,
-}
-impl TerminalGuard {
-    fn enter() -> Result<Self> {
-        enable_raw_mode()?;
-        let mut stdout = io::stdout();
-        if let Err(error) = execute!(stdout, EnterAlternateScreen, event::EnableBracketedPaste) {
-            let _ = disable_raw_mode();
-            return Err(error.into());
-        }
-        let terminal = match Terminal::new(CrosstermBackend::new(stdout)) {
-            Ok(terminal) => terminal,
-            Err(error) => {
-                let _ = disable_raw_mode();
-                let _ = execute!(
-                    io::stdout(),
-                    event::DisableBracketedPaste,
-                    LeaveAlternateScreen
-                );
-                return Err(error.into());
-            }
-        };
-        Ok(Self { terminal })
-    }
-}
-impl Drop for TerminalGuard {
-    fn drop(&mut self) {
-        let _ = disable_raw_mode();
-        let _ = execute!(
-            self.terminal.backend_mut(),
-            event::DisableBracketedPaste,
-            LeaveAlternateScreen
-        );
-        let _ = self.terminal.show_cursor();
-    }
-}
-
 fn render(frame: &mut ratatui::Frame<'_>, app: &App) {
     let area = frame.area();
-    if area.width < 60 || area.height < 16 {
+    if is_too_small(area) {
         render_too_small(frame, area);
         return;
     }
@@ -1322,14 +1209,16 @@ fn render_explorer(frame: &mut ratatui::Frame<'_>, app: &App, area: Rect) {
             .block(Block::default().borders(Borders::BOTTOM)),
         outer[0],
     );
-    let panes = if area.width >= 100 {
-        Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)]).split(outer[1])
-    } else {
-        Layout::vertical([Constraint::Percentage(48), Constraint::Percentage(52)]).split(outer[1])
-    };
+    let panes = responsive_panes(outer[1], 45);
     render_tree(frame, app, panes[0]);
     render_inspector(frame, app, panes[1]);
-    frame.render_widget(Paragraph::new(vec![Line::from(app.status.as_str()), Line::from("Arrows navigate  Enter edit  A add  F2 rename  D duplicate  M move  Del delete  Ctrl+E JSON  Ctrl+S save  Ctrl+R reset  ? help")]).wrap(Wrap { trim: true }).style(Style::default().fg(if app.status.starts_with("Template was not") { Color::Red } else { Color::Gray })), outer[2]);
+    render_footer(
+        frame,
+        outer[2],
+        &app.status,
+        "Arrows navigate  Enter edit  A add  F2 rename  D duplicate  M move  Del delete  Ctrl+E JSON  Ctrl+S save  Ctrl+R reset  ? help",
+        app.status.starts_with("Template was not"),
+    );
 }
 
 fn render_tree(frame: &mut ratatui::Frame<'_>, app: &App, area: Rect) {
@@ -1524,7 +1413,13 @@ fn render_json(frame: &mut ratatui::Frame<'_>, app: &App, area: Rect) {
         ));
     }
     let message = app.json_error.as_deref().unwrap_or(&app.status);
-    frame.render_widget(Paragraph::new(vec![Line::from(message), Line::from("Esc apply/return  Ctrl+S validate and save  Ctrl+Z/Y undo/redo  Ctrl+R restore  ? help")]).wrap(Wrap { trim: true }).style(Style::default().fg(if app.json_error.is_some() { Color::Red } else { Color::Gray })), layout[2]);
+    render_footer(
+        frame,
+        layout[2],
+        message,
+        "Esc apply/return  Ctrl+S validate and save  Ctrl+Z/Y undo/redo  Ctrl+R restore  ? help",
+        app.json_error.is_some(),
+    );
 }
 
 fn render_modal(frame: &mut ratatui::Frame<'_>, modal: &Modal, area: Rect) {
@@ -1540,23 +1435,9 @@ fn render_modal(frame: &mut ratatui::Frame<'_>, modal: &Modal, area: Rect) {
     frame.render_widget(Clear, popup);
     match modal {
         Modal::Help => frame.render_widget(Paragraph::new("Navigation\n  Up/Down select; Left/Right collapse and expand; Tab changes pane\n\nEditing\n  Enter edits; A adds; F2 renames; D duplicates; M moves; Delete removes\n  Ctrl+E opens Advanced JSON; Ctrl+Z/Y undo and redo\n\nFile\n  Ctrl+S validates and saves; Ctrl+R restores built-in; Esc exits\n\nNo command launches an external editor.").wrap(Wrap { trim: false }).block(Block::default().title(" Help ").borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan))), popup),
-        Modal::Confirm { title, .. } => frame.render_widget(Paragraph::new(format!("{title}\n\nEnter/Y confirm   Esc/N cancel")).wrap(Wrap { trim: true }).block(Block::default().title(" Confirm ").borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), popup),
-        Modal::Input { title, hint, text, error, .. } => {
-            let body = format!("{hint}\n\n> {text}\n{}", error.as_deref().unwrap_or("Enter confirms; Esc cancels"));
-            frame.render_widget(Paragraph::new(body).wrap(Wrap { trim: false }).block(Block::default().title(format!(" {title} ")).borders(Borders::ALL).border_style(Style::default().fg(if error.is_some() { Color::Red } else { Color::Cyan }))), popup);
-        }
-        Modal::Picker { title, options, query, selected, .. } => {
-            let filtered = filtered_options(options, query);
-            let start = selected.saturating_sub(11);
-            let items: Vec<_> = filtered.iter().skip(start).take(12).map(|option| ListItem::new(format!("{}  {}", option.label, option.detail))).collect();
-            let inner = Layout::vertical([Constraint::Length(2), Constraint::Min(4), Constraint::Length(1)]).split(popup);
-            frame.render_widget(Clear, popup);
-            frame.render_widget(Block::default().title(format!(" {title} ")).borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan)), popup);
-            frame.render_widget(Paragraph::new(format!(" Search: {query}")), inner[0]);
-            let mut state = ListState::default().with_selected(if filtered.is_empty() { None } else { Some((*selected).min(filtered.len() - 1).saturating_sub(start)) });
-            frame.render_stateful_widget(List::new(items).highlight_style(Style::default().fg(Color::Black).bg(Color::Cyan)), inner[1], &mut state);
-            frame.render_widget(Paragraph::new("Type to filter; Enter selects; Esc cancels"), inner[2]);
-        }
+        Modal::Confirm { state, .. } => render_confirm(frame, area, state),
+        Modal::Input { title, hint, state, .. } => render_input(frame, area, title, hint, state),
+        Modal::Picker { title, state, .. } => render_picker(frame, area, title, state),
     }
 }
 
@@ -1564,28 +1445,10 @@ fn render_too_small(frame: &mut ratatui::Frame<'_>, area: Rect) {
     frame.render_widget(Paragraph::new("rproj project template\n\nTerminal is too small. Resize to at least 60 x 16.\n\n? help   Esc exit").alignment(ratatui::layout::Alignment::Center).wrap(Wrap { trim: true }).block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))), area);
 }
 
-fn centered(area: Rect, width: u16, height: u16) -> Rect {
-    let vertical = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(area.height.saturating_sub(height) / 2),
-            Constraint::Length(height.min(area.height)),
-            Constraint::Min(0),
-        ])
-        .split(area);
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Length(area.width.saturating_sub(width) / 2),
-            Constraint::Length(width.min(area.width)),
-            Constraint::Min(0),
-        ])
-        .split(vertical[1])[1]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 
     fn rendered(width: u16, height: u16) -> String {

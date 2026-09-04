@@ -17,6 +17,8 @@ rproj connects two layers that are usually assembled by hand:
 
 It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
 
+Run `rproj` with no arguments in a terminal to open the workspace hub. It summarizes the current directory, machine setup, saved setups, project template, and version state, then launches the selected existing command after restoring the terminal. Direct commands remain the stable interface for scripts and repeatable workflows.
+
 ## Ecosystems
 
 | Layer | What rproj manages |
@@ -71,7 +73,7 @@ rproj watch
 
 | Command | Purpose |
 | --- | --- |
-| `rproj` | Show the product overview and command list |
+| `rproj` | Open the interactive workspace hub; print a plain overview when redirected |
 | `rproj new <name>` | Set up the machine when needed and create a project |
 | `rproj setup` | Review or change machine-level tools |
 | `rproj setup <tool>` | Set up one supported tool for the current project |
@@ -80,8 +82,10 @@ rproj watch
 | `rproj upgrade` | Re-render maintained files from the current `rproj.toml` decisions |
 | `rproj watch` | Restore dependencies and start the Rojo development loop |
 | `rproj copy` | Copy source files with path headers |
-| `rproj info [key]` | Browse tools, packages, capabilities, and usage notes |
+| `rproj info [key]` | Open the TUI Catalog or print one entry when a key is supplied |
 | `rproj --verbose ...` | Include commands and captured subprocess output |
+
+The hub keeps project actions visible when they cannot run, along with the exact missing file or directory. It examines only the current directory: it does not search for or manage a projects-root library. Select New Project to enter a name, Catalog to browse the ecosystem, or another task to leave the hub and run the corresponding command normally. Use arrows and Enter to navigate, Esc to leave, and `?` for help.
 
 ## Generated project
 

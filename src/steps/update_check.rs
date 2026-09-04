@@ -3,9 +3,8 @@
 //! Three rules, because a version check is the kind of feature that is
 //! easy to make annoying:
 //!
-//! 1. **It never blocks and never fails the run.** Every error path is an
-//!    early return. A version check that breaks `rproj new` because a
-//!    network was down would be worse than no check at all.
+//! 1. **It never blocks the hub and never fails the run.** A stale lookup runs
+//!    on a detached worker and every error becomes an unknown status.
 //! 2. **It asks at most once a day.** The answer is cached with a
 //!    timestamp, so the common case is reading one small file.
 //! 3. **It is silent when there is nothing to say.** No "you are up to
@@ -13,41 +12,61 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::config::GlobalConfig;
-use crate::ui;
 
 const CURRENT: &str = env!("CARGO_PKG_VERSION");
 const CHECK_EVERY_SECS: u64 = 60 * 60 * 24;
 
-/// Prints a one-line nudge if a newer version is on crates.io.
-///
-/// Returns nothing and reports nothing: a caller cannot act on a failed
-/// version check, so there is no `Result` to handle (the `probe` argument
-/// from the process boundary, applied to a network call).
-pub fn nudge_if_outdated() {
-    let Some(latest) = latest_version() else {
-        return;
-    };
-    if is_newer(&latest, CURRENT) {
-        ui::detail(&format!(
-            "rproj {latest} is available (you have {CURRENT}) - cargo install rproj --force"
-        ));
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum UpdateStatus {
+    Checking,
+    Current,
+    Available(String),
+    Unknown,
+}
+
+impl UpdateStatus {
+    pub fn label(&self) -> String {
+        match self {
+            Self::Checking => "checking in the background".into(),
+            Self::Current => format!("{CURRENT} is current"),
+            Self::Available(version) => format!("{version} available (installed: {CURRENT})"),
+            Self::Unknown => "not checked".into(),
+        }
     }
 }
 
-/// The cached answer if it is fresh, otherwise a fresh lookup.
-fn latest_version() -> Option<String> {
-    let path = cache_path()?;
-    if let Some(cached) = read_fresh_cache(&path) {
-        return Some(cached);
+/// Returns cached state immediately and starts a detached refresh only when stale.
+pub fn background_status() -> (UpdateStatus, Option<Receiver<UpdateStatus>>) {
+    let Some(path) = cache_path() else {
+        return (UpdateStatus::Unknown, None);
+    };
+    if let Some(version) = read_fresh_cache(&path) {
+        return (status_for(version), None);
     }
-    let latest = fetch_latest()?;
-    // Written before use, so a failure to parse the response cannot cause
-    // a request on every single run afterwards.
-    let _ = write_cache(&path, &latest);
-    Some(latest)
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let status = match fetch_latest() {
+            Some(version) => {
+                let _ = write_cache(&path, &version);
+                status_for(version)
+            }
+            None => UpdateStatus::Unknown,
+        };
+        let _ = sender.send(status);
+    });
+    (UpdateStatus::Checking, Some(receiver))
+}
+
+fn status_for(version: String) -> UpdateStatus {
+    if is_newer(&version, CURRENT) {
+        UpdateStatus::Available(version)
+    } else {
+        UpdateStatus::Current
+    }
 }
 
 fn cache_path() -> Option<PathBuf> {
@@ -198,5 +217,14 @@ mod tests {
         ] {
             assert_eq!(newest_from_json(body), None, "{body}");
         }
+    }
+
+    #[test]
+    fn cached_versions_map_to_dashboard_states() {
+        assert_eq!(status_for(CURRENT.into()), UpdateStatus::Current);
+        assert_eq!(
+            status_for("999.0.0".into()),
+            UpdateStatus::Available("999.0.0".into())
+        );
     }
 }

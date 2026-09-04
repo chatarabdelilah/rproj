@@ -1,4 +1,4 @@
-//! The task-oriented welcome screen shown when no command is supplied.
+//! Plain fallback shown when bare `rproj` is not attached to a terminal.
 
 /// Command rows. Kept as data so the column stays aligned by construction -
 /// hand-padded columns in a string literal drift the moment one row
@@ -93,11 +93,6 @@ pub fn run() {
 
     println!("{sparkle}New here?  rproj new my-first-game  sets your machine up and");
     println!("    scaffolds your first project in one go.\n");
-
-    // Last, and only on the bare `rproj` screen - not before every command,
-    // where it would be a network call in the way of the thing the user
-    // asked for. Silent unless there is something newer.
-    crate::steps::update_check::nudge_if_outdated();
 }
 
 #[cfg(test)]
