@@ -210,7 +210,6 @@ impl ProjectGraph {
             }
         }
     }
-
 }
 
 /// The tools the **dependency strategy** pins, as opposed to the ones
@@ -420,5 +419,4 @@ mod tests {
             Some("testez")
         );
     }
-
 }

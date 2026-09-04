@@ -16,7 +16,10 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
     (
         "🔧",
         "rproj setup",
-        &["Install or change the machine-wide tools: system apps, CLI", "tools, Studio plugins, editor extensions"],
+        &[
+            "Install or change the machine-wide tools: system apps, CLI",
+            "tools, Studio plugins, editor extensions",
+        ],
     ),
     (
         // Every icon here is a plain double-width emoji with no variation
@@ -38,9 +41,21 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
             "so it picks up fixes shipped since it was scaffolded",
         ],
     ),
-    ("👀", "rproj watch", &["Resume the dev loop: install what's missing, watch the sourcemap"]),
-    ("📋", "rproj copy", &["Copy every file under src/ to the clipboard, with path headers"]),
-    ("📖", "rproj info [key]", &["Look up what a tool or package does, and how to use it"]),
+    (
+        "👀",
+        "rproj watch",
+        &["Resume the dev loop: install what's missing, watch the sourcemap"],
+    ),
+    (
+        "📋",
+        "rproj copy",
+        &["Copy every file under src/ to the clipboard, with path headers"],
+    ),
+    (
+        "📖",
+        "rproj info [key]",
+        &["Look up what a tool or package does, and how to use it"],
+    ),
 ];
 
 pub fn run() {
@@ -53,7 +68,11 @@ pub fn run() {
     println!("    as it goes, so you end up knowing why your setup looks like it does.\n");
 
     println!("{book}Commands\n");
-    let width = COMMANDS.iter().map(|(_, name, _)| name.len()).max().unwrap_or(0);
+    let width = COMMANDS
+        .iter()
+        .map(|(_, name, _)| name.len())
+        .max()
+        .unwrap_or(0);
     // Terminal *columns* the icon occupies, not `char`s: every icon above is
     // one char and two columns wide, plus two spaces of gutter.
     let icon_columns = 4;
@@ -93,7 +112,11 @@ mod tests {
     #[test]
     fn every_icon_is_a_single_char() {
         for (icon, name, _) in COMMANDS {
-            assert_eq!(icon.chars().count(), 1, "{name}'s icon {icon} is not a single char");
+            assert_eq!(
+                icon.chars().count(),
+                1,
+                "{name}'s icon {icon} is not a single char"
+            );
         }
     }
 
@@ -101,9 +124,19 @@ mod tests {
     /// screen is the only place someone who typed `rproj` learns they exist.
     #[test]
     fn every_command_is_listed() {
-        for command in ["new", "setup", "configure", "upgrade", "watch", "copy", "info"] {
+        for command in [
+            "new",
+            "setup",
+            "configure",
+            "upgrade",
+            "watch",
+            "copy",
+            "info",
+        ] {
             assert!(
-                COMMANDS.iter().any(|(_, name, _)| name.starts_with(&format!("rproj {command}"))),
+                COMMANDS
+                    .iter()
+                    .any(|(_, name, _)| name.starts_with(&format!("rproj {command}"))),
                 "`{command}` is missing from the welcome screen"
             );
         }
@@ -114,7 +147,10 @@ mod tests {
     fn every_command_explains_itself() {
         for (_, name, lines) in COMMANDS {
             assert!(!lines.is_empty(), "{name} has no description");
-            assert!(lines.iter().all(|l| !l.trim().is_empty()), "{name} has a blank line");
+            assert!(
+                lines.iter().all(|l| !l.trim().is_empty()),
+                "{name} has a blank line"
+            );
         }
     }
 }

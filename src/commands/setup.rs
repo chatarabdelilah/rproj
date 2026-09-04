@@ -163,12 +163,7 @@ mod tests {
         // looks right resolves to the wrong one - `rproj setup luau-lsp`
         // finds the extension and correctly reports there is nothing
         // project-local to pin.
-        for key in [
-            "asphalt",
-            "tungsten",
-            "lute",
-            "luau-lsp-cli",
-        ] {
+        for key in ["asphalt", "tungsten", "lute", "luau-lsp-cli"] {
             assert!(
                 tool_catalog::find(key).is_some(),
                 "{key} is not in the tool catalog"

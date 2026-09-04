@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
 use crate::steps::{github_get_text, probe};
@@ -18,9 +18,12 @@ const ROBLOX_STUD_SCALE: f64 = 0.28;
 pub fn download_latest_plugin_zip(github_repo: &str) -> Result<PathBuf> {
     let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
     let body = github_get_text(&api_url)?;
-    let release: Value = serde_json::from_str(&body).context("failed to parse GitHub release JSON")?;
+    let release: Value =
+        serde_json::from_str(&body).context("failed to parse GitHub release JSON")?;
 
-    let assets = release["assets"].as_array().context("release response had no assets array")?;
+    let assets = release["assets"]
+        .as_array()
+        .context("release response had no assets array")?;
     let asset = assets
         .iter()
         .find(|a| a["name"].as_str().is_some_and(|n| n.ends_with(".zip")))
@@ -88,7 +91,10 @@ else:
     );
     let stdout = run_headless_script(&script)?;
 
-    if let Some(module) = stdout.lines().find_map(|l| l.strip_prefix("RPROJ_ALREADY_INSTALLED:")) {
+    if let Some(module) = stdout
+        .lines()
+        .find_map(|l| l.strip_prefix("RPROJ_ALREADY_INSTALLED:"))
+    {
         ui::ok(&format!("Blender add-on already installed ({module})"));
     }
     Ok(())
@@ -99,7 +105,9 @@ else:
 /// top-level wall of text: it's guidance, not an outcome, and it reappears
 /// on every single run.
 pub fn print_account_link_instructions() {
-    ui::warn("Blender add-on needs two one-time manual steps (they need a UI, so can't be scripted)");
+    ui::warn(
+        "Blender add-on needs two one-time manual steps (they need a UI, so can't be scripted)",
+    );
     ui::detail(
         "1. Blender > Edit > Preferences > Add-ons > find \"Roblox\", expand it\n\
          2. In a 3D viewport press N > \"Roblox\" tab > Install Dependencies, then restart\n\

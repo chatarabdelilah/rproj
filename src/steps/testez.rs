@@ -22,7 +22,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::ui;
 
@@ -243,8 +243,14 @@ pub fn ensure_tests_luaurc(project_dir: &Path) -> Result<()> {
     config.insert("globals".to_string(), json!(TESTEZ_GLOBALS));
 
     fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
-    fs::write(&path, format!("{}\n", serde_json::to_string_pretty(&Value::Object(config))?))
-        .with_context(|| format!("failed to write {}", path.display()))?;
+    fs::write(
+        &path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&Value::Object(config))?
+        ),
+    )
+    .with_context(|| format!("failed to write {}", path.display()))?;
     ui::ok("wrote tests/.luaurc (TestEZ globals)");
     Ok(())
 }
@@ -272,8 +278,14 @@ mod tests {
         let config = companion_config();
         for root in TEST_ROOTS {
             assert!(config.contains(root), "{root} missing from:\n{config}");
-            assert!(!root.starts_with('/'), "{root} should not start with a slash");
-            assert!(!root.starts_with("game/"), "{root} should be service-rooted, not game-rooted");
+            assert!(
+                !root.starts_with('/'),
+                "{root} should not start with a slash"
+            );
+            assert!(
+                !root.starts_with("game/"),
+                "{root} should be service-rooted, not game-rooted"
+            );
         }
         assert!(config.starts_with('#'), "config should explain itself");
         assert!(config.contains("roots = ["));
@@ -283,10 +295,24 @@ mod tests {
     /// so the globals TestEZ projects rely on must all be declared.
     #[test]
     fn testez_std_declares_the_globals_selene_would_otherwise_reject() {
-        for global in ["describe", "it", "expect", "beforeEach", "afterAll", "itFOCUS", "describeSKIP"] {
-            assert!(TESTEZ_STD.contains(&format!("  {global}:")), "{global} missing from testez.yml");
+        for global in [
+            "describe",
+            "it",
+            "expect",
+            "beforeEach",
+            "afterAll",
+            "itFOCUS",
+            "describeSKIP",
+        ] {
+            assert!(
+                TESTEZ_STD.contains(&format!("  {global}:")),
+                "{global} missing from testez.yml"
+            );
         }
-        assert!(TESTEZ_STD.starts_with("---"), "selene std files are YAML documents");
+        assert!(
+            TESTEZ_STD.starts_with("---"),
+            "selene std files are YAML documents"
+        );
     }
 
     /// The roots must name the `test` instances the project file mounts
@@ -295,7 +321,11 @@ mod tests {
     fn roots_name_the_test_instances_the_project_file_creates() {
         assert_eq!(
             TEST_ROOTS,
-            ["ReplicatedStorage/test", "ServerScriptService/test", "StarterPlayer/StarterPlayerScripts/test"]
+            [
+                "ReplicatedStorage/test",
+                "ServerScriptService/test",
+                "StarterPlayer/StarterPlayerScripts/test"
+            ]
         );
     }
 
@@ -311,7 +341,10 @@ mod tests {
             .filter(|l| l.starts_with("  ") && !l.starts_with("   ") && l.trim_end().ends_with(':'))
             .map(|l| l.trim().trim_end_matches(':'))
             .collect();
-        assert!(!declared_to_selene.is_empty(), "parsed nothing out of testez.yml");
+        assert!(
+            !declared_to_selene.is_empty(),
+            "parsed nothing out of testez.yml"
+        );
         assert_eq!(
             declared_to_selene, TESTEZ_GLOBALS,
             "selene's testez.yml and luau-lsp's tests/.luaurc must declare the same globals"

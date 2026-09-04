@@ -11,7 +11,7 @@
 //! docs, the luau-lsp extension's own `package.json` contributions), not
 //! from memory.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// One accepted value of a `Choice` setting, with what picking it does.
 pub struct ChoiceOption {
@@ -20,9 +20,16 @@ pub struct ChoiceOption {
 }
 
 pub enum SettingKind {
-    Bool { default: bool },
-    Integer { default: i64 },
-    Choice { default: &'static str, options: &'static [ChoiceOption] },
+    Bool {
+        default: bool,
+    },
+    Integer {
+        default: i64,
+    },
+    Choice {
+        default: &'static str,
+        options: &'static [ChoiceOption],
+    },
 }
 
 pub struct SettingSpec {
@@ -81,9 +88,18 @@ impl ConfigurableTool {
 /// Selene lint rules worth offering. Every lint takes the same three
 /// values, so they share one option list.
 const LINT_LEVELS: &[ChoiceOption] = &[
-    ChoiceOption { value: "deny", explanation: "Report as an error and fail the lint run" },
-    ChoiceOption { value: "warn", explanation: "Report as a warning, but don't fail" },
-    ChoiceOption { value: "allow", explanation: "Don't report this at all" },
+    ChoiceOption {
+        value: "deny",
+        explanation: "Report as an error and fail the lint run",
+    },
+    ChoiceOption {
+        value: "warn",
+        explanation: "Report as a warning, but don't fail",
+    },
+    ChoiceOption {
+        value: "allow",
+        explanation: "Don't report this at all",
+    },
 ];
 
 pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
@@ -91,7 +107,9 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
         key: "stylua",
         display_name: "StyLua",
         summary: "Code formatter. These settings decide how your Luau is reshaped on format/save.",
-        target: ConfigTarget::ProjectToml { filename: "stylua.toml" },
+        target: ConfigTarget::ProjectToml {
+            filename: "stylua.toml",
+        },
         docs_url: "https://github.com/JohnnyMorganz/StyLua#options",
         requires_artifacts: &["stylua.toml"],
         settings: &[
@@ -102,10 +120,22 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "Luau",
                     options: &[
-                        ChoiceOption { value: "Luau", explanation: "Roblox's Luau, including type annotations (what you want here)" },
-                        ChoiceOption { value: "All", explanation: "Accept any supported dialect - StyLua's own default" },
-                        ChoiceOption { value: "Lua51", explanation: "Plain Lua 5.1" },
-                        ChoiceOption { value: "Lua54", explanation: "Plain Lua 5.4" },
+                        ChoiceOption {
+                            value: "Luau",
+                            explanation: "Roblox's Luau, including type annotations (what you want here)",
+                        },
+                        ChoiceOption {
+                            value: "All",
+                            explanation: "Accept any supported dialect - StyLua's own default",
+                        },
+                        ChoiceOption {
+                            value: "Lua51",
+                            explanation: "Plain Lua 5.1",
+                        },
+                        ChoiceOption {
+                            value: "Lua54",
+                            explanation: "Plain Lua 5.4",
+                        },
                     ],
                 },
             },
@@ -122,8 +152,14 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "Tabs",
                     options: &[
-                        ChoiceOption { value: "Tabs", explanation: "One tab character per level" },
-                        ChoiceOption { value: "Spaces", explanation: "indent_width spaces per level" },
+                        ChoiceOption {
+                            value: "Tabs",
+                            explanation: "One tab character per level",
+                        },
+                        ChoiceOption {
+                            value: "Spaces",
+                            explanation: "indent_width spaces per level",
+                        },
                     ],
                 },
             },
@@ -140,10 +176,22 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "AutoPreferDouble",
                     options: &[
-                        ChoiceOption { value: "AutoPreferDouble", explanation: "Double quotes, unless single quotes need fewer escapes" },
-                        ChoiceOption { value: "AutoPreferSingle", explanation: "Single quotes, unless double quotes need fewer escapes" },
-                        ChoiceOption { value: "ForceDouble", explanation: "Always double quotes, escapes regardless" },
-                        ChoiceOption { value: "ForceSingle", explanation: "Always single quotes, escapes regardless" },
+                        ChoiceOption {
+                            value: "AutoPreferDouble",
+                            explanation: "Double quotes, unless single quotes need fewer escapes",
+                        },
+                        ChoiceOption {
+                            value: "AutoPreferSingle",
+                            explanation: "Single quotes, unless double quotes need fewer escapes",
+                        },
+                        ChoiceOption {
+                            value: "ForceDouble",
+                            explanation: "Always double quotes, escapes regardless",
+                        },
+                        ChoiceOption {
+                            value: "ForceSingle",
+                            explanation: "Always single quotes, escapes regardless",
+                        },
                     ],
                 },
             },
@@ -154,11 +202,26 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "Always",
                     options: &[
-                        ChoiceOption { value: "Always", explanation: "Always parenthesise - most explicit, easiest to read" },
-                        ChoiceOption { value: "NoSingleString", explanation: "Drop them for a single string argument" },
-                        ChoiceOption { value: "NoSingleTable", explanation: "Drop them for a single table argument" },
-                        ChoiceOption { value: "None", explanation: "Drop them for both cases" },
-                        ChoiceOption { value: "Input", explanation: "Leave exactly as written - no consistency enforced" },
+                        ChoiceOption {
+                            value: "Always",
+                            explanation: "Always parenthesise - most explicit, easiest to read",
+                        },
+                        ChoiceOption {
+                            value: "NoSingleString",
+                            explanation: "Drop them for a single string argument",
+                        },
+                        ChoiceOption {
+                            value: "NoSingleTable",
+                            explanation: "Drop them for a single table argument",
+                        },
+                        ChoiceOption {
+                            value: "None",
+                            explanation: "Drop them for both cases",
+                        },
+                        ChoiceOption {
+                            value: "Input",
+                            explanation: "Leave exactly as written - no consistency enforced",
+                        },
                     ],
                 },
             },
@@ -169,10 +232,22 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "Never",
                     options: &[
-                        ChoiceOption { value: "Never", explanation: "Always keep blocks expanded across lines" },
-                        ChoiceOption { value: "FunctionOnly", explanation: "Collapse single-statement function bodies only" },
-                        ChoiceOption { value: "ConditionalOnly", explanation: "Collapse single-statement if bodies only" },
-                        ChoiceOption { value: "Always", explanation: "Collapse both" },
+                        ChoiceOption {
+                            value: "Never",
+                            explanation: "Always keep blocks expanded across lines",
+                        },
+                        ChoiceOption {
+                            value: "FunctionOnly",
+                            explanation: "Collapse single-statement function bodies only",
+                        },
+                        ChoiceOption {
+                            value: "ConditionalOnly",
+                            explanation: "Collapse single-statement if bodies only",
+                        },
+                        ChoiceOption {
+                            value: "Always",
+                            explanation: "Collapse both",
+                        },
                     ],
                 },
             },
@@ -183,8 +258,14 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "Unix",
                     options: &[
-                        ChoiceOption { value: "Unix", explanation: "LF" },
-                        ChoiceOption { value: "Windows", explanation: "CRLF" },
+                        ChoiceOption {
+                            value: "Unix",
+                            explanation: "LF",
+                        },
+                        ChoiceOption {
+                            value: "Windows",
+                            explanation: "CRLF",
+                        },
                     ],
                 },
             },
@@ -200,7 +281,9 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
         key: "selene",
         display_name: "Selene",
         summary: "Linter. `std` tells it which globals exist; the rest turn individual lints up or down.",
-        target: ConfigTarget::ProjectToml { filename: "selene.toml" },
+        target: ConfigTarget::ProjectToml {
+            filename: "selene.toml",
+        },
         docs_url: "https://kampfkarren.github.io/selene/usage/configuration.html",
         requires_artifacts: &["selene.toml"],
         settings: &[
@@ -211,10 +294,22 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "roblox",
                     options: &[
-                        ChoiceOption { value: "roblox", explanation: "Roblox globals (game, workspace, script...)" },
-                        ChoiceOption { value: "roblox+testez", explanation: "Roblox globals plus TestEZ's describe/it/expect" },
-                        ChoiceOption { value: "luau", explanation: "Plain Luau, no Roblox globals" },
-                        ChoiceOption { value: "lua51", explanation: "Plain Lua 5.1" },
+                        ChoiceOption {
+                            value: "roblox",
+                            explanation: "Roblox globals (game, workspace, script...)",
+                        },
+                        ChoiceOption {
+                            value: "roblox+testez",
+                            explanation: "Roblox globals plus TestEZ's describe/it/expect",
+                        },
+                        ChoiceOption {
+                            value: "luau",
+                            explanation: "Plain Luau, no Roblox globals",
+                        },
+                        ChoiceOption {
+                            value: "lua51",
+                            explanation: "Plain Lua 5.1",
+                        },
                     ],
                 },
             },
@@ -222,49 +317,73 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 key: "undefined_variable",
                 description: "Using a name that was never defined. Usually a typo or a missing require - worth keeping strict.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "deny", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "deny",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "unused_variable",
                 description: "A local that's assigned but never read. Often leftover code; prefix with _ to intentionally ignore one.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "warn", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "warn",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "shadowing",
                 description: "A local re-using a name already in scope. Legal, but a common source of confusing bugs.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "warn", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "warn",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "global_usage",
                 description: "Reading or writing _G. Shared mutable global state is hard to trace in a multi-script game.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "warn", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "warn",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "incorrect_standard_library_use",
                 description: "Calling a standard-library function with the wrong argument count or types.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "deny", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "deny",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "mixed_table",
                 description: "A table with both array entries and key/value entries. Legal, but #t and ipairs behave surprisingly on them.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "warn", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "warn",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "multiple_statements",
                 description: "More than one statement on a single line. Mostly a readability preference.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "allow", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "allow",
+                    options: LINT_LEVELS,
+                },
             },
             SettingSpec {
                 key: "roblox_incorrect_roact_usage",
                 description: "Roact/React mistakes Selene can spot statically, like an invalid instance name in createElement.",
                 section: Some("rules"),
-                kind: SettingKind::Choice { default: "deny", options: LINT_LEVELS },
+                kind: SettingKind::Choice {
+                    default: "deny",
+                    options: LINT_LEVELS,
+                },
             },
         ],
     },
@@ -313,8 +432,14 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "roblox",
                     options: &[
-                        ChoiceOption { value: "roblox", explanation: "Roblox - what you want for a Rojo project" },
-                        ChoiceOption { value: "standard", explanation: "Plain Luau with no Roblox API" },
+                        ChoiceOption {
+                            value: "roblox",
+                            explanation: "Roblox - what you want for a Rojo project",
+                        },
+                        ChoiceOption {
+                            value: "standard",
+                            explanation: "Plain Luau with no Roblox API",
+                        },
                     ],
                 },
             },
@@ -337,9 +462,18 @@ pub const CONFIGURABLE_TOOLS: &[ConfigurableTool] = &[
                 kind: SettingKind::Choice {
                     default: "literals",
                     options: &[
-                        ChoiceOption { value: "none", explanation: "No parameter name hints" },
-                        ChoiceOption { value: "literals", explanation: "Only for literal arguments, where it helps most" },
-                        ChoiceOption { value: "all", explanation: "For every argument - thorough but noisy" },
+                        ChoiceOption {
+                            value: "none",
+                            explanation: "No parameter name hints",
+                        },
+                        ChoiceOption {
+                            value: "literals",
+                            explanation: "Only for literal arguments, where it helps most",
+                        },
+                        ChoiceOption {
+                            value: "all",
+                            explanation: "For every argument - thorough but noisy",
+                        },
                     ],
                 },
             },
@@ -515,7 +649,10 @@ pub fn merge_toml(existing: &str, answers: &[(&SettingSpec, Value)]) -> String {
 
     for line in existing.lines() {
         let trimmed = line.trim();
-        if let Some(name) = trimmed.strip_prefix('[').and_then(|rest| rest.strip_suffix(']')) {
+        if let Some(name) = trimmed
+            .strip_prefix('[')
+            .and_then(|rest| rest.strip_suffix(']'))
+        {
             section = Some(name.trim().to_string());
             out.push_str(line);
             out.push('\n');
@@ -530,7 +667,10 @@ pub fn merge_toml(existing: &str, answers: &[(&SettingSpec, Value)]) -> String {
                 continue;
             }
         };
-        match answers.iter().position(|(spec, _)| spec.key == key && spec.section == section.as_deref()) {
+        match answers
+            .iter()
+            .position(|(spec, _)| spec.key == key && spec.section == section.as_deref())
+        {
             Some(i) => {
                 replaced[i] = true;
                 // The value is rewritten; anything the user wrote after it
@@ -541,10 +681,7 @@ pub fn merge_toml(existing: &str, answers: &[(&SettingSpec, Value)]) -> String {
                 let comment = trailing_comment(line)
                     .map(|c| format!("   {c}"))
                     .unwrap_or_default();
-                out.push_str(&format!(
-                    "{key} = {}{comment}\n",
-                    toml_value(&answers[i].1)
-                ));
+                out.push_str(&format!("{key} = {}{comment}\n", toml_value(&answers[i].1)));
             }
             None => {
                 out.push_str(line);
@@ -679,7 +816,10 @@ mod tests {
         key: "indent_type",
         description: "for the tests below",
         section: None,
-        kind: SettingKind::Choice { default: "Tabs", options: &[] },
+        kind: SettingKind::Choice {
+            default: "Tabs",
+            options: &[],
+        },
     };
 
     /// Accepting the value a file already holds must not disturb the
@@ -701,7 +841,10 @@ mod tests {
             "indent_type = \"Tabs\"   # agreed with the team\n",
             &[(&A_TOP_LEVEL, json!("Spaces"))],
         );
-        assert_eq!(merged, "indent_type = \"Spaces\"   # agreed with the team\n");
+        assert_eq!(
+            merged,
+            "indent_type = \"Spaces\"   # agreed with the team\n"
+        );
     }
 
     /// A `#` inside the value is part of the value, not a comment.
@@ -735,10 +878,15 @@ mod tests {
     #[test]
     fn scaffolded_defaults_match_configure_defaults() {
         for tool in CONFIGURABLE_TOOLS {
-            let ConfigTarget::ProjectToml { .. } = tool.target else { continue };
+            let ConfigTarget::ProjectToml { .. } = tool.target else {
+                continue;
+            };
             let scaffolded = default_toml(tool.key, &[]).expect("project-toml tool renders");
-            let answers: Vec<(&SettingSpec, Value)> =
-                tool.settings.iter().map(|s| (s, s.kind.default_value())).collect();
+            let answers: Vec<(&SettingSpec, Value)> = tool
+                .settings
+                .iter()
+                .map(|s| (s, s.kind.default_value()))
+                .collect();
             assert_eq!(scaffolded, render_toml(&answers), "{} diverged", tool.key);
         }
     }
@@ -781,15 +929,27 @@ mod tests {
     fn inserted_keys_land_above_the_first_section() {
         let base = default_toml("selene", &[]).unwrap();
         let with_exclude = insert_top_level(&base, r#"exclude = ["modules/submodules/**"]"#);
-        let first_header = with_exclude.find("
-[").expect("selene has a [rules] section");
-        assert!(with_exclude[..first_header].contains("exclude ="), "{with_exclude}");
-        assert!(with_exclude.contains("[rules]"), "sections must survive:
-{with_exclude}");
+        let first_header = with_exclude
+            .find(
+                "
+[",
+            )
+            .expect("selene has a [rules] section");
         assert!(
-            with_exclude.contains("
+            with_exclude[..first_header].contains("exclude ="),
+            "{with_exclude}"
+        );
+        assert!(
+            with_exclude.contains("[rules]"),
+            "sections must survive:
+{with_exclude}"
+        );
+        assert!(
+            with_exclude.contains(
+                "
 
-[rules]"),
+[rules]"
+            ),
             "the header should keep a blank line above it:
 {with_exclude}"
         );
@@ -798,14 +958,20 @@ mod tests {
     /// A file with no sections at all still has to get the key.
     #[test]
     fn inserted_keys_work_without_any_section() {
-        let out = insert_top_level("std = \"roblox\"
-", "exclude = []");
+        let out = insert_top_level(
+            "std = \"roblox\"
+",
+            "exclude = []",
+        );
         assert!(out.contains("exclude = []"), "{out}");
     }
 
     /// Answers built from what the file already says, i.e. what `rproj
     /// configure` sends to the writer when you press enter through it.
-    fn enter_through(tool: &'static ConfigurableTool, existing: &str) -> Vec<(&'static SettingSpec, Value)> {
+    fn enter_through(
+        tool: &'static ConfigurableTool,
+        existing: &str,
+    ) -> Vec<(&'static SettingSpec, Value)> {
         let current = current_toml_values(tool, existing);
         tool.settings
             .iter()
@@ -832,7 +998,9 @@ mod tests {
     #[test]
     fn enter_through_configure_changes_nothing() {
         for tool in CONFIGURABLE_TOOLS {
-            let ConfigTarget::ProjectToml { .. } = tool.target else { continue };
+            let ConfigTarget::ProjectToml { .. } = tool.target else {
+                continue;
+            };
             // A file carrying every kind of thing configure has to preserve:
             // a comment, an unmanaged top-level key, a non-default managed
             // value, an unmanaged key inside a managed table, and an
@@ -872,7 +1040,11 @@ mod tests {
         let existing = "std = \"roblox\"\n";
         let merged = merge_toml(existing, &enter_through(tool, existing));
         let parsed = toml::from_str::<toml::Table>(&merged).expect("still valid TOML");
-        assert_eq!(parsed["rules"]["shadowing"].as_str(), Some("warn"), "{merged}");
+        assert_eq!(
+            parsed["rules"]["shadowing"].as_str(),
+            Some("warn"),
+            "{merged}"
+        );
         assert_eq!(parsed["std"].as_str(), Some("roblox"), "{merged}");
     }
 
@@ -881,7 +1053,10 @@ mod tests {
     fn merging_into_nothing_renders_the_defaults() {
         let tool = find("stylua").unwrap();
         let answers = enter_through(tool, "");
-        assert_eq!(merge_toml("", &answers), default_toml("stylua", &[]).unwrap());
+        assert_eq!(
+            merge_toml("", &answers),
+            default_toml("stylua", &[]).unwrap()
+        );
     }
 
     /// Pressing enter through `rproj configure` proposes these, so reading
@@ -902,7 +1077,10 @@ mod tests {
             current[i].clone()
         };
         assert_eq!(by_key("std", None), Some(json!("roblox+testez")));
-        assert_eq!(by_key("unused_variable", Some("rules")), Some(json!("allow")));
+        assert_eq!(
+            by_key("unused_variable", Some("rules")),
+            Some(json!("allow"))
+        );
         // Not in the file: the catalog default has to fill in.
         assert_eq!(by_key("shadowing", Some("rules")), None);
     }
@@ -919,7 +1097,11 @@ mod tests {
     #[test]
     fn every_configuration_requirement_names_a_real_artifact() {
         for tool in CONFIGURABLE_TOOLS {
-            assert!(!tool.requires_artifacts.is_empty(), "{} applies everywhere", tool.key);
+            assert!(
+                !tool.requires_artifacts.is_empty(),
+                "{} applies everywhere",
+                tool.key
+            );
             for key in tool.requires_artifacts {
                 assert!(
                     crate::catalog::artifacts::find(key).is_some(),

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
 use crate::steps::github_get_text;
@@ -9,8 +9,7 @@ use crate::ui;
 
 /// `%LOCALAPPDATA%\Roblox\Plugins` - the same folder `rojo plugin install` targets.
 pub fn studio_plugins_dir() -> Result<PathBuf> {
-    let local_app_data =
-        std::env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?;
+    let local_app_data = std::env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?;
     Ok(PathBuf::from(local_app_data).join("Roblox").join("Plugins"))
 }
 
@@ -28,8 +27,14 @@ pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Res
         .context("release response had no assets array")?;
     let asset = assets
         .iter()
-        .find(|a| a["name"].as_str().is_some_and(|n| n.ends_with(asset_suffix)))
-        .with_context(|| format!("no *{asset_suffix} asset found in latest release of {github_repo}"))?;
+        .find(|a| {
+            a["name"]
+                .as_str()
+                .is_some_and(|n| n.ends_with(asset_suffix))
+        })
+        .with_context(|| {
+            format!("no *{asset_suffix} asset found in latest release of {github_repo}")
+        })?;
 
     let name = asset["name"].as_str().context("asset has no name")?;
     let download_url = asset["browser_download_url"]

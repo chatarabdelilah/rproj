@@ -39,7 +39,9 @@
 use std::collections::BTreeMap;
 
 use crate::catalog::Maintenance;
-use crate::catalog::tool_catalog::{PLUGINS, ROKIT_TOOLS, SYSTEM_APPS, ToolKind, VSCODE_EXTENSIONS};
+use crate::catalog::tool_catalog::{
+    PLUGINS, ROKIT_TOOLS, SYSTEM_APPS, ToolKind, VSCODE_EXTENSIONS,
+};
 use crate::catalog::wally_packages::PACKAGES;
 
 /// One catalogued thing that has a GitHub repository behind it.
@@ -175,7 +177,10 @@ mod tests {
         repos.sort_unstable();
         repos.dedup();
         assert_eq!(before, repos.len(), "duplicate repositories: {repos:?}");
-        assert!(before > 10, "expected most of the catalog to be tracked, got {before}");
+        assert!(
+            before > 10,
+            "expected most of the catalog to be tracked, got {before}"
+        );
     }
 
     /// **The invariant that stops the previous bug recurring.**
@@ -204,9 +209,8 @@ mod tests {
             if !names_a_repo {
                 continue;
             }
-            let slug = github_slug(entry.kind.provider()).unwrap_or_else(|| {
-                panic!("{} names a repo that is not a GitHub slug", entry.key)
-            });
+            let slug = github_slug(entry.kind.provider())
+                .unwrap_or_else(|| panic!("{} names a repo that is not a GitHub slug", entry.key));
             assert!(
                 tracked.iter().any(|t| t.repo == slug),
                 "{} ({slug}) is not covered by the badge gate",
@@ -258,7 +262,10 @@ mod tests {
                 }
             };
             let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) else {
-                unreachable.push(format!("{} ({}): unparseable response", entry.key, entry.repo));
+                unreachable.push(format!(
+                    "{} ({}): unparseable response",
+                    entry.key, entry.repo
+                ));
                 continue;
             };
 

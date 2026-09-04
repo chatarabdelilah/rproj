@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::catalog::tool_catalog::{Detect, ToolEntry, ToolKind};
 use crate::steps::{capture, probe, run};
@@ -15,9 +15,11 @@ pub fn is_installed(entry: &ToolEntry) -> bool {
                 Detect::Winget => by_winget(),
                 // Either kind of evidence counts: the app may also have
                 // been installed some way winget *does* track.
-                Detect::ExeUnder { env_var, subdir, exe } => {
-                    exe_exists_under(env_var, subdir, exe) || by_winget()
-                }
+                Detect::ExeUnder {
+                    env_var,
+                    subdir,
+                    exe,
+                } => exe_exists_under(env_var, subdir, exe) || by_winget(),
             }
         }
         _ => false,
@@ -139,7 +141,10 @@ mod tests {
     /// as "Studio isn't installed".
     #[test]
     fn studio_is_not_detected_through_winget() {
-        let studio = SYSTEM_APPS.iter().find(|e| e.key == "studio").expect("a studio entry");
+        let studio = SYSTEM_APPS
+            .iter()
+            .find(|e| e.key == "studio")
+            .expect("a studio entry");
         let ToolKind::SystemApp { detect, .. } = studio.kind else {
             panic!("studio must be a system app");
         };
@@ -154,8 +159,15 @@ mod tests {
     #[test]
     fn every_other_system_app_uses_winget_detection() {
         for entry in SYSTEM_APPS.iter().filter(|e| e.key != "studio") {
-            let ToolKind::SystemApp { detect, .. } = entry.kind else { continue };
-            assert_eq!(detect, Detect::Winget, "{} should detect via winget", entry.key);
+            let ToolKind::SystemApp { detect, .. } = entry.kind else {
+                continue;
+            };
+            assert_eq!(
+                detect,
+                Detect::Winget,
+                "{} should detect via winget",
+                entry.key
+            );
         }
     }
 
@@ -206,6 +218,10 @@ mod tests {
     /// An unset variable is "not installed", not a panic.
     #[test]
     fn an_unset_environment_variable_is_not_installed() {
-        assert!(!exe_exists_under("RPROJ_TEST_DETECT_UNSET_VAR", "App", "Thing.exe"));
+        assert!(!exe_exists_under(
+            "RPROJ_TEST_DETECT_UNSET_VAR",
+            "App",
+            "Thing.exe"
+        ));
     }
 }

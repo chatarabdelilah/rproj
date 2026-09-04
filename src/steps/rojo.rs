@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde_json::json;
 
 use crate::catalog::place_template;
@@ -29,7 +29,10 @@ use crate::ui;
 /// missing the very paths `default.project.json` maps - while actually
 /// being useful, unlike an empty placeholder.
 const STARTER_FILES: &[(&str, &str)] = &[
-    ("src/shared/hello.luau", "--!strict\n\nreturn {\n\tgreeting = \"hello from shared\",\n}\n"),
+    (
+        "src/shared/hello.luau",
+        "--!strict\n\nreturn {\n\tgreeting = \"hello from shared\",\n}\n",
+    ),
     (
         "src/server/hello.server.luau",
         "--!strict\n\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n\nlocal hello = require(ReplicatedStorage.shared.hello)\n\nprint(hello.greeting, \"- server\")\n",
@@ -117,7 +120,10 @@ pub fn scaffold_project_json(
     // outright on a mapped $path that doesn't exist, so an unconditional
     // entry would break every project that has no server dependency.
     if has_server_packages {
-        server_scripts.insert("serverPackages".to_string(), json!({ "$path": "ServerPackages" }));
+        server_scripts.insert(
+            "serverPackages".to_string(),
+            json!({ "$path": "ServerPackages" }),
+        );
     }
     let mut client_scripts = serde_json::Map::new();
     client_scripts.insert("client".to_string(), json!({ "$path": "src/client" }));
@@ -138,7 +144,10 @@ pub fn scaffold_project_json(
     tree.insert("$className".to_string(), json!("DataModel"));
     tree.insert("ReplicatedStorage".to_string(), json!(replicated_storage));
     tree.insert("ServerScriptService".to_string(), json!(server_scripts));
-    tree.insert("StarterPlayer".to_string(), json!({ "StarterPlayerScripts": client_scripts }));
+    tree.insert(
+        "StarterPlayer".to_string(),
+        json!({ "StarterPlayerScripts": client_scripts }),
+    );
 
     // Place-level defaults (Lighting and friends) come from the
     // place_template catalog, so changing the look every new project starts
@@ -194,7 +203,13 @@ pub fn generate_sourcemap(project_dir: &Path) -> Result<()> {
 /// this run and rojo's own "Created sourcemap at ..." on each rebuild is
 /// the feedback that it's working.
 pub fn watch_sourcemap(project_dir: &Path) -> Result<()> {
-    let args = ["sourcemap", "--watch", "default.project.json", "-o", "sourcemap.json"];
+    let args = [
+        "sourcemap",
+        "--watch",
+        "default.project.json",
+        "-o",
+        "sourcemap.json",
+    ];
     ui::command("rojo", &args);
     let status = Command::new("rojo")
         .args(args)

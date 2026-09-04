@@ -54,7 +54,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          components: clippy
+          components: clippy, rustfmt
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -80,13 +80,9 @@ jobs:
         if: matrix.toolchain == 'stable'
         run: cargo clippy --locked --all-targets -- -D warnings
 
-      # DELIBERATELY ABSENT: `cargo fmt --check`.
-      #
-      # Measured: this codebase differs from rustfmt in 309 hunks across 38
-      # of 40 files, and no configuration reconciles it (Chapter 58). Adding
-      # the check would produce a gate that is red on the day it is added,
-      # which teaches everyone to ignore CI. Adopt rustfmt first, or leave
-      # the check out - but do not ship a permanently failing gate.
+      - name: Format
+        if: matrix.toolchain == 'stable'
+        run: cargo fmt --all --check
 
   package:
     name: package

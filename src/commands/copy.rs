@@ -40,7 +40,10 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    println!("Copying {} characters from {file_count} file(s) to clipboard...", output.len());
+    println!(
+        "Copying {} characters from {file_count} file(s) to clipboard...",
+        output.len()
+    );
     copy_to_clipboard(&output)?;
     println!("All files from 'src' successfully copied to clipboard!");
     Ok(())
@@ -48,6 +51,8 @@ pub fn run() -> Result<()> {
 
 fn copy_to_clipboard(text: &str) -> Result<()> {
     let mut clipboard = Clipboard::new().context("failed to access the system clipboard")?;
-    clipboard.set_text(text.to_string()).context("failed to write to the system clipboard")?;
+    clipboard
+        .set_text(text.to_string())
+        .context("failed to write to the system clipboard")?;
     Ok(())
 }

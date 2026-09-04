@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "rproj", version, about = "Guided bootstrap-to-game-dev CLI for Roblox projects")]
+#[command(
+    name = "rproj",
+    version,
+    about = "Guided bootstrap-to-game-dev CLI for Roblox projects"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,

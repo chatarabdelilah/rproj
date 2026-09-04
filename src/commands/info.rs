@@ -134,7 +134,10 @@ fn sections() -> Vec<Section> {
                 .iter()
                 .map(|t| Row {
                     key: t.key.to_string(),
-                    description: format!("{} - edit with `rproj configure {}`", t.display_name, t.key),
+                    description: format!(
+                        "{} - edit with `rproj configure {}`",
+                        t.display_name, t.key
+                    ),
                     badge: "configure".to_string(),
                 })
                 .collect(),
@@ -327,11 +330,7 @@ fn cause_line(artifact: &Artifact) -> String {
 fn owning_capability(key: &str) -> Option<&'static str> {
     capabilities::CAPABILITIES
         .iter()
-        .find(|c| {
-            c.implementations
-                .iter()
-                .any(|i| i.artifacts.contains(&key))
-        })
+        .find(|c| c.implementations.iter().any(|i| i.artifacts.contains(&key)))
         .map(|c| c.key)
 }
 
@@ -340,7 +339,11 @@ fn print_artifact(artifact: &Artifact) {
     println!("category: {}", artifact.category.label());
     println!("written:  {}", cause_line(artifact));
     if !artifact.also_requires.is_empty() {
-        let needs: Vec<String> = artifact.also_requires.iter().map(|r| r.describe()).collect();
+        let needs: Vec<String> = artifact
+            .also_requires
+            .iter()
+            .map(|r| r.describe())
+            .collect();
         println!("needs:    {}", needs.join(", and "));
     }
     println!();
@@ -365,7 +368,11 @@ fn print_capability(capability: &'static capabilities::Capability) {
     }
     println!(
         "default:  {}",
-        if capability.default_selected { "on" } else { "off" }
+        if capability.default_selected {
+            "on"
+        } else {
+            "off"
+        }
     );
 
     for implementation in capability.implementations {
@@ -400,7 +407,12 @@ fn print_usage(usage: &Usage) {
     println!("\nWhen: {}", usage.when);
     if !usage.commands.is_empty() {
         println!("\nCommands:");
-        let width = usage.commands.iter().map(|(c, _)| c.len()).max().unwrap_or(0);
+        let width = usage
+            .commands
+            .iter()
+            .map(|(c, _)| c.len())
+            .max()
+            .unwrap_or(0);
         for (cmd, explanation) in usage.commands {
             println!("  {cmd:<width$}  {explanation}");
         }
@@ -438,7 +450,12 @@ fn list_all() -> Result<()> {
         }
         println!("  {family}");
         for tool in entries {
-            println!("    {:<18} {:<32} ({})", tool.key, tool.kind.provider(), tool.kind.label());
+            println!(
+                "    {:<18} {:<32} ({})",
+                tool.key,
+                tool.kind.provider(),
+                tool.kind.label()
+            );
         }
     }
 
@@ -448,7 +465,11 @@ fn list_all() -> Result<()> {
             "    {:<12} {:<18} {}",
             capability.key,
             capability.default_implementation().display,
-            if capability.default_selected { "on by default" } else { "off by default" }
+            if capability.default_selected {
+                "on by default"
+            } else {
+                "off by default"
+            }
         );
     }
 
@@ -589,7 +610,10 @@ mod tests {
                 "{} has no nameable cause",
                 artifact.key
             );
-            assert!(line.chars().next().is_some_and(|c| c.is_lowercase()), "{line}");
+            assert!(
+                line.chars().next().is_some_and(|c| c.is_lowercase()),
+                "{line}"
+            );
         }
     }
 
@@ -601,7 +625,11 @@ mod tests {
         assert_eq!(line("src"), "always - every Rojo project has this");
         assert_eq!(line("selene.toml"), "when you choose the `lint` capability");
         assert_eq!(line("wally.toml"), "when this project uses Wally");
-        assert!(line(".gitignore").starts_with("always -"), "{}", line(".gitignore"));
+        assert!(
+            line(".gitignore").starts_with("always -"),
+            "{}",
+            line(".gitignore")
+        );
     }
 
     /// A capability page must name what actually provides it - the whole

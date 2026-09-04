@@ -25,7 +25,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::catalog::wally_packages::{self, PackageSpec};
 use crate::ui;
@@ -118,7 +118,10 @@ pub fn write_link_files(project_dir: &Path, selected: &BTreeSet<String>) -> Resu
     if written.is_empty() {
         ui::ok("modules/ link files already present");
     } else {
-        ui::ok(&format!("wrote modules/ link files: {}", written.join(", ")));
+        ui::ok(&format!(
+            "wrote modules/ link files: {}",
+            written.join(", ")
+        ));
     }
     Ok(())
 }
@@ -165,15 +168,22 @@ mod tests {
             assert!(tree.contains_key(required), "missing sibling {required}");
         }
         assert_eq!(tree["Charm"]["$path"], "./charm/packages/charm/src");
-        assert_eq!(tree["CharmSync"]["$path"], "./charm/packages/charm-sync/src");
-        assert_eq!(tree["VideCharm"]["$path"], "./charm/packages/vide-charm/src");
+        assert_eq!(
+            tree["CharmSync"]["$path"],
+            "./charm/packages/charm-sync/src"
+        );
+        assert_eq!(
+            tree["VideCharm"]["$path"],
+            "./charm/packages/vide-charm/src"
+        );
     }
 
     /// Packages needing an npm/pnpm install upstream can't be vendored as
     /// raw submodules, so they must never reach the project file.
     #[test]
     fn excludes_packages_that_cannot_be_vendored() {
-        let project = submodules_project(&selection(&["react", "reactRoblox", "reactCharm", "vide"]));
+        let project =
+            submodules_project(&selection(&["react", "reactRoblox", "reactCharm", "vide"]));
         let tree = project["tree"].as_object().unwrap();
 
         assert!(tree.contains_key("Vide"));
@@ -193,11 +203,18 @@ mod tests {
         for spec in vendorable(&selected) {
             let contents = link_file_contents(spec);
             assert!(
-                contents.contains(&format!("require(script.Parent.submodules.{})", spec.module_name)),
+                contents.contains(&format!(
+                    "require(script.Parent.submodules.{})",
+                    spec.module_name
+                )),
                 "link file for {} does not require its own mount name:\n{contents}",
                 spec.key
             );
-            assert!(tree.contains_key(spec.module_name), "{} is not mounted", spec.module_name);
+            assert!(
+                tree.contains_key(spec.module_name),
+                "{} is not mounted",
+                spec.module_name
+            );
         }
     }
 
@@ -211,4 +228,3 @@ mod tests {
         assert_eq!(dirs.len(), 1, "expected a single clone dir, got {dirs:?}");
     }
 }
-

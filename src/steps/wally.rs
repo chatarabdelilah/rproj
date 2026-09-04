@@ -23,9 +23,11 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
 
     if path.exists() {
         let content = fs::read_to_string(&path)?;
-        let has_all = selected
-            .iter()
-            .all(|key| content.lines().any(|l| l.trim_start().starts_with(&format!("{key} ="))));
+        let has_all = selected.iter().all(|key| {
+            content
+                .lines()
+                .any(|l| l.trim_start().starts_with(&format!("{key} =")))
+        });
         if has_all {
             ui::ok("wally.toml already configured");
             return Ok(());

@@ -10,7 +10,7 @@
 
 mod common;
 
-use common::{Session, TempProject, DOWN, ENTER};
+use common::{DOWN, ENTER, Session, TempProject};
 
 /// Exactly what `rproj new` writes for a Wally project that picked TestEZ.
 /// Held as a literal rather than generated: the point is to test what
@@ -92,7 +92,10 @@ fn changing_one_lint_rewrites_only_that_line() {
 
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     let after = project.read("selene.toml");
-    assert_eq!(after, SCAFFOLDED_SELENE.replace(r#"shadowing = "warn""#, r#"shadowing = "allow""#));
+    assert_eq!(
+        after,
+        SCAFFOLDED_SELENE.replace(r#"shadowing = "warn""#, r#"shadowing = "allow""#)
+    );
 }
 
 /// Failing after thirteen questions is the same failure plus wasted effort.
@@ -130,7 +133,12 @@ fn the_tool_picker_offers_every_tool_and_runs_the_chosen_one() {
 
     let mut session = Session::start(project.path(), &["configure"]);
     session.wait_for("Which tool do you want to configure?");
-    for key in ["stylua - StyLua", "selene - Selene", "luau-lsp - ", "stylua-vscode - "] {
+    for key in [
+        "stylua - StyLua",
+        "selene - Selene",
+        "luau-lsp - ",
+        "stylua-vscode - ",
+    ] {
         session.wait_for(key);
     }
     // StyLua is first in the list, so enter takes it.
@@ -157,9 +165,18 @@ fn vscode_settings_are_merged_not_replaced() {
 
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     let written = project.read(".vscode/settings.json");
-    assert!(written.contains(r#""editor.tabSize": 2"#), "unrelated setting lost:\n{written}");
-    assert!(written.contains(r#""editor.formatOnSave": true"#), "{written}");
-    assert!(written.contains(r#""stylua.searchParentDirectories": true"#), "{written}");
+    assert!(
+        written.contains(r#""editor.tabSize": 2"#),
+        "unrelated setting lost:\n{written}"
+    );
+    assert!(
+        written.contains(r#""editor.formatOnSave": true"#),
+        "{written}"
+    );
+    assert!(
+        written.contains(r#""stylua.searchParentDirectories": true"#),
+        "{written}"
+    );
 }
 
 /// Turn something off, run the walkthrough again, agree with it: it has to
@@ -175,7 +192,9 @@ fn a_second_run_proposes_what_you_chose_the_first_time() {
     first.enter_through(&VSCODE_STYLUA_PROMPTS[1..]);
     assert_eq!(first.finish().code, 0);
     assert!(
-        project.read(".vscode/settings.json").contains(r#""editor.formatOnSave": false"#),
+        project
+            .read(".vscode/settings.json")
+            .contains(r#""editor.formatOnSave": false"#),
         "first run should have turned it off"
     );
 
@@ -189,5 +208,8 @@ fn a_second_run_proposes_what_you_chose_the_first_time() {
 
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     let written = project.read(".vscode/settings.json");
-    assert!(written.contains(r#""editor.formatOnSave": false"#), "reverted:\n{written}");
+    assert!(
+        written.contains(r#""editor.formatOnSave": false"#),
+        "reverted:\n{written}"
+    );
 }
