@@ -266,6 +266,7 @@ fn child_object_mut<'a>(
 
 pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
     validate_template_structure(template)?;
+    ensure_rojo_available()?;
     let workspace = ValidationWorkspace::new()?;
     for (label, workflow, tests, server_packages) in [
         ("plain", PackageWorkflow::None, false, false),
@@ -291,32 +292,44 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
             server_packages,
             Some(template),
         )?;
-        fs::write(
-            dir.join("default.project.json"),
-            serde_json::to_string_pretty(&document)?,
-        )?;
-        for (check, args) in [
-            (
-                "sourcemap",
-                ["sourcemap", "default.project.json", "-o", "sourcemap.json"],
-            ),
-            (
-                "build",
-                ["build", "default.project.json", "-o", "validation.rbxl"],
-            ),
+        let project_file = dir.join("default.project.json");
+        fs::write(&project_file, serde_json::to_string_pretty(&document)?)?;
+        let project_file = project_file.to_string_lossy().into_owned();
+        for (check, command, output_file) in [
+            ("sourcemap", "sourcemap", dir.join("sourcemap.json")),
+            ("build", "build", dir.join("validation.rbxl")),
         ] {
-            let output = capture("rojo", &args, Some(&dir)).context(
-                "Rojo is required to validate templates; run `rproj setup` and try again",
+            let output_file = output_file.to_string_lossy().into_owned();
+            let args = [command, project_file.as_str(), "-o", output_file.as_str()];
+            let output = capture("rojo", &args, None).context(
+                "Rojo is required to validate templates; run `rokit add --global rojo` and try again",
             )?;
             if !output.success {
                 bail!(
-                    "Rojo rejected the {label} template during {check} validation (run `rproj setup` if Rojo is not installed):\n{}",
+                    "Rojo rejected the {label} template during {check} validation:\n{}",
                     output.combined().trim()
                 );
             }
         }
     }
     Ok(())
+}
+
+fn ensure_rojo_available() -> Result<()> {
+    let output = capture("rojo", &["--version"], None).context(
+        "Rojo is required to validate templates; run `rokit add --global rojo` and try again",
+    )?;
+    if output.success {
+        return Ok(());
+    }
+    bail!("{}", rojo_preflight_error(output.combined().trim()))
+}
+
+fn rojo_preflight_error(details: &str) -> String {
+    if details.contains("Failed to find tool 'rojo'") {
+        return "Rojo is not configured in this project or Rokit's global manifest. Run `rokit add --global rojo`, then save the template again.".into();
+    }
+    format!("Rojo could not start, so the template was not checked:\n{details}")
 }
 
 fn materialize_validation_project(
@@ -598,5 +611,13 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("Rojo rejected"), "{error}");
+    }
+
+    #[test]
+    fn missing_rokit_tool_is_not_reported_as_template_rejection() {
+        let error =
+            rojo_preflight_error("ERROR Failed to find tool 'rojo' in any project manifest file.");
+        assert!(error.contains("rokit add --global rojo"), "{error}");
+        assert!(!error.contains("Rojo rejected"), "{error}");
     }
 }

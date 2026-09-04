@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.10.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.10.1 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -193,7 +193,7 @@ Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli`
 
 ## 6. `default.project.json` editing
 
-**Shipped in v0.9.0, hardened in v0.9.1, and given a built-in Explorer in v0.10.0.** `rproj configure project` edits the machine-wide template in a keyboard-driven TUI and validates every reachable plain, Wally, and submodule mount combination with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
+**Shipped in v0.9.0, hardened in v0.9.1, given a built-in Explorer in v0.10.0, and corrected for Rokit tool resolution in v0.10.1.** `rproj configure project` edits the machine-wide template in a keyboard-driven TUI and validates every reachable plain, Wally, and submodule mount combination with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
 
 rproj keeps ownership of the project name, DataModel root, conventional source mounts, and dependency/testing mounts. Conflicting edits are rejected with the exact path instead of being silently overwritten. Custom `$path` values are limited to the always-created source directories; workflow-dependent package and test paths remain exclusively graph-owned. The same command restores the built-in template.
 
