@@ -75,7 +75,8 @@ rproj watch
 | `rproj new <name>` | Set up the machine when needed and create a project |
 | `rproj setup` | Review or change machine-level tools |
 | `rproj setup <tool>` | Set up one supported tool for the current project |
-| `rproj configure [tool]` | Edit supported generated configuration interactively |
+| `rproj configure [key]` | Configure a project tool, or choose what to configure |
+| `rproj configure project` | Edit or reset the global Rojo tree inherited by future projects |
 | `rproj upgrade` | Re-render maintained files from the current `rproj.toml` decisions |
 | `rproj watch` | Restore dependencies and start the Rojo development loop |
 | `rproj copy` | Copy source files with path headers |
@@ -110,6 +111,14 @@ my-first-game/
 ```
 
 `rproj.toml` records the current project decisions used by `rproj upgrade`. During alpha, re-scaffolding is preferred when the schema changes substantially.
+
+## Project template
+
+Run `rproj configure project` to customize the `default.project.json` used by projects created afterward. The command opens the template in `VISUAL` or `EDITOR` when configured and otherwise uses Notepad on Windows. Existing projects are never changed.
+
+rproj validates the edited JSON and checks plain, Wally, and git-submodule variants with Rojo before saving it under the rproj configuration directory. Invalid edits can be reopened or discarded, and the last valid template remains active. A saved template can also be reset to rproj's built-in tree from the same command.
+
+The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are managed by rproj. Package, module, server-package, and test mount names are reserved because they depend on each new project's choices. Custom `$path` entries may target only directories rproj generates; use static instances and properties for other additions.
 
 ## Behavior and scope
 

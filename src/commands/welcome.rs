@@ -27,10 +27,10 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
         // one or two *columns* depending on the console, so no padding
         // arithmetic can keep the column straight for it.
         "🔩",
-        "rproj configure [tool]",
+        "rproj configure [key]",
         &[
             "Walk through a tool's settings one at a time - StyLua,",
-            "Selene, luau-lsp - explaining each, then write them out",
+            "Selene, luau-lsp - or edit the tree future projects inherit",
         ],
     ),
     (

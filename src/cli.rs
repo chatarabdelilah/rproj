@@ -46,10 +46,10 @@ pub enum Command {
         #[arg(long, value_name = "NAME")]
         save_setup: Option<String>,
     },
-    /// Walk through a tool's settings one at a time, explaining each one,
-    /// and write them to its config file in the current project
+    /// Configure a tool in the current project, or the global project template
     Configure {
-        /// Tool key to configure (stylua, selene, luau-lsp...). Omit to pick from a list.
+        /// Tool key to configure (stylua, selene, luau-lsp...), or `project`
+        /// for the tree future projects inherit. Omit to pick from a list.
         key: Option<String>,
     },
     /// Re-apply rproj's generated config to an existing project, so it

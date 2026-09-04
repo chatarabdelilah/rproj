@@ -1,9 +1,10 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
-use serde_json::json;
+use serde_json::{Map, Value, json};
 
 use crate::catalog::place_template;
 use crate::config::PackageWorkflow;
@@ -43,12 +44,36 @@ const STARTER_FILES: &[(&str, &str)] = &[
     ),
 ];
 
+pub const TEMPLATE_PROJECT_NAME: &str = "ProjectName";
+
+const ALLOWED_TEMPLATE_PATHS: &[&str] = &[
+    "src/shared",
+    "src/server",
+    "src/client",
+    "Packages",
+    "ServerPackages",
+    "modules",
+    "tests/shared",
+    "tests/server",
+    "tests/client",
+];
+
+const RESERVED_DYNAMIC_PATHS: &[&[&str]] = &[
+    &["tree", "ReplicatedStorage", "packages"],
+    &["tree", "ReplicatedStorage", "modules"],
+    &["tree", "ReplicatedStorage", "test"],
+    &["tree", "ServerScriptService", "serverPackages"],
+    &["tree", "ServerScriptService", "test"],
+    &["tree", "StarterPlayer", "StarterPlayerScripts", "test"],
+];
+
 pub fn scaffold_project_json(
     project_dir: &Path,
     project_name: &str,
     package_workflow: PackageWorkflow,
     testez_selected: bool,
     has_server_packages: bool,
+    template: Option<&Value>,
 ) -> Result<()> {
     let path = project_dir.join("default.project.json");
     if path.exists() {
@@ -64,103 +89,267 @@ pub fn scaffold_project_json(
         }
     }
 
-    // Instance names mirroring source folders stay lowercase, matching the
-    // folder they map. Roblox's own service names (ReplicatedStorage,
-    // ServerScriptService...) keep their real casing - those aren't ours
-    // to rename.
-    let mut replicated_storage = serde_json::Map::new();
-    replicated_storage.insert("shared".to_string(), json!({ "$path": "src/shared" }));
-
-    let mut project = serde_json::Map::new();
-    project.insert("name".to_string(), json!(project_name));
-
-    match package_workflow {
-        PackageWorkflow::Wally => {
-            // Instance name lowercase (it's ours), $path capitalised
-            // (it isn't): `Packages` is hardcoded in wally and is the
-            // folder it actually creates. Writing `packages` here works
-            // on Windows purely because the filesystem is
-            // case-insensitive - on the ubuntu-latest runner the CI
-            // workflow uses, rojo can't find the path at all and every
-            // step of the gate fails before it starts.
-            replicated_storage.insert("packages".to_string(), json!({ "$path": "Packages" }));
-        }
-        PackageWorkflow::GitSubmodules => {
-            // Mapped wholesale, which is safe *because* of the nested
-            // project file `steps::modules` writes at
-            // modules/submodules/default.project.json. Rojo auto-detects
-            // that file and uses it for the submodules folder, and it only
-            // ever $paths into specific source subfolders
-            // (./charm/packages/charm/src), so Rojo never walks a vendored
-            // repo's root and never sees the vendored default.project.json
-            // that would otherwise be loaded as a nested project and fail
-            // on paths only an npm/pnpm install would create. See §7 of
-            // docs/architecture.md.
-            replicated_storage.insert("modules".to_string(), json!({ "$path": "modules" }));
-        }
-        // No dependency manager, so no vendored folder to mount. Mounting
-        // one anyway would be worse than useless: rojo refuses a `$path`
-        // that does not exist, so the sourcemap and every build would fail
-        // on a folder the project never asked for.
-        PackageWorkflow::None => {}
-    }
-
-    let mut server_scripts = serde_json::Map::new();
-    server_scripts.insert("server".to_string(), json!({ "$path": "src/server" }));
-
-    // Server-realm Wally packages land in their own `ServerPackages/` folder,
-    // which belongs in ServerScriptService - putting them in
-    // ReplicatedStorage would replicate a server-only module to every client,
-    // which is the thing the realm exists to prevent. Mounted as
-    // `serverPackages` rather than `packages` so server code reads
-    // unambiguously against the shared `ReplicatedStorage.packages`; lowercase
-    // initial, like every other instance name that mirrors a folder.
-    //
-    // Only mounted when a server package was actually selected: rojo fails
-    // outright on a mapped $path that doesn't exist, so an unconditional
-    // entry would break every project that has no server dependency.
-    if has_server_packages {
-        server_scripts.insert(
-            "serverPackages".to_string(),
-            json!({ "$path": "ServerPackages" }),
-        );
-    }
-    let mut client_scripts = serde_json::Map::new();
-    client_scripts.insert("client".to_string(), json!({ "$path": "src/client" }));
-
-    // TestEZ tests live in their own top-level `tests/` tree rather than
-    // beside the code, and each half is mounted next to the source it
-    // covers as `test`. The names here are what `steps::testez` writes
-    // into testez-companion.toml's roots - a root naming an instance this
-    // tree doesn't create finds no tests, which reads exactly like every
-    // test passing.
-    if testez_selected {
-        replicated_storage.insert("test".to_string(), json!({ "$path": "tests/shared" }));
-        server_scripts.insert("test".to_string(), json!({ "$path": "tests/server" }));
-        client_scripts.insert("test".to_string(), json!({ "$path": "tests/client" }));
-    }
-
-    let mut tree = serde_json::Map::new();
-    tree.insert("$className".to_string(), json!("DataModel"));
-    tree.insert("ReplicatedStorage".to_string(), json!(replicated_storage));
-    tree.insert("ServerScriptService".to_string(), json!(server_scripts));
-    tree.insert(
-        "StarterPlayer".to_string(),
-        json!({ "StarterPlayerScripts": client_scripts }),
-    );
-
-    // Place-level defaults (Lighting and friends) come from the
-    // place_template catalog, so changing the look every new project starts
-    // with is a data edit, not a code change.
-    for (name, node) in place_template::render() {
-        tree.insert(name, node);
-    }
-
-    project.insert("tree".to_string(), serde_json::Value::Object(tree));
-
+    let project = project_document(
+        project_name,
+        package_workflow,
+        testez_selected,
+        has_server_packages,
+        template,
+    )?;
     fs::write(&path, serde_json::to_string_pretty(&project)?)?;
     ui::ok("wrote default.project.json");
     Ok(())
+}
+
+pub fn builtin_project_template() -> Value {
+    let mut tree = Map::new();
+    tree.insert("$className".to_string(), json!("DataModel"));
+    tree.insert(
+        "ReplicatedStorage".to_string(),
+        json!({ "shared": { "$path": "src/shared" } }),
+    );
+    tree.insert(
+        "ServerScriptService".to_string(),
+        json!({ "server": { "$path": "src/server" } }),
+    );
+    tree.insert(
+        "StarterPlayer".to_string(),
+        json!({ "StarterPlayerScripts": { "client": { "$path": "src/client" } } }),
+    );
+    for (name, node) in place_template::render() {
+        tree.insert(name, node);
+    }
+    json!({ "name": TEMPLATE_PROJECT_NAME, "tree": tree })
+}
+
+pub fn project_document(
+    project_name: &str,
+    package_workflow: PackageWorkflow,
+    testez_selected: bool,
+    has_server_packages: bool,
+    template: Option<&Value>,
+) -> Result<Value> {
+    let mut project = template.cloned().unwrap_or_else(builtin_project_template);
+    validate_template_structure(&project)?;
+    project["name"] = json!(project_name);
+
+    let tree = project["tree"]
+        .as_object_mut()
+        .context("project template `tree` must be an object")?;
+    let replicated_storage = child_object_mut(tree, "ReplicatedStorage")?;
+    match package_workflow {
+        PackageWorkflow::Wally => {
+            replicated_storage.insert("packages".into(), json!({ "$path": "Packages" }));
+        }
+        PackageWorkflow::GitSubmodules => {
+            replicated_storage.insert("modules".into(), json!({ "$path": "modules" }));
+        }
+        PackageWorkflow::None => {}
+    }
+    if testez_selected {
+        replicated_storage.insert("test".into(), json!({ "$path": "tests/shared" }));
+    }
+
+    let server_scripts = child_object_mut(tree, "ServerScriptService")?;
+    if has_server_packages {
+        server_scripts.insert(
+            "serverPackages".into(),
+            json!({ "$path": "ServerPackages" }),
+        );
+    }
+    if testez_selected {
+        server_scripts.insert("test".into(), json!({ "$path": "tests/server" }));
+    }
+
+    let starter_player = child_object_mut(tree, "StarterPlayer")?;
+    let client_scripts = child_object_mut(starter_player, "StarterPlayerScripts")?;
+    if testez_selected {
+        client_scripts.insert("test".into(), json!({ "$path": "tests/client" }));
+    }
+    Ok(project)
+}
+
+pub fn validate_template_structure(template: &Value) -> Result<()> {
+    let object = template
+        .as_object()
+        .context("project template must be a JSON object")?;
+    if object.get("name") != Some(&json!(TEMPLATE_PROJECT_NAME)) {
+        bail!("`name` is managed by rproj and must remain `{TEMPLATE_PROJECT_NAME}`");
+    }
+    let tree = object
+        .get("tree")
+        .and_then(Value::as_object)
+        .context("project template `tree` must be an object")?;
+    if tree.get("$className") != Some(&json!("DataModel")) {
+        bail!("`tree.$className` is managed by rproj and must remain `DataModel`");
+    }
+
+    for (path, expected) in [
+        (
+            &["tree", "ReplicatedStorage", "shared", "$path"][..],
+            "src/shared",
+        ),
+        (
+            &["tree", "ServerScriptService", "server", "$path"][..],
+            "src/server",
+        ),
+        (
+            &[
+                "tree",
+                "StarterPlayer",
+                "StarterPlayerScripts",
+                "client",
+                "$path",
+            ][..],
+            "src/client",
+        ),
+    ] {
+        if value_at(template, path) != Some(&json!(expected)) {
+            bail!(
+                "`{}` is managed by rproj and must remain `{expected}`",
+                path.join(".")
+            );
+        }
+    }
+
+    for path in RESERVED_DYNAMIC_PATHS {
+        if value_at(template, path).is_some() {
+            bail!(
+                "`{}` is reserved for dependency or testing mounts and must be removed",
+                path.join(".")
+            );
+        }
+    }
+    validate_paths(template, "")
+}
+
+fn validate_paths(value: &Value, location: &str) -> Result<()> {
+    match value {
+        Value::Object(object) => {
+            if let Some(path) = object.get("$path") {
+                let path = match path {
+                    Value::String(path) => path.as_str(),
+                    Value::Object(optional) if optional.len() == 1 => optional
+                        .get("optional")
+                        .and_then(Value::as_str)
+                        .context("optional `$path` must contain a string")?,
+                    _ => bail!("`{location}.$path` must be a string or an optional path"),
+                };
+                if !ALLOWED_TEMPLATE_PATHS.contains(&path) {
+                    bail!(
+                        "`{location}.$path` points to `{path}`; templates may only use paths rproj generates"
+                    );
+                }
+            }
+            for (key, child) in object {
+                let next = if location.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{location}.{key}")
+                };
+                validate_paths(child, &next)?;
+            }
+        }
+        Value::Array(values) => {
+            for (index, child) in values.iter().enumerate() {
+                validate_paths(child, &format!("{location}[{index}]"))?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
+    path.iter().try_fold(value, |current, key| current.get(key))
+}
+
+fn child_object_mut<'a>(
+    parent: &'a mut Map<String, Value>,
+    key: &str,
+) -> Result<&'a mut Map<String, Value>> {
+    parent
+        .get_mut(key)
+        .and_then(Value::as_object_mut)
+        .with_context(|| format!("project template `{key}` must be an object"))
+}
+
+pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
+    validate_template_structure(template)?;
+    let workspace = ValidationWorkspace::new()?;
+    for (label, workflow, tests, server_packages) in [
+        ("plain", PackageWorkflow::None, false, false),
+        ("wally", PackageWorkflow::Wally, true, true),
+        ("submodules", PackageWorkflow::GitSubmodules, true, false),
+    ] {
+        let dir = workspace.path.join(label);
+        materialize_validation_project(&dir)?;
+        let document = project_document(
+            "TemplateValidation",
+            workflow,
+            tests,
+            server_packages,
+            Some(template),
+        )?;
+        fs::write(
+            dir.join("default.project.json"),
+            serde_json::to_string_pretty(&document)?,
+        )?;
+        for (check, args) in [
+            (
+                "sourcemap",
+                ["sourcemap", "default.project.json", "-o", "sourcemap.json"],
+            ),
+            (
+                "build",
+                ["build", "default.project.json", "-o", "validation.rbxl"],
+            ),
+        ] {
+            let output = capture("rojo", &args, Some(&dir)).context(
+                "Rojo is required to validate templates; run `rproj setup` and try again",
+            )?;
+            if !output.success {
+                bail!(
+                    "Rojo rejected the {label} template during {check} validation (run `rproj setup` if Rojo is not installed):\n{}",
+                    output.combined().trim()
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn materialize_validation_project(dir: &Path) -> Result<()> {
+    for path in ALLOWED_TEMPLATE_PATHS {
+        let path = dir.join(path);
+        fs::create_dir_all(&path)?;
+        fs::write(path.join("template.luau"), "return nil\n")?;
+    }
+    Ok(())
+}
+
+struct ValidationWorkspace {
+    path: PathBuf,
+}
+
+impl ValidationWorkspace {
+    fn new() -> Result<Self> {
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let path = std::env::temp_dir().join(format!(
+            "rproj-template-validation-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path)?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for ValidationWorkspace {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
 }
 
 /// Installs/updates the Rojo Studio plugin via Rojo's own CLI command -
@@ -221,4 +410,150 @@ pub fn watch_sourcemap(project_dir: &Path) -> Result<()> {
     // reporting as one.
     let _ = status;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn built_in_template_matches_the_existing_project_shape() {
+        let project = project_document("MyGame", PackageWorkflow::None, false, false, None)
+            .expect("render project");
+
+        assert_eq!(project["name"], "MyGame");
+        assert_eq!(project["tree"]["$className"], "DataModel");
+        assert_eq!(
+            project["tree"]["ReplicatedStorage"]["shared"]["$path"],
+            "src/shared"
+        );
+        assert_eq!(
+            project["tree"]["Lighting"]["$properties"]["Brightness"],
+            2.5
+        );
+    }
+
+    #[test]
+    fn custom_nodes_and_top_level_settings_survive_generation() {
+        let mut template = builtin_project_template();
+        template["servePort"] = json!(40000);
+        template["tree"]["Workspace"] = json!({
+            "$className": "Workspace",
+            "$properties": { "Gravity": 100 }
+        });
+
+        let project = project_document(
+            "CustomGame",
+            PackageWorkflow::Wally,
+            true,
+            true,
+            Some(&template),
+        )
+        .expect("render custom project");
+
+        assert_eq!(project["name"], "CustomGame");
+        assert_eq!(project["servePort"], 40000);
+        assert_eq!(project["tree"]["Workspace"]["$properties"]["Gravity"], 100);
+        assert_eq!(
+            project["tree"]["ReplicatedStorage"]["packages"]["$path"],
+            "Packages"
+        );
+        assert_eq!(
+            project["tree"]["ServerScriptService"]["serverPackages"]["$path"],
+            "ServerPackages"
+        );
+        assert_eq!(
+            project["tree"]["StarterPlayer"]["StarterPlayerScripts"]["test"]["$path"],
+            "tests/client"
+        );
+    }
+
+    #[test]
+    fn changing_a_core_mount_is_rejected() {
+        let mut template = builtin_project_template();
+        template["tree"]["ReplicatedStorage"]["shared"]["$path"] = json!("src/other");
+
+        let error = validate_template_structure(&template)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("ReplicatedStorage.shared.$path"), "{error}");
+        assert!(error.contains("src/shared"), "{error}");
+    }
+
+    #[test]
+    fn dependency_and_test_mount_names_are_reserved() {
+        for path in RESERVED_DYNAMIC_PATHS {
+            let mut template = builtin_project_template();
+            let mut current = &mut template;
+            for key in &path[..path.len() - 1] {
+                current = current.get_mut(*key).expect("reserved parent exists");
+            }
+            current[path[path.len() - 1]] = json!({ "$className": "Folder" });
+
+            let error = validate_template_structure(&template)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("reserved"), "{}: {error}", path.join("."));
+        }
+    }
+
+    #[test]
+    fn paths_outside_the_generated_tree_are_rejected() {
+        let mut template = builtin_project_template();
+        template["tree"]["Workspace"] = json!({ "$path": "assets/map.rbxm" });
+
+        let error = validate_template_structure(&template)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("paths rproj generates"), "{error}");
+    }
+
+    #[test]
+    fn each_dependency_workflow_gets_only_its_own_mount() {
+        let wally = project_document("WallyGame", PackageWorkflow::Wally, false, false, None)
+            .expect("wally project");
+        let modules = project_document(
+            "ModuleGame",
+            PackageWorkflow::GitSubmodules,
+            false,
+            false,
+            None,
+        )
+        .expect("submodule project");
+
+        assert!(wally["tree"]["ReplicatedStorage"].get("packages").is_some());
+        assert!(wally["tree"]["ReplicatedStorage"].get("modules").is_none());
+        assert!(
+            modules["tree"]["ReplicatedStorage"]
+                .get("modules")
+                .is_some()
+        );
+        assert!(
+            modules["tree"]["ReplicatedStorage"]
+                .get("packages")
+                .is_none()
+        );
+    }
+
+    #[test]
+    #[ignore = "requires a real Rojo binary on PATH"]
+    fn built_in_template_passes_every_real_rojo_validation_variant() {
+        validate_template_with_rojo(&builtin_project_template())
+            .expect("built-in template should pass Rojo validation");
+    }
+
+    #[test]
+    #[ignore = "requires a real Rojo binary on PATH"]
+    fn real_rojo_rejects_an_invalid_property_value() {
+        let mut template = builtin_project_template();
+        template["tree"]["Broken"] = json!({
+            "$className": "Part",
+            "$properties": { "Anchored": "not-a-boolean" }
+        });
+
+        let error = validate_template_with_rojo(&template)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("Rojo rejected"), "{error}");
+    }
 }

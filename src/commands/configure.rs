@@ -1,6 +1,5 @@
-//! `rproj configure [tool]` - walk through a tool's settings one at a
-//! time, explaining what each one does, and write the answers to that
-//! tool's config file.
+//! `rproj configure [key]` - configure a project tool or route to the
+//! machine-wide Rojo project template editor.
 //!
 //! Entirely driven by `catalog::tool_settings`: this module knows how to
 //! render a `SettingSpec` and how to write the two `ConfigTarget` kinds,
@@ -20,6 +19,9 @@ use crate::steps::vscode;
 use crate::ui;
 
 pub fn run(key: Option<&str>) -> Result<()> {
+    if key == Some("project") {
+        return super::project_template::run();
+    }
     let project_dir = std::env::current_dir()?;
 
     let tool = match key {
@@ -29,11 +31,15 @@ pub fn run(key: Option<&str>) -> Result<()> {
                 CONFIGURABLE_TOOLS
                     .iter()
                     .map(|t| t.key)
+                    .chain(std::iter::once("project"))
                     .collect::<Vec<_>>()
                     .join(", ")
             )
         })?,
-        None => pick_tool()?,
+        None => match pick_target()? {
+            Some(tool) => tool,
+            None => return super::project_template::run(),
+        },
     };
 
     println!(
@@ -103,16 +109,26 @@ fn read_if_present(path: &Path) -> Result<String> {
     }
 }
 
-fn pick_tool() -> Result<&'static ConfigurableTool> {
-    let options: Vec<String> = CONFIGURABLE_TOOLS
+fn pick_target() -> Result<Option<&'static ConfigurableTool>> {
+    let mut options: Vec<String> = CONFIGURABLE_TOOLS
         .iter()
         .map(|t| format!("{}{}{}", t.key, ui::OPTION_SEPARATOR, t.display_name))
         .collect();
-    let picked = Select::new("Which tool do you want to configure?", options)
+    options.push(format!(
+        "project{}Default project tree for future projects",
+        ui::OPTION_SEPARATOR
+    ));
+    let picked = Select::new("What do you want to configure?", options)
         .with_formatter(&ui::compact_select_answer)
         .prompt()?;
     let key = ui::option_key(&picked);
-    tool_settings::find(key).context("internal: picked an unknown tool")
+    if key == "project" {
+        Ok(None)
+    } else {
+        Ok(Some(
+            tool_settings::find(key).context("internal: picked an unknown tool")?,
+        ))
+    }
 }
 
 fn target_description(target: &ConfigTarget) -> String {
