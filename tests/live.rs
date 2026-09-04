@@ -24,7 +24,7 @@ mod common;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use common::{Session, DOWN, ENTER, ESC, LEFT};
+use common::{DOWN, ENTER, ESC, LEFT, Session};
 
 /// A scaffolded project, removed when the test ends however it ends.
 struct LiveProject {
@@ -108,7 +108,9 @@ impl LiveProject {
             .filter_map(|entry| Some(entry.ok()?.path()))
             .collect();
         let found = entries.iter().find(|entry| {
-            entry.file_stem().is_some_and(|stem| stem.eq_ignore_ascii_case(key))
+            entry
+                .file_stem()
+                .is_some_and(|stem| stem.eq_ignore_ascii_case(key))
         });
         match found {
             Some(file) => std::fs::read_to_string(file).expect("read link file"),
@@ -142,8 +144,14 @@ fn projects_root() -> PathBuf {
         .map(|appdata| PathBuf::from(appdata).join("rproj").join("config.toml"))
         .and_then(|path| std::fs::read_to_string(path).ok())
         .and_then(|text| {
-            text.lines()
-                .find_map(|line| line.trim().strip_prefix("roblox_projects_root = ")?.trim().strip_prefix('"')?.strip_suffix('"').map(str::to_string))
+            text.lines().find_map(|line| {
+                line.trim()
+                    .strip_prefix("roblox_projects_root = ")?
+                    .trim()
+                    .strip_prefix('"')?
+                    .strip_suffix('"')
+                    .map(str::to_string)
+            })
         });
     match configured {
         Some(root) => PathBuf::from(root.replace("\\\\", "\\")),
@@ -161,7 +169,11 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
         .join(".rokit")
         .join("bin")
         .join(format!("{tool}.exe"));
-    let program = if shim.is_file() { shim } else { PathBuf::from(tool) };
+    let program = if shim.is_file() {
+        shim
+    } else {
+        PathBuf::from(tool)
+    };
 
     let output = Command::new(&program)
         .args(args)
@@ -292,7 +304,10 @@ fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
         "you chose lint",
         "rokit.toml",
     ] {
-        assert!(screen.contains(expected), "expected {expected:?} in:\n{screen}");
+        assert!(
+            screen.contains(expected),
+            "expected {expected:?} in:\n{screen}"
+        );
     }
     // The capability names its tool, so a user who enabled "lint" has seen
     // the word Selene by the time the project exists.
@@ -302,7 +317,10 @@ fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
     // And none of this is a checkbox: the summary is a summary. The old
     // flow rendered these as `key - description (badge)` option lines.
     for offered in ["wally.toml - ", "rokit.toml - ", "selene.toml - "] {
-        assert!(!screen.contains(offered), "{offered:?} must not be a checkbox:\n{screen}");
+        assert!(
+            !screen.contains(offered),
+            "{offered:?} must not be a checkbox:\n{screen}"
+        );
     }
 
     session.send(ESC);
@@ -370,10 +388,15 @@ fn changing_an_early_answer_reasks_only_what_it_invalidates() {
     // and the manifest that only existed for Wally is gone with it.
     session.wait_for("Dependencies  none");
     let after = session.text();
-    assert!(after.contains("Packages      none"), "packages were invalidated:
-{after}");
     assert!(
-        after.rfind("wally.toml").is_none_or(|at| at < after.rfind("Dependencies  none").unwrap()),
+        after.contains("Packages      none"),
+        "packages were invalidated:
+{after}"
+    );
+    assert!(
+        after
+            .rfind("wally.toml")
+            .is_none_or(|at| at < after.rfind("Dependencies  none").unwrap()),
         "the manifest must not survive the strategy that wanted it:
 {after}"
     );
@@ -383,8 +406,12 @@ fn changing_an_early_answer_reasks_only_what_it_invalidates() {
     session.send(ENTER);
 
     let outcome = session.finish();
-    assert_eq!(outcome.code, 0, "cancelling is a clean exit:
-{}", outcome.text);
+    assert_eq!(
+        outcome.code, 0,
+        "cancelling is a clean exit:
+{}",
+        outcome.text
+    );
     assert!(!path.exists(), "cancel must leave nothing behind");
 }
 
@@ -422,16 +449,26 @@ fn a_wally_project_scaffolds_and_passes_its_own_gate() {
     // `wally install` rewrites link files without their `export type`
     // lines; `wally::sync` puts them back. Losing this is silent - the
     // types just stop existing.
-    assert!(link.contains("export type"), "package types were stripped:\n{link}");
+    assert!(
+        link.contains("export type"),
+        "package types were stripped:\n{link}"
+    );
 
     // Case-insensitive on purpose. A Wally package is mounted under the
     // alias from `wally.toml`, so the instance is `charm`, not `Charm` -
     // the casing is wally's business here. It is *not* in the submodule
     // test below, where the mount name is load-bearing (§8.2).
     let sourcemap = project.read("sourcemap.json").to_lowercase();
-    assert!(sourcemap.contains("\"charm\""), "charm missing from the sourcemap");
+    assert!(
+        sourcemap.contains("\"charm\""),
+        "charm missing from the sourcemap"
+    );
 
-    assert_eq!(project.gate(), 0, "a freshly scaffolded project failed its own gate");
+    assert_eq!(
+        project.gate(),
+        0,
+        "a freshly scaffolded project failed its own gate"
+    );
 }
 
 /// The §8.2 claim, which until now was only ever checked by hand: a
@@ -445,12 +482,18 @@ fn submodule_packages_resolve_under_both_names_and_build() {
     let project = LiveProject::scaffold("live-submodules", &["charmSync"], true);
 
     assert!(project.exists("modules/Charm.luau"), "link file missing");
-    assert!(project.exists("modules/CharmSync.luau"), "link file missing");
+    assert!(
+        project.exists("modules/CharmSync.luau"),
+        "link file missing"
+    );
     assert!(project.exists("modules/submodules/default.project.json"));
 
     let sourcemap = project.read("sourcemap.json");
     for name in ["Charm", "CharmSync"] {
-        assert!(sourcemap.contains(&format!("\"{name}\"")), "{name} missing from the sourcemap");
+        assert!(
+            sourcemap.contains(&format!("\"{name}\"")),
+            "{name} missing from the sourcemap"
+        );
     }
 
     // The real test of the mount: rojo refuses a `$path` it can't turn into
@@ -470,23 +513,40 @@ fn the_generated_gate_rejects_bad_code_one_step_at_a_time() {
     let project = LiveProject::scaffold("live-gate", &["testez"], false);
     assert_eq!(project.gate(), 0, "should start green");
 
-    let spec = project.path().join("tests").join("shared").join("hello.spec.luau");
+    let spec = project
+        .path()
+        .join("tests")
+        .join("shared")
+        .join("hello.spec.luau");
     let original = std::fs::read_to_string(&spec).expect("starter spec");
 
     // Each of these is a well-formed Luau file that exactly one gate step
     // objects to - a syntax error would fail every step at once and prove
     // only that something ran.
     let breakages: &[(&str, &str)] = &[
-        ("luau-lsp: a string where a number is declared", "\nlocal wrong: number = \"not a number\"\nprint(wrong)\n"),
-        ("selene: an undefined global", "\nprint(someUndefinedGlobalName)\n"),
-        ("stylua: space indentation where the config says tabs", "\nlocal function f()\n    return 1\nend\nprint(f())\n"),
+        (
+            "luau-lsp: a string where a number is declared",
+            "\nlocal wrong: number = \"not a number\"\nprint(wrong)\n",
+        ),
+        (
+            "selene: an undefined global",
+            "\nprint(someUndefinedGlobalName)\n",
+        ),
+        (
+            "stylua: space indentation where the config says tabs",
+            "\nlocal function f()\n    return 1\nend\nprint(f())\n",
+        ),
     ];
 
     for (what, addition) in breakages {
         std::fs::write(&spec, format!("{original}{addition}")).expect("break the spec");
         assert_ne!(project.gate(), 0, "the gate accepted bad code ({what})");
         std::fs::write(&spec, &original).expect("restore the spec");
-        assert_eq!(project.gate(), 0, "restoring should go green again ({what})");
+        assert_eq!(
+            project.gate(),
+            0,
+            "restoring should go green again ({what})"
+        );
     }
 }
 
@@ -503,7 +563,15 @@ fn watch_restores_submodules_in_a_fresh_clone() {
     let (code, output) = run(
         project.path(),
         "git",
-        &["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "scaffold"],
+        &[
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "scaffold",
+        ],
     );
     assert_eq!(code, 0, "{output}");
 
@@ -512,7 +580,12 @@ fn watch_restores_submodules_in_a_fresh_clone() {
     let (code, output) = run(
         projects_root().as_path(),
         "git",
-        &["clone", "-q", &project.path().display().to_string(), &clone.display().to_string()],
+        &[
+            "clone",
+            "-q",
+            &project.path().display().to_string(),
+            &clone.display().to_string(),
+        ],
     );
     assert_eq!(code, 0, "clone failed:\n{output}");
     struct Cleanup(PathBuf);
@@ -526,7 +599,9 @@ fn watch_restores_submodules_in_a_fresh_clone() {
     // The state a teammate actually gets: the directory exists and is empty.
     let vendored = clone.join("modules").join("submodules").join("charm");
     assert!(
-        std::fs::read_dir(&vendored).map(|mut d| d.next().is_none()).unwrap_or(true),
+        std::fs::read_dir(&vendored)
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(true),
         "the clone already has submodule contents, so this proves nothing"
     );
 
@@ -540,8 +615,13 @@ fn watch_restores_submodules_in_a_fresh_clone() {
     drop(session);
 
     assert!(
-        std::fs::read_dir(&vendored).map(|mut d| d.next().is_some()).unwrap_or(false),
+        std::fs::read_dir(&vendored)
+            .map(|mut d| d.next().is_some())
+            .unwrap_or(false),
         "watch did not fetch the submodule"
     );
-    assert!(clone.join("sourcemap.json").exists(), "no sourcemap after watch");
+    assert!(
+        clone.join("sourcemap.json").exists(),
+        "no sourcemap after watch"
+    );
 }

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::catalog::tool_catalog::{ToolKind, ROKIT_TOOLS};
+use crate::catalog::tool_catalog::{ROKIT_TOOLS, ToolKind};
 use crate::catalog::tool_settings;
 use crate::config::PackageWorkflow;
 use crate::steps::{capture, run_in};
@@ -148,7 +148,11 @@ pub fn ensure_selene_config(
     workflow: PackageWorkflow,
     allow_mixed_tables: bool,
 ) -> Result<()> {
-    let std_value = if testez_selected { "roblox+testez" } else { "roblox" };
+    let std_value = if testez_selected {
+        "roblox+testez"
+    } else {
+        "roblox"
+    };
     let mut overrides = vec![("std", std_value)];
     // Not a style preference being waived: with a UI library whose every
     // component is a properties-and-children table, `mixed_table` at its
@@ -181,7 +185,9 @@ pub fn ensure_selene_config(
         config = tool_settings::insert_top_level(&config, vendored);
     }
     ensure_config_file(project_dir, "selene.toml", &config, |content| {
-        content.lines().any(|l| l.trim() == format!(r#"std = "{std_value}""#))
+        content
+            .lines()
+            .any(|l| l.trim() == format!(r#"std = "{std_value}""#))
     })
 }
 
@@ -209,5 +215,3 @@ fn ensure_config_file(
     ui::ok(&format!("wrote {filename}"));
     Ok(())
 }
-
-

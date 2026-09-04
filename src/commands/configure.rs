@@ -11,10 +11,10 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use inquire::{Confirm, CustomType, Select};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::catalog::tool_settings::{
-    self, ConfigTarget, ConfigurableTool, SettingKind, SettingSpec, CONFIGURABLE_TOOLS,
+    self, CONFIGURABLE_TOOLS, ConfigTarget, ConfigurableTool, SettingKind, SettingSpec,
 };
 use crate::steps::vscode;
 use crate::ui;
@@ -26,13 +26,20 @@ pub fn run(key: Option<&str>) -> Result<()> {
         Some(key) => tool_settings::find(key).with_context(|| {
             format!(
                 "no configurable tool called `{key}`. Available: {}",
-                CONFIGURABLE_TOOLS.iter().map(|t| t.key).collect::<Vec<_>>().join(", ")
+                CONFIGURABLE_TOOLS
+                    .iter()
+                    .map(|t| t.key)
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         })?,
         None => pick_tool()?,
     };
 
-    println!("\n{} - {}\n{}\n", tool.display_name, tool.summary, tool.docs_url);
+    println!(
+        "\n{} - {}\n{}\n",
+        tool.display_name, tool.summary, tool.docs_url
+    );
     println!(
         "Enter keeps what this project already uses. Settings are written to {}.\n",
         target_description(&tool.target)
@@ -67,21 +74,31 @@ fn current_values(project_dir: &Path, tool: &ConfigurableTool) -> Result<Vec<Opt
             // surfacing now: every prompt default would otherwise be a
             // catalog value silently disagreeing with the file.
             if !existing.trim().is_empty() {
-                toml::from_str::<toml::Table>(&existing)
-                    .with_context(|| format!("could not parse {} - fix or delete it, then re-run", path.display()))?;
+                toml::from_str::<toml::Table>(&existing).with_context(|| {
+                    format!(
+                        "could not parse {} - fix or delete it, then re-run",
+                        path.display()
+                    )
+                })?;
             }
             Ok(tool_settings::current_toml_values(tool, &existing))
         }
         ConfigTarget::VsCodeSettings => {
             let settings = vscode::read_settings(project_dir)?;
-            Ok(tool.settings.iter().map(|s| settings.get(s.key).cloned()).collect())
+            Ok(tool
+                .settings
+                .iter()
+                .map(|s| settings.get(s.key).cloned())
+                .collect())
         }
     }
 }
 
 fn read_if_present(path: &Path) -> Result<String> {
     match path.exists() {
-        true => fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display())),
+        true => {
+            fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))
+        }
         false => Ok(String::new()),
     }
 }
@@ -122,11 +139,17 @@ fn ask(setting: &SettingSpec, current: Option<&Value>) -> Result<Value> {
         }
         SettingKind::Integer { default } => {
             let default = current.and_then(Value::as_i64).unwrap_or(*default);
-            json!(CustomType::<i64>::new("  Value:").with_default(default).prompt()?)
+            json!(
+                CustomType::<i64>::new("  Value:")
+                    .with_default(default)
+                    .prompt()?
+            )
         }
         SettingKind::Choice { default, options } => {
-            let labels: Vec<String> =
-                options.iter().map(|o| format!("{}{}{}", o.value, ui::OPTION_SEPARATOR, o.explanation)).collect();
+            let labels: Vec<String> = options
+                .iter()
+                .map(|o| format!("{}{}{}", o.value, ui::OPTION_SEPARATOR, o.explanation))
+                .collect();
             // A current value the catalog doesn't list (a hand-written
             // config, or one written by an older rproj) can't be the
             // starting cursor, so fall back to the documented default.
@@ -164,7 +187,6 @@ fn write_toml(project_dir: &Path, filename: &str, answers: &[(&SettingSpec, Valu
 /// Applies the answers to `.vscode/settings.json`, merging rather than
 /// replacing (see `steps::vscode::merge_settings`).
 fn write_vscode_settings(project_dir: &Path, answers: &[(&SettingSpec, Value)]) -> Result<()> {
-    let entries: Vec<(&str, Value)> =
-        answers.iter().map(|(s, v)| (s.key, v.clone())).collect();
+    let entries: Vec<(&str, Value)> = answers.iter().map(|(s, v)| (s.key, v.clone())).collect();
     vscode::merge_settings(project_dir, &entries)
 }

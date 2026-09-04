@@ -26,7 +26,8 @@ pub struct GlobalConfig {
 
 impl GlobalConfig {
     pub(crate) fn dirs() -> Result<ProjectDirs> {
-        ProjectDirs::from("", "", "rproj").context("could not determine a config directory for this platform")
+        ProjectDirs::from("", "", "rproj")
+            .context("could not determine a config directory for this platform")
     }
 
     fn path() -> Result<PathBuf> {
@@ -147,8 +148,8 @@ pub mod project_file {
         }
         let text = fs::read_to_string(&path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        let graph: ProjectGraph = toml::from_str(&text)
-            .with_context(|| format!("failed to parse {}", path.display()))?;
+        let graph: ProjectGraph =
+            toml::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))?;
         Ok(Some(graph))
     }
 
@@ -158,7 +159,6 @@ pub mod project_file {
         fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))
     }
 }
-
 
 /// A saved project composition, reusable for the next project.
 ///
@@ -202,9 +202,9 @@ impl Setups {
         }
         let text = fs::read_to_string(&path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        Ok(Some(
-            toml::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))?,
-        ))
+        Ok(Some(toml::from_str(&text).with_context(|| {
+            format!("failed to parse {}", path.display())
+        })?))
     }
 
     /// Names of every saved setup, sorted. Missing directory is not an
@@ -215,14 +215,19 @@ impl Setups {
     /// a setup that then fails to load, because the path exists and so the
     /// `None` branch in `load` never fires.
     pub fn list() -> Vec<String> {
-        let Ok(dir) = Self::dir() else { return Vec::new() };
-        let Ok(entries) = fs::read_dir(dir) else { return Vec::new() };
+        let Ok(dir) = Self::dir() else {
+            return Vec::new();
+        };
+        let Ok(entries) = fs::read_dir(dir) else {
+            return Vec::new();
+        };
         let mut names: Vec<String> = entries
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
             .filter_map(|e| {
                 let path = e.path();
-                (path.extension()? == "toml").then(|| path.file_stem()?.to_str().map(str::to_owned))?
+                (path.extension()? == "toml")
+                    .then(|| path.file_stem()?.to_str().map(str::to_owned))?
             })
             .collect();
         names.sort();
@@ -241,12 +246,14 @@ mod tests {
     /// path does exist.
     #[test]
     fn listing_ignores_a_directory_named_like_a_setup() {
-        let dir = std::env::temp_dir()
-            .join(format!("rproj-list-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("rproj-list-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("trap.toml")).expect("create the trap");
-        fs::write(dir.join("real.toml"), "packages = []\npackage_workflow = \"wally\"\n")
-            .expect("write a real one");
+        fs::write(
+            dir.join("real.toml"),
+            "packages = []\npackage_workflow = \"wally\"\n",
+        )
+        .expect("write a real one");
         fs::write(dir.join("notes.txt"), "not a setup").expect("write");
 
         // The same filter chain `list` runs, against a directory the test
@@ -258,7 +265,8 @@ mod tests {
             .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
             .filter_map(|e| {
                 let path = e.path();
-                (path.extension()? == "toml").then(|| path.file_stem()?.to_str().map(str::to_owned))?
+                (path.extension()? == "toml")
+                    .then(|| path.file_stem()?.to_str().map(str::to_owned))?
             })
             .collect();
         names.sort();
@@ -277,7 +285,10 @@ mod tests {
             ..Default::default()
         })
         .expect("serialise");
-        assert!(text.contains("package_workflow = \"git-submodules\""), "{text}");
+        assert!(
+            text.contains("package_workflow = \"git-submodules\""),
+            "{text}"
+        );
         assert!(!text.contains("GitSubmodules"), "{text}");
     }
 }

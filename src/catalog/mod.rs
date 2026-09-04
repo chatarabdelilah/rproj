@@ -87,12 +87,30 @@ mod tests {
     #[test]
     fn every_entry_has_a_plausible_docs_url() {
         for entry in tool_catalog::all_setup_entries() {
-            assert!(entry.docs_url.starts_with("https://"), "{}: {}", entry.key, entry.docs_url);
-            assert!(!entry.description.is_empty(), "{} has no description", entry.key);
+            assert!(
+                entry.docs_url.starts_with("https://"),
+                "{}: {}",
+                entry.key,
+                entry.docs_url
+            );
+            assert!(
+                !entry.description.is_empty(),
+                "{} has no description",
+                entry.key
+            );
         }
         for package in wally_packages::PACKAGES {
-            assert!(package.docs_url.starts_with("https://"), "{}: {}", package.key, package.docs_url);
-            assert!(!package.description.is_empty(), "{} has no description", package.key);
+            assert!(
+                package.docs_url.starts_with("https://"),
+                "{}: {}",
+                package.key,
+                package.docs_url
+            );
+            assert!(
+                !package.description.is_empty(),
+                "{} has no description",
+                package.key
+            );
         }
     }
 
@@ -102,10 +120,26 @@ mod tests {
     fn every_package_source_is_a_valid_wally_coordinate() {
         for package in wally_packages::PACKAGES {
             let source = package.source;
-            assert!(source.contains('/'), "{}: `{source}` has no scope", package.key);
-            assert!(source.contains('@'), "{}: `{source}` has no version", package.key);
-            assert!(!package.author().is_empty(), "{}: empty author", package.key);
-            assert!(!package.version().is_empty(), "{}: empty version", package.key);
+            assert!(
+                source.contains('/'),
+                "{}: `{source}` has no scope",
+                package.key
+            );
+            assert!(
+                source.contains('@'),
+                "{}: `{source}` has no version",
+                package.key
+            );
+            assert!(
+                !package.author().is_empty(),
+                "{}: empty author",
+                package.key
+            );
+            assert!(
+                !package.version().is_empty(),
+                "{}: empty version",
+                package.key
+            );
         }
     }
 

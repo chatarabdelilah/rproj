@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::config::project_file;
 use crate::steps::{git, rojo, toolchain, wally};
@@ -40,5 +40,4 @@ pub fn run() -> Result<()> {
 
     println!("\nWatching for changes - press Ctrl+C to stop.");
     rojo::watch_sourcemap(&project_dir)
-
 }

@@ -60,7 +60,9 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     bootstrap::ensure_rokit()?;
     let mut apps = Tally::new();
     for key in &system_apps {
-        let Some(entry) = SYSTEM_APPS.iter().find(|e| e.key == *key) else { continue };
+        let Some(entry) = SYSTEM_APPS.iter().find(|e| e.key == *key) else {
+            continue;
+        };
         if bootstrap::is_installed(entry) {
             apps.already(entry.key);
         } else {
@@ -77,7 +79,10 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     }
     apps.finish("system apps");
 
-    let projects_root = config.roblox_projects_root.clone().unwrap_or(config.projects_root()?);
+    let projects_root = config
+        .roblox_projects_root
+        .clone()
+        .unwrap_or(config.projects_root()?);
     bootstrap::ensure_projects_folder(&projects_root)?;
 
     // Installs each selected rokit tool into rokit's global manifest so
@@ -94,7 +99,10 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     // isn't actually there - check first and skip with a clear reason
     // instead (this comes up in practice: Roblox Studio's winget package
     // has its own known hash-mismatch issue, see bootstrap::install).
-    let studio_installed = SYSTEM_APPS.iter().find(|e| e.key == "studio").is_some_and(bootstrap::is_installed);
+    let studio_installed = SYSTEM_APPS
+        .iter()
+        .find(|e| e.key == "studio")
+        .is_some_and(bootstrap::is_installed);
     if plugins.iter().any(|k| k == "rojo-plugin") {
         if studio_installed {
             if let Err(err) = rojo::install_studio_plugin() {
@@ -110,10 +118,17 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     // because it could not tell a release-asset plugin from Rojo's
     // CLI-installed one - both were `StudioPlugin`, distinguished only by an
     // empty `asset_suffix`.
-    for entry in PLUGINS.iter().filter(|e| plugins.iter().any(|k| *k == e.key)) {
+    for entry in PLUGINS
+        .iter()
+        .filter(|e| plugins.iter().any(|k| *k == e.key))
+    {
         match entry.kind {
-            ToolKind::StudioPlugin { github_repo, asset_suffix } => {
-                if let Err(err) = studio_plugin::install_from_latest_release(github_repo, asset_suffix)
+            ToolKind::StudioPlugin {
+                github_repo,
+                asset_suffix,
+            } => {
+                if let Err(err) =
+                    studio_plugin::install_from_latest_release(github_repo, asset_suffix)
                 {
                     warn_and_continue(entry.key, &err);
                 }
@@ -135,7 +150,8 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     if plugins.iter().any(|k| k == "blender-plugin")
         && let Some(repo) = blender_addon_repo()
     {
-        match blender::download_latest_plugin_zip(repo).and_then(|zip| blender::install_addon(&zip)) {
+        match blender::download_latest_plugin_zip(repo).and_then(|zip| blender::install_addon(&zip))
+        {
             Ok(()) => blender::print_account_link_instructions(),
             Err(err) => warn_and_continue("blender-plugin", &err),
         }
@@ -229,7 +245,6 @@ fn pick_from_catalog(
         .map(|e| e.key.to_string())
         .collect())
 }
-
 
 /// Unix seconds, as a string. Doubles as the "has this machine been
 /// provisioned" marker (`GlobalConfig::machine_configured`).

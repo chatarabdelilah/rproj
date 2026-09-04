@@ -27,7 +27,9 @@ const CHECK_EVERY_SECS: u64 = 60 * 60 * 24;
 /// version check, so there is no `Result` to handle (the `probe` argument
 /// from the process boundary, applied to a network call).
 pub fn nudge_if_outdated() {
-    let Some(latest) = latest_version() else { return };
+    let Some(latest) = latest_version() else {
+        return;
+    };
     if is_newer(&latest, CURRENT) {
         ui::detail(&format!(
             "rproj {latest} is available (you have {CURRENT}) - cargo install rproj --force"
@@ -49,7 +51,12 @@ fn latest_version() -> Option<String> {
 }
 
 fn cache_path() -> Option<PathBuf> {
-    Some(GlobalConfig::dirs().ok()?.cache_dir().join("latest-version"))
+    Some(
+        GlobalConfig::dirs()
+            .ok()?
+            .cache_dir()
+            .join("latest-version"),
+    )
 }
 
 fn now_secs() -> u64 {
@@ -182,7 +189,13 @@ mod tests {
     /// this runs before the user's actual command.
     #[test]
     fn a_malformed_response_is_none() {
-        for body in ["", "not json", "{}", r#"{"versions":[]}"#, r#"{"versions":{}}"#] {
+        for body in [
+            "",
+            "not json",
+            "{}",
+            r#"{"versions":[]}"#,
+            r#"{"versions":{}}"#,
+        ] {
             assert_eq!(newest_from_json(body), None, "{body}");
         }
     }

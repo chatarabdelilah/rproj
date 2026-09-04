@@ -10,7 +10,7 @@ mod common;
 
 use std::process::{Command, Stdio};
 
-use common::{Session, TempProject, ENTER, ESC};
+use common::{ENTER, ESC, Session, TempProject};
 
 /// Section menu, entry list, detail page, and back out again.
 ///
@@ -57,7 +57,11 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
     session.send(ESC);
 
     let outcome = session.finish();
-    assert_eq!(outcome.code, 0, "leaving the browser is a clean exit:\n{}", outcome.text);
+    assert_eq!(
+        outcome.code, 0,
+        "leaving the browser is a clean exit:\n{}",
+        outcome.text
+    );
 }
 
 /// With no terminal on stdin, print the flat listing instead of prompting.
@@ -98,6 +102,12 @@ fn a_named_lookup_prints_one_entry_and_exits() {
     assert_eq!(output.status.code(), Some(0));
     let text = String::from_utf8_lossy(&output.stdout);
     assert!(text.starts_with("rojo\n----"), "{text}");
-    assert!(text.contains("rojo serve"), "the commands are the point:\n{text}");
-    assert!(!text.contains("WALLY PACKAGES"), "one entry, not the catalog:\n{text}");
+    assert!(
+        text.contains("rojo serve"),
+        "the commands are the point:\n{text}"
+    );
+    assert!(
+        !text.contains("WALLY PACKAGES"),
+        "one entry, not the catalog:\n{text}"
+    );
 }

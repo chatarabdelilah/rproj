@@ -40,7 +40,11 @@ pub struct CheckStep {
 /// unconditionally would fail the gate on exactly the projects that have no
 /// tests to check.
 fn targets(testez_selected: bool) -> &'static str {
-    if testez_selected { r#""src", "tests""# } else { r#""src""# }
+    if testez_selected {
+        r#""src", "tests""#
+    } else {
+        r#""src""#
+    }
 }
 
 /// `luau-lsp analyze` needs Roblox's global type definitions, which aren't
@@ -146,7 +150,10 @@ pub fn render_check(selected_tools: &[String], testez_selected: bool) -> Option<
          -- Run locally with `lute run check`; CI runs the same script.\n\n",
     );
     for name in &imports {
-        out.push_str(&format!("local {name} = require(\"{}\")\n", import_path(name)));
+        out.push_str(&format!(
+            "local {name} = require(\"{}\")\n",
+            import_path(name)
+        ));
     }
 
     // Plain replace rather than `format!`: these bodies are Luau and full
@@ -155,13 +162,24 @@ pub fn render_check(selected_tools: &[String], testez_selected: bool) -> Option<
     // that no longer reads like the code it generates.
     let targets = targets(testez_selected);
     for step in &steps {
-        out.push_str(&format!("\n-- {}\n{}\n", step.comment, step.body.replace("{targets}", targets)));
+        out.push_str(&format!(
+            "\n-- {}\n{}\n",
+            step.comment,
+            step.body.replace("{targets}", targets)
+        ));
     }
 
-    let vars: Vec<&str> = steps.iter().map(|s| s.result_var).filter(|v| !v.is_empty()).collect();
+    let vars: Vec<&str> = steps
+        .iter()
+        .map(|s| s.result_var)
+        .filter(|v| !v.is_empty())
+        .collect();
     if !vars.is_empty() {
-        let condition =
-            vars.iter().map(|v| format!("{v}.ok")).collect::<Vec<_>>().join(" and ");
+        let condition = vars
+            .iter()
+            .map(|v| format!("{v}.ok"))
+            .collect::<Vec<_>>()
+            .join(" and ");
         out.push_str(&format!(
             "\n-- Every check runs before exiting, so one run reports all problems\n\
              -- rather than stopping at the first.\n\
@@ -202,7 +220,11 @@ const WPT_FIXED_REV: &str = "daf5c97bf451e9fed47080769cfaa75d419eb768";
 fn wally_ci_steps(has_server_packages: bool) -> String {
     // Naming a directory that doesn't exist is an error, and ServerPackages/
     // only exists when something server-realm was selected.
-    let dirs = if has_server_packages { "Packages ServerPackages" } else { "Packages" };
+    let dirs = if has_server_packages {
+        "Packages ServerPackages"
+    } else {
+        "Packages"
+    };
     format!(
         r#"
       # wally-package-types 1.6.2 - the newest release, and what rokit.toml
@@ -303,8 +325,14 @@ mod tests {
         let script = render_check(&tools(&["rojo", "selene"]), false).unwrap();
         assert!(script.contains("\"rojo\""));
         assert!(script.contains("\"selene\""));
-        assert!(!script.contains("\"stylua\""), "stylua not selected:\n{script}");
-        assert!(!script.contains("luau-lsp"), "luau-lsp not selected:\n{script}");
+        assert!(
+            !script.contains("\"stylua\""),
+            "stylua not selected:\n{script}"
+        );
+        assert!(
+            !script.contains("luau-lsp"),
+            "luau-lsp not selected:\n{script}"
+        );
     }
 
     /// An unused local is exactly what selene/luau-lsp - which this very
@@ -314,7 +342,10 @@ mod tests {
         let script = render_check(&tools(&["rojo", "stylua"]), false).unwrap();
         assert!(script.contains(r#"local process = require("@lute/process")"#));
         assert!(!script.contains("@std/fs"), "fs is unused here:\n{script}");
-        assert!(!script.contains("@lute/net"), "net is unused here:\n{script}");
+        assert!(
+            !script.contains("@lute/net"),
+            "net is unused here:\n{script}"
+        );
 
         // luau-lsp's step is the only one needing fs and net.
         let with_analyze = render_check(&tools(&["luau-lsp-cli"]), false).unwrap();
@@ -326,10 +357,17 @@ mod tests {
     /// script fails to compile / silently ignores a failing check.
     #[test]
     fn aggregates_exactly_the_declared_result_vars() {
-        let script = render_check(&tools(&["rojo", "luau-lsp-cli", "selene", "stylua"]), false).unwrap();
+        let script =
+            render_check(&tools(&["rojo", "luau-lsp-cli", "selene", "stylua"]), false).unwrap();
         for var in ["analyze", "selene", "stylua"] {
-            assert!(script.contains(&format!("local {var} = process.run")), "{var} not declared");
-            assert!(script.contains(&format!("{var}.ok")), "{var} not aggregated");
+            assert!(
+                script.contains(&format!("local {var} = process.run")),
+                "{var} not declared"
+            );
+            assert!(
+                script.contains(&format!("{var}.ok")),
+                "{var} not aggregated"
+            );
         }
         // rojo's step declares no result var, so it must not be aggregated.
         assert!(!script.contains("rojo.ok"));
@@ -346,9 +384,18 @@ mod tests {
         let tools = tools(&["rojo", "luau-lsp-cli", "selene", "stylua"]);
 
         let with_tests = render_check(&tools, true).unwrap();
-        assert!(with_tests.contains(r#"{ "selene", "src", "tests" }"#), "{with_tests}");
-        assert!(with_tests.contains(r#"{ "stylua", "--check", "src", "tests" }"#), "{with_tests}");
-        assert!(with_tests.contains("\t\"src\", \"tests\",\n"), "analyze:\n{with_tests}");
+        assert!(
+            with_tests.contains(r#"{ "selene", "src", "tests" }"#),
+            "{with_tests}"
+        );
+        assert!(
+            with_tests.contains(r#"{ "stylua", "--check", "src", "tests" }"#),
+            "{with_tests}"
+        );
+        assert!(
+            with_tests.contains("\t\"src\", \"tests\",\n"),
+            "analyze:\n{with_tests}"
+        );
 
         // Without TestEZ there is no tests/ directory, and every one of
         // these tools errors on a path that doesn't exist - so naming it
@@ -360,7 +407,10 @@ mod tests {
         // The placeholder is an implementation detail; none may survive
         // into the generated Luau.
         for script in [&with_tests, &without] {
-            assert!(!script.contains("{targets}"), "unsubstituted placeholder:\n{script}");
+            assert!(
+                !script.contains("{targets}"),
+                "unsubstituted placeholder:\n{script}"
+            );
         }
     }
 
@@ -369,7 +419,10 @@ mod tests {
     #[test]
     fn omits_exit_check_when_no_step_produces_a_result() {
         let script = render_check(&tools(&["rojo"]), false).unwrap();
-        assert!(!script.contains("process.exit"), "nothing to gate on:\n{script}");
+        assert!(
+            !script.contains("process.exit"),
+            "nothing to gate on:\n{script}"
+        );
     }
 
     /// No selected tool means no gate, and callers use that to decide
@@ -435,10 +488,17 @@ mod tests {
 
         // A branch or tag would make CI non-reproducible, and a short sha
         // is ambiguous.
-        assert_eq!(WPT_FIXED_REV.len(), 40, "pin a full 40-char sha, not {WPT_FIXED_REV}");
+        assert_eq!(
+            WPT_FIXED_REV.len(),
+            40,
+            "pin a full 40-char sha, not {WPT_FIXED_REV}"
+        );
         assert!(WPT_FIXED_REV.chars().all(|c| c.is_ascii_hexdigit()));
         assert!(ci.contains(&format!("--rev {WPT_FIXED_REV}")), "{ci}");
-        assert!(ci.contains("cargo install --locked"), "unpinned deps aren't reproducible:\n{ci}");
+        assert!(
+            ci.contains("cargo install --locked"),
+            "unpinned deps aren't reproducible:\n{ci}"
+        );
 
         // It must be built before it's used.
         assert!(
@@ -462,7 +522,10 @@ mod tests {
     #[test]
     fn ci_retypes_server_packages_only_when_there_are_any() {
         let with = ci_workflow(PackageWorkflow::Wally, true);
-        assert!(with.contains("sourcemap.json Packages ServerPackages"), "{with}");
+        assert!(
+            with.contains("sourcemap.json Packages ServerPackages"),
+            "{with}"
+        );
 
         let without = ci_workflow(PackageWorkflow::Wally, false);
         assert!(without.contains("sourcemap.json Packages\n"), "{without}");

@@ -243,10 +243,7 @@ pub fn derive(selected: &[(String, Option<String>)]) -> Derived {
     // Requirements first: a capability whose requirement was dropped
     // contributes nothing, or CI would still write its workflow after the
     // gate that workflow runs was turned off.
-    let keys: Vec<String> = selected
-        .iter()
-        .map(|(k, _)| k.to_string())
-        .collect();
+    let keys: Vec<String> = selected.iter().map(|(k, _)| k.to_string()).collect();
     let live = offerable(&keys);
 
     for (key, implementation) in selected {
@@ -398,7 +395,6 @@ mod tests {
         let derived = derive(&[("asset-pipeline".to_string(), Some("asphalt".to_string()))]);
         assert_eq!(derived.tools, ["asphalt"]);
         assert_eq!(derived.artifacts, ["figma", "asphalt.toml"]);
-
     }
 
     /// CI's whole body is the gate script, so without the gate it must

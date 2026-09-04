@@ -66,7 +66,10 @@ mod tests {
     /// puts every fresh clone back to a failing `stylua --check`.
     #[test]
     fn forces_lf_in_the_working_tree() {
-        assert!(GITATTRIBUTES.contains("* text=auto eol=lf"), "{GITATTRIBUTES}");
+        assert!(
+            GITATTRIBUTES.contains("* text=auto eol=lf"),
+            "{GITATTRIBUTES}"
+        );
     }
 
     /// Line-ending conversion inside a .blend or a place file corrupts it.

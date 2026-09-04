@@ -14,7 +14,10 @@ use common::{Session, TempProject};
 /// uses to recognise one, and the manifest it reads the composition from.
 fn fixture(label: &str, packages: &str) -> TempProject {
     let project = TempProject::new(label);
-    project.write("default.project.json", "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n");
+    project.write(
+        "default.project.json",
+        "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n",
+    );
     let test_capability = if packages.contains("testez") {
         "test = \"testez\"\n"
     } else {
@@ -44,22 +47,46 @@ fn a_stale_selene_config_is_brought_up_to_date() {
     assert_eq!(outcome.code, 0, "{}", outcome.text);
 
     let selene = project.read("selene.toml");
-    assert!(selene.contains(r#"mixed_table = "allow""#), "vide waiver missing:\n{selene}");
-    assert!(selene.contains(r#"std = "roblox+testez""#), "testez std missing:\n{selene}");
-    assert!(selene.contains(r#"exclude = ["Packages/**"#), "vendored exclude missing:\n{selene}");
+    assert!(
+        selene.contains(r#"mixed_table = "allow""#),
+        "vide waiver missing:\n{selene}"
+    );
+    assert!(
+        selene.contains(r#"std = "roblox+testez""#),
+        "testez std missing:\n{selene}"
+    );
+    assert!(
+        selene.contains(r#"exclude = ["Packages/**"#),
+        "vendored exclude missing:\n{selene}"
+    );
     // The one that makes this safe to run: a lint level the user chose
     // themselves is not a thing rproj derives, so it must survive.
-    assert!(selene.contains(r#"unused_variable = "allow""#), "clobbered a user choice:\n{selene}");
+    assert!(
+        selene.contains(r#"unused_variable = "allow""#),
+        "clobbered a user choice:\n{selene}"
+    );
 }
 
 /// A project with no Vide keeps the lint - the waiver is not a blanket one.
 #[test]
 fn a_project_without_a_create_style_ui_library_keeps_the_lint() {
     let project = fixture("selene-nonvide", "\"charm\"");
-    project.write("selene.toml", "std = \"roblox\"\n\n[rules]\nmixed_table = \"warn\"\n");
+    project.write(
+        "selene.toml",
+        "std = \"roblox\"\n\n[rules]\nmixed_table = \"warn\"\n",
+    );
 
-    assert_eq!(Session::start(project.path(), &["upgrade", "--yes"]).finish().code, 0);
-    assert!(project.read("selene.toml").contains(r#"mixed_table = "warn""#));
+    assert_eq!(
+        Session::start(project.path(), &["upgrade", "--yes"])
+            .finish()
+            .code,
+        0
+    );
+    assert!(
+        project
+            .read("selene.toml")
+            .contains(r#"mixed_table = "warn""#)
+    );
 }
 
 /// Deprecated settings rproj itself wrote have to go, or the file rproj
@@ -76,11 +103,23 @@ fn deprecated_editor_settings_are_replaced_not_merely_supplemented() {
     assert_eq!(outcome.code, 0, "{}", outcome.text);
 
     let settings = project.read(".vscode/settings.json");
-    assert!(settings.contains(r#""luau-lsp.studioPlugin.enabled": true"#), "{settings}");
-    assert!(!settings.contains(r#""luau-lsp.plugin.enabled""#), "deprecated key kept:\n{settings}");
-    assert!(!settings.contains(r#""luau-lsp.types.roblox""#), "deprecated key kept:\n{settings}");
+    assert!(
+        settings.contains(r#""luau-lsp.studioPlugin.enabled": true"#),
+        "{settings}"
+    );
+    assert!(
+        !settings.contains(r#""luau-lsp.plugin.enabled""#),
+        "deprecated key kept:\n{settings}"
+    );
+    assert!(
+        !settings.contains(r#""luau-lsp.types.roblox""#),
+        "deprecated key kept:\n{settings}"
+    );
     assert!(settings.contains(r#""files.eol": "\n""#), "{settings}");
-    assert!(settings.contains(r#""editor.rulers""#), "unrelated key lost:\n{settings}");
+    assert!(
+        settings.contains(r#""editor.rulers""#),
+        "unrelated key lost:\n{settings}"
+    );
 }
 
 /// Running it twice must do nothing the second time, or it churns git
@@ -88,15 +127,27 @@ fn deprecated_editor_settings_are_replaced_not_merely_supplemented() {
 #[test]
 fn a_second_run_reports_nothing_to_do() {
     let project = fixture("idempotent", "\"vide\"");
-    project.write("selene.toml", "std = \"roblox\"\n\n[rules]\nmixed_table = \"warn\"\n");
+    project.write(
+        "selene.toml",
+        "std = \"roblox\"\n\n[rules]\nmixed_table = \"warn\"\n",
+    );
 
-    assert_eq!(Session::start(project.path(), &["upgrade", "--yes"]).finish().code, 0);
+    assert_eq!(
+        Session::start(project.path(), &["upgrade", "--yes"])
+            .finish()
+            .code,
+        0
+    );
     let after_first = project.read("selene.toml");
 
     let second = Session::start(project.path(), &["upgrade", "--yes"]).finish();
     assert_eq!(second.code, 0, "{}", second.text);
     second.assert_contains("already up to date");
-    assert_eq!(project.read("selene.toml"), after_first, "second run rewrote the file");
+    assert_eq!(
+        project.read("selene.toml"),
+        after_first,
+        "second run rewrote the file"
+    );
 }
 
 /// Files the user owns are seeded once and then edited by hand; rewriting
@@ -104,15 +155,31 @@ fn a_second_run_reports_nothing_to_do() {
 #[test]
 fn files_the_user_owns_are_left_alone() {
     let project = fixture("hands-off", "\"vide\"");
-    project.write("selene.toml", "std = \"roblox\"\n\n[rules]\nmixed_table = \"warn\"\n");
+    project.write(
+        "selene.toml",
+        "std = \"roblox\"\n\n[rules]\nmixed_table = \"warn\"\n",
+    );
     let stylua = "column_width = 80\nindent_type = \"Spaces\"\n";
     project.write("stylua.toml", stylua);
     let manifest = "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n";
 
-    assert_eq!(Session::start(project.path(), &["upgrade", "--yes"]).finish().code, 0);
+    assert_eq!(
+        Session::start(project.path(), &["upgrade", "--yes"])
+            .finish()
+            .code,
+        0
+    );
 
-    assert_eq!(project.read("stylua.toml"), stylua, "stylua.toml is the user's");
-    assert_eq!(project.read("default.project.json"), manifest, "the project file is the user's");
+    assert_eq!(
+        project.read("stylua.toml"),
+        stylua,
+        "stylua.toml is the user's"
+    );
+    assert_eq!(
+        project.read("default.project.json"),
+        manifest,
+        "the project file is the user's"
+    );
 }
 
 /// Without `rproj.toml` the package list is unknown, and guessing it from
@@ -149,7 +216,10 @@ fn a_directory_that_is_not_a_project_is_refused() {
 #[test]
 fn upgrade_does_not_restore_a_capability_the_project_declined() {
     let project = TempProject::new("declined-ci");
-    project.write("default.project.json", "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n");
+    project.write(
+        "default.project.json",
+        "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n",
+    );
     // Lint and the gate, but no `ci` - and no `.github/` on disk.
     project.write(
         "rproj.toml",
@@ -160,7 +230,11 @@ fn upgrade_does_not_restore_a_capability_the_project_declined() {
     let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
 
-    assert!(project.exists(".lute/check.luau"), "the gate was chosen:\n{}", outcome.text);
+    assert!(
+        project.exists(".lute/check.luau"),
+        "the gate was chosen:\n{}",
+        outcome.text
+    );
     assert!(
         !project.exists(".github/workflows/ci.yml"),
         "CI was never chosen and must not appear:\n{}",
@@ -173,7 +247,10 @@ fn upgrade_does_not_restore_a_capability_the_project_declined() {
 #[test]
 fn upgrade_respects_files_dropped_at_creation() {
     let project = TempProject::new("dropped-gate");
-    project.write("default.project.json", "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n");
+    project.write(
+        "default.project.json",
+        "{\n  \"name\": \"fixture\",\n  \"tree\": {}\n}\n",
+    );
     project.write(
         "rproj.toml",
         "mode = \"expert\"\npackage_workflow = \"none\"\npackages = []\n\

@@ -44,9 +44,12 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
             Ok(())
         }
         Some(Command::Setup { tool }) => commands::setup::run(tool.as_deref()),
-        Some(Command::New { name, reconfigure, like, save_setup }) => {
-            commands::new::run(&name, reconfigure, like.as_deref(), save_setup.as_deref())
-        }
+        Some(Command::New {
+            name,
+            reconfigure,
+            like,
+            save_setup,
+        }) => commands::new::run(&name, reconfigure, like.as_deref(), save_setup.as_deref()),
         Some(Command::Configure { key }) => commands::configure::run(key.as_deref()),
         Some(Command::Upgrade { yes }) => commands::upgrade::run(yes),
         Some(Command::Watch) => commands::watch::run(),

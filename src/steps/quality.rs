@@ -6,7 +6,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::catalog::quality_checks::{ci_workflow, render_check};
 use crate::config::PackageWorkflow;
@@ -47,8 +47,14 @@ pub fn ensure_luaurc(project_dir: &Path) -> Result<()> {
     }
     config.insert("languageMode".to_string(), json!("strict"));
 
-    fs::write(&path, format!("{}\n", serde_json::to_string_pretty(&Value::Object(config))?))
-        .with_context(|| format!("failed to write {}", path.display()))?;
+    fs::write(
+        &path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&Value::Object(config))?
+        ),
+    )
+    .with_context(|| format!("failed to write {}", path.display()))?;
     ui::ok("wrote .luaurc");
     Ok(())
 }
@@ -99,7 +105,9 @@ pub fn ensure_ci_workflow(
 /// same command anyway.
 pub fn lute_setup(project_dir: &Path) -> Result<()> {
     if !probe("lute", &["--version"]) {
-        ui::skip("lute isn't on PATH yet - run `lute setup --with-luaurc` in the project once it is");
+        ui::skip(
+            "lute isn't on PATH yet - run `lute setup --with-luaurc` in the project once it is",
+        );
         return Ok(());
     }
     if let Err(err) = run_in("lute", &["setup", "--with-luaurc"], Some(project_dir)) {
@@ -107,4 +115,3 @@ pub fn lute_setup(project_dir: &Path) -> Result<()> {
     }
     Ok(())
 }
-

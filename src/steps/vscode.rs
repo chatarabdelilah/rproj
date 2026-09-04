@@ -3,8 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
-use serde_json::{json, Value};
+use anyhow::{Context, Result, bail};
+use serde_json::{Value, json};
 
 use crate::config::PackageWorkflow;
 use crate::steps::probe;
@@ -47,11 +47,15 @@ fn locate_code() -> Result<CodeInvocation> {
 /// batch-file association machinery.
 fn run_code(args: &[&str]) -> Result<std::process::Output> {
     match locate_code()? {
-        CodeInvocation::OnPath => Command::new("code").args(args).output().context("failed to spawn `code`"),
+        CodeInvocation::OnPath => Command::new("code")
+            .args(args)
+            .output()
+            .context("failed to spawn `code`"),
         CodeInvocation::Cmd(path) => {
             let mut cmd = Command::new("cmd");
             cmd.arg("/C").arg(&path).args(args);
-            cmd.output().with_context(|| format!("failed to spawn `{}` via cmd.exe", path.display()))
+            cmd.output()
+                .with_context(|| format!("failed to spawn `{}` via cmd.exe", path.display()))
         }
     }
 }
@@ -162,7 +166,10 @@ pub fn merged_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<
         settings.insert((*key).to_string(), value.clone());
     }
     drop_superseded(&mut settings);
-    Ok(format!("{}\n", serde_json::to_string_pretty(&Value::Object(settings))?))
+    Ok(format!(
+        "{}\n",
+        serde_json::to_string_pretty(&Value::Object(settings))?
+    ))
 }
 
 /// Setting names rproj used to write, paired with what replaced them.
@@ -224,7 +231,10 @@ pub fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)>
         // `rproj watch` runs `rojo sourcemap --watch` itself. Leaving the
         // extension to autogenerate as well puts two watchers on one file.
         ("luau-lsp.sourcemap.autogenerate", json!(false)),
-        ("luau-lsp.sourcemap.rojoProjectFile", json!("default.project.json")),
+        (
+            "luau-lsp.sourcemap.rojoProjectFile",
+            json!("default.project.json"),
+        ),
         ("luau-lsp.sourcemap.sourcemapFile", json!("sourcemap.json")),
         // `luau-lsp.types.roblox` is the deprecated spelling of this and
         // setting both earns a deprecation squiggle in the file rproj just
@@ -260,7 +270,10 @@ pub fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)>
 
     if workflow == PackageWorkflow::GitSubmodules {
         entries.push(("luau-lsp.ignoreGlobs", json!(VENDORED_GLOBS)));
-        entries.push(("luau-lsp.completion.imports.ignoreGlobs", json!(VENDORED_GLOBS)));
+        entries.push((
+            "luau-lsp.completion.imports.ignoreGlobs",
+            json!(VENDORED_GLOBS),
+        ));
     }
     entries
 }
@@ -284,12 +297,21 @@ mod tests {
     /// while adding `submodules` would regress projects using both.
     #[test]
     fn vendored_globs_extend_rather_than_replace_the_defaults() {
-        assert!(VENDORED_GLOBS.contains(&"**/_Index/**"), "must keep Wally's vendored dir");
-        assert!(VENDORED_GLOBS.contains(&"**/submodules/**"), "must add the submodule dir");
+        assert!(
+            VENDORED_GLOBS.contains(&"**/_Index/**"),
+            "must keep Wally's vendored dir"
+        );
+        assert!(
+            VENDORED_GLOBS.contains(&"**/submodules/**"),
+            "must add the submodule dir"
+        );
     }
 
     fn setting(workflow: PackageWorkflow, key: &str) -> Option<Value> {
-        project_settings(workflow).into_iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+        project_settings(workflow)
+            .into_iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, v)| v)
     }
 
     /// This used to write nothing at all unless the project used git
@@ -298,7 +320,10 @@ mod tests {
     #[test]
     fn both_workflows_get_editor_settings() {
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            assert!(!project_settings(workflow).is_empty(), "{workflow:?} got nothing");
+            assert!(
+                !project_settings(workflow).is_empty(),
+                "{workflow:?} got nothing"
+            );
         }
     }
 
@@ -311,8 +336,14 @@ mod tests {
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
             // The non-deprecated spelling: `luau-lsp.plugin.enabled` is
             // deprecated in favour of this one.
-            assert_eq!(setting(workflow, "luau-lsp.studioPlugin.enabled"), Some(json!(true)));
-            assert!(setting(workflow, "luau-lsp.plugin.enabled").is_none(), "deprecated spelling");
+            assert_eq!(
+                setting(workflow, "luau-lsp.studioPlugin.enabled"),
+                Some(json!(true))
+            );
+            assert!(
+                setting(workflow, "luau-lsp.plugin.enabled").is_none(),
+                "deprecated spelling"
+            );
         }
     }
 
@@ -322,7 +353,10 @@ mod tests {
     /// specified". An empty workspace value restores the normal lookup.
     #[test]
     fn a_stale_global_stylua_config_path_is_neutralised() {
-        assert_eq!(setting(PackageWorkflow::Wally, "stylua.configPath"), Some(json!("")));
+        assert_eq!(
+            setting(PackageWorkflow::Wally, "stylua.configPath"),
+            Some(json!(""))
+        );
     }
 
     /// Adding the replacement isn't enough: the deprecated key stays valid
@@ -337,7 +371,10 @@ mod tests {
         drop_superseded(&mut settings);
         assert!(!settings.contains_key("luau-lsp.plugin.enabled"));
         assert!(settings.contains_key("luau-lsp.studioPlugin.enabled"));
-        assert!(settings.contains_key("editor.rulers"), "unrelated keys must survive");
+        assert!(
+            settings.contains_key("editor.rulers"),
+            "unrelated keys must survive"
+        );
     }
 
     /// Without the guard, `rproj configure stylua-vscode` on an older
@@ -355,11 +392,19 @@ mod tests {
     /// writes, or the guard never fires and the key is never cleaned up.
     #[test]
     fn every_replacement_is_a_setting_rproj_writes() {
-        let written: Vec<&str> =
-            project_settings(PackageWorkflow::Wally).into_iter().map(|(k, _)| k).collect();
+        let written: Vec<&str> = project_settings(PackageWorkflow::Wally)
+            .into_iter()
+            .map(|(k, _)| k)
+            .collect();
         for (old, replacement) in SUPERSEDED {
-            assert!(written.contains(replacement), "{old} -> {replacement} is never written");
-            assert!(!written.contains(old), "{old} is deprecated and must not be written");
+            assert!(
+                written.contains(replacement),
+                "{old} -> {replacement} is never written"
+            );
+            assert!(
+                !written.contains(old),
+                "{old} is deprecated and must not be written"
+            );
         }
     }
 
@@ -369,8 +414,13 @@ mod tests {
     /// whole-file diff in which every line looks identical.
     #[test]
     fn new_files_are_created_with_unix_line_endings() {
-        assert_eq!(setting(PackageWorkflow::Wally, "files.eol"), Some(json!("
-")));
+        assert_eq!(
+            setting(PackageWorkflow::Wally, "files.eol"),
+            Some(json!(
+                "
+"
+            ))
+        );
     }
 
     /// Deprecated in favour of `luau-lsp.platform.type`, which is written
@@ -378,7 +428,10 @@ mod tests {
     #[test]
     fn the_deprecated_roblox_types_switch_is_not_written() {
         assert!(setting(PackageWorkflow::Wally, "luau-lsp.types.roblox").is_none());
-        assert_eq!(setting(PackageWorkflow::Wally, "luau-lsp.platform.type"), Some(json!("roblox")));
+        assert_eq!(
+            setting(PackageWorkflow::Wally, "luau-lsp.platform.type"),
+            Some(json!("roblox"))
+        );
     }
 
     /// `rproj watch` runs `rojo sourcemap --watch`; letting the extension

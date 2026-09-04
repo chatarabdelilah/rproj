@@ -371,9 +371,15 @@ mod tests {
     fn every_option_line_fits_the_budget() {
         let budget = option_budget();
         for (key, desc) in [
-            ("t", "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions"),
+            (
+                "t",
+                "Runtime type checker - validates values (e.g. RemoteEvent payloads) against type definitions",
+            ),
             ("testez", &"very long description ".repeat(12)),
-            ("sift", "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used"),
+            (
+                "sift",
+                "Immutable data utility library for tables/arrays (Llama-style helpers) - no longer actively maintained upstream, but stable and widely used",
+            ),
             ("janitor", "Cleanup"),
         ] {
             let line = option_line(key, desc, "stable");
@@ -411,7 +417,10 @@ mod tests {
     fn option_matching_does_not_confuse_prefixes() {
         let label = "reactRoblox - React's Roblox renderer (active)";
         assert!(option_is(label, "reactRoblox"));
-        assert!(!option_is(label, "react"), "prefix must not match a longer key");
+        assert!(
+            !option_is(label, "react"),
+            "prefix must not match a longer key"
+        );
         assert_eq!(option_key(label), "reactRoblox");
     }
 
@@ -485,8 +494,15 @@ mod tests {
     fn a_long_list_wraps_rather_than_collapsing() {
         let mut tally = Tally::new();
         for name in [
-            "rojo", "wally", "wally-package-types", "selene", "stylua", "lute",
-            "luau-lsp-cli", "asphalt", "tungsten",
+            "rojo",
+            "wally",
+            "wally-package-types",
+            "selene",
+            "stylua",
+            "lute",
+            "luau-lsp-cli",
+            "asphalt",
+            "tungsten",
         ] {
             tally.already(name);
         }
@@ -512,7 +528,11 @@ mod tests {
         let mut tally = Tally::new();
         tally.already("a-very-long-tool-name-that-exceeds-any-sensible-budget");
         let lines = tally.summary_within("tools", 20);
-        assert!(lines.join(" ").contains("a-very-long-tool-name-that-exceeds-any-sensible-budget"));
+        assert!(
+            lines
+                .join(" ")
+                .contains("a-very-long-tool-name-that-exceeds-any-sensible-budget")
+        );
     }
 
     /// A tally with nothing in it should print nothing at all, not an empty
@@ -526,8 +546,10 @@ mod tests {
     /// `key - description (badge)` line, which is unreadable past two.
     #[test]
     fn a_multi_select_summary_lists_keys_only() {
-        let labels = ["react - Roact-style declarative UI library (active)".to_string(),
-                      "reflex - Redux-inspired state container (active)".to_string()];
+        let labels = [
+            "react - Roact-style declarative UI library (active)".to_string(),
+            "reflex - Redux-inspired state container (active)".to_string(),
+        ];
         let opts: Vec<inquire::list_option::ListOption<&String>> = labels
             .iter()
             .enumerate()

@@ -27,14 +27,14 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use inquire::Confirm;
 use serde_json::json;
 
 use crate::catalog::quality_checks::{ci_workflow, render_check};
 use crate::catalog::tool_settings::{self, SettingSpec};
 use crate::catalog::wally_packages;
-use crate::config::{project_file, PackageWorkflow};
+use crate::config::{PackageWorkflow, project_file};
 use crate::graph::ProjectGraph;
 use crate::steps::{gitignore, quality, testez, vscode};
 use crate::ui;
@@ -85,7 +85,11 @@ pub fn run(assume_yes: bool) -> Result<()> {
              Your own selene lint levels are kept; only std, mixed_table and exclude are set.\n"
         );
 
-        if !assume_yes && !Confirm::new("Apply these changes?").with_default(true).prompt()? {
+        if !assume_yes
+            && !Confirm::new("Apply these changes?")
+                .with_default(true)
+                .prompt()?
+        {
             ui::skip("nothing written");
             return Ok(());
         }
@@ -133,12 +137,24 @@ fn plan(
     if wants("selene.toml")
         && let Some(contents) = selene_config(project_dir, packages, workflow, testez_selected)?
     {
-        push(&mut rewrites, project_dir, "selene.toml", contents, "std, mixed_table and exclude follow this project's packages and workflow")?;
+        push(
+            &mut rewrites,
+            project_dir,
+            "selene.toml",
+            contents,
+            "std, mixed_table and exclude follow this project's packages and workflow",
+        )?;
     }
 
     if wants(".vscode/settings.json") {
         let settings = vscode::merged_settings(project_dir, &vscode::project_settings(workflow))?;
-        push(&mut rewrites, project_dir, ".vscode/settings.json", settings, "editor settings rproj manages; your other keys are kept")?;
+        push(
+            &mut rewrites,
+            project_dir,
+            ".vscode/settings.json",
+            settings,
+            "editor settings rproj manages; your other keys are kept",
+        )?;
     }
 
     // The gate script names the tools this project pinned, so it has to be
@@ -146,20 +162,44 @@ fn plan(
     if wants(".lute/check.luau")
         && let Some(contents) = render_check(&project.tools(), testez_selected)
     {
-        push(&mut rewrites, project_dir, ".lute/check.luau", contents, "the generated quality gate")?;
+        push(
+            &mut rewrites,
+            project_dir,
+            ".lute/check.luau",
+            contents,
+            "the generated quality gate",
+        )?;
 
         if wants(".github/workflows/ci.yml") {
             let has_server_packages =
                 workflow == PackageWorkflow::Wally && wally_packages::has_server_realm(packages);
-            push(&mut rewrites, project_dir, ".github/workflows/ci.yml", ci_workflow(workflow, has_server_packages), "the generated CI workflow")?;
+            push(
+                &mut rewrites,
+                project_dir,
+                ".github/workflows/ci.yml",
+                ci_workflow(workflow, has_server_packages),
+                "the generated CI workflow",
+            )?;
         }
     }
 
     if wants("testez.yml") {
-        push(&mut rewrites, project_dir, "testez.yml", testez::TESTEZ_STD.to_string(), "selene's TestEZ standard library")?;
+        push(
+            &mut rewrites,
+            project_dir,
+            "testez.yml",
+            testez::TESTEZ_STD.to_string(),
+            "selene's TestEZ standard library",
+        )?;
     }
     if wants("testez-companion.toml") {
-        push(&mut rewrites, project_dir, "testez-companion.toml", testez::companion_config(), "TestEZ Companion's test roots")?;
+        push(
+            &mut rewrites,
+            project_dir,
+            "testez-companion.toml",
+            testez::companion_config(),
+            "TestEZ Companion's test roots",
+        )?;
     }
 
     Ok(rewrites)
@@ -176,29 +216,47 @@ fn selene_config(
     let path = project_dir.join("selene.toml");
     let Ok(existing) = fs::read_to_string(&path) else {
         // No selene.toml at all: fall through to the full scaffolded file.
-        return Ok(tool_settings::default_toml("selene", &overrides(packages, testez_selected))
-            .map(|config| tool_settings::insert_top_level(&config, vendored_exclude(workflow))));
+        return Ok(
+            tool_settings::default_toml("selene", &overrides(packages, testez_selected))
+                .map(|config| tool_settings::insert_top_level(&config, vendored_exclude(workflow))),
+        );
     };
 
     let tool = tool_settings::find("selene").context("selene missing from the catalog")?;
     let managed: Vec<(&SettingSpec, serde_json::Value)> = overrides(packages, testez_selected)
         .into_iter()
         .filter_map(|(key, value)| {
-            tool.settings.iter().find(|s| s.key == key).map(|s| (s, json!(value)))
+            tool.settings
+                .iter()
+                .find(|s| s.key == key)
+                .map(|s| (s, json!(value)))
         })
         .collect();
 
     let mut updated = tool_settings::merge_toml(&existing, &managed);
     // `exclude` is not a catalog setting - `merge_toml` preserves it if it's
     // there and can't add it if it isn't.
-    if !existing.lines().any(|line| line.trim_start().starts_with("exclude")) {
+    if !existing
+        .lines()
+        .any(|line| line.trim_start().starts_with("exclude"))
+    {
         updated = tool_settings::insert_top_level(&updated, vendored_exclude(workflow));
     }
     Ok((updated != existing).then_some(updated))
 }
 
-fn overrides(packages: &BTreeSet<String>, testez_selected: bool) -> Vec<(&'static str, &'static str)> {
-    let mut overrides = vec![("std", if testez_selected { "roblox+testez" } else { "roblox" })];
+fn overrides(
+    packages: &BTreeSet<String>,
+    testez_selected: bool,
+) -> Vec<(&'static str, &'static str)> {
+    let mut overrides = vec![(
+        "std",
+        if testez_selected {
+            "roblox+testez"
+        } else {
+            "roblox"
+        },
+    )];
     if wally_packages::allows_mixed_tables(packages) {
         overrides.push(("mixed_table", "allow"));
     }

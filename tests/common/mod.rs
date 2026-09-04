@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{CommandBuilder, MasterPty, PtySize, native_pty_system};
 
 pub const ENTER: &str = "\r";
 pub const DOWN: &str = "\x1b[B";
@@ -42,7 +42,10 @@ pub const ESC: &str = "\x1b";
 /// `RPROJ_TEST_TIMEOUT` raises it for the live suite, where a step can be a
 /// `wally install` or a `cargo install --git` on a cold cache.
 fn timeout() -> Duration {
-    let secs = std::env::var("RPROJ_TEST_TIMEOUT").ok().and_then(|v| v.parse().ok()).unwrap_or(30);
+    let secs = std::env::var("RPROJ_TEST_TIMEOUT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(30);
     Duration::from_secs(secs)
 }
 
@@ -60,8 +63,10 @@ impl TempProject {
     pub fn new(label: &str) -> Self {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
         let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir()
-            .join(format!("rproj-test-{}-{label}-{unique}", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "rproj-test-{}-{label}-{unique}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&path);
         std::fs::create_dir_all(&path).expect("create temp project");
         Self { path }
@@ -101,11 +106,19 @@ pub struct Outcome {
 
 impl Outcome {
     pub fn assert_contains(&self, needle: &str) {
-        assert!(self.text.contains(needle), "expected {needle:?} in:\n{}", self.text);
+        assert!(
+            self.text.contains(needle),
+            "expected {needle:?} in:\n{}",
+            self.text
+        );
     }
 
     pub fn assert_lacks(&self, needle: &str) {
-        assert!(!self.text.contains(needle), "did not expect {needle:?} in:\n{}", self.text);
+        assert!(
+            !self.text.contains(needle),
+            "did not expect {needle:?} in:\n{}",
+            self.text
+        );
     }
 }
 
@@ -121,7 +134,12 @@ pub struct Session {
 impl Session {
     pub fn start(cwd: &Path, args: &[&str]) -> Self {
         let pair = native_pty_system()
-            .openpty(PtySize { rows: ROWS, cols: COLS, pixel_width: 0, pixel_height: 0 })
+            .openpty(PtySize {
+                rows: ROWS,
+                cols: COLS,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
             .expect("open pty");
 
         let mut cmd = CommandBuilder::new(env!("CARGO_BIN_EXE_rproj"));
@@ -148,7 +166,12 @@ impl Session {
             });
         }
         let writer = pair.master.take_writer().expect("take writer");
-        Self { child, writer, raw, _master: pair.master }
+        Self {
+            child,
+            writer,
+            raw,
+            _master: pair.master,
+        }
     }
 
     /// The screen as it currently looks, rendered from everything written
@@ -168,7 +191,9 @@ impl Session {
     }
 
     pub fn send(&mut self, keys: &str) {
-        self.writer.write_all(keys.as_bytes()).expect("write to pty");
+        self.writer
+            .write_all(keys.as_bytes())
+            .expect("write to pty");
         self.writer.flush().expect("flush pty");
     }
 
@@ -180,7 +205,10 @@ impl Session {
             if text.contains(needle) {
                 return;
             }
-            assert!(Instant::now() < deadline, "timed out waiting for {needle:?} in:\n{text}");
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {needle:?} in:\n{text}"
+            );
             std::thread::sleep(Duration::from_millis(20));
         }
     }
@@ -222,6 +250,9 @@ impl Session {
         };
         // The reader thread may still be draining the last write.
         std::thread::sleep(Duration::from_millis(150));
-        Outcome { text: self.text(), code: status.exit_code() }
+        Outcome {
+            text: self.text(),
+            code: status.exit_code(),
+        }
     }
 }
