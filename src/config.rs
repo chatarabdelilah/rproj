@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -294,12 +295,24 @@ pub mod project_template {
     }
 
     pub(crate) fn save_to(template: &Value, path: &Path) -> Result<PathBuf> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("failed to create {}", parent.display()))?;
-        }
+        let parent = path
+            .parent()
+            .context("project template path has no parent")?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
         let text = format!("{}\n", serde_json::to_string_pretty(template)?);
-        fs::write(path, text).with_context(|| format!("failed to write {}", path.display()))?;
+        let mut staged = tempfile::NamedTempFile::new_in(parent)
+            .with_context(|| format!("failed to stage {}", path.display()))?;
+        staged
+            .write_all(text.as_bytes())
+            .with_context(|| format!("failed to stage {}", path.display()))?;
+        staged
+            .as_file()
+            .sync_all()
+            .with_context(|| format!("failed to sync {}", path.display()))?;
+        staged
+            .persist(path)
+            .with_context(|| format!("failed to replace {}", path.display()))?;
         Ok(path.to_path_buf())
     }
 }
@@ -408,6 +421,27 @@ mod tests {
         assert!(!path.exists());
         assert!(sibling.exists(), "reset removed unrelated configuration");
         assert!(!project_template::reset_at(&path).expect("repeat reset"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn saving_replaces_an_existing_template() {
+        let dir = std::env::temp_dir().join(format!(
+            "rproj-template-replace-test-{}",
+            std::process::id()
+        ));
+        let path = dir.join("default.project.json");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create fixture");
+        fs::write(&path, "previous contents").expect("write previous template");
+
+        let template = serde_json::json!({ "name": "ProjectName", "tree": {} });
+        project_template::save_to(&template, &path).expect("replace template");
+
+        assert_eq!(
+            fs::read_to_string(&path).expect("read replacement"),
+            "{\n  \"name\": \"ProjectName\",\n  \"tree\": {}\n}\n"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 }
