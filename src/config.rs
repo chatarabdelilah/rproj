@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Everything provisioning decided, machine-wide. `rproj new` reads this
 /// and re-asks only on a machine with nothing recorded, or with
@@ -235,6 +236,74 @@ impl Setups {
     }
 }
 
+/// Persistence for the machine-wide Rojo project template.
+pub mod project_template {
+    use super::*;
+
+    pub fn path() -> Result<PathBuf> {
+        Ok(GlobalConfig::dirs()?
+            .config_dir()
+            .join("templates")
+            .join("default.project.json"))
+    }
+
+    pub fn load() -> Result<Option<Value>> {
+        load_from(&path()?)
+    }
+
+    pub fn read_text() -> Result<Option<String>> {
+        read_text_from(&path()?)
+    }
+
+    pub fn save(template: &Value) -> Result<PathBuf> {
+        save_to(template, &path()?)
+    }
+
+    pub fn reset() -> Result<bool> {
+        reset_at(&path()?)
+    }
+
+    pub(crate) fn reset_at(path: &Path) -> Result<bool> {
+        if !path.exists() {
+            return Ok(false);
+        }
+        fs::remove_file(path).with_context(|| format!("failed to remove {}", path.display()))?;
+        Ok(true)
+    }
+
+    pub(crate) fn load_from(path: &Path) -> Result<Option<Value>> {
+        let Some(text) = read_text_from(path)? else {
+            return Ok(None);
+        };
+        let value = serde_json::from_str(&text).with_context(|| {
+            format!(
+                "failed to parse {} - run `rproj configure project` to repair or reset it",
+                path.display()
+            )
+        })?;
+        Ok(Some(value))
+    }
+
+    fn read_text_from(path: &Path) -> Result<Option<String>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+        fs::read_to_string(path)
+            .map(Some)
+            .with_context(|| format!("failed to read {}", path.display()))
+    }
+
+    pub(crate) fn save_to(template: &Value, path: &Path) -> Result<PathBuf> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+        let text = format!("{}\n", serde_json::to_string_pretty(template)?);
+        fs::write(path, text).with_context(|| format!("failed to write {}", path.display()))?;
+        Ok(path.to_path_buf())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -290,5 +359,55 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("GitSubmodules"), "{text}");
+    }
+
+    #[test]
+    fn project_template_round_trips_in_an_injected_location() {
+        let dir =
+            std::env::temp_dir().join(format!("rproj-template-config-test-{}", std::process::id()));
+        let path = dir.join("templates").join("default.project.json");
+        let _ = fs::remove_dir_all(&dir);
+        let template = serde_json::json!({"name": "ProjectName", "tree": {}});
+
+        project_template::save_to(&template, &path).expect("save template");
+        assert_eq!(
+            project_template::load_from(&path).expect("load template"),
+            Some(template)
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn corrupt_project_template_names_the_repair_command() {
+        let dir = std::env::temp_dir().join(format!(
+            "rproj-template-corrupt-test-{}",
+            std::process::id()
+        ));
+        let path = dir.join("default.project.json");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create fixture");
+        fs::write(&path, "not json").expect("write fixture");
+
+        let error = project_template::load_from(&path).unwrap_err().to_string();
+        assert!(error.contains("rproj configure project"), "{error}");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resetting_removes_only_the_custom_template() {
+        let dir =
+            std::env::temp_dir().join(format!("rproj-template-reset-test-{}", std::process::id()));
+        let path = dir.join("templates").join("default.project.json");
+        let sibling = dir.join("config.toml");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(path.parent().unwrap()).expect("create fixture");
+        fs::write(&path, "{}").expect("write template");
+        fs::write(&sibling, "last_checked = 'now'").expect("write sibling");
+
+        assert!(project_template::reset_at(&path).expect("reset template"));
+        assert!(!path.exists());
+        assert!(sibling.exists(), "reset removed unrelated configuration");
+        assert!(!project_template::reset_at(&path).expect("repeat reset"));
+        let _ = fs::remove_dir_all(&dir);
     }
 }

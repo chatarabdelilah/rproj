@@ -9,7 +9,7 @@ use crate::catalog::capabilities;
 use crate::catalog::tool_settings;
 use crate::catalog::wally_packages::{self, Category, PackageSpec, companions_for};
 use crate::commands::provision;
-use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file};
+use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file, project_template};
 use crate::graph::{Node, ProjectGraph};
 use crate::steps::{
     asphalt, blender, figma, git, gitattributes, gitignore, modules, quality, rojo, testez,
@@ -28,6 +28,16 @@ pub fn run(
     let project_dir = config.projects_root()?.join(name);
     if project_dir.exists() {
         bail!("{} already exists", project_dir.display());
+    }
+
+    // Read the machine-wide project template before provisioning or creating
+    // a directory. A file edited by hand after rproj validated it must fail
+    // without leaving a partial project behind.
+    let project_template = project_template::load()?;
+    if let Some(template) = &project_template {
+        rojo::validate_template_structure(template).context(
+            "the saved project template is invalid; run `rproj configure project` to repair or reset it",
+        )?;
     }
 
     // Resolve --like before doing any work, so a typo'd setup name fails
@@ -51,6 +61,12 @@ pub fn run(
     } else {
         ui::ok(&format!("machine ready: {}", config.machine_summary()));
         ui::detail("rproj setup to re-check, or rproj new --reconfigure to change");
+    }
+
+    if let Some(template) = &project_template {
+        rojo::validate_template_with_rojo(template).context(
+            "the saved project template no longer passes Rojo validation; run `rproj configure project` to repair or reset it",
+        )?;
     }
 
     std::fs::create_dir_all(&project_dir)
@@ -148,6 +164,7 @@ pub fn run(
         package_workflow,
         &project_tools,
         &chosen_artifacts,
+        project_template.as_ref(),
     )?;
 
     // Written here rather than in `scaffold`, because it records the mode
@@ -878,6 +895,7 @@ fn scaffold(
     package_workflow: PackageWorkflow,
     project_tools: &[String],
     chosen_artifacts: &[String],
+    project_template: Option<&serde_json::Value>,
 ) -> Result<()> {
     // Which files this project gets, resolved from the selections rather
     // than decided by the order of the calls below. Everything after this
@@ -927,6 +945,7 @@ fn scaffold(
         package_workflow,
         testez_selected,
         has_server_packages,
+        project_template,
     )?;
     if writes("tests") {
         testez::ensure_test_folders(project_dir)?;

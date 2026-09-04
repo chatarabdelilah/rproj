@@ -120,7 +120,7 @@ fn an_unknown_tool_is_refused_with_the_list_of_real_ones() {
 
     assert_eq!(outcome.code, 1, "{}", outcome.text);
     outcome.assert_contains("no configurable tool called `nosuchtool`");
-    for key in ["stylua", "selene", "luau-lsp", "stylua-vscode"] {
+    for key in ["stylua", "selene", "luau-lsp", "stylua-vscode", "project"] {
         outcome.assert_contains(key);
     }
 }
@@ -132,12 +132,13 @@ fn the_tool_picker_offers_every_tool_and_runs_the_chosen_one() {
     let project = TempProject::new("tool-picker");
 
     let mut session = Session::start(project.path(), &["configure"]);
-    session.wait_for("Which tool do you want to configure?");
+    session.wait_for("What do you want to configure?");
     for key in [
         "stylua - StyLua",
         "selene - Selene",
         "luau-lsp - ",
         "stylua-vscode - ",
+        "project - Default project tree",
     ] {
         session.wait_for(key);
     }

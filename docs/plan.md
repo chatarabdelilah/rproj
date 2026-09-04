@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.8.1 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.9.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -193,16 +193,11 @@ Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli`
 
 ## 6. `default.project.json` editing
 
-Wanted: view and edit the tree used for new projects, so future projects inherit a customised layout.
+**Shipped in v0.9.0.** `rproj configure project` opens the machine-wide template in the user's editor and validates plain, Wally, and submodule project variants with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
 
-Two options, and the cheap one is probably right first:
+rproj keeps ownership of the project name, DataModel root, conventional source mounts, and dependency/testing mounts. Conflicting edits are rejected with the exact path instead of being silently overwritten. Custom `$path` values are limited to directories rproj already generates, keeping the promise that every accepted template can be validated as a project that builds. The same command restores the built-in template.
 
-| | effort | |
-| --- | --- | --- |
-| **Open in `$EDITOR`, validate on save** | ~1 day | Reuses the editor the user already knows. Validate against the Rojo schema and refuse to save a tree that would not build. |
-| **Custom TUI tree editor** | ~5–10 days | Arrow-key navigation, add/remove instance, property editing. `inquire` cannot do this; it needs raw `crossterm`. |
-
-Recommend the first for v0.4 and the second only if it is still wanted once the first exists — a validated round-trip through a real editor covers most of the need.
+A custom TUI tree editor remains deliberately unplanned. The validated editor workflow covers the need without adding a second text editor to rproj.
 
 ---
 
@@ -280,12 +275,12 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~R3~~ | ~~Capability information pages and configure hints on the summary~~ | 1–2 | **Shipped** v0.8.0. Capability pages identify their implementations; project summaries list only configuration commands that apply to the artifacts being created. |
 | M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. Asset pipeline has already proven the multi-implementation prompt shape. |
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
-| M5 | `default.project.json` via `$EDITOR` (§6) | 1–2 | |
+| ~~M5~~ | ~~`default.project.json` via `$EDITOR` (§6)~~ | 1–2 | **Shipped** v0.9.0. Global validated template through `rproj configure project`; generated mounts remain protected. |
 | M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **42–71** | ≈ 4–8 months part-time |
-| | *remaining after v0.8.0* | **22–39** | M1–M3b and R1–R3 done |
+| | *remaining after v0.9.0* | **21–37** | M1–M3b, R1–R3 and M5 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -294,8 +289,8 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
-Suggested order: **M1 → M2 → M3 → M5 → M4 → M7 → M8**, with M6 folded into M7.
-Remaining: **M5 → M4 → M7 → R4 → M8**.
+Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5**.
+Remaining: **M4 → M7 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
 
