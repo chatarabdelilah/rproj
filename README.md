@@ -116,7 +116,7 @@ my-first-game/
 
 Run `rproj configure project` to customize the `default.project.json` used by projects created afterward. The command opens the template in `VISUAL` or `EDITOR` when configured and otherwise uses Notepad on Windows. Existing projects are never changed.
 
-rproj validates the edited JSON and checks plain, Wally, and git-submodule variants with Rojo before saving it under the rproj configuration directory. Invalid edits can be reopened or discarded, and the last valid template remains active. A saved template can also be reset to rproj's built-in tree from the same command.
+rproj validates the edited JSON and checks every reachable plain, Wally, and git-submodule mount combination with Rojo before saving it under the rproj configuration directory. Invalid edits can be reopened or discarded, and the last valid template remains active. A saved template can also be reset to rproj's built-in tree from the same command.
 
 The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are managed by rproj. Package, module, server-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created `src/shared`, `src/server`, and `src/client` directories; use static instances and properties for other additions.
 

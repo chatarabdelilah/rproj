@@ -269,8 +269,18 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
     let workspace = ValidationWorkspace::new()?;
     for (label, workflow, tests, server_packages) in [
         ("plain", PackageWorkflow::None, false, false),
-        ("wally", PackageWorkflow::Wally, true, true),
-        ("submodules", PackageWorkflow::GitSubmodules, true, false),
+        ("plain-tests", PackageWorkflow::None, true, false),
+        ("wally", PackageWorkflow::Wally, false, false),
+        ("wally-server", PackageWorkflow::Wally, false, true),
+        ("wally-tests", PackageWorkflow::Wally, true, false),
+        ("wally-tests-server", PackageWorkflow::Wally, true, true),
+        ("submodules", PackageWorkflow::GitSubmodules, false, false),
+        (
+            "submodules-tests",
+            PackageWorkflow::GitSubmodules,
+            true,
+            false,
+        ),
     ] {
         let dir = workspace.path.join(label);
         materialize_validation_project(&dir, workflow, tests, server_packages)?;

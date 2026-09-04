@@ -193,7 +193,7 @@ Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli`
 
 ## 6. `default.project.json` editing
 
-**Shipped in v0.9.0.** `rproj configure project` opens the machine-wide template in the user's editor and validates plain, Wally, and submodule project variants with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
+**Shipped in v0.9.0 and hardened in v0.9.1.** `rproj configure project` opens the machine-wide template in the user's editor and validates every reachable plain, Wally, and submodule mount combination with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
 
 rproj keeps ownership of the project name, DataModel root, conventional source mounts, and dependency/testing mounts. Conflicting edits are rejected with the exact path instead of being silently overwritten. Custom `$path` values are limited to the always-created source directories; workflow-dependent package and test paths remain exclusively graph-owned. The same command restores the built-in template.
 
