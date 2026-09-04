@@ -30,12 +30,11 @@ pub fn run(
         bail!("{} already exists", project_dir.display());
     }
 
-    // Read the machine-wide project template before provisioning or creating
-    // a directory. A file edited by hand after rproj validated it must fail
-    // without leaving a partial project behind.
+    // A file edited by hand after rproj validated it must fail before any
+    // provisioning or project creation can leave changes behind.
     let project_template = project_template::load()?;
     if let Some(template) = &project_template {
-        rojo::validate_template_structure(template).context(
+        rojo::validate_template_with_rojo(template).context(
             "the saved project template is invalid; run `rproj configure project` to repair or reset it",
         )?;
     }
@@ -61,12 +60,6 @@ pub fn run(
     } else {
         ui::ok(&format!("machine ready: {}", config.machine_summary()));
         ui::detail("rproj setup to re-check, or rproj new --reconfigure to change");
-    }
-
-    if let Some(template) = &project_template {
-        rojo::validate_template_with_rojo(template).context(
-            "the saved project template no longer passes Rojo validation; run `rproj configure project` to repair or reset it",
-        )?;
     }
 
     std::fs::create_dir_all(&project_dir)

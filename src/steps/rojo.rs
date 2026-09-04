@@ -46,17 +46,7 @@ const STARTER_FILES: &[(&str, &str)] = &[
 
 pub const TEMPLATE_PROJECT_NAME: &str = "ProjectName";
 
-const ALLOWED_TEMPLATE_PATHS: &[&str] = &[
-    "src/shared",
-    "src/server",
-    "src/client",
-    "Packages",
-    "ServerPackages",
-    "modules",
-    "tests/shared",
-    "tests/server",
-    "tests/client",
-];
+const ALWAYS_CREATED_TEMPLATE_PATHS: &[&str] = &["src/shared", "src/server", "src/client"];
 
 const RESERVED_DYNAMIC_PATHS: &[&[&str]] = &[
     &["tree", "ReplicatedStorage", "packages"],
@@ -235,9 +225,9 @@ fn validate_paths(value: &Value, location: &str) -> Result<()> {
                         .context("optional `$path` must contain a string")?,
                     _ => bail!("`{location}.$path` must be a string or an optional path"),
                 };
-                if !ALLOWED_TEMPLATE_PATHS.contains(&path) {
+                if !ALWAYS_CREATED_TEMPLATE_PATHS.contains(&path) {
                     bail!(
-                        "`{location}.$path` points to `{path}`; templates may only use paths rproj generates"
+                        "`{location}.$path` points to `{path}`; custom paths may only use the always-created `src/shared`, `src/server`, or `src/client` directories"
                     );
                 }
             }
@@ -283,7 +273,7 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         ("submodules", PackageWorkflow::GitSubmodules, true, false),
     ] {
         let dir = workspace.path.join(label);
-        materialize_validation_project(&dir)?;
+        materialize_validation_project(&dir, workflow, tests, server_packages)?;
         let document = project_document(
             "TemplateValidation",
             workflow,
@@ -319,12 +309,35 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
     Ok(())
 }
 
-fn materialize_validation_project(dir: &Path) -> Result<()> {
-    for path in ALLOWED_TEMPLATE_PATHS {
-        let path = dir.join(path);
-        fs::create_dir_all(&path)?;
-        fs::write(path.join("template.luau"), "return nil\n")?;
+fn materialize_validation_project(
+    dir: &Path,
+    workflow: PackageWorkflow,
+    tests: bool,
+    server_packages: bool,
+) -> Result<()> {
+    for path in ALWAYS_CREATED_TEMPLATE_PATHS {
+        materialize_validation_path(dir, path)?;
     }
+    match workflow {
+        PackageWorkflow::Wally => materialize_validation_path(dir, "Packages")?,
+        PackageWorkflow::GitSubmodules => materialize_validation_path(dir, "modules")?,
+        PackageWorkflow::None => {}
+    }
+    if tests {
+        for path in ["tests/shared", "tests/server", "tests/client"] {
+            materialize_validation_path(dir, path)?;
+        }
+    }
+    if server_packages {
+        materialize_validation_path(dir, "ServerPackages")?;
+    }
+    Ok(())
+}
+
+fn materialize_validation_path(dir: &Path, path: &str) -> Result<()> {
+    let path = dir.join(path);
+    fs::create_dir_all(&path)?;
+    fs::write(path.join("template.luau"), "return nil\n")?;
     Ok(())
 }
 
@@ -505,7 +518,27 @@ mod tests {
         let error = validate_template_structure(&template)
             .unwrap_err()
             .to_string();
-        assert!(error.contains("paths rproj generates"), "{error}");
+        assert!(error.contains("always-created"), "{error}");
+    }
+
+    #[test]
+    fn conditional_paths_are_reserved_for_generated_mounts() {
+        for path in [
+            "Packages",
+            "ServerPackages",
+            "modules",
+            "tests/shared",
+            "tests/server",
+            "tests/client",
+        ] {
+            let mut template = builtin_project_template();
+            template["tree"]["Workspace"] = json!({ "$path": path });
+
+            let error = validate_template_structure(&template)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains("always-created"), "{path}: {error}");
+        }
     }
 
     #[test]
