@@ -114,11 +114,13 @@ my-first-game/
 
 ## Project template
 
-Run `rproj configure project` to customize the `default.project.json` used by projects created afterward. The command opens the template in `VISUAL` or `EDITOR` when configured and otherwise uses Notepad on Windows. Existing projects are never changed.
+Run `rproj configure project` to customize the `default.project.json` used by projects created afterward. It opens a built-in, keyboard-driven Explorer; it never launches another editor. Existing projects are never changed.
 
-rproj validates the edited JSON and checks every reachable plain, Wally, and git-submodule mount combination with Rojo before saving it under the rproj configuration directory. Invalid edits can be reopened or discarded, and the last valid template remains active. A saved template can also be reset to rproj's built-in tree from the same command.
+Use the arrow keys to navigate, Enter to edit, Tab to switch panes, and type in searchable class and property pickers. `A` adds an instance, `F2` renames, `D` duplicates, `M` reparents, Delete removes, and Ctrl+Z/Ctrl+Y undo and redo. The Inspector provides typed controls for common Roblox properties and attributes plus common project settings. Ctrl+E opens the complete JSON in rproj's internal text editor for uncommon Rojo values and advanced settings. Press `?` in the editor for the full key list.
 
-The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are managed by rproj. Package, module, server-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created `src/shared`, `src/server`, and `src/client` directories; use static instances and properties for other additions.
+Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain, Wally, and git-submodule mount combination with Rojo before atomically saving it under the rproj configuration directory. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
+
+The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are visible but locked because rproj owns them. Package, module, server-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created source directories; use static instances and properties for other additions. The saved template is `<rproj config>/templates/default.project.json`.
 
 ## Behavior and scope
 

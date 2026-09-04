@@ -10,7 +10,24 @@
 
 mod common;
 
+use std::process::{Command, Stdio};
+
 use common::{DOWN, ENTER, Session, TempProject};
+
+#[test]
+fn project_template_editor_refuses_a_non_interactive_terminal() {
+    let output = Command::new(env!("CARGO_BIN_EXE_rproj"))
+        .args(["configure", "project"])
+        .stdin(Stdio::null())
+        .output()
+        .expect("run project template editor");
+    assert_eq!(output.status.code(), Some(1));
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        error.contains("requires an interactive terminal"),
+        "{error}"
+    );
+}
 
 /// Exactly what `rproj new` writes for a Wally project that picked TestEZ.
 /// Held as a literal rather than generated: the point is to test what

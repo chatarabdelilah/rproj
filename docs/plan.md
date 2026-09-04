@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.9.1 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.10.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -193,11 +193,11 @@ Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli`
 
 ## 6. `default.project.json` editing
 
-**Shipped in v0.9.0 and hardened in v0.9.1.** `rproj configure project` opens the machine-wide template in the user's editor and validates every reachable plain, Wally, and submodule mount combination with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
+**Shipped in v0.9.0, hardened in v0.9.1, and given a built-in Explorer in v0.10.0.** `rproj configure project` edits the machine-wide template in a keyboard-driven TUI and validates every reachable plain, Wally, and submodule mount combination with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
 
 rproj keeps ownership of the project name, DataModel root, conventional source mounts, and dependency/testing mounts. Conflicting edits are rejected with the exact path instead of being silently overwritten. Custom `$path` values are limited to the always-created source directories; workflow-dependent package and test paths remain exclusively graph-owned. The same command restores the built-in template.
 
-A guided TUI tree editor is a candidate for the next template milestone. It needs a Rojo-aware navigation and editing model, safe instance operations, inline validation, and a raw JSON escape hatch before it can replace or complement the external-editor workflow.
+The Explorer supports searchable Roblox classes and properties, add/rename/reclass/duplicate/move/delete operations, typed common properties and attributes, project settings, undo/redo, and responsive split or stacked layouts. Advanced JSON remains inside rproj for uncommon Rojo values and future format fields. Invalid stored JSON opens directly in repair mode.
 
 ---
 
@@ -275,12 +275,13 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~R3~~ | ~~Capability information pages and configure hints on the summary~~ | 1–2 | **Shipped** v0.8.0. Capability pages identify their implementations; project summaries list only configuration commands that apply to the artifacts being created. |
 | M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. Asset pipeline has already proven the multi-implementation prompt shape. |
 | R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
-| ~~M5~~ | ~~`default.project.json` via `$EDITOR` (§6)~~ | 1–2 | **Shipped** v0.9.0. Global validated template through `rproj configure project`; generated mounts remain protected. |
+| ~~M5~~ | ~~Validated `default.project.json` customization (§6)~~ | 1–2 | **Shipped** v0.9.0. Global validated template through `rproj configure project`; generated mounts remain protected. |
+| ~~M5b~~ | ~~Built-in project-template Explorer (§6)~~ | 3–5 | **Shipped** v0.10.0. Added a Rojo-aware TUI, typed Inspector, history, and internal JSON repair mode. |
 | M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
-| | **total** | **42–71** | ≈ 4–8 months part-time |
-| | *remaining after v0.9.0* | **21–37** | M1–M3b, R1–R3 and M5 done |
+| | **total** | **45–76** | ≈ 4–8 months part-time |
+| | *remaining after v0.10.0* | **21–37** | M1–M3b, R1–R3, M5 and M5b done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -289,7 +290,7 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
-Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5**.
+Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5 → M5b**.
 Remaining: **M4 → M7 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.

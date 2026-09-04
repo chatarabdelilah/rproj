@@ -12,6 +12,7 @@ mod cli;
 mod commands;
 mod config;
 mod graph;
+mod project_editor;
 mod steps;
 mod ui;
 

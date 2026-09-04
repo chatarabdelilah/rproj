@@ -173,7 +173,7 @@ TestEZ is a Wally package. Selene is a rokit tool. GitHub Actions is neither —
 
 Every file carries its reason. Files are the one thing a beginner will actually open and edit, so the summary is the last chance to say what each is for — the same obligation the dependency prompt's descriptions discharge, one level down.
 
-The Rojo tree itself is configured outside this project flow. `rproj configure project` edits one machine-wide, Rojo-validated template for future projects; it is a default input to scaffolding, not another per-project question. rproj retains the source, package, and test mounts derived by the graph, while user-authored static instances and properties flow into `default.project.json`. Existing projects remain user-owned and are never rewritten from the global template.
+The Rojo tree itself is configured outside this project flow. `rproj configure project` edits one machine-wide, Rojo-validated template for future projects through a built-in Explorer and Inspector; it is a default input to scaffolding, not another per-project question. rproj retains the source, package, and test mounts derived by the graph, while user-authored static instances and properties flow into `default.project.json`. Advanced JSON editing remains inside the same TUI for values the guided controls do not cover. Existing projects remain user-owned and are never rewritten from the global template.
 
 ---
 
