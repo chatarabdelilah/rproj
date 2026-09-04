@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.8.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.8.1 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 

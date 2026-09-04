@@ -2,6 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/rproj.svg)](https://crates.io/crates/rproj)
 [![license](https://img.shields.io/crates/l/rproj.svg)](#license)
+[![Buy Me a Coffee](https://img.shields.io/badge/Support-Buy_Me_a_Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000)](https://buymeacoffee.com/mractr)
 
 `rproj` is a guided Windows CLI for setting up Roblox/Luau development and creating consistent projects.
 
@@ -127,6 +128,10 @@ cargo package
 ```
 
 The codebase separates CLI dispatch, decision modeling, catalogs, command orchestration, and filesystem/process steps. See [Architecture](https://github.com/chatarabdelilah/rproj/blob/main/docs/architecture.md), [Development plan](https://github.com/chatarabdelilah/rproj/blob/main/docs/plan.md), [UX redesign](https://github.com/chatarabdelilah/rproj/blob/main/docs/ux-redesign.md), and [Release process](https://github.com/chatarabdelilah/rproj/blob/main/docs/releasing.md).
+
+## Support
+
+Support continued development through [Buy Me a Coffee](https://buymeacoffee.com/mractr).
 
 ## License
 
