@@ -32,7 +32,7 @@ use inquire::Confirm;
 use serde_json::json;
 
 use crate::catalog::quality_checks::{ci_workflow, render_check};
-use crate::catalog::tool_settings::{self, SettingSpec};
+use crate::catalog::tool_settings::{self, SettingKind, SettingSpec};
 use crate::catalog::wally_packages;
 use crate::config::{PackageWorkflow, project_file};
 use crate::graph::{ProjectGraph, TestRunner};
@@ -244,8 +244,12 @@ fn selene_config(
     let Ok(existing) = fs::read_to_string(&path) else {
         // No selene.toml at all: fall through to the full scaffolded file.
         return Ok(
-            tool_settings::default_toml("selene", &overrides(packages, testez_selected))
-                .map(|config| tool_settings::insert_top_level(&config, vendored_exclude(workflow))),
+            tool_settings::default_toml("selene", &overrides(packages, testez_selected)).map(
+                |config| {
+                    let exclude = vendored_exclude(workflow);
+                    tool_settings::insert_top_level(&config, &exclude)
+                },
+            ),
         );
     };
 
@@ -261,13 +265,39 @@ fn selene_config(
         .collect();
 
     let mut updated = tool_settings::merge_toml(&existing, &managed);
-    // `exclude` is not a catalog setting - `merge_toml` preserves it if it's
-    // there and can't add it if it isn't.
-    if !existing
-        .lines()
-        .any(|line| line.trim_start().starts_with("exclude"))
-    {
-        updated = tool_settings::insert_top_level(&updated, vendored_exclude(workflow));
+    let required = vendored_excludes(workflow);
+    if !required.is_empty() {
+        let parsed: toml::Value = toml::from_str(&existing)
+            .with_context(|| format!("failed to parse {}", path.display()))?;
+        let mut excludes: Vec<String> = parsed
+            .get("exclude")
+            .map(|value| {
+                value
+                    .as_array()
+                    .context("selene.toml `exclude` must be an array")?
+                    .iter()
+                    .map(|entry| {
+                        entry
+                            .as_str()
+                            .map(str::to_string)
+                            .context("selene.toml `exclude` entries must be strings")
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
+            .transpose()?
+            .unwrap_or_default();
+        for path in required {
+            if !excludes.iter().any(|entry| entry == path) {
+                excludes.push((*path).to_string());
+            }
+        }
+        let exclude = SettingSpec {
+            key: "exclude",
+            description: "",
+            section: None,
+            kind: SettingKind::Bool { default: false },
+        };
+        updated = tool_settings::merge_toml(&updated, &[(&exclude, json!(excludes))]);
     }
     Ok((updated != existing).then_some(updated))
 }
@@ -292,14 +322,21 @@ fn overrides(
 
 /// The selene `exclude` for whatever this project vendors. Empty when it
 /// vendors nothing, so no dead key lands in the config.
-fn vendored_exclude(workflow: PackageWorkflow) -> &'static str {
+fn vendored_excludes(workflow: PackageWorkflow) -> &'static [&'static str] {
     match workflow {
-        PackageWorkflow::Wally => {
-            r#"exclude = ["Packages/**", "ServerPackages/**", "DevPackages/**"]"#
-        }
-        PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
-        PackageWorkflow::None => "",
+        PackageWorkflow::Wally => &["Packages/**", "ServerPackages/**", "DevPackages/**"],
+        PackageWorkflow::GitSubmodules => &["modules/submodules/**"],
+        PackageWorkflow::None => &[],
     }
+}
+
+fn vendored_exclude(workflow: PackageWorkflow) -> String {
+    let values = vendored_excludes(workflow)
+        .iter()
+        .map(|path| format!(r#""{path}""#))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("exclude = [{values}]")
 }
 
 /// Adds a rewrite only when the file's contents would actually change.

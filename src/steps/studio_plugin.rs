@@ -77,9 +77,14 @@ fn install_release_asset(github_repo: &str, asset_suffix: &str, replace: bool) -
         let _ = fs::remove_file(&backup);
         fs::rename(&dest, &backup)
             .with_context(|| format!("failed to prepare replacement for {}", dest.display()))?;
-        if let Err(error) = fs::rename(&pending, &dest) {
-            let _ = fs::rename(&backup, &dest);
-            return Err(error).context("failed to replace the Jest Roblox Studio runner");
+        if let Err(replace_error) = fs::rename(&pending, &dest) {
+            if let Err(restore_error) = fs::rename(&backup, &dest) {
+                bail!(
+                    "failed to replace the Jest Roblox Studio runner ({replace_error}); restoring the previous plugin also failed ({restore_error}). Recover it from {}",
+                    backup.display()
+                );
+            }
+            return Err(replace_error).context("failed to replace the Jest Roblox Studio runner");
         }
         let _ = fs::remove_file(backup);
         ui::ok(&format!("updated {name}"));
