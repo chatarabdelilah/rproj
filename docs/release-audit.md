@@ -20,7 +20,8 @@ Updated September 6, 2026. Candidate: **0.12.1**, alpha. Published baseline: 0.1
 | Compound Inspector output | Passed real-Rojo validation across the template matrix |
 | Upstream badge check | Passed September 6; advisory to review Matter's Active badge (last reported push December 31, 2024); not proof that the project is abandoned |
 | Previous CodeRabbit findings, PR #4 | Both addressed in baseline commit 4737c84; plugin identity and ServerPackages exclusion regression present |
-| Candidate package, PR CI, and CodeRabbit | Pending final candidate verification; update before publication |
+| Candidate package | cargo package --locked passed; 73 files, 851.8 KiB uncompressed |
+| PR CI and CodeRabbit | Results are attached to [PR #6](https://github.com/chatarabdelilah/rproj/pull/6); successful review and Windows stable/1.89/package checks are merge gates |
 
 Reproduction commands:
 
@@ -49,4 +50,4 @@ The live project suite uses unique directories under the configured projects roo
 
 Keep Ratatui and all external tool boundaries. The model-import experiment stays on its separate local branch and is not a dependency of this release.
 
-Finish candidate package/CI/review, merge and verify main, then remove the merged hardening branch. The owner runs cargo publish --locked only after receiving the ready-to-publish instruction. Verify crates.io before tagging v0.12.1 and creating the GitHub alpha prerelease. Do not move the existing v0.12.0 tag to a later commit.
+The owner runs cargo publish --locked only after PR #6 is reviewed, merged, main CI passes, and the ready-to-publish instruction is given. Verify crates.io before tagging v0.12.1 and creating the GitHub alpha prerelease. Do not move the existing v0.12.0 tag to a later commit.
