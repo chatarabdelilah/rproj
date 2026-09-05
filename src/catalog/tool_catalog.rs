@@ -293,6 +293,17 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
     },
     ToolEntry {
+        key: "jest-roblox",
+        description: "Runs Jest Roblox suites through Studio locally or Open Cloud in CI",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::RokitTool {
+            rokit_source: "christopher-buss/jest-roblox-cli",
+        },
+        family: "Testing & extras",
+        default_selected: false,
+        docs_url: "https://github.com/christopher-buss/jest-roblox-cli",
+    },
+    ToolEntry {
         key: "asphalt",
         description: "Modern Roblox asset-sync tool with Open Cloud, Studio/debug targets, and Luau/TypeScript code generation",
         maintenance: Maintenance::Active,
@@ -321,6 +332,18 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
 /// makes sense if Blender was selected). Not all of these install into
 /// Roblox Studio specifically - the Blender add-on installs into Blender.
 pub const PLUGINS: &[ToolEntry] = &[
+    ToolEntry {
+        key: "jest-roblox-plugin",
+        description: "Studio runner required by jest-roblox's hidden local Studio backend",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::StudioPlugin {
+            github_repo: "christopher-buss/jest-roblox-cli",
+            asset_suffix: "JestRobloxRunner.rbxm",
+        },
+        family: "Testing & extras",
+        default_selected: false,
+        docs_url: "https://github.com/christopher-buss/jest-roblox-cli",
+    },
     ToolEntry {
         key: "rojo-plugin",
         description: "Studio-side companion for Rojo's file sync (installed via `rojo plugin install`)",

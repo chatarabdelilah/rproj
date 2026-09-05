@@ -10,10 +10,10 @@ use crate::catalog::tool_settings;
 use crate::catalog::wally_packages::{self, Category, PackageSpec, companions_for};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file, project_template};
-use crate::graph::{Node, ProjectGraph};
+use crate::graph::{Node, ProjectGraph, TestRunner};
 use crate::steps::{
-    asphalt, blender, figma, git, gitattributes, gitignore, modules, quality, rojo, testez,
-    toolchain, tungsten, vscode, wally,
+    asphalt, blender, figma, git, gitattributes, gitignore, jest, modules, quality, rojo,
+    studio_plugin, testez, toolchain, tungsten, vscode, wally,
 };
 use crate::ui;
 
@@ -101,12 +101,7 @@ pub fn run(
     // A capability can pull in a package - `test` brings TestEZ - which is
     // why testing left the package picker. Applied after the graph is built
     // because it is a consequence, not an answer.
-    let derived_packages = graph.derived().packages;
-    let mut packages = graph.package_set();
-    for key in &derived_packages {
-        packages.insert(key.clone());
-    }
-    graph.packages = packages.iter().cloned().collect();
+    apply_derived_packages(&mut graph);
 
     let (apps, extensions) = (
         config.selected_system_apps.clone(),
@@ -130,11 +125,7 @@ pub fn run(
                 revise(&mut graph)?;
                 // Re-applied because a capability may have been added or
                 // removed, and `test` owns a package.
-                for key in &graph.derived().packages {
-                    if !graph.packages.iter().any(|p| p == key) {
-                        graph.packages.push(key.clone());
-                    }
-                }
+                apply_derived_packages(&mut graph);
             }
             Outcome::Cancel => {
                 // Nothing has been written yet beyond the directory, so
@@ -149,15 +140,19 @@ pub fn run(
     let packages = graph.package_set();
     let package_workflow = graph.package_workflow;
     let project_tools = graph.tools();
+    let test_runner = graph.test_runner();
     let chosen_artifacts: Vec<String> = planned.iter().map(|p| p.key.to_string()).collect();
     scaffold(
         &project_dir,
         name,
-        &packages,
-        package_workflow,
-        &project_tools,
-        &chosen_artifacts,
-        project_template.as_ref(),
+        ScaffoldOptions {
+            packages: &packages,
+            package_workflow,
+            project_tools: &project_tools,
+            test_runner,
+            chosen_artifacts: &chosen_artifacts,
+            project_template: project_template.as_ref(),
+        },
     )?;
 
     // Written here rather than in `scaffold`, because it records the mode
@@ -182,6 +177,27 @@ pub fn run(
         ui::ok(&format!(
             "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
         ));
+    }
+
+    if test_runner == Some(TestRunner::JestRoblox) {
+        if !config
+            .selected_studio_plugins
+            .iter()
+            .any(|key| key == "jest-roblox-plugin")
+        {
+            config
+                .selected_studio_plugins
+                .push("jest-roblox-plugin".into());
+            config.save()?;
+        }
+        if let Err(error) = studio_plugin::refresh_from_latest_release(
+            "christopher-buss/jest-roblox-cli",
+            "JestRobloxRunner.rbxm",
+        ) {
+            ui::warn(&format!(
+                "Jest Roblox Studio runner was not updated - {error}. Run `rproj setup` to retry"
+            ));
+        }
     }
 
     // A new project is exactly when someone doesn't yet know what to run,
@@ -222,6 +238,23 @@ fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
     match node {
         Node::Strategy => {
             graph.package_workflow = pick_strategy()?;
+            if graph.remove_incompatible_testing() {
+                ui::warn(
+                    "Jest Roblox requires Wally, so the previous testing choice no longer applies",
+                );
+                let choice = Select::new(
+                    "Testing:",
+                    owned(&[
+                        "testez - keep testing with TestEZ",
+                        "none - disable testing",
+                    ]),
+                )
+                .with_formatter(&ui::compact_select_answer)
+                .prompt()?;
+                if ui::option_key(&choice) == "testez" {
+                    graph.choose("test", Some("testez"));
+                }
+            }
         }
         Node::Packages => {
             let (mode, packages) = match graph.package_workflow {
@@ -240,7 +273,7 @@ fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
         }
         Node::Capabilities => {
             graph.capabilities.clear();
-            for (key, implementation) in pick_capabilities()? {
+            for (key, implementation) in pick_capabilities(graph.package_workflow)? {
                 graph.choose(&key, implementation.as_deref());
             }
         }
@@ -404,13 +437,20 @@ fn owned(options: &[&str]) -> Vec<String> {
 /// Returns `(capability, implementation)` pairs. The implementation is
 /// `None` wherever there is only one; `asset-pipeline` names its provider
 /// because Asphalt and Tungsten are real alternatives.
-fn pick_capabilities() -> Result<Vec<(String, Option<String>)>> {
+fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<String>)>> {
     let offerable: Vec<&'static capabilities::Capability> =
         capabilities::CAPABILITIES.iter().collect();
 
     let options: Vec<String> = offerable
         .iter()
-        .map(|c| ui::option_line(c.key, c.outcome, c.default_implementation().display))
+        .map(|c| {
+            let badge = if c.key == "test" && c.needs_an_implementation_prompt(workflow) {
+                "choose runner"
+            } else {
+                c.default_implementation().display
+            };
+            ui::option_line(c.key, c.outcome, badge)
+        })
         .collect();
     let defaults: Vec<usize> = offerable
         .iter()
@@ -447,9 +487,10 @@ fn pick_capabilities() -> Result<Vec<(String, Option<String>)>> {
             continue;
         }
 
-        let implementation = if capability.needs_an_implementation_prompt() {
-            let options: Vec<String> = capability
-                .implementations
+        let implementation = if capability.needs_an_implementation_prompt(workflow) {
+            let mut implementations = capability.implementations_for(workflow);
+            implementations.sort_by_key(|implementation| implementation.display);
+            let options: Vec<String> = implementations
                 .iter()
                 .map(|i| ui::option_line(i.key, i.display, capability.key))
                 .collect();
@@ -458,7 +499,10 @@ fn pick_capabilities() -> Result<Vec<(String, Option<String>)>> {
                 .prompt()?;
             Some(ui::option_key(&picked).to_string())
         } else {
-            None
+            capability
+                .implementations_for(workflow)
+                .first()
+                .map(|implementation| implementation.key.to_string())
         };
         chosen.push((capability.key.to_string(), implementation));
     }
@@ -505,6 +549,16 @@ fn capability_owned(key: &str) -> bool {
     capabilities::CAPABILITIES
         .iter()
         .any(|c| c.implementations.iter().any(|i| i.packages.contains(&key)))
+}
+
+fn apply_derived_packages(graph: &mut ProjectGraph) {
+    graph.packages.retain(|key| !capability_owned(key));
+    for key in graph.derived().packages {
+        if !graph.packages.contains(&key) {
+            graph.packages.push(key);
+        }
+    }
+    graph.packages.sort();
 }
 
 /// Keys with no vendorable source, for the note above the package picker.
@@ -587,7 +641,7 @@ enum Outcome {
 fn customize_plan(full_plan: &[artifacts::Planned], dropped: &[String]) -> Result<Vec<String>> {
     let droppable: Vec<&artifacts::Planned> = full_plan
         .iter()
-        .filter(|p| artifacts::find(p.key).is_some_and(|a| !a.mandatory))
+        .filter(|p| artifacts::find(p.key).is_some_and(artifacts::Artifact::droppable))
         .collect();
     if droppable.is_empty() {
         return Ok(Vec::new());
@@ -881,15 +935,24 @@ fn add_companions(packages: &mut BTreeSet<String>) {
     }
 }
 
-fn scaffold(
-    project_dir: &Path,
-    name: &str,
-    packages: &BTreeSet<String>,
+struct ScaffoldOptions<'a> {
+    packages: &'a BTreeSet<String>,
     package_workflow: PackageWorkflow,
-    project_tools: &[String],
-    chosen_artifacts: &[String],
-    project_template: Option<&serde_json::Value>,
-) -> Result<()> {
+    project_tools: &'a [String],
+    test_runner: Option<TestRunner>,
+    chosen_artifacts: &'a [String],
+    project_template: Option<&'a serde_json::Value>,
+}
+
+fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Result<()> {
+    let ScaffoldOptions {
+        packages,
+        package_workflow,
+        project_tools,
+        test_runner,
+        chosen_artifacts,
+        project_template,
+    } = options;
     // Which files this project gets, resolved from the selections rather
     // than decided by the order of the calls below. Everything after this
     // asks `writes(...)` instead of inventing its own condition - which is
@@ -927,7 +990,7 @@ fn scaffold(
         toolchain::ensure_stylua_config(project_dir)?;
     }
 
-    let testez_selected = packages.contains("testez");
+    let testez_selected = test_runner == Some(TestRunner::TestEz);
     // Only the Wally workflow has realms at all - a submodule checkout is
     // just files, mounted wholesale under modules/ regardless.
     let has_server_packages =
@@ -941,12 +1004,21 @@ fn scaffold(
         project_template,
     )?;
     if writes("tests") {
-        testez::ensure_test_folders(project_dir)?;
-        // Part of the folder, not a separate decision: it declares TestEZ's
-        // globals so the specs written a line above don't light up red in
-        // the editor. It used to be its own catalog entry, i.e. a checkbox
-        // asking whether you wanted the files you just asked for to work.
-        testez::ensure_tests_luaurc(project_dir)?;
+        let examples = writes("test-examples");
+        match test_runner {
+            Some(TestRunner::TestEz) => {
+                testez::ensure_test_tree(project_dir, examples)?;
+                testez::ensure_tests_luaurc(project_dir)?;
+            }
+            Some(TestRunner::JestRoblox) => jest::ensure_test_tree(project_dir, examples)?,
+            None => {}
+        }
+    }
+    if writes("jest.project.json") {
+        jest::refresh_project(project_dir)?;
+    }
+    if writes("jest.config.json") {
+        jest::ensure_config(project_dir)?;
     }
 
     // default.project.json maps a $path (packages/ or modules/) that has to
@@ -968,7 +1040,12 @@ fn scaffold(
             wally::write_wally_toml(project_dir, &package_name, &package_list)?;
             // Installs, generates the sourcemap, and re-adds the exported
             // types a plain `wally install` leaves off. See `wally::sync`.
-            wally::sync(project_dir)?;
+            let sourcemap_project = if test_runner == Some(TestRunner::JestRoblox) {
+                jest::PROJECT_FILE
+            } else {
+                "default.project.json"
+            };
+            wally::sync_for_project(project_dir, sourcemap_project)?;
         }
         PackageWorkflow::GitSubmodules if writes("modules") => {
             // Dedupe by target directory, not by package: monorepos like
@@ -1032,14 +1109,19 @@ fn scaffold(
     // invoke tools this project actually pins, or CI fails on a command that
     // isn't installed.
     if writes(".lute/check.luau")
-        && quality::ensure_check_script(project_dir, project_tools, testez_selected)?
+        && quality::ensure_check_script(project_dir, project_tools, test_runner.is_some())?
     {
         // The workflow only exists to run the script, so the artifact model
         // requires one on the other - unticking the script drops the CI
         // file rather than leaving a workflow whose first command is
         // missing.
         if writes(".github/workflows/ci.yml") {
-            quality::ensure_ci_workflow(project_dir, package_workflow, has_server_packages)?;
+            quality::ensure_ci_workflow(
+                project_dir,
+                package_workflow,
+                has_server_packages,
+                test_runner,
+            )?;
         }
         quality::lute_setup(project_dir)?;
     }
@@ -1096,6 +1178,11 @@ fn slugify(name: &str) -> String {
 /// a package that has no vendorable source produces a broken tree.
 fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
     if let Some(mut setup) = Setups::load(name)? {
+        if !setup.testing_is_compatible() {
+            bail!(
+                "saved setup `{name}` selects Jest Roblox without Wally; edit or replace the setup before using it"
+            );
+        }
         // Same transitive check as the interactive path: a saved setup can
         // name only vendorable packages and still be unbuildable because one
         // of them requires something that isn't.

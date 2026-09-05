@@ -70,12 +70,20 @@ fn starter_spec(area: &str) -> String {
     )
 }
 
-/// Creates `tests/{shared,server,client}` with a starter spec in each.
-pub fn ensure_test_folders(project_dir: &Path) -> Result<()> {
+/// Creates the test roots, optionally with a starter spec in each.
+pub fn ensure_test_tree(project_dir: &Path, examples: bool) -> Result<()> {
     let mut written = Vec::new();
     for (rel_path, area) in STARTER_SPECS {
         let file = project_dir.join(rel_path);
-        fs::create_dir_all(file.parent().expect("spec paths have a parent"))?;
+        let parent = file.parent().expect("spec paths have a parent");
+        fs::create_dir_all(parent)?;
+        if !examples {
+            let keep = parent.join(".gitkeep");
+            if !keep.exists() {
+                fs::write(keep, "")?;
+            }
+            continue;
+        }
         if file.exists() {
             continue;
         }

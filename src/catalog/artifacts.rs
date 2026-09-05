@@ -85,6 +85,15 @@ pub struct Artifact {
     pub mandatory: bool,
 }
 
+impl Artifact {
+    /// Whether the summary's file customizer may omit this artifact.
+    /// Conditional runner wiring is not mandatory for every project, but
+    /// once its capability is selected the project cannot work without it.
+    pub fn droppable(&self) -> bool {
+        !self.mandatory && !matches!(self.key, "tests" | "jest.project.json" | "jest.config.json")
+    }
+}
+
 /// The artifacts, in the order they would be written.
 pub const ARTIFACTS: &[Artifact] = &[
     // --- Core -------------------------------------------------------------
@@ -197,9 +206,33 @@ pub const ARTIFACTS: &[Artifact] = &[
     // --- Testing ----------------------------------------------------------
     Artifact {
         key: "tests",
-        description: "Test folders with a passing example spec per realm, typed for luau-lsp",
+        description: "Test source tree and the mounts required by the selected runner",
         category: ArtifactCategory::Testing,
         also_requires: &[],
+        housekeeping: false,
+        mandatory: false,
+    },
+    Artifact {
+        key: "test-examples",
+        description: "A passing example spec for each test realm",
+        category: ArtifactCategory::Testing,
+        also_requires: &[],
+        housekeeping: false,
+        mandatory: false,
+    },
+    Artifact {
+        key: "jest.project.json",
+        description: "Test-only Rojo tree containing tests and Jest development packages",
+        category: ArtifactCategory::Testing,
+        also_requires: &[Requirement::Strategy(Strategy::Wally)],
+        housekeeping: false,
+        mandatory: false,
+    },
+    Artifact {
+        key: "jest.config.json",
+        description: "Jest Roblox runner configuration for local Studio execution",
+        category: ArtifactCategory::Testing,
+        also_requires: &[Requirement::Strategy(Strategy::Wally)],
         housekeeping: false,
         mandatory: false,
     },
@@ -397,7 +430,7 @@ pub fn plan(
 ) -> Vec<Planned> {
     let mut planned = Vec::new();
     for artifact in ARTIFACTS {
-        if !artifact.mandatory && dropped.iter().any(|d| d == artifact.key) {
+        if artifact.droppable() && dropped.iter().any(|d| d == artifact.key) {
             continue;
         }
         if !artifact
@@ -420,7 +453,7 @@ pub fn plan(
                 continue;
             }
             Reason::Pins(pinned_tools.len())
-        } else if let Some(key) = capability_that_wrote(artifact.key, capability_keys) {
+        } else if let Some(key) = capability_that_wrote(artifact.key, capability_keys, derived) {
             Reason::Capability(key)
         } else if strategy_wants(artifact.key, environment.strategy) {
             Reason::Strategy(environment.strategy)
@@ -449,8 +482,11 @@ pub fn plan(
 /// workflow file - `capabilities::derive` dropped it correctly and this
 /// function put it back, because the two disagreed about what "chosen"
 /// meant.
-fn capability_that_wrote(key: &str, chosen: &[String]) -> Option<String> {
+fn capability_that_wrote(key: &str, chosen: &[String], derived: &[String]) -> Option<String> {
     use crate::catalog::capabilities;
+    if !derived.iter().any(|artifact| artifact == key) {
+        return None;
+    }
     for capability in capabilities::offerable(chosen) {
         if !chosen.iter().any(|c| c == capability.key) {
             continue;
@@ -531,6 +567,16 @@ mod tests {
             assert!(artifact.also_requires.is_empty(), "{}", artifact.key);
             assert!(!artifact.housekeeping, "{} is both", artifact.key);
         }
+    }
+
+    #[test]
+    fn runner_wiring_is_conditional_but_not_droppable() {
+        for key in ["tests", "jest.project.json", "jest.config.json"] {
+            let artifact = find(key).unwrap();
+            assert!(!artifact.mandatory, "{key}");
+            assert!(!artifact.droppable(), "{key}");
+        }
+        assert!(find("test-examples").unwrap().droppable());
     }
 
     /// **The edge is recorded once.** Every non-mandatory, non-housekeeping

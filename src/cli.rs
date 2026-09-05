@@ -62,6 +62,12 @@ pub enum Command {
     /// Resume the dev loop in the current project: install anything missing,
     /// then start the Rojo sourcemap watcher
     Watch,
+    /// Restore dependencies and run the project's selected test runner
+    Test {
+        /// Arguments passed unchanged to Lute or jest-roblox
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Copy every file under src/ (with relative-path headers) to the clipboard
     Copy,
     /// Show what a catalog entry does, or list the whole catalog

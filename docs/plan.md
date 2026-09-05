@@ -2,7 +2,7 @@
 
 Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
 
-Current: **v0.11.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+Current: **v0.12.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
 
 ---
 
@@ -182,7 +182,7 @@ Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli`
 | **Matter** | package | Added as the first Architecture-category package: ECS/data-oriented gameplay structure. |
 | **Scribe** | package | Added beside ProfileStore as a higher-level typed data/profile layer. |
 | **Pretty React Hooks Luau** | package | Added as a React-dependent utility, Wally-only rather than raw-submodule vendored. |
-| **jest-lua** | package | Live alternative to TestEZ, which is effectively unmaintained. Needs a `Testing` category peer, its own artifact set, and a gate step. |
+| **Jest Roblox** | package + CLI + Studio plugin | Shipped as the Wally-only TestEZ peer. Uses Roblox's maintained Jest packages, jest-roblox-cli locally, and Open Cloud in CI. |
 | **Figma** | system app | Install plus optional project folder. No scriptable Roblox configuration exists — it is a web app — so this is an install and a pointer to the community UI kits. |
 | **catppuccin** | VS Code theme | Cheap, cosmetic, fits the existing theme entries. |
 | **darklua** | CLI tool | Useful, but a *build-step* tool. Defer until there is a build step. |
@@ -273,16 +273,16 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | ~~R2~~ | ~~The project graph as a real type~~ | 3–5 | **Shipped** v0.6.0. `graph::ProjectGraph`, four-row invalidation table, `rproj.toml` stores decisions. Brought `change` at the summary, `--like` replaying whole compositions, and an `upgrade` that cannot restore a declined capability. |
 | ~~R2b~~ | ~~Catalog refresh and dead-tool removal~~ | 1–2 | **Shipped** v0.7.0. Added Asphalt/Tungsten asset pipelines plus Matter, Scribe and Pretty React Hooks Luau; removed obsolete external integrations and their compatibility code. |
 | ~~R3~~ | ~~Capability information pages and configure hints on the summary~~ | 1–2 | **Shipped** v0.8.0. Capability pages identify their implementations; project summaries list only configuration commands that apply to the artifacts being created. |
-| M4 | jest-lua as a TestEZ peer (§10.1) | 1–3 | **Cheaper after R1**: becomes the implementation node of the Testing capability, not a new gate step. Asset pipeline has already proven the multi-implementation prompt shape. |
-| R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
+| ~~M4~~ | ~~Jest Roblox as a TestEZ peer~~ | 1–3 | **Shipped** v0.12.0. Wally projects choose Jest Roblox or TestEZ; other workflows retain TestEZ. Added local/CI execution, isolated dev packages, generated test project/config, upgrades, and the Studio runner plugin. |
 | ~~M5~~ | ~~Validated `default.project.json` customization (§6)~~ | 1–2 | **Shipped** v0.9.0. Global validated template through `rproj configure project`; generated mounts remain protected. |
 | ~~M5b~~ | ~~Built-in project-template Explorer (§6)~~ | 3–5 | **Shipped** v0.10.0. Added a Rojo-aware TUI, typed Inspector, history, and internal JSON repair mode. |
 | ~~T1~~ | ~~Shared TUI foundation and workspace hub~~ | 3–5 | **Shipped** v0.11.0. Bare `rproj` is a context-aware task hub, interactive `rproj info` is the shared Catalog, and the project editor now uses common terminal/widget infrastructure. Direct commands remain scriptable. |
-| M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
 | M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
+| M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
+| R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
 | M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
 | | **total** | **45–76** | ≈ 4–8 months part-time |
-| | *remaining after v0.11.0* | **21–37** | M1–M3b, R1–R3, M5, M5b and T1 done |
+| | *remaining after v0.12.0* | **21–36** | M1–M5b, R1–R3 and T1 done |
 
 **Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
 
@@ -291,8 +291,8 @@ Estimates are in **focused days** — uninterrupted working days, not calendar d
 | D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
 | D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
 
-Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5 → M5b → T1**.
-Remaining: **M4 → M7 → R4 → M8**.
+Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5 → M5b → T1 → M4**.
+Remaining: **M7 → M6 → R4 → M8**.
 
 R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
 
@@ -317,7 +317,7 @@ Deferring the GUI also means **not paying D1's cost yet** — the binary crate k
 | **GUI** | Deferred until M1–M8 are in place. Tauri when it happens (§9). |
 | **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. **Revisit is now due** (R2 shipped): `graph::ProjectGraph` is ~300 lines with no I/O and no prompting, and it already earns its keep from revision and re-derivation alone. Extraction would still cost the dead-code guarantee, so the question is whether a second front-end is close enough to pay for it. Unresolved, deliberately - see "still open". |
 | **Studio plugin** | Additive and small, beside Rojo's — never replacing it (§8). |
-| **Testing framework** | Neither TestEZ nor jest-lua is default. The user chooses, and `none` is a valid answer. Consequence: **Testing becomes single-pick**, because two runners in one project means two `tests/` conventions, two selene standard libraries and two gate steps. After R1 this stops being a special rule: Testing is a capability and a runner is its *implementation*, and a node has one. |
+| **Testing framework** | Neither TestEZ nor Jest Roblox is marked recommended. Wally projects choose either runner and `none` remains valid; non-Wally projects use TestEZ without a redundant runner prompt. Testing is single-pick because the runner is the capability's implementation. Existing TestEZ projects never migrate implicitly. |
 | **Live badges** | Curated judgement, CI-verified facts. Settled — see `docs/architecture.md`. |
 | **Language** | Rust. A Node-based bootstrapper would need Node installed first, which is the problem rproj exists to solve. |
 | **Toolchain reimplementation** | No (§1). |

@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 
 use crate::catalog::quality_checks::{ci_workflow, render_check};
 use crate::config::PackageWorkflow;
+use crate::graph::TestRunner;
 use crate::steps::{probe, run_in};
 use crate::ui;
 
@@ -64,9 +65,9 @@ pub fn ensure_luaurc(project_dir: &Path) -> Result<()> {
 pub fn ensure_check_script(
     project_dir: &Path,
     selected_tools: &[String],
-    testez_selected: bool,
+    has_tests: bool,
 ) -> Result<bool> {
-    let Some(contents) = render_check(selected_tools, testez_selected) else {
+    let Some(contents) = render_check(selected_tools, has_tests) else {
         return Ok(false);
     };
 
@@ -85,6 +86,7 @@ pub fn ensure_ci_workflow(
     project_dir: &Path,
     workflow: PackageWorkflow,
     has_server_packages: bool,
+    runner: Option<TestRunner>,
 ) -> Result<()> {
     let path = project_dir.join(".github").join("workflows").join("ci.yml");
     if path.exists() {
@@ -92,7 +94,7 @@ pub fn ensure_ci_workflow(
         return Ok(());
     }
     fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
-    fs::write(&path, ci_workflow(workflow, has_server_packages))
+    fs::write(&path, ci_workflow(workflow, has_server_packages, runner))
         .with_context(|| format!("failed to write {}", path.display()))?;
     ui::ok("wrote .github/workflows/ci.yml");
     Ok(())

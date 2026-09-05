@@ -1,6 +1,8 @@
 //! Capability catalog: user intent maps to concrete tools, packages, and
 //! generated artifacts. See `docs/architecture.md` §8.10 for the rationale.
 
+use crate::config::PackageWorkflow;
+
 /// One way of providing a capability.
 ///
 /// Not all implementations are the same kind of thing: TestEZ is a Wally
@@ -23,6 +25,8 @@ pub struct Implementation {
     /// edge is recorded; `artifacts` does not name capabilities back, so the
     /// two cannot disagree.
     pub artifacts: &'static [&'static str],
+    /// Dependency workflows under which this implementation can run.
+    pub workflows: &'static [PackageWorkflow],
 }
 
 pub struct Capability {
@@ -53,8 +57,15 @@ impl Capability {
     }
 
     /// Whether choosing this capability is also choosing *how*.
-    pub fn needs_an_implementation_prompt(&self) -> bool {
-        self.implementations.len() > 1
+    pub fn implementations_for(&self, workflow: PackageWorkflow) -> Vec<&'static Implementation> {
+        self.implementations
+            .iter()
+            .filter(|implementation| implementation.workflows.contains(&workflow))
+            .collect()
+    }
+
+    pub fn needs_an_implementation_prompt(&self, workflow: PackageWorkflow) -> bool {
+        self.implementations_for(workflow).len() > 1
     }
 }
 
@@ -71,6 +82,7 @@ pub const CAPABILITIES: &[Capability] = &[
             tools: &["selene"],
             packages: &[],
             artifacts: &["selene.toml"],
+            workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
         default_selected: true,
@@ -88,6 +100,7 @@ pub const CAPABILITIES: &[Capability] = &[
             // for Windows checks out CRLF, and without it every fresh clone
             // fails `stylua --check` on every file. No formatter, no need.
             artifacts: &["stylua.toml", ".gitattributes"],
+            workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
         default_selected: true,
@@ -104,6 +117,7 @@ pub const CAPABILITIES: &[Capability] = &[
             tools: &["luau-lsp-cli"],
             packages: &[],
             artifacts: &[".luaurc"],
+            workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
         default_selected: true,
@@ -113,13 +127,36 @@ pub const CAPABILITIES: &[Capability] = &[
         // Default off, deliberately: a project without tests is valid, and
         // once jest-lua lands the runner becomes an implementation choice.
         outcome: "Write and run tests against your game's own code",
-        implementations: &[Implementation {
-            key: "testez",
-            display: "TestEZ",
-            tools: &[],
-            packages: &["testez"],
-            artifacts: &["tests", "testez.yml", "testez-companion.toml"],
-        }],
+        implementations: &[
+            // Kept first as the compatibility fallback for old or manually
+            // incomplete rproj.toml files. The picker sorts independently.
+            Implementation {
+                key: "testez",
+                display: "TestEZ",
+                tools: &[],
+                packages: &["testez"],
+                artifacts: &[
+                    "tests",
+                    "test-examples",
+                    "testez.yml",
+                    "testez-companion.toml",
+                ],
+                workflows: PackageWorkflow::ALL,
+            },
+            Implementation {
+                key: "jest-roblox",
+                display: "Jest Roblox",
+                tools: &["jest-roblox"],
+                packages: &["jest", "jest-globals"],
+                artifacts: &[
+                    "tests",
+                    "test-examples",
+                    "jest.project.json",
+                    "jest.config.json",
+                ],
+                workflows: &[PackageWorkflow::Wally],
+            },
+        ],
         requires: &[],
         default_selected: false,
     },
@@ -132,6 +169,7 @@ pub const CAPABILITIES: &[Capability] = &[
             tools: &["lute"],
             packages: &[],
             artifacts: &[".lute/check.luau"],
+            workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
         default_selected: true,
@@ -148,6 +186,7 @@ pub const CAPABILITIES: &[Capability] = &[
             tools: &[],
             packages: &[],
             artifacts: &[".github/workflows/ci.yml"],
+            workflows: PackageWorkflow::ALL,
         }],
         // Not merely "better with": the workflow's entire body is the gate
         // script. Without it the first command of every CI run is missing.
@@ -164,6 +203,7 @@ pub const CAPABILITIES: &[Capability] = &[
             tools: &["rojo"],
             packages: &[],
             artifacts: &[".vscode/settings.json", "sourcemap.json"],
+            workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
         default_selected: true,
@@ -178,6 +218,7 @@ pub const CAPABILITIES: &[Capability] = &[
                 tools: &["asphalt"],
                 packages: &[],
                 artifacts: &["figma", "asphalt.toml"],
+                workflows: PackageWorkflow::ALL,
             },
             Implementation {
                 key: "tungsten",
@@ -185,6 +226,7 @@ pub const CAPABILITIES: &[Capability] = &[
                 tools: &["tungsten"],
                 packages: &[],
                 artifacts: &["figma", "tungsten.toml"],
+                workflows: PackageWorkflow::ALL,
             },
         ],
         requires: &[],
@@ -199,6 +241,7 @@ pub const CAPABILITIES: &[Capability] = &[
             tools: &[],
             packages: &[],
             artifacts: &["blender"],
+            workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
         default_selected: false,
@@ -330,13 +373,33 @@ mod tests {
     /// Today one does; if this count changes, a prompt appears or vanishes,
     /// and that should be a deliberate edit rather than a surprise.
     #[test]
-    fn exactly_one_capability_offers_a_choice_of_implementation() {
+    fn exactly_two_capabilities_offer_a_choice_of_implementation() {
         let with_a_choice: Vec<&str> = CAPABILITIES
             .iter()
-            .filter(|c| c.needs_an_implementation_prompt())
+            .filter(|c| c.implementations.len() > 1)
             .map(|c| c.key)
             .collect();
-        assert_eq!(with_a_choice, ["asset-pipeline"]);
+        assert_eq!(with_a_choice, ["test", "asset-pipeline"]);
+    }
+
+    #[test]
+    fn jest_is_only_available_with_wally() {
+        let testing = find("test").unwrap();
+        assert_eq!(testing.implementations_for(PackageWorkflow::Wally).len(), 2);
+        for workflow in [PackageWorkflow::GitSubmodules, PackageWorkflow::None] {
+            let implementations = testing.implementations_for(workflow);
+            assert_eq!(implementations.len(), 1);
+            assert_eq!(implementations[0].key, "testez");
+        }
+    }
+
+    #[test]
+    fn jest_derives_its_runner_packages_and_managed_files() {
+        let derived = derive(&[("test".into(), Some("jest-roblox".into()))]);
+        assert_eq!(derived.tools, ["jest-roblox"]);
+        assert_eq!(derived.packages, ["jest", "jest-globals"]);
+        assert!(derived.artifacts.contains(&"jest.project.json".into()));
+        assert!(!derived.artifacts.contains(&"testez.yml".into()));
     }
 
     /// The picker shows the tool in the badge slot, so it has to be there.

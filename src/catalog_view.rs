@@ -232,7 +232,7 @@ pub fn lookup(key: &str) -> Option<CatalogDetail> {
                 let _ = write!(body, "\n    more:    rproj info {}", implementation.key);
             }
         }
-        if capability.needs_an_implementation_prompt() {
+        if capability.implementations.len() > 1 {
             body.push_str(
                 "\n\n`rproj new` asks which of these to use, because there is a real choice.",
             );

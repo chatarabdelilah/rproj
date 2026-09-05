@@ -17,6 +17,16 @@ pub fn studio_plugins_dir() -> Result<PathBuf> {
 /// with `asset_suffix` (e.g. ".rbxmx") and copies it into the Studio plugins
 /// folder. Skips the download if a file with that name is already there.
 pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Result<()> {
+    install_release_asset(github_repo, asset_suffix, false)
+}
+
+/// Refreshes a protocol-coupled plugin while preserving the previous file
+/// if the download or final replacement fails.
+pub fn refresh_from_latest_release(github_repo: &str, asset_suffix: &str) -> Result<()> {
+    install_release_asset(github_repo, asset_suffix, true)
+}
+
+fn install_release_asset(github_repo: &str, asset_suffix: &str, replace: bool) -> Result<()> {
     let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
     let body = github_get_text(&api_url)?;
     let release: Value =
@@ -44,7 +54,7 @@ pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Res
     let plugins_dir = studio_plugins_dir()?;
     fs::create_dir_all(&plugins_dir)?;
     let dest = plugins_dir.join(name);
-    if dest.exists() {
+    if dest.exists() && !replace {
         ui::ok(&format!("{name} already in Studio plugins"));
         return Ok(());
     }
@@ -60,7 +70,23 @@ pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Res
     if bytes.is_empty() {
         bail!("downloaded asset {name} was empty");
     }
-    fs::write(&dest, bytes)?;
-    ui::ok(&format!("installed {name}"));
+    let pending = plugins_dir.join(format!(".{name}.rproj-new"));
+    fs::write(&pending, bytes)?;
+    if dest.exists() {
+        let backup = plugins_dir.join(format!(".{name}.rproj-old"));
+        let _ = fs::remove_file(&backup);
+        fs::rename(&dest, &backup)
+            .with_context(|| format!("failed to prepare replacement for {}", dest.display()))?;
+        if let Err(error) = fs::rename(&pending, &dest) {
+            let _ = fs::rename(&backup, &dest);
+            return Err(error).context("failed to replace the Jest Roblox Studio runner");
+        }
+        let _ = fs::remove_file(backup);
+        ui::ok(&format!("updated {name}"));
+    } else {
+        fs::rename(&pending, &dest)
+            .with_context(|| format!("failed to install {}", dest.display()))?;
+        ui::ok(&format!("installed {name}"));
+    }
     Ok(())
 }

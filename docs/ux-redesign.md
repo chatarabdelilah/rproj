@@ -95,7 +95,7 @@ A capability is one node with four derived children:
 ```
 Capability      Testing
     ↓
-Implementation  TestEZ            (or jest-lua, or none)
+Implementation  TestEZ            (or Jest Roblox, or none)
     ↓
 Requires        the testez package, which requires Wally
     ↓
@@ -121,7 +121,7 @@ Swap the implementation and everything below re-derives. The capability never ch
 | 3D assets | Blender | no |
 | Testing | TestEZ | no |
 
-The asset pipeline is now the first capability with an implementation prompt. M4 (jest-lua) uses the same mechanism when Testing gains a second runner, instead of adding a special-case test-runner prompt.
+The asset pipeline was the first capability with an implementation prompt. M4 made Testing the second by adding Jest Roblox through the same mechanism instead of a special-case runner step. The prompt appears only for Wally, where both implementations are compatible.
 
 ### Implementations are not all the same kind of thing
 
@@ -242,7 +242,7 @@ So the prompt is gated on the build targets being real. Adding it before then wo
 | **R3 (shipped v0.8.0)** | `rproj info <capability>` pages; applicable `rproj configure` hints on the summary | R1 | The "shows its work" half |
 | **R4** | Project type — after Package and Studio-plugin build targets exist | new scaffolding | §7 |
 
-R1 makes **M4 (jest-lua) cheaper**: "which test runner" stops needing its own gate step and becomes the implementation node of the Testing capability. The asset-pipeline prompt is the proof that this shape works.
+R1 made **M4 (Jest Roblox) cheaper**: "which test runner" became the implementation node of the Testing capability instead of a new gate step. TestEZ remains first internally for compatibility even though the picker displays both implementations alphabetically.
 
 ### One decision this reopens
 

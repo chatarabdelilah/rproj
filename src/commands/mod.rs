@@ -7,6 +7,7 @@ pub mod new;
 pub mod project_template;
 pub mod provision;
 pub mod setup;
+pub mod test;
 pub mod upgrade;
 pub mod watch;
 pub mod welcome;

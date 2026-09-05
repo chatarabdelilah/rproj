@@ -35,8 +35,8 @@ use crate::catalog::quality_checks::{ci_workflow, render_check};
 use crate::catalog::tool_settings::{self, SettingSpec};
 use crate::catalog::wally_packages;
 use crate::config::{PackageWorkflow, project_file};
-use crate::graph::ProjectGraph;
-use crate::steps::{gitignore, quality, testez, vscode};
+use crate::graph::{ProjectGraph, TestRunner};
+use crate::steps::{gitignore, jest, quality, testez, vscode};
 use crate::ui;
 
 /// One file that would change, with the reason and its new contents.
@@ -67,9 +67,13 @@ pub fn run(assume_yes: bool) -> Result<()> {
 
     let packages: BTreeSet<String> = project.packages.iter().cloned().collect();
     let workflow = project.package_workflow;
-    let testez_selected = packages.contains("testez");
-
-    let rewrites = plan(&project_dir, &project, &packages, workflow, testez_selected)?;
+    let runner = project.test_runner();
+    if !project.testing_is_compatible() {
+        bail!(
+            "Jest Roblox requires the Wally dependency workflow; repair rproj.toml before upgrading"
+        );
+    }
+    let rewrites = plan(&project_dir, &project, &packages, workflow, runner)?;
 
     if rewrites.is_empty() {
         ui::ok("already up to date - every generated file matches this version of rproj");
@@ -110,7 +114,7 @@ pub fn run(assume_yes: bool) -> Result<()> {
     // missing, so they run either way rather than being planned.
     gitignore::ensure_entries(&project_dir)?;
     quality::ensure_luaurc(&project_dir)?;
-    if testez_selected {
+    if runner == Some(TestRunner::TestEz) {
         testez::ensure_tests_luaurc(&project_dir)?;
     }
     Ok(())
@@ -121,7 +125,7 @@ fn plan(
     project: &ProjectGraph,
     packages: &BTreeSet<String>,
     workflow: PackageWorkflow,
-    testez_selected: bool,
+    runner: Option<TestRunner>,
 ) -> Result<Vec<Rewrite>> {
     let mut rewrites = Vec::new();
 
@@ -134,6 +138,7 @@ fn plan(
     let planned = project.maintenance_plan();
     let wants = |key: &str| planned.iter().any(|p| p.key == key);
 
+    let testez_selected = runner == Some(TestRunner::TestEz);
     if wants("selene.toml")
         && let Some(contents) = selene_config(project_dir, packages, workflow, testez_selected)?
     {
@@ -160,7 +165,7 @@ fn plan(
     // The gate script names the tools this project pinned, so it has to be
     // rebuilt from the same list - not from what the machine has today.
     if wants(".lute/check.luau")
-        && let Some(contents) = render_check(&project.tools(), testez_selected)
+        && let Some(contents) = render_check(&project.tools(), wants("tests"))
     {
         push(
             &mut rewrites,
@@ -177,7 +182,7 @@ fn plan(
                 &mut rewrites,
                 project_dir,
                 ".github/workflows/ci.yml",
-                ci_workflow(workflow, has_server_packages),
+                ci_workflow(workflow, has_server_packages, runner),
                 "the generated CI workflow",
             )?;
         }
@@ -199,6 +204,28 @@ fn plan(
             "testez-companion.toml",
             testez::companion_config(),
             "TestEZ Companion's test roots",
+        )?;
+    }
+
+    if wants("jest.project.json") {
+        let source = project_dir.join("default.project.json");
+        let production: serde_json::Value = serde_json::from_str(&fs::read_to_string(&source)?)
+            .with_context(|| format!("failed to parse {}", source.display()))?;
+        push(
+            &mut rewrites,
+            project_dir,
+            jest::PROJECT_FILE,
+            jest::project_contents(&production)?,
+            "the generated test-only Rojo project",
+        )?;
+    }
+    if wants("jest.config.json") {
+        push(
+            &mut rewrites,
+            project_dir,
+            jest::CONFIG_FILE,
+            jest::merged_config(project_dir)?,
+            "Jest runner paths managed by rproj; other options are kept",
         )?;
     }
 
@@ -267,7 +294,9 @@ fn overrides(
 /// vendors nothing, so no dead key lands in the config.
 fn vendored_exclude(workflow: PackageWorkflow) -> &'static str {
     match workflow {
-        PackageWorkflow::Wally => r#"exclude = ["Packages/**", "ServerPackages/**"]"#,
+        PackageWorkflow::Wally => {
+            r#"exclude = ["Packages/**", "ServerPackages/**", "DevPackages/**"]"#
+        }
         PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
         PackageWorkflow::None => "",
     }

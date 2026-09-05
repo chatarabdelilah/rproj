@@ -52,6 +52,7 @@ const RESERVED_DYNAMIC_PATHS: &[&[&str]] = &[
     &["tree", "ReplicatedStorage", "packages"],
     &["tree", "ReplicatedStorage", "modules"],
     &["tree", "ReplicatedStorage", "test"],
+    &["tree", "ReplicatedStorage", "DevPackages"],
     &["tree", "ServerScriptService", "serverPackages"],
     &["tree", "ServerScriptService", "test"],
     &["tree", "StarterPlayer", "StarterPlayerScripts", "test"],
@@ -331,6 +332,39 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
             }
         }
     }
+    for (label, server_packages) in [("jest", false), ("jest-server", true)] {
+        let dir = workspace.path.join(label);
+        materialize_validation_project(&dir, PackageWorkflow::Wally, true, server_packages)?;
+        materialize_validation_path(&dir, "DevPackages")?;
+        let production = project_document(
+            "TemplateValidation",
+            PackageWorkflow::Wally,
+            false,
+            server_packages,
+            Some(template),
+        )?;
+        let document = crate::steps::jest::project_document(&production)?;
+        let project_file = dir.join("jest.project.json");
+        fs::write(&project_file, serde_json::to_string_pretty(&document)?)?;
+        let project_file = project_file.to_string_lossy().into_owned();
+        for (check, command, output_file) in [
+            ("sourcemap", "sourcemap", dir.join("sourcemap.json")),
+            ("build", "build", dir.join("validation.rbxl")),
+        ] {
+            let output_file = output_file.to_string_lossy().into_owned();
+            let output = capture(
+                "rojo",
+                &[command, project_file.as_str(), "-o", output_file.as_str()],
+                None,
+            )?;
+            if !output.success {
+                bail!(
+                    "Rojo rejected the {label} template during {check} validation:\n{}",
+                    output.combined().trim()
+                );
+            }
+        }
+    }
     Ok(())
 }
 
@@ -426,9 +460,13 @@ pub fn install_studio_plugin() -> Result<()> {
 /// running forever. Running it once and reading the exit status reports
 /// whatever rojo actually said, and leaves nothing behind.
 pub fn generate_sourcemap(project_dir: &Path) -> Result<()> {
+    generate_sourcemap_from(project_dir, "default.project.json")
+}
+
+pub fn generate_sourcemap_from(project_dir: &Path, project_file: &str) -> Result<()> {
     let output = capture(
         "rojo",
-        &["sourcemap", "default.project.json", "-o", "sourcemap.json"],
+        &["sourcemap", project_file, "-o", "sourcemap.json"],
         Some(project_dir),
     )?;
     if !output.success || ui::is_verbose() {
@@ -447,13 +485,11 @@ pub fn generate_sourcemap(project_dir: &Path) -> Result<()> {
 /// this run and rojo's own "Created sourcemap at ..." on each rebuild is
 /// the feedback that it's working.
 pub fn watch_sourcemap(project_dir: &Path) -> Result<()> {
-    let args = [
-        "sourcemap",
-        "--watch",
-        "default.project.json",
-        "-o",
-        "sourcemap.json",
-    ];
+    watch_sourcemap_from(project_dir, "default.project.json")
+}
+
+pub fn watch_sourcemap_from(project_dir: &Path, project_file: &str) -> Result<()> {
+    let args = ["sourcemap", "--watch", project_file, "-o", "sourcemap.json"];
     ui::command("rojo", &args);
     let status = Command::new("rojo")
         .args(args)
@@ -572,6 +608,7 @@ mod tests {
             "tests/shared",
             "tests/server",
             "tests/client",
+            "DevPackages",
         ] {
             let mut template = builtin_project_template();
             template["tree"]["Workspace"] = json!({ "$path": path });

@@ -10,6 +10,12 @@ use crate::catalog::artifacts::{self, Environment, Planned};
 use crate::catalog::capabilities;
 use crate::config::PackageWorkflow;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestRunner {
+    TestEz,
+    JestRoblox,
+}
+
 /// One editable decision. Ordered as they are asked, which is also the
 /// order they constrain each other in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,6 +136,35 @@ impl ProjectGraph {
 
     pub fn derived(&self) -> capabilities::Derived {
         capabilities::derive(&self.choices())
+    }
+
+    pub fn test_runner(&self) -> Option<TestRunner> {
+        let key = match self.capabilities.get("test") {
+            Some(key) => key,
+            None if self.packages.iter().any(|package| package == "testez") => {
+                return Some(TestRunner::TestEz);
+            }
+            None => return None,
+        };
+        Some(match key.as_str() {
+            "jest-roblox" => TestRunner::JestRoblox,
+            // TestEZ is deliberately the compatibility fallback for stale
+            // implementation keys and manifests from before implementations.
+            _ => TestRunner::TestEz,
+        })
+    }
+
+    pub fn testing_is_compatible(&self) -> bool {
+        self.test_runner() != Some(TestRunner::JestRoblox)
+            || self.package_workflow == PackageWorkflow::Wally
+    }
+
+    pub fn remove_incompatible_testing(&mut self) -> bool {
+        if self.testing_is_compatible() {
+            return false;
+        }
+        self.capabilities.remove("test");
+        true
     }
 
     /// Every tool this project pins: what the capabilities need, plus what
@@ -418,5 +453,50 @@ mod tests {
             back.capabilities.get("test").map(String::as_str),
             Some("testez")
         );
+    }
+
+    #[test]
+    fn changing_away_from_wally_removes_only_jest() {
+        let mut graph = graph(PackageWorkflow::Wally, &[], &["lint"]);
+        graph.choose("test", Some("jest-roblox"));
+        graph.package_workflow = PackageWorkflow::None;
+        assert!(graph.remove_incompatible_testing());
+        assert!(graph.capabilities.contains_key("lint"));
+        assert!(!graph.capabilities.contains_key("test"));
+
+        graph.choose("test", Some("testez"));
+        assert!(!graph.remove_incompatible_testing());
+        assert_eq!(graph.test_runner(), Some(TestRunner::TestEz));
+    }
+
+    #[test]
+    fn package_only_legacy_manifests_keep_testez() {
+        let graph = graph(PackageWorkflow::Wally, &["testez"], &[]);
+        assert_eq!(graph.test_runner(), Some(TestRunner::TestEz));
+    }
+
+    #[test]
+    fn selected_test_runner_does_not_plan_its_peer_files() {
+        let testez = graph(PackageWorkflow::Wally, &[], &["test"]);
+        let testez_files: Vec<&str> = testez
+            .plan(&[], &[])
+            .into_iter()
+            .map(|artifact| artifact.key)
+            .collect();
+        assert!(testez_files.contains(&"tests"));
+        assert!(!testez_files.contains(&"jest.project.json"));
+
+        let mut jest = ProjectGraph {
+            package_workflow: PackageWorkflow::Wally,
+            ..Default::default()
+        };
+        jest.choose("test", Some("jest-roblox"));
+        let jest_files: Vec<&str> = jest
+            .plan(&[], &[])
+            .into_iter()
+            .map(|artifact| artifact.key)
+            .collect();
+        assert!(jest_files.contains(&"jest.project.json"));
+        assert!(!jest_files.contains(&"testez.yml"));
     }
 }
