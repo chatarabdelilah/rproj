@@ -128,9 +128,9 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
                 asset_suffix,
             } => {
                 let result = if entry.key == "jest-roblox-plugin" {
-                    studio_plugin::refresh_from_latest_release(github_repo, asset_suffix)
+                    studio_plugin::refresh_from_latest_release(entry.key, github_repo, asset_suffix)
                 } else {
-                    studio_plugin::install_from_latest_release(github_repo, asset_suffix)
+                    studio_plugin::install_from_latest_release(entry.key, github_repo, asset_suffix)
                 };
                 if let Err(err) = result {
                     warn_and_continue(entry.key, &err);

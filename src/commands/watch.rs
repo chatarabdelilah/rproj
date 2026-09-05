@@ -15,6 +15,9 @@ pub fn run() -> Result<()> {
     }
 
     let project = project_file::load_from(&project_dir)?;
+    let jest =
+        project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox);
+    validate_jest_project(project.as_ref(), project_dir.join("wally.toml").exists())?;
     if let Some(project) = &project {
         println!("Packages: {}", project.packages.join(", "));
     }
@@ -37,13 +40,7 @@ pub fn run() -> Result<()> {
     // to silently strip the types off every package on each run. See
     // `steps::wally::sync`.
     if project_dir.join("wally.toml").exists() {
-        if project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox) {
-            if !project
-                .as_ref()
-                .is_some_and(|graph| graph.testing_is_compatible())
-            {
-                anyhow::bail!("Jest Roblox requires the Wally dependency workflow");
-            }
+        if jest {
             jest::refresh_project(&project_dir)?;
             wally::sync_for_project(&project_dir, jest::PROJECT_FILE)?;
         } else {
@@ -52,9 +49,46 @@ pub fn run() -> Result<()> {
     }
 
     println!("\nWatching for changes - press Ctrl+C to stop.");
-    if project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox) {
+    if jest {
         rojo::watch_sourcemap_from(&project_dir, jest::PROJECT_FILE)
     } else {
         rojo::watch_sourcemap(&project_dir)
+    }
+}
+
+fn validate_jest_project(
+    project: Option<&crate::graph::ProjectGraph>,
+    has_wally: bool,
+) -> Result<()> {
+    let Some(project) = project.filter(|graph| graph.test_runner() == Some(TestRunner::JestRoblox))
+    else {
+        return Ok(());
+    };
+    if !project.testing_is_compatible() {
+        bail!("Jest Roblox requires the Wally dependency workflow");
+    }
+    if !has_wally {
+        bail!("Jest Roblox project is missing wally.toml; run `rproj upgrade`");
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::PackageWorkflow;
+    use crate::graph::ProjectGraph;
+
+    #[test]
+    fn jest_watch_requires_its_wally_manifest() {
+        let mut project = ProjectGraph {
+            package_workflow: PackageWorkflow::Wally,
+            ..Default::default()
+        };
+        project.choose("test", Some("jest-roblox"));
+        let error = validate_jest_project(Some(&project), false)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("missing wally.toml"), "{error}");
     }
 }

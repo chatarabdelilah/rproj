@@ -6,6 +6,7 @@ use inquire::{MultiSelect, Select};
 
 use crate::catalog::artifacts;
 use crate::catalog::capabilities;
+use crate::catalog::tool_catalog::{self, ToolKind};
 use crate::catalog::tool_settings;
 use crate::catalog::wally_packages::{self, Category, PackageSpec, companions_for};
 use crate::commands::provision;
@@ -190,10 +191,7 @@ pub fn run(
                 .push("jest-roblox-plugin".into());
             config.save()?;
         }
-        if let Err(error) = studio_plugin::refresh_from_latest_release(
-            "christopher-buss/jest-roblox-cli",
-            "JestRobloxRunner.rbxm",
-        ) {
+        if let Err(error) = refresh_jest_plugin() {
             ui::warn(&format!(
                 "Jest Roblox Studio runner was not updated - {error}. Run `rproj setup` to retry"
             ));
@@ -212,6 +210,19 @@ pub fn run(
         project_dir.display()
     );
     Ok(())
+}
+
+fn refresh_jest_plugin() -> Result<()> {
+    let entry = tool_catalog::find("jest-roblox-plugin")
+        .context("Jest Roblox Studio runner is missing from the tool catalog")?;
+    let ToolKind::StudioPlugin {
+        github_repo,
+        asset_suffix,
+    } = entry.kind
+    else {
+        bail!("Jest Roblox Studio runner has an invalid catalog installer");
+    };
+    studio_plugin::refresh_from_latest_release(entry.key, github_repo, asset_suffix)
 }
 
 /// Builds the graph by asking each node in order.

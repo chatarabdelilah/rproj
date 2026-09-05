@@ -142,15 +142,23 @@ pub fn sync(project_dir: &Path) -> Result<()> {
 
 pub fn sync_for_project(project_dir: &Path, project_file: &str) -> Result<()> {
     wally_install(project_dir)?;
+    ensure_sync_mounts(project_dir, project_file)?;
+    rojo::generate_sourcemap_from(project_dir, project_file)?;
+    // Safe with no packages: an empty directory is a successful no-op.
+    wally_package_types(project_dir)
+}
+
+fn ensure_sync_mounts(project_dir: &Path, project_file: &str) -> Result<()> {
     // With zero dependencies `wally install` doesn't just skip creating
     // Packages/ - it *removes* an existing empty one (verified). The
     // project file maps that path, and rojo refuses to generate a sourcemap
     // at all when a mapped $path is missing, so recreating it here is what
     // keeps a no-dependency project working.
     fs::create_dir_all(project_dir.join(PACKAGES_DIR))?;
-    rojo::generate_sourcemap_from(project_dir, project_file)?;
-    // Safe with no packages: an empty directory is a successful no-op.
-    wally_package_types(project_dir)
+    if project_file == crate::steps::jest::PROJECT_FILE {
+        fs::create_dir_all(project_dir.join(DEV_PACKAGES_DIR))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -177,5 +185,13 @@ mod tests {
         let manifest = render_wally_toml("rproj/demo", &["promise".into()]).unwrap();
         assert!(manifest.contains("[dependencies]\npromise ="), "{manifest}");
         assert!(!manifest.contains("dev-dependencies"), "{manifest}");
+    }
+
+    #[test]
+    fn jest_sync_recognizes_the_development_package_mount() {
+        let project = tempfile::tempdir().unwrap();
+        ensure_sync_mounts(project.path(), crate::steps::jest::PROJECT_FILE).unwrap();
+        assert!(project.path().join(PACKAGES_DIR).is_dir());
+        assert!(project.path().join(DEV_PACKAGES_DIR).is_dir());
     }
 }

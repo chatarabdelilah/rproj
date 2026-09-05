@@ -40,7 +40,7 @@ fn a_stale_selene_config_is_brought_up_to_date() {
     let project = fixture("selene-stale", "\"vide\", \"testez\"");
     project.write(
         "selene.toml",
-        "std = \"roblox\"\n\n[rules]\nunused_variable = \"allow\"\nmixed_table = \"warn\"\n",
+        "std = \"roblox\"\nexclude = [\"Packages/**\", \"ServerPackages/**\", \"custom/**\"]\n\n[rules]\nunused_variable = \"allow\"\nmixed_table = \"warn\"\n",
     );
 
     let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
@@ -59,6 +59,9 @@ fn a_stale_selene_config_is_brought_up_to_date() {
         selene.contains(r#"exclude = ["Packages/**"#),
         "vendored exclude missing:\n{selene}"
     );
+    assert!(selene.contains(r#""DevPackages/**""#), "{selene}");
+    assert!(selene.contains(r#""ServerPackages/**""#), "{selene}");
+    assert!(selene.contains(r#""custom/**""#), "{selene}");
     // The one that makes this safe to run: a lint level the user chose
     // themselves is not a thing rproj derives, so it must survive.
     assert!(

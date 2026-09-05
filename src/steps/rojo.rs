@@ -314,23 +314,7 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         )?;
         let project_file = dir.join("default.project.json");
         fs::write(&project_file, serde_json::to_string_pretty(&document)?)?;
-        let project_file = project_file.to_string_lossy().into_owned();
-        for (check, command, output_file) in [
-            ("sourcemap", "sourcemap", dir.join("sourcemap.json")),
-            ("build", "build", dir.join("validation.rbxl")),
-        ] {
-            let output_file = output_file.to_string_lossy().into_owned();
-            let args = [command, project_file.as_str(), "-o", output_file.as_str()];
-            let output = capture("rojo", &args, None).context(
-                "Rojo is required to validate templates; run `rokit add --global rojo` and try again",
-            )?;
-            if !output.success {
-                bail!(
-                    "Rojo rejected the {label} template during {check} validation:\n{}",
-                    output.combined().trim()
-                );
-            }
-        }
+        validate_rojo_project(label, &project_file, &dir)?;
     }
     for (label, server_packages) in [("jest", false), ("jest-server", true)] {
         let dir = workspace.path.join(label);
@@ -346,23 +330,31 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         let document = crate::steps::jest::project_document(&production)?;
         let project_file = dir.join("jest.project.json");
         fs::write(&project_file, serde_json::to_string_pretty(&document)?)?;
-        let project_file = project_file.to_string_lossy().into_owned();
-        for (check, command, output_file) in [
-            ("sourcemap", "sourcemap", dir.join("sourcemap.json")),
-            ("build", "build", dir.join("validation.rbxl")),
-        ] {
-            let output_file = output_file.to_string_lossy().into_owned();
-            let output = capture(
-                "rojo",
-                &[command, project_file.as_str(), "-o", output_file.as_str()],
-                None,
-            )?;
-            if !output.success {
-                bail!(
-                    "Rojo rejected the {label} template during {check} validation:\n{}",
-                    output.combined().trim()
-                );
-            }
+        validate_rojo_project(label, &project_file, &dir)?;
+    }
+    Ok(())
+}
+
+fn validate_rojo_project(label: &str, project_file: &Path, dir: &Path) -> Result<()> {
+    let project_file = project_file.to_string_lossy().into_owned();
+    for (check, command, output_file) in [
+        ("sourcemap", "sourcemap", dir.join("sourcemap.json")),
+        ("build", "build", dir.join("validation.rbxl")),
+    ] {
+        let output_file = output_file.to_string_lossy().into_owned();
+        let output = capture(
+            "rojo",
+            &[command, project_file.as_str(), "-o", output_file.as_str()],
+            None,
+        )
+        .context(
+            "Rojo is required to validate templates; run `rokit add --global rojo` and try again",
+        )?;
+        if !output.success {
+            bail!(
+                "Rojo rejected the {label} template during {check} validation:\n{}",
+                output.combined().trim()
+            );
         }
     }
     Ok(())
