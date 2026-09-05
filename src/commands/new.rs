@@ -222,7 +222,7 @@ fn refresh_jest_plugin() -> Result<()> {
     else {
         bail!("Jest Roblox Studio runner has an invalid catalog installer");
     };
-    studio_plugin::refresh_from_latest_release(github_repo, asset_suffix)
+    studio_plugin::refresh_from_latest_release(entry.key, github_repo, asset_suffix)
 }
 
 /// Builds the graph by asking each node in order.

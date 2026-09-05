@@ -16,17 +16,30 @@ pub fn studio_plugins_dir() -> Result<PathBuf> {
 /// Downloads the latest release asset from `owner/repo` whose filename ends
 /// with `asset_suffix` (e.g. ".rbxmx") and copies it into the Studio plugins
 /// folder. Skips the download if a file with that name is already there.
-pub fn install_from_latest_release(github_repo: &str, asset_suffix: &str) -> Result<()> {
-    install_release_asset(github_repo, asset_suffix, false)
+pub fn install_from_latest_release(
+    plugin: &str,
+    github_repo: &str,
+    asset_suffix: &str,
+) -> Result<()> {
+    install_release_asset(plugin, github_repo, asset_suffix, false)
 }
 
 /// Refreshes a protocol-coupled plugin while preserving the previous file
 /// if the download or final replacement fails.
-pub fn refresh_from_latest_release(github_repo: &str, asset_suffix: &str) -> Result<()> {
-    install_release_asset(github_repo, asset_suffix, true)
+pub fn refresh_from_latest_release(
+    plugin: &str,
+    github_repo: &str,
+    asset_suffix: &str,
+) -> Result<()> {
+    install_release_asset(plugin, github_repo, asset_suffix, true)
 }
 
-fn install_release_asset(github_repo: &str, asset_suffix: &str, replace: bool) -> Result<()> {
+fn install_release_asset(
+    plugin: &str,
+    github_repo: &str,
+    asset_suffix: &str,
+    replace: bool,
+) -> Result<()> {
     let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
     let body = github_get_text(&api_url)?;
     let release: Value =
@@ -75,16 +88,20 @@ fn install_release_asset(github_repo: &str, asset_suffix: &str, replace: bool) -
     if dest.exists() {
         let backup = plugins_dir.join(format!(".{name}.rproj-old"));
         let _ = fs::remove_file(&backup);
-        fs::rename(&dest, &backup)
-            .with_context(|| format!("failed to prepare replacement for {}", dest.display()))?;
+        fs::rename(&dest, &backup).with_context(|| {
+            format!(
+                "failed to prepare replacement for {plugin} at {}",
+                dest.display()
+            )
+        })?;
         if let Err(replace_error) = fs::rename(&pending, &dest) {
             if let Err(restore_error) = fs::rename(&backup, &dest) {
                 bail!(
-                    "failed to replace the Jest Roblox Studio runner ({replace_error}); restoring the previous plugin also failed ({restore_error}). Recover it from {}",
+                    "failed to replace {plugin} ({replace_error}); restoring the previous plugin also failed ({restore_error}). Recover it from {}",
                     backup.display()
                 );
             }
-            return Err(replace_error).context("failed to replace the Jest Roblox Studio runner");
+            return Err(replace_error).with_context(|| format!("failed to replace {plugin}"));
         }
         let _ = fs::remove_file(backup);
         ui::ok(&format!("updated {name}"));
