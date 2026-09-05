@@ -2,15 +2,18 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The current release candidate is `v0.12.0`, M4: Jest Roblox as a TestEZ peer. It remains an alpha prerelease.
+The release baseline is `v0.12.0`, M4: Jest Roblox as a TestEZ peer. It remains an alpha prerelease. The next candidate will be selected after the release-hardening audit establishes its changes. The shelved model-import branch's `0.13.0` version is not a publication target.
 
 ## Maintainer preparation
 
-1. Update the version and current-state documentation on a release branch.
-2. Run `cargo test`.
-3. Run `cargo clippy --all-targets -- -D warnings`.
-4. Run `cargo package` and inspect the packaged file list.
-5. Merge the release branch into `main` and push it.
+1. Establish scope from verified defects and approved changes. Roadmap-only edits do not require Cargo publication.
+2. Update the version and current-state documentation on a release branch when preparing an actual package release.
+3. Run `cargo fmt --all --check`, `cargo test --locked`, and `cargo clippy --locked --all-targets -- -D warnings`.
+4. Run applicable ignored/live tests serially on a deliberately provisioned environment. Record commands, tool versions, outcomes, and missing prerequisites. Skipped tests are not passes; follow [the roadmap's workflow coverage](plan.md).
+5. Run `cargo package --locked` and inspect the packaged file list.
+6. Push a pull request, inspect CodeRabbit findings, and verify Windows stable, Rust 1.89, and package CI. Address findings or document why they do not apply.
+7. Merge into `main`, push, and verify main CI. Remove merged local and remote branches only after checking their work is preserved. Do not delete unmerged experiments as if they were merged.
+8. Request publication only with a ready candidate, clean checkout, and recorded residual risks. The repository owner performs Cargo publication, not the agent.
 
 ## Cargo publication
 

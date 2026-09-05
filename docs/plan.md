@@ -1,333 +1,104 @@
-# rproj — plan
+# rproj - Release Roadmap
 
-Working document. `docs/architecture.md` describes what exists; this describes what comes next and why.
+Updated September 5, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
-Current: **v0.12.0 pre-release alpha**, Windows-only, Luau + Wally. The command surface and persisted project schema may still change before the first stable release.
+## Direction
 
----
+**Make it straightforward to set up and maintain an ordinary Roblox/Luau project on Windows.**
 
-## 1. What rproj is, and what it is not
+rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
 
-The scope boundary decides most arguments downstream, so it goes first.
+- Ratatui remains the interactive interface: the workspace hub, Catalog, and Template Explorer.
+- Direct commands remain available for automation and normal subprocess output.
+- Rojo owns model loading, builds, synchronization, and sourcemaps.
+- Selene owns linting, StyLua owns formatting, and luau-lsp owns type analysis.
+- Rokit, Wally, Git, Lute, and test runners remain external tools with project configuration and pins.
+- A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
-**rproj is an orchestrator with an opinion.** It knows which tools exist, which are worth using in 2026, how they must be configured to agree with each other, and what breaks when they do not. It installs them, configures them, and scaffolds projects that already work.
+## Current State
 
-**rproj is not a reimplementation of the toolchain.** It does not replace Rojo, Wally, Selene or StyLua.
+The release baseline is **v0.12.0, public alpha**. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
-That second line is a deliberate rejection of an appealing idea — one binary that *is* the whole toolchain — and the reason is not effort. It is that `default.project.json`, `wally.toml`, `wally.lock` and `.rbxm` are **interoperability contracts**. A project rproj creates has to open in a teammate's real Rojo. Diverge by one percent and the ecosystem forks and rproj's users are the ones stranded. When Roblox changes Studio's plugin API or a binary format, Rojo tracks it with a community; a fork would track it alone.
+The existing product includes machine setup, configurable project generation, saved compositions, upgrades, tool configuration, the global Template Explorer, workspace hub and Catalog, watching, source copying, and optional TestEZ/Jest Roblox testing.
 
-The unified experience that idea was reaching for is achievable without it — see §7.
+The unfinished v0.13.0 model-import experiment is **shelved and outside the release baseline**. Work is preserved on `codex/m7-model-import`; it must not be merged as part of release hardening. Its version bump does not establish a release commitment.
 
-### Non-goals
+## Scope Removed
 
-| | |
+| Former proposal | Decision |
 | --- | --- |
-| macOS / Linux | Dropped, not deferred. |
-| roblox-ts | Dropped, not deferred. |
-| Replacing the toolchain | §1 above. |
-| A package registry | Wally is the registry. |
+| M7: broad library migration | Cancelled. There is no goal to move the toolchain into rproj. |
+| Embedded Selene or StyLua | Removed. Working external tools do not need internal replacements. |
+| Full Moon | Removed. No approved standalone Lua/Luau parsing requirement exists. |
+| M6 / M7a + M6a: static model-to-template conversion | Shelved, not a release prerequisite. Conversion and data-preservation obligations are unnecessary for the current product. |
+| Tauri GUI and GUI-driven core-library extraction | Dropped, not deferred. Ratatui is the selected interface direction. |
+| R4: additional project types | Uncommitted backlog, requiring a concrete use case and working build targets. |
+| M8: rproj Studio plugin | Uncommitted backlog. No new plugin is needed to release the existing product. |
 
----
+Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. The shelved importer offered a different convenience: converting supported models into self-contained, editable global-template JSON. That does not justify delaying release. This decision does not expand rproj's current global-template `$path` rules. See Rojo's [sync details](https://rojo.space/docs/v7/sync-details/) and [project format](https://rojo.space/docs/v7/project-format/).
 
-## 2. Personas and user stories
+## Next: Release Hardening
 
-### P1 — Newcomer
+No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
 
-Wants to make a Roblox game. Has not heard of Rojo. Will abandon anything that fails with a stack trace.
+### 1. Establish The Baseline
 
-- As a newcomer, I run one command and end up with a working project, so that I can start writing game code today.
-- As a newcomer, every choice explains itself in one line, so that I am not guessing between names I do not recognise.
-- As a newcomer, defaults are pre-selected and correct, so that pressing enter throughout produces something good.
-- As a newcomer, when something fails I am told what to do next, not what went wrong internally.
+- Run formatting, ordinary tests, clippy, and locked packaging on a clean checkout.
+- Verify Windows stable and Rust 1.89 CI, tag/release/package alignment, and outstanding CodeRabbit findings.
+- Review ignored integration tests and architecture's manual-verification checklist. Historical passes are not evidence for the current candidate.
+- Record checks as passed, failed, or blocked with commands, versions, and prerequisites. Missing Studio or Open Cloud access is not a passing test.
 
-### P2 — Experienced solo developer
+### 2. Verify Existing Workflows
 
-Knows the toolchain. Has preferences. Resents being walked through things.
-
-- As an experienced developer, I skip the guidance with one keystroke and get a flat checklist.
-- As an experienced developer, I choose exactly which files are generated — including none of the optional ones.
-- As an experienced developer, I save a composition and reuse it, so that my third project matches my second.
-- As an experienced developer, running rproj against an existing project never overwrites what I have edited.
-
-### P3 — Small team
-
-Two to five people. One set them up; the rest cloned.
-
-- As a team member, `git clone` plus one command gives me the same environment as everyone else.
-- As a team lead, CI runs the identical gate my teammates run locally, so "works on my machine" is not a category.
-- As a team lead, I upgrade a project to newer rproj conventions and see the plan before it applies.
-
-### The story that fails today
-
-> As an experienced developer, I choose exactly which files are generated.
-
-`.lute/check.luau`, `.github/workflows/ci.yml`, `.vscode/settings.json`, `.luaurc`, `.gitattributes` and `blender/scene.blend` are written **unconditionally**. There is no answer to `rproj new` that omits them. §3 fixes this, and it is the whole of v0.3.
-
----
-
-## 3. v0.3 — the artifact model
-
-### The defect
-
-`scaffold()` in `src/commands/new.rs` is ~120 lines of hardcoded sequence writing 24 artifacts, gated by four ad-hoc conditions: `testez_selected`, a `match` on the package workflow, `config.blender_enabled()`, and whether a check script was emitted.
-
-So artifacts fall into two classes with no principle separating them:
-
-| gated on a selection | written unconditionally |
+| Area | Required evidence |
 | --- | --- |
-| `wally.toml` | `default.project.json` |
-| `selene.toml`, `stylua.toml` | `.luaurc` |
-| `testez.yml`, `testez-companion.toml`, `tests/` | `.gitattributes`, `.gitignore` |
-| `modules/` | `.vscode/settings.json` |
-| | `.lute/check.luau` |
-| | `.github/workflows/ci.yml` |
-| | `blender/scene.blend` |
+| Machine setup | Deliberate installation prompts, useful missing-tool errors, and safe reruns. Use an explicitly provisioned test environment; ordinary tests must not install applications. |
+| Creation | Coherent minimal, Wally, and submodule output and pins; saved setups and revisions preserve choices. |
+| Template Explorer | Editing, validation, reset, repair, cancellation, and terminal restoration preserve the last valid template. |
+| Daily use | Dependency recovery in Watch, correct runner dispatch, and documented Copy/Catalog behavior. |
+| Upgrade/configure | Review and cancellation work; managed fields update without damaging source or unrelated configuration. |
+| Checks/CI | Clean fixtures pass; deliberate lint/format/type/test failures fail. Missing Jest credentials fail clearly. Record live Studio/Open Cloud evidence separately. |
+| TUI/CLI | Wide, narrow, and small-terminal behavior, Unicode input, Ctrl+C, and plain redirected output. |
 
-The right-hand column is "things I decided every project should have." That is the opposite of what rproj is for.
+### 3. Fix And Document
 
-### The change
+Fix blockers in small reviewed changes with regression tests. Prioritize data loss, broken generated projects, misleading success, terminal damage, and installation/recovery failures over cosmetics.
 
-Every artifact becomes a catalog entry, exactly as packages already are:
+Bring README instructions, architecture claims, test inventory, and troubleshooting into agreement with verified behavior. Do not mark a gap closed merely because an unexecuted test exists.
 
-```rust
-pub struct Artifact {
-    pub key:              &'static str,
-    pub description:      &'static str,
-    pub category:         ArtifactCategory,
-    /// Selections this needs. Not offered unless all are present.
-    pub requires:         &'static [Requirement],
-    /// Pre-checked in the picker.
-    pub default_selected: bool,
-    /// Never offered; the project is not a project without it.
-    pub mandatory:        bool,
-}
+### 4. Ship The Verified Candidate
 
-pub enum Requirement {
-    Package(&'static str),   // testez
-    Tool(&'static str),      // stylua, lute
-    App(&'static str),       // blender, figma
-    Artifact(&'static str),  // ci.yml needs check.luau
-}
-```
+Choose the version after the changes are known: a patch for compatible fixes, a minor alpha release for intentional behavior changes. A roadmap edit alone does not require Cargo publication.
 
-| artifact | requires | default | mandatory |
-| --- | --- | --- | --- |
-| `src/{shared,server,client}` | — | — | **yes** |
-| `default.project.json` | — | — | **yes** |
-| `rokit.toml` | — | on | |
-| `rproj.toml` | — | on | |
-| `wally.toml` | workflow = Wally | on | |
-| `modules/` | workflow = Submodules | on | |
-| `selene.toml` | tool `selene` | on | |
-| `stylua.toml` | tool `stylua` | on | |
-| `.luaurc` | — | on | |
-| `.gitattributes` | — | on | |
-| `.gitignore` | — | on | |
-| `tests/` | package `testez` | on | |
-| `testez.yml` | package `testez`, tool `selene` | on | |
-| `testez-companion.toml` | package `testez` | on | |
-| `.vscode/settings.json` | app `vscode` | on | |
-| `.lute/check.luau` | tool `lute` | on | |
-| `.github/workflows/ci.yml` | artifact `.lute/check.luau` | **off** | |
-| `sourcemap.json` | tool `rojo` | on | |
-| `blender/scene.blend` | app `blender` | **off** | |
-| `figma/` | capability `asset-pipeline` | **off** | |
-| `asphalt.toml` | `asset-pipeline` implementation `asphalt` | **off** | |
-| `tungsten.toml` | `asset-pipeline` implementation `tungsten` | **off** | |
+Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-Two entries are mandatory because a project without them is not a project. Everything else is a question — and a minimal answer yields `src/` plus `default.project.json`, which is what "just the Rojo basics" means.
+## After Hardening: Continue Ratatui
 
-`ci.yml` defaults **off** deliberately: it is the one artifact that changes what happens on a *push*, and opting into that should be a decision.
+The next feature candidate is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-### Why this makes four other features fall out
+This is not a release prerequisite. Scope it after the audit, using the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
 
-Once artifacts are entries with requirements, these stop being separate work:
+Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
-- **`blender/` no longer appears unasked** — it requires the `blender` app *and* is default-off.
-- **Figma** is the export folder for whichever asset pipeline the project chooses.
-- **Asset-pipeline configs** become artifacts, which is most of `rproj setup asphalt` and `rproj setup tungsten` (§4).
-- **`rproj upgrade`** can diff selected-vs-present per artifact instead of re-running the sequence.
+## Release Stages
 
-### Verification
+- **Alpha, now:** usable public releases with explicit limitations and potentially changing configuration contracts.
+- **Beta:** current end-to-end evidence for critical workflows, no known release blockers, and defined command/configuration contracts intended for stabilization.
+- **Stable 1.0:** beta usage supports those contracts and upgrade/recovery behavior is dependable. Feature count or an arbitrary date does not establish readiness.
 
-The gate that makes it real: **for every subset of selections, every emitted artifact's requirements are satisfied.** A property test over the requirement graph, plus:
+The old remaining-days total is retired because it assumed features no longer planned. Estimate individual approved changes after their scope and test requirements are understood.
 
-- the minimal answer produces exactly the two mandatory artifacts
-- no artifact is emitted whose requirement is absent
-- the requirement graph is acyclic and every named key resolves
+## Delivered History
 
----
+Legacy IDs explain earlier discussions; they no longer determine the sequence.
 
-## 4. v0.4 — per-tool setup
-
-```
-rproj setup <tool>
-```
-
-The old answer to "how do I start using an asset pipeline" was `rproj info <tool>`, read the commands, and do it by hand. `setup <tool>` does it: writes the tool's config with sane defaults, adds it to `rokit.toml` if missing, explains the one-time manual steps that cannot be scripted, and prints the first command to run.
-
-Project-local setup now covers `asphalt`, `tungsten`, `lute`, and `luau-lsp-cli` (the CLI; `luau-lsp` is the VS Code extension's key).
-
----
-
-## 5. Catalog additions
-
-| entry | kind | note |
-| --- | --- | --- |
-| **UI Labs** | Studio plugin | The maintained Hoarcekat successor. Add both; badge accordingly. |
-| **Resurface** | Studio plugin | Confirmed must-have. |
-| **rbxm-to-rojo** | CLI tool | Strongest of the researched list — converts a Studio-built model into a Rojo tree, which is the missing bridge for "here is a default spawn". |
-| **Asphalt** | CLI tool | Added as a maintained asset-pipeline implementation with Studio/cloud targets and Open Cloud auth. |
-| **Tungsten** | CLI tool | Added as a second modern asset-pipeline implementation; keep it external because it is GPL-3.0. |
-| **Matter** | package | Added as the first Architecture-category package: ECS/data-oriented gameplay structure. |
-| **Scribe** | package | Added beside ProfileStore as a higher-level typed data/profile layer. |
-| **Pretty React Hooks Luau** | package | Added as a React-dependent utility, Wally-only rather than raw-submodule vendored. |
-| **Jest Roblox** | package + CLI + Studio plugin | Shipped as the Wally-only TestEZ peer. Uses Roblox's maintained Jest packages, jest-roblox-cli locally, and Open Cloud in CI. |
-| **Figma** | system app | Install plus optional project folder. No scriptable Roblox configuration exists — it is a web app — so this is an install and a pointer to the community UI kits. |
-| **catppuccin** | VS Code theme | Cheap, cosmetic, fits the existing theme entries. |
-| **darklua** | CLI tool | Useful, but a *build-step* tool. Defer until there is a build step. |
-| **luau-polyfill** | package | A dependency of jsdotlua/react, not a user-facing choice. Add as a companion, never as an option. |
-| **codify-lib**, **packager**, **font-list-generator** | — | Need evaluation before a verdict. |
-
----
-
-## 6. `default.project.json` editing
-
-**Shipped in v0.9.0, hardened in v0.9.1, given a built-in Explorer in v0.10.0, and corrected for validation edge cases in v0.10.1-v0.10.2.** `rproj configure project` edits the machine-wide template in a keyboard-driven TUI and validates every reachable plain, Wally, and submodule mount combination with Rojo before saving. Future projects inherit custom static instances, properties, and supported project settings; existing projects remain untouched.
-
-rproj keeps ownership of the project name, DataModel root, conventional source mounts, and dependency/testing mounts. Conflicting edits are rejected with the exact path instead of being silently overwritten. Custom `$path` values are limited to the always-created source directories; workflow-dependent package and test paths remain exclusively graph-owned. The same command restores the built-in template.
-
-The Explorer supports searchable Roblox classes and properties, add/rename/reclass/duplicate/move/delete operations, typed common properties and attributes, project settings, undo/redo, and responsive split or stacked layouts. Advanced JSON remains inside rproj for uncommon Rojo values and future format fields. Invalid stored JSON opens directly in repair mode.
-
----
-
-## 7. Library migration — the unified experience, without the fork
-
-The appeal of "one app" is real. Most of it is available without reimplementing anything, because the toolchain is already published as libraries:
-
-| crate | replaces shelling out to |
+| Delivered work | Releases |
 | --- | --- |
-| `rbx_dom_weak` 4.2, `rbx_binary` 3.0, `rbx_xml` 3.0, `rbx_reflection` 7.0 | reading and writing `.rbxm` / `.rbxl`, sourcemap generation |
-| `selene-lib` 0.31 | `selene` |
-| `full_moon` 2.2 | Luau parsing (what StyLua is built on) |
+| M1-M3b: artifacts, catalog additions, per-tool setup, coherent requirements | v0.3.0-v0.4.0 |
+| R1-R2: capabilities and persisted project graph | v0.5.0-v0.6.0 |
+| R2b-R3: catalog refresh, obsolete-tool removal, capability information | v0.7.0-v0.8.0 |
+| M5-M5b: validated global template and built-in Explorer | v0.9.0-v0.10.2 |
+| T1: shared Ratatui foundation, workspace hub, Catalog | v0.11.0 |
+| M4: Jest Roblox as a TestEZ peer | v0.12.0 |
 
-Linking these in-process buys: no sub-process spawn, **structured errors instead of parsed stdout**, no PATH dependency, and a single binary — which is the "one app" feeling, minus the divergence risk.
-
-Do it incrementally, one tool at a time, each behind its own commit and each verifiable by comparing output against the sub-process it replaces. Keep the sub-process path as the fallback until the in-process path is proven.
-
-*Unverified:* StyLua exposes a lib target in-repo but I have not confirmed a published `stylua-lib` on crates.io. Check before planning around it.
-
----
-
-## 8. The Studio plugin, and what it must not be
-
-Today a project can carry four Studio plugins: Rojo's sync plugin, Hoarcekat or UI Labs, the luau-lsp companion, and Resurface. Each installs separately and knows nothing about the others.
-
-The tempting answer is **one plugin** that does sync, storybook and the LSP bridge, talking to rproj instead of to each tool. That is rejected, for the reason in §1: replacing Rojo's sync plugin means reimplementing Rojo's sync protocol, and a project built that way stops opening in a teammate's real Rojo. It is the ecosystem fork §1 exists to prevent, in plugin form.
-
-**What rproj's plugin should be instead: additive, and small.** It does only what no existing plugin does, and it sits beside Rojo's rather than replacing it.
-
-| | |
-| --- | --- |
-| Show which rproj artifacts this project has | Nothing else knows the artifact model. |
-| Run the quality gate from inside Studio, results in a panel | Today this means alt-tabbing to a terminal. |
-| Offer `rproj upgrade` when conventions have moved on | The project cannot tell you this itself. |
-
-Everything sync-related stays Rojo's job. That keeps the plugin a few hundred lines instead of a reimplementation, and keeps interop intact.
-
-## 9. GUI — deferred, and the cost of the step before it
-
-Deferred until the foundation above is in place. Nothing in M1–M8 depends on it, and shipping a GUI over a scaffolder whose artifact model is still changing would mean rebuilding the GUI when the model settles.
-
-When it happens: **Tauri, not Electron**, and it is not close. The core is already Rust, so the GUI calls it directly rather than through a sidecar; ~10–40 MB against Electron's ~120 MB+; far lower memory. Tauri's real weakness is webview inconsistency across platforms, and rproj is Windows-only, so that cost is approximately zero here.
-
-It needs a library crate first, because a binary crate has no importable API:
-
-```mermaid
-graph TD
-    core["rproj-core (library)<br/>catalog · artifacts · steps · config"]
-    cli["rproj (binary)<br/>clap + inquire"]
-    gui["rproj-gui (Tauri)<br/>webview + commands"]
-
-    cli --> core
-    gui --> core
-```
-
-**The cost, worth reading before committing.** A binary-only crate gets a guarantee for free: `pub` does not suppress `dead_code`, so every public item must be reachable from `main` or the build fails. Measured during the rebuild verification — **227 unreachable items** at the point before `main.rs` landed, **zero** after. A library crate loses that, and dead code starts accumulating behind an API nobody calls.
-
-So the extraction is worth paying for exactly when a second front-end exists, and not before. Deferring the GUI means keeping the guarantee for free in the meantime.
-
-Mitigation when the time comes: keep `rproj-core`'s public surface deliberately small, add `#![warn(unreachable_pub)]`, and keep the CLI as the only consumer until the GUI genuinely needs more.
-
-## 10. Milestones and estimates
-
-Estimates are in **focused days** — uninterrupted working days, not calendar days. For solo part-time work, multiply by three to four for calendar time. Ranges are wide because they should be.
-
-| | milestone | days | notes |
-| --- | --- | ---: | --- |
-| ~~M1~~ | ~~Artifact model (§3)~~ | 4–7 | **Shipped** v0.3.0, completed v0.3.2, **corrected v0.4.0** — see below. |
-| ~~M2~~ | ~~Catalog additions (§5)~~ | 2–3 | **Shipped** v0.3.1. UI Labs, Resurface, Figma, catppuccin. |
-| ~~M3~~ | ~~`rproj setup <tool>` (§4)~~ | 3–5 | **Shipped** v0.3.2. |
-| ~~M3b~~ | ~~Entailment, the missing half of M1~~ | 2 | **Shipped** v0.4.0. Unplanned, and not optional — M1 as designed made every offerable file a free checkbox, so picking packages and then declining `wally.toml` silently discarded the packages. Also brought the tools-to-pin question, `rproj info` as a browser, and the first two prompt-order tests that run without network. |
-| ~~R1~~ | ~~Capability layer; delete the "tools" and "files" prompts~~ | 4–6 | **Shipped** v0.5.0. Came in at the low end because it mostly deleted things. Three bugs it surfaced, none of which a reader would have predicted: `rokit.toml` was owned by nothing, so tools were derived and never pinned; the dependency strategy pins its own tools and nothing derived them, so a Wally project pinned no Wally; and `plan` trusted the capability list without re-checking requirements, so CI survived its gate being turned off. All three found by tests, two of them by the live prompt-order pair. |
-| ~~R2~~ | ~~The project graph as a real type~~ | 3–5 | **Shipped** v0.6.0. `graph::ProjectGraph`, four-row invalidation table, `rproj.toml` stores decisions. Brought `change` at the summary, `--like` replaying whole compositions, and an `upgrade` that cannot restore a declined capability. |
-| ~~R2b~~ | ~~Catalog refresh and dead-tool removal~~ | 1–2 | **Shipped** v0.7.0. Added Asphalt/Tungsten asset pipelines plus Matter, Scribe and Pretty React Hooks Luau; removed obsolete external integrations and their compatibility code. |
-| ~~R3~~ | ~~Capability information pages and configure hints on the summary~~ | 1–2 | **Shipped** v0.8.0. Capability pages identify their implementations; project summaries list only configuration commands that apply to the artifacts being created. |
-| ~~M4~~ | ~~Jest Roblox as a TestEZ peer~~ | 1–3 | **Shipped** v0.12.0. Wally projects choose Jest Roblox or TestEZ; other workflows retain TestEZ. Added local/CI execution, isolated dev packages, generated test project/config, upgrades, and the Studio runner plugin. |
-| ~~M5~~ | ~~Validated `default.project.json` customization (§6)~~ | 1–2 | **Shipped** v0.9.0. Global validated template through `rproj configure project`; generated mounts remain protected. |
-| ~~M5b~~ | ~~Built-in project-template Explorer (§6)~~ | 3–5 | **Shipped** v0.10.0. Added a Rojo-aware TUI, typed Inspector, history, and internal JSON repair mode. |
-| ~~T1~~ | ~~Shared TUI foundation and workspace hub~~ | 3–5 | **Shipped** v0.11.0. Bare `rproj` is a context-aware task hub, interactive `rproj info` is the shared Catalog, and the project editor now uses common terminal/widget infrastructure. Direct commands remain scriptable. |
-| M7 | Library migration (§7) | 10–15 | Incremental; each tool independently shippable. |
-| M6 | rbxm-to-rojo integration | 2–4 | Wants the rbx-dom crates from M7. |
-| R4 | Project type (Game / Package / Studio plugin / Empty) | 5–9 | Gated on the Package and Studio-plugin build targets existing — it is a feature, not a prompt (`ux-redesign.md` §7). |
-| M8 | rproj Studio plugin, additive (§8) | 4–8 | Beside Rojo's, not replacing it. |
-| | **total** | **45–76** | ≈ 4–8 months part-time |
-| | *remaining after v0.12.0* | **21–36** | M1–M5b, R1–R3 and T1 done |
-
-**Deferred until the foundation is in place**, and deliberately not numbered — nothing above depends on either:
-
-| | | days | |
-| --- | --- | ---: | --- |
-| D1 | `rproj-core` library extraction | 3–5 | Only worth doing when a second front-end exists. Read §9's cost. |
-| D2 | Tauri GUI (§9) | 15–25 | Requires D1. |
-
-Completed sequence: **M1 → M2 → M3 → M3b → R1 → R2 → R2b → R3 → M5 → M5b → T1 → M4**.
-Remaining: **M7 → M6 → R4 → M8**.
-
-R1 first, for the same reason M1 went first: it is a keystone that shrinks what follows. M4 in particular stops being "a new gate step plus new artifacts" and becomes one implementation node.
-
-M1 first because it is a keystone: three later milestones get smaller once artifacts are entries. Every milestone above ships on its own; D1 and D2 are the only items that cannot, which is the second reason they wait.
-
-**What M1 got wrong, since it is the kind of mistake worth planning against.** The estimate was for one model, and there were two: "when may this file be offered" and "is this file still a question". Building only the first made every generated file optional — the actual goal — and simultaneously created a picker that would offer to delete the manifest holding packages the user had just chosen. The lesson is not "estimate higher". It is that **a model which makes something configurable owes an account of what is not configurable**, and M1 shipped without one. M3b was the bill.
-
-Deferring the GUI also means **not paying D1's cost yet** — the binary crate keeps its dead-code guarantee (§9) for free, for as long as there is one front-end.
-
----
-
-## 11. Decisions taken, and what is still open
-
-### Taken
-
-| | decision |
-| --- | --- |
-| **What rproj is, in one sentence** | *rproj asks for architectural decisions about your project, derives every implementation detail from them, and always shows its work.* Every feature must satisfy it. "About your project" scopes the derivation — rproj orchestrates the toolchain, it never reimplements it. See `docs/ux-redesign.md` §0. |
-| **One unit of choice per level** | The user decides project type, dependency strategy, packages and capabilities. Tools, files, configs, pins and artifacts are **derived**, never asked. A prompt that asks about a consequence is a bug (`ux-redesign.md` §1). |
-| **Packages vs capabilities** | Packages answer *what code does this depend on*; capabilities answer *what workflows does this support*. Not runtime vs dev-time — TestEZ is a dev dependency and still a package. Consequence: **Testing is a capability, TestEZ an implementation of it**, so Testing leaves the package picker. |
-| **Dependency strategy stays a prompt** | Wally is the right default for anyone who does not already know otherwise, and it is still asked — with a recommendation. A summary line reading `✓ via Wally` is a receipt, not an explanation, and this tool exists partly to teach the ecosystem. **A default does not make a question fake.** |
-| **GUI** | Deferred until M1–M8 are in place. Tauri when it happens (§9). |
-| **`rproj-core`** | Deferred with the GUI. One front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee. **Revisit is now due** (R2 shipped): `graph::ProjectGraph` is ~300 lines with no I/O and no prompting, and it already earns its keep from revision and re-derivation alone. Extraction would still cost the dead-code guarantee, so the question is whether a second front-end is close enough to pay for it. Unresolved, deliberately - see "still open". |
-| **Studio plugin** | Additive and small, beside Rojo's — never replacing it (§8). |
-| **Testing framework** | Neither TestEZ nor Jest Roblox is marked recommended. Wally projects choose either runner and `none` remains valid; non-Wally projects use TestEZ without a redundant runner prompt. Testing is single-pick because the runner is the capability's implementation. Existing TestEZ projects never migrate implicitly. |
-| **Live badges** | Curated judgement, CI-verified facts. Settled — see `docs/architecture.md`. |
-| **Language** | Rust. A Node-based bootstrapper would need Node installed first, which is the problem rproj exists to solve. |
-| **Toolchain reimplementation** | No (§1). |
-| **Optional vs coherent** | Both. Every generated file is a choice, *and* a file an earlier answer decides is reported with its reason rather than offered. The bar for "already decided" is narrow and per-entry: declining it must make an earlier answer do nothing, or leave a tool that cannot run. "Would be nice to have" keeps its checkbox — `stylua.toml` stays optional because StyLua has working defaults, and `selene.toml` does not because Selene without one lints every Roblox global as undefined. |
-| **Tool pinning** | Per-project, and **derived, not asked** (revised at R1). The machine selection is "what I want available"; a project's `rokit.toml` is "what this project promises a teammate" — but *which* tools follows from the capabilities chosen, so it is not a question. The v0.4.0 "Tools to pin" prompt was a capability question wearing a tool costume; R1 deletes it. The genuine reproducibility question survives as `--no-pin` plus one line on the summary. Pinning nothing stays valid, and is what keeps a bare project reachable on a fully provisioned machine. |
-
-### Still open
-
-1. **Is `rproj-core` worth extracting now that the graph exists?** R2 made `graph::ProjectGraph` a ~300-line value with no I/O and no prompting — the natural core of a second front-end, and already valuable to the CLI alone. The deferral's premise ("no benefit with one front-end") is weaker than it was, but the cost is unchanged: a library crate forfeits the binary's dead-code guarantee, which has caught real omissions. **Not resolved here.** Revisit when a second front-end is actually close, not because the shape now permits it.
-2. **Does `rproj-core` get published to crates.io, or stay path-only?** Publishing means a public API and semver obligations for a library with one real consumer. Downstream of the question above.
-3. **Where does GUI state live?** Sharing the CLI's own config file is the obvious answer, and means both must tolerate the other having written it. Deferred with the GUI.
-4. **`codify-lib`, `packager`, `roblox-font-list-generator`** — need evaluation before a verdict (§5).
-5. **Is `stylua-lib` published?** §7 assumes the toolchain is available as libraries; that one is unconfirmed and should be checked before M7 is planned around it.
+**Active sequence: release audit -> targeted fixes -> verified release -> evaluate the next Ratatui workflow.**

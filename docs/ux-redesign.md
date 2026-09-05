@@ -1,251 +1,98 @@
-# rproj — the project graph
+# rproj - UX Direction
 
-## 0. The sentence
+This describes the current interaction contract and subsequent direction. Historical milestones are in [the roadmap](plan.md); implementation details belong in [architecture](architecture.md).
 
-> **rproj asks for architectural decisions about your project, derives every implementation detail from them, and always shows its work.**
+## Product Principle
 
-Every feature has to satisfy it. It is not decoration — it decides things:
+**rproj asks for decisions about a project, derives the required configuration, and shows what it will do.**
 
-| Question | Verdict |
-| --- | --- |
-| Should `rproj new` ask about `.gitignore`? | No. Not architectural. Derived, and shown on the summary with its reason. |
-| Should it ask which dependency workflow? | Yes. Architectural — with a recommendation, because a default does not make a question fake. |
-| Should it ask "pin Selene?" | No. That is a consequence of wanting linting. |
-| Should it ask what kind of project this is? | Yes, once there is more than one answer. |
+Users choose a dependency strategy, packages, and capabilities. Tools, pins, and required artifacts follow. Optional artifacts remain adjustable where removing them does not invalidate an earlier decision.
 
-"About your project" is load-bearing. Without it the sentence reads as licence to derive the *toolchain* too, which §1 of `plan.md` rejects: rproj orchestrates Rojo, Wally, Selene and the rest — it does not reimplement them. It derives your project's implementation, never the ecosystem's.
+Choices need plain-language explanations. Unavailable options should explain prerequisites rather than disappear or silently change the project.
 
-"Shows its work" is an obligation, not a nicety. It is why the dependency prompt carries descriptions and why every generated file is listed with a reason. A derived detail the user cannot see is indistinguishable from magic, and this tool exists to teach the ecosystem, not to hide it.
+## Interface Boundary
 
----
+Ratatui is the selected interactive interface. There is no planned Tauri application or separate desktop frontend.
 
-## 1. What was actually wrong
+The current interface is hybrid:
 
-The received diagnosis was "the prompts are in the wrong order." That is a symptom. The defect is that **rproj asks one decision at three abstraction levels**, and never at the level the user thinks in:
+- Bare `rproj` opens the Ratatui workspace hub in an interactive terminal.
+- Catalog browsing and global-template editing stay within full-screen interfaces.
+- Setup, project creation, and tool configuration currently use inquire prompts.
+- The hub restores the terminal before invoking the existing command implementation. It does not automatically return after completion.
+- Direct commands remain available for automation. Redirected welcome and Catalog output remain plain.
+- External tools continue doing their own work. Navigable results can be considered without embedding replacement tools.
 
-| Level | What the user thinks | Did rproj ask it? |
-| --- | --- | --- |
-| **Intent** | "I want my code linted" | never |
-| **Implementation** | `selene` | yes — "Tools to pin" |
-| **Artifact** | `selene.toml` | yes — "Files to generate" |
+Release hardening comes before further migration. The next feature candidate is project creation within Ratatui, not replacing Ratatui or the external toolchain.
 
-The user only ever wants to answer the top row. The other two are derivable from it. rproj asked the bottom two and never the top, so the user had to reverse-engineer their own intent into tool names and filenames — twice — and any disagreement between those two answers became a contradiction the CLI then had to patch.
+## Project Decisions
 
-That patching is visible in the code. `entailed_by` (v0.4.0) reports artifacts an earlier answer already decided, with a reason, instead of offering them. It is the right fix for the model as it stood and the wrong model: it makes the contradiction *legible* rather than making it unrepresentable. The tell is the "always settled" state in `rproj info` — four artifacts whose entailment condition is also their requirement, i.e. entries with no independent existence. Those four are the model reporting that it has a level too many.
+The graph records intent and derives coherent tools and artifacts:
 
-### The seven concrete failures
-
-1. **Packages asked before dependency workflow, and the workflow then silently overruled.** `pick_package_workflow` inspects the selection, finds React (npm-only upstream), forces Wally, prints a note. The one place the user's architectural intent should be sovereign was the one place rproj overrode it without asking.
-2. **Workflow chosen, then "pin Wally?"** Untick it and the scaffold still runs `wally install` from rokit's global manifest — so the answer was not merely contradictory, it was *inert*. The project just failed to record the version of the tool it depends on.
-3. **"Tools to pin" was two questions in one costume.** *Do I want this project linted* (a workflow decision) and *should the version be pinned for teammates* (a reproducibility decision) have different answers, different audiences and different defaults.
-4. **Testing asked twice, four prompts apart.** `testez` in the package step; `tests/` as a checkbox in the files step; `testez.yml` and `testez-companion.toml` as further consequences.
-5. **CI, Blender, Figma and asset-pipeline configs presented as files.** Nobody thinks *"I want a `.github/workflows/ci.yml`"*.
-6. **`--like <setup>` skipped one prompt and still asked three.** Reuse should mean reuse.
-7. **`none` sits last in every guided category**, and `Select` highlights index 0 — a package. Enter-through hands a beginner five packages they never chose. The safe answer must be the resting position.
-
----
-
-## 2. The model: a graph, not a wizard
-
-The CLI is not asking questions. It is **constructing a model**, and each answer adds a node:
-
-```
+```text
 Project
-├── Project Type          Game | Package | Studio plugin | Empty
-├── Dependency Strategy   Wally | Git submodules | None
-├── Packages              what code this project depends on
-├── Capabilities          what workflows this project supports
-│     └── each capability:
-│           ├── Implementation   the thing that provides it
-│           ├── Tools            what gets pinned
-│           ├── Artifacts        what gets written
-│           └── Commands         what you then run
-└── Summary               the tree, rendered
+|-- Dependency strategy: Wally, Git submodules, or none
+|-- Packages: code the project depends on
+|-- Capabilities: workflows the project supports
+|   `-- Compatible implementation, required tools, and artifacts
+`-- Reviewable summary
 ```
 
-Three consequences follow immediately, and they are the reason this framing is worth the rewrite:
+Guided and expert interaction serve different experience levels without changing the meaning of a choice. Saved setups reuse decisions.
 
-**The summary is not a screen.** It is the tree rendered. It cannot drift from what gets created, because it is the same data the scaffolder walks.
+Changing an upstream choice invalidates only incompatible downstream choices. It must not silently select another runner or discard unrelated preferences.
 
-**Revision is invalidation, not navigation.** Changing `Dependency Strategy` invalidates `Packages` (some are unvendorable), which invalidates `Summary`. Everything else stands. That is a far better mental model than "go back three screens" — and it is what makes a "change something" affordance implementable at all.
-
-**Persisting the tree gives three features for free.** `rproj.toml` recording *decisions* rather than *outcomes* means `rproj upgrade` re-derives from intent (so a changed default reaches old projects), `--like` replays a tree straight to the summary with zero questions, and a saved setup captures the whole composition rather than a package list.
-
-### One unit of choice per level
-
-Nothing in the tree above is a tool, a file, a config, or a pin. Those are all derived. The user's decisions are exactly the labelled nodes, and each sits at a level the one above determines.
-
-### Packages vs Capabilities
-
-The distinction is **not** runtime vs development-time — that breaks immediately, since TestEZ is a development dependency and still a package. It is:
-
-| | Answers | Examples |
+| Capability | Implementations | Selection |
 | --- | --- | --- |
-| **Packages** | "What code does my project depend on?" | Reflex, Promise, React, TestEZ |
-| **Capabilities** | "What workflows does my project support?" | Linting, Formatting, Testing, CI, Asset pipeline |
+| Linting | Selene | No redundant implementation prompt |
+| Formatting | StyLua | No redundant implementation prompt |
+| Type checking | luau-lsp | No redundant implementation prompt |
+| Quality gate | Lute | No redundant implementation prompt |
+| Continuous integration | GitHub Actions | No redundant implementation prompt |
+| Asset pipeline | Asphalt, Tungsten | Choose an implementation |
+| Testing | Jest Roblox, TestEZ | Wally offers both alphabetically without a recommendation; other workflows use TestEZ |
 
-**Testing is a capability. TestEZ is one implementation of it.** That resolves failure ④ structurally rather than by reordering: Testing leaves the package picker, which drops the guided path from five category prompts to four — by principle, not by trimming.
+Testing stays optional. TestEZ remains the internal compatibility fallback for older configurations; display order must not change a stored runner.
 
----
+## Workspace Hub
 
-## 3. The capability graph
+The hub reads the exact current directory and reports machine setup, saved setups, template state, project context, and cached update information.
 
-A capability is one node with four derived children:
+Unavailable project actions remain visible with precise reasons. Dispatch uses the existing command's authoritative validation after terminal restoration. The hub is not a project-directory manager or alternative tool runner.
 
-```
-Capability      Testing
-    ↓
-Implementation  TestEZ            (or Jest Roblox, or none)
-    ↓
-Requires        the testez package, which requires Wally
-    ↓
-Artifacts       tests/, tests/.luaurc, testez.yml, testez-companion.toml
-    ↓
-Commands        lute test
-```
+Wide terminals show actions and details side by side; narrow terminals switch focus between stacked panes. Minimum-size screens retain Help and Exit. Esc and Ctrl+C exit cleanly.
 
-Swap the implementation and everything below re-derives. The capability never changes.
+The Catalog supports filtering, sections, entries, details, Help, and hierarchical Back. From the hub it returns there; direct `rproj info` exits at its root. Named lookups remain plain.
 
-### The rule this gives for free
+## Template Explorer
 
-**An implementation prompt appears only when a capability has more than one implementation.** Same rule as everywhere else — never ask a question with one answer — and it says exactly when a new prompt is permitted:
+`rproj configure project` edits the machine-wide template for future projects, not existing project files.
 
-| Capability | Implementations today | Sub-prompt? |
-| --- | --- | --- |
-| Linting | Selene | no — renders as `Linting (Selene)` |
-| Formatting | StyLua | no |
-| Type checking | luau-lsp | no |
-| Quality gate | Lute | no |
-| Continuous integration | GitHub Actions | no |
-| **Asset pipeline** | **Asphalt, Tungsten** | **yes — the first one** |
-| 3D assets | Blender | no |
-| Testing | TestEZ | no |
+The Explorer provides structural instance edits, a typed Inspector, settings, undo/redo, and built-in Advanced JSON for uncommon values. No external editor is launched.
 
-The asset pipeline was the first capability with an implementation prompt. M4 made Testing the second by adding Jest Roblox through the same mechanism instead of a special-case runner step. The prompt appears only for Wally, where both implementations are compatible.
+rproj owns the project name, DataModel root class, conventional source mounts, and dependency/testing mount positions. Static nodes and settings remain editable around those boundaries. Ownership errors identify conflicting paths instead of silently overwriting them.
 
-### Implementations are not all the same kind of thing
+Saving requires structural checks and the applicable Rojo validation matrix before atomic replacement. Invalid stored JSON opens in repair mode. Cancel, failed validation, and failed writes preserve the saved template; reset requires confirmation.
 
-TestEZ is a Wally package. Selene is a rokit tool. GitHub Actions is neither — it is a hosted service the artifact targets. The implementation node points at whichever, so the catalog stays a flat inventory and capabilities reference into it.
+Model-file conversion/import is not part of this interface. Rojo's model support remains available in ordinary projects; this does not expand global-template filesystem-path permissions.
 
----
+## Summary And Preservation
 
-## 4. The flow
+The summary renders the graph and explains why files are created. Users can revise decisions before creation. Files needed for selected workflows must not be offered as independent removals.
 
-```
-0.  Machine provisioning     first run only, unchanged
-1.  Project type             Game | Package | Studio plugin | Empty     [see §6 — gated]
-2.  Guided or Expert         different interaction models, not defaults
-3.  Dependencies             Wally ● recommended | Git submodules | None
-4.  Packages                 1 prompt expert, 4 guided
-5.  Capabilities             lint (Selene), format (StyLua), CI (GitHub Actions)…
-6.  Summary                  the tree, every line reasoned, anything revisable
-```
+Configure and upgrade preserve unrelated user-owned content and refuse data they cannot safely interpret. Ownership and merge behavior are artifact-specific; do not claim every configuration is universally mergeable.
 
-**Ordering rationale, where it is not obvious:**
+Errors identify the operation and an actionable recovery step. A missing executable is not a lint failure; a test failure is not permission to switch runners.
 
-- **Dependencies before packages** is failure ①. Choosing submodules after picking React is what let rproj silently overrule the architecture. It is beginner-safe now in a way it was not before: pre-selected, marked recommended, one keystroke, and its descriptions are the only place a newcomer will ever be told what Wally *is*.
-- **Under submodules**, unvendorable packages are shown **greyed with the reason**, never hidden — hiding makes the user wonder where React went. Selecting one offers a *forward correction*: "react needs Wally — switch this project to Wally?" The same fact rproj already knows, turned from a silent override into an explicit revision of a decision the user made knowingly.
-- **Capabilities after packages**, because a package can imply one (picking a UI library makes the mixed-table lint waiver relevant).
+## Next Ratatui Candidate
 
-### The summary
+After release hardening, scope project creation around the existing graph:
 
-```
-  MyGame
+1. Enter the name and retain the current machine-setup boundary.
+2. Choose dependencies, packages, and capabilities through guided or expert interaction.
+3. Review the derived tree/files and revise individual choices without losing unrelated work.
+4. Confirm before filesystem or provisioning changes; restore the terminal before existing execution logic runs.
 
-  Type          Game
-  Dependencies  Wally                                        [change]
-  Packages      reflex, promise                              [change]
-  Does          Linting (Selene), Formatting (StyLua),
-                Type checking (luau-lsp), CI (GitHub Actions)  [change]
+Require generated-output parity for unchanged choices, saved-setup parity, Unicode/responsive tests, cancellation coverage, and unchanged direct command behavior.
 
-  Creates
-    src/, default.project.json    every Rojo project has these
-    wally.toml                    reflex + 1 other install from it
-    rokit.toml                    pins 4 tool versions so teammates get the same ones
-    selene.toml                   you chose Linting
-    stylua.toml                   you chose Formatting
-    .lute/check.luau              you chose the quality gate
-    .github/workflows/ci.yml      you chose CI
-    .gitignore, .gitattributes, .luaurc, rproj.toml
-
-  › Create it        Change something
-```
-
-Every file carries its reason. Files are the one thing a beginner will actually open and edit, so the summary is the last chance to say what each is for — the same obligation the dependency prompt's descriptions discharge, one level down.
-
-The Rojo tree itself is configured outside this project flow. `rproj configure project` edits one machine-wide, Rojo-validated template for future projects through a built-in Explorer and Inspector; it is a default input to scaffolding, not another per-project question. rproj retains the source, package, and test mounts derived by the graph, while user-authored static instances and properties flow into `default.project.json`. Advanced JSON editing remains inside the same TUI for values the guided controls do not cover. Existing projects remain user-owned and are never rewritten from the global template.
-
-### The workspace hub
-
-Bare `rproj` now opens a task-oriented workspace hub rather than a static welcome page. The hub is a discovery and context surface, not a second command implementation: it reads the exact current directory, shows which actions are available and why, then restores the terminal before invoking the existing command. Long-running and script-oriented work therefore keeps its normal output and direct syntax.
-
-The Catalog is the first workflow retained inside the hub because browsing is itself a full-screen navigation task. `rproj info` opens the same Catalog directly, while `rproj info <key>` and redirected output remain plain. This hybrid boundary is deliberate: use the TUI for orientation and selection, and the CLI for automation and repeatability.
-
----
-
-## 5. What disappears
-
-| Prompt | Fate | Why |
-| --- | --- | --- |
-| **Tools to pin** | deleted — derived from capabilities | Never a question about versions. The genuine reproducibility question becomes `--no-pin` plus one explanatory line on the summary. |
-| **Files to generate** | deleted — becomes the summary | Every entry is implied by a capability or a strategy. The picker survives only behind "Change something". |
-| **`tests` checkbox** | deleted — folded into the Testing capability | Failure ④. |
-| **The Wally-forcing note** | deleted — becomes a forward correction | Same fact, offered before the decision rather than announced after it. |
-
-And `entailed_by` shrinks: with artifacts owned by capabilities, the per-entry `requires`/`entailed_by` pair collapses to `provided_by`. Entailment survives only for genuine cross-level implications (strategy → `wally.toml`) — a handful of edges instead of a field on every entry.
-
-**Honest accounting: this is 8 questions on the guided baseline, plus one sub-prompt for each selected capability with multiple implementations.** The redesign's value was never the count. It is that no prompt asks about a consequence, every prompt names its implementation, and the two that vanished were the two asking the user to think at the wrong level.
-
-Which redirects the compression question to where it belongs: the **five guided package prompts** are now the largest block, and most are "none" for a beginner. That is the part worth optimising, not the architectural questions.
-
----
-
-## 6. Rejected alternatives
-
-Recorded because the reasoning for *not* doing these is the part that gets lost.
-
-**Hide the dependency strategy behind `--submodules`.** Technically correct — Wally is the answer for anyone who does not already know otherwise — and rejected. rproj exists partly to teach the ecosystem, and a summary line reading `✓ via Wally` is a receipt, not an explanation: it arrives after the decision, so nothing is learned. A prompt with a recommendation costs one keystroke and is the only place a newcomer meets the concept. **A default does not make a question fake.**
-
-The distinction that makes this compatible with "never ask about a consequence": a *fork* with real live alternatives is a decision; a *consequence* of a decision already made is not. "Pin Wally?" after packages is the second kind. "How should dependencies work?" is the first.
-
-**Replace Guided/Expert with an `--expert` flag.** Rejected: they are different *interaction models* (category-by-category vs search-anything), not different defaults. Revisit only if the guided path gets short enough that what experts skip stops being worth a prompt. `--expert` should exist regardless, so a repeat user does not answer it daily.
-
-**Ship Project Type now.** Rejected as premature — see §7. A prompt reading `What are you building? [Game] [Empty]` is a question whose answer is predetermined, which is the exact defect being removed, relocated to the top of the flow.
-
-**Presets / archetypes.** Already cut in `plan.md`, not reopened. Worth stating the cost, which is paid entirely by the first-time user: they must assemble a composition before knowing what the pieces do. If ever revisited, the cheap version is not a curated catalog — it is `--like` seeded from your own last project, which needs no curation and never goes stale.
-
----
-
-## 7. Project Type is a feature, not a prompt
-
-It is the layer the original sketch called "Architecture" and left empty, and it is genuinely not a preset: a preset bundles package choices, while project type determines *structure* — tree shape, build target, whether a place file exists at all.
-
-Three of its four values do not exist yet. `scaffold_project_json` takes no type parameter and the place template is unconditional:
-
-| Type | State today |
-| --- | --- |
-| **Game** | done |
-| **Empty** | nearly free — skip the place template and the client/server split |
-| **Package** | ~60% — `wally.toml` already writes `[package]` metadata (name/version/registry/realm); needs a single-module project file, no place template, and a `wally publish` story |
-| **Studio plugin** | mostly new — different build target and install path |
-
-So the prompt is gated on the build targets being real. Adding it before then would break the rule this document exists to enforce.
-
----
-
-## 8. Sequencing
-
-| | Work | Depends on | Notes |
-| --- | --- | ---: | --- |
-| **R1** | Capability catalog; collapse "tools" + "files" into capabilities + summary; `provided_by` replaces the `requires`/`entailed_by` pair | — | Pure re-levelling of logic that already exists |
-| **R2** | The tree as a real type: ordered nodes, invalidation on edit, `rproj.toml` stores decisions | R1 | Unlocks "change something", and re-derivation for `upgrade`/`--like` |
-| **R3 (shipped v0.8.0)** | `rproj info <capability>` pages; applicable `rproj configure` hints on the summary | R1 | The "shows its work" half |
-| **R4** | Project type — after Package and Studio-plugin build targets exist | new scaffolding | §7 |
-
-R1 made **M4 (Jest Roblox) cheaper**: "which test runner" became the implementation node of the Testing capability instead of a new gate step. TestEZ remains first internally for compatibility even though the picker displays both implementations alphabetically.
-
-### One decision this reopens
-
-`plan.md` §11 defers `rproj-core` on the grounds that *"one front-end means extraction is cost without benefit, and it would forfeit the dead-code guarantee."* If the tree is the core, that reasoning weakens: the tree earns its keep from revision and upgrade alone, before any second frontend exists. The CLI, a future TUI and a GUI would all be frontends rendering the same project graph.
-
-Not reversed here — flagged for revisit once R2 lands and the tree's real shape is known rather than sketched.
+Additional project types, a Studio plugin, embedded quality tools, and a desktop GUI are not release prerequisites. The roadmap records their scope decisions.

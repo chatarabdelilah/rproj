@@ -12,6 +12,8 @@ Interactive bare `rproj` is a workspace hub over the existing commands. It repor
 
 This version is Windows-only (installs go through `winget`).
 
+**Scope decision (September 5, 2026):** Ratatui remains the interactive frontend. There is no planned desktop GUI or broad migration to embedded tool libraries. Rojo, Selene, StyLua, and the other external tools retain their existing responsibilities. The unfinished model-import experiment is outside the release baseline. Release hardening is next; see [the roadmap](plan.md) for commitments rather than treating historical implementation notes as future work.
+
 ## 2. Behavior / Rules Specification
 
 ### 2.1 Commands
@@ -59,7 +61,7 @@ Rules that hold regardless of which command triggered provisioning:
 
 ### 2.3 Project scaffolding (`rproj new`, after provisioning)
 
-**The prompt order is the design.** Each answer narrows the next, and no prompt asks about a consequence of a decision made after it — see `docs/ux-redesign.md` for the reasoning and the alternatives rejected on the way.
+**The prompt order is the design.** Each answer narrows the next, and no prompt asks about a consequence of a decision made after it — see [the UX direction](ux-redesign.md) for the current decision and interaction contract.
 
 1. Fails if the target project folder already exists (checked before provisioning even runs).
 2. **Dependency strategy** — `Wally` (recommended) / `git submodules` / `none`. **First**, because it decides which packages can be vendored at all. It used to come *after* the package picker, which is what let selecting React silently overrule the user's architecture: React ships only through an npm step upstream, so submodules cannot vendor it, and rproj responded by switching the project to Wally and printing a note.
