@@ -2,6 +2,8 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
+The current release candidate is `v0.12.0`, M4: Jest Roblox as a TestEZ peer. It remains an alpha prerelease.
+
 ## Maintainer preparation
 
 1. Update the version and current-state documentation on a release branch.

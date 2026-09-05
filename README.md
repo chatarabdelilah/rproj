@@ -24,7 +24,7 @@ Run `rproj` with no arguments in a terminal to open the workspace hub. It summar
 | Layer | What rproj manages |
 | --- | --- |
 | Windows applications | Git, VS Code, Roblox Studio, Blender, Figma, and related prerequisites |
-| CLI toolchain | Rokit plus pinned tools such as Rojo, Wally, Selene, StyLua, luau-lsp, Lute, Asphalt, and Tungsten |
+| CLI toolchain | Rokit plus pinned tools such as Rojo, Wally, Selene, StyLua, luau-lsp, Lute, jest-roblox, Asphalt, and Tungsten |
 | Packages | Wally packages or Git submodules, including UI, state, networking, data, testing, and ECS libraries |
 | Roblox Studio | Development plugins selected during machine setup |
 | VS Code | Recommended extensions and project-scoped settings |
@@ -81,6 +81,7 @@ rproj watch
 | `rproj configure project` | Edit or reset the global Rojo tree inherited by future projects |
 | `rproj upgrade` | Re-render maintained files from the current `rproj.toml` decisions |
 | `rproj watch` | Restore dependencies and start the Rojo development loop |
+| `rproj test [args]` | Restore dependencies and run the selected test runner; pass remaining arguments through |
 | `rproj copy` | Copy source files with path headers |
 | `rproj info [key]` | Open the TUI Catalog or print one entry when a key is supplied |
 | `rproj --verbose ...` | Include commands and captured subprocess output |
@@ -107,6 +108,8 @@ my-first-game/
 |   |-- server/
 |   `-- shared/
 |-- tests/
+|-- jest.project.json (Jest Roblox only)
+|-- jest.config.json (Jest Roblox only)
 |-- .lute/check.luau
 |-- .github/workflows/ci.yml
 |-- figma/
@@ -116,6 +119,23 @@ my-first-game/
 
 `rproj.toml` records the current project decisions used by `rproj upgrade`. During alpha, re-scaffolding is preferred when the schema changes substantially.
 
+## Testing
+
+Testing is optional. Wally projects can choose either **Jest Roblox** or **TestEZ**; git-submodule and dependency-free projects use TestEZ because Jest Roblox is distributed as Wally development packages. The choice is written explicitly to `rproj.toml`, and `rproj upgrade` never migrates one runner to the other.
+
+Run the selected runner through:
+
+```powershell
+rproj test
+rproj test -t inventory
+```
+
+TestEZ runs through `lute test`. Jest Roblox installs the official `Jest` and `JestGlobals` packages under `[dev-dependencies]`, keeps them and the test mounts out of production `default.project.json`, and builds tests through the generated `jest.project.json`. The default local run uses jest-roblox's hidden `studio-cli` backend and requires Roblox Studio to be installed, logged in, and accompanied by `JestRobloxRunner.rbxm`. rproj installs or refreshes that plugin when a Jest project is created; rerun `rproj setup` if installation was interrupted. Explicit backend and workspace arguments are forwarded to jest-roblox unchanged.
+
+Jest CI uses Open Cloud. Add repository secret `ROBLOX_OPEN_CLOUD_API_KEY` and repository variables `ROBLOX_UNIVERSE_ID` and `ROBLOX_PLACE_ID`. The API key needs `universe-places:write`, `universe.place.luau-execution-session:write`, and `memory-store.sorted-map:read`/`memory-store.sorted-map:write`; the last pair carries streamed GitHub Actions results. CI fails with the missing names instead of silently skipping tests. Queue scopes are unnecessary because rproj generates a single-session run.
+
+`jest.config.json` is merge-managed: rproj owns `backend`, `rojoProject`, `jestPath`, and `test.projects`, while preserving other valid JSON fields for filters, coverage, snapshots, and runner options. `jest.project.json` is fully generated from the current production project and is refreshed by `rproj test`, `rproj watch`, and `rproj upgrade`.
+
 ## Project template
 
 Run `rproj configure project` to customize the `default.project.json` used by projects created afterward. It opens a built-in, keyboard-driven Explorer; it never launches another editor. Existing projects are never changed.
@@ -124,7 +144,7 @@ Use the arrow keys to navigate, Enter to edit, Tab to switch panes, and type in 
 
 Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain, Wally, and git-submodule mount combination with Rojo before atomically saving it under the rproj configuration directory. Rojo must resolve from the current project or Rokit's global manifest; `rokit add --global rojo` installs the global fallback. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
 
-The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are visible but locked because rproj owns them. Package, module, server-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created source directories; use static instances and properties for other additions. The saved template is `<rproj config>/templates/default.project.json`.
+The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are visible but locked because rproj owns them. Package, module, server-package, development-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created source directories; use static instances and properties for other additions. The saved template is `<rproj config>/templates/default.project.json`.
 
 ## Behavior and scope
 

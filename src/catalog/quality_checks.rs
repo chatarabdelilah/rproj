@@ -8,6 +8,7 @@
 //! Adding a check is a `CHECK_STEPS` entry — no code changes.
 
 use crate::config::PackageWorkflow;
+use crate::graph::TestRunner;
 
 /// One command in the quality gate.
 pub struct CheckStep {
@@ -39,8 +40,8 @@ pub struct CheckStep {
 /// every one of these tools errors on a path that isn't there — so naming it
 /// unconditionally would fail the gate on exactly the projects that have no
 /// tests to check.
-fn targets(testez_selected: bool) -> &'static str {
-    if testez_selected {
+fn targets(has_tests: bool) -> &'static str {
+    if has_tests {
         r#""src", "tests""#
     } else {
         r#""src""#
@@ -73,6 +74,7 @@ local analyze = process.run({
 	"--ignore=**/submodules/**",
 	"--ignore=**/Packages/**",
 	"--ignore=**/ServerPackages/**",
+	"--ignore=**/DevPackages/**",
 	"--base-luaurc=.luaurc",
 	"--definitions=roblox.d.luau",
 	"--flag:LuauSolverV2=true",
@@ -125,7 +127,7 @@ fn import_path(name: &str) -> &'static str {
 /// Builds `.lute/check.luau` for a project that selected `selected_tools`.
 /// Returns `None` if no step applies, so callers don't write an empty
 /// script (or a CI workflow that runs one).
-pub fn render_check(selected_tools: &[String], testez_selected: bool) -> Option<String> {
+pub fn render_check(selected_tools: &[String], has_tests: bool) -> Option<String> {
     let steps: Vec<&CheckStep> = CHECK_STEPS
         .iter()
         .filter(|s| selected_tools.iter().any(|t| t == s.tool_key))
@@ -160,7 +162,7 @@ pub fn render_check(selected_tools: &[String], testez_selected: bool) -> Option<
     // of literal braces (`{ stdio = "inherit" }`), which a format string
     // would demand be doubled — turning every step's body into something
     // that no longer reads like the code it generates.
-    let targets = targets(testez_selected);
+    let targets = targets(has_tests);
     for step in &steps {
         out.push_str(&format!(
             "\n-- {}\n{}\n",
@@ -217,13 +219,21 @@ const WPT_FIXED_REV: &str = "daf5c97bf451e9fed47080769cfaa75d419eb768";
 ///
 /// Submodule projects need no equivalent - `submodules: true` on the
 /// checkout already brings their packages in.
-fn wally_ci_steps(has_server_packages: bool) -> String {
+fn wally_ci_steps(has_server_packages: bool, runner: Option<TestRunner>) -> String {
     // Naming a directory that doesn't exist is an error, and ServerPackages/
     // only exists when something server-realm was selected.
-    let dirs = if has_server_packages {
-        "Packages ServerPackages"
+    let mut dirs = vec!["Packages"];
+    if has_server_packages {
+        dirs.push("ServerPackages");
+    }
+    if runner == Some(TestRunner::JestRoblox) {
+        dirs.push("DevPackages");
+    }
+    let dirs = dirs.join(" ");
+    let project_file = if runner == Some(TestRunner::JestRoblox) {
+        "jest.project.json"
     } else {
-        "Packages"
+        "default.project.json"
     };
     format!(
         r#"
@@ -257,7 +267,8 @@ fn wally_ci_steps(has_server_packages: bool) -> String {
       - name: Install packages
         run: |
           wally install
-          rojo sourcemap default.project.json --output sourcemap.json
+          mkdir -p Packages
+          rojo sourcemap {project_file} --output sourcemap.json
           ~/.cargo/bin/wally-package-types --sourcemap sourcemap.json {dirs}
 "#
     )
@@ -271,12 +282,42 @@ fn wally_ci_steps(has_server_packages: bool) -> String {
 /// `.test.luau`/`.spec.luau` files and exits 0 when there are none, so
 /// this workflow is green on a new project and still runs tests once
 /// there are some.
-pub fn ci_workflow(workflow: PackageWorkflow, has_server_packages: bool) -> String {
+pub fn ci_workflow(
+    workflow: PackageWorkflow,
+    has_server_packages: bool,
+    runner: Option<TestRunner>,
+) -> String {
     let install = match workflow {
-        PackageWorkflow::Wally => wally_ci_steps(has_server_packages),
+        PackageWorkflow::Wally => wally_ci_steps(has_server_packages, runner),
         // Submodules arrive with the checkout, and a project with no
         // dependency manager has nothing to install in the first place.
         PackageWorkflow::GitSubmodules | PackageWorkflow::None => String::new(),
+    };
+    let tests = match runner {
+        None => String::new(),
+        Some(TestRunner::TestEz) => {
+            "\n      - name: Run tests\n        run: lute test\n".to_string()
+        }
+        Some(TestRunner::JestRoblox) => r#"
+      - name: Check Jest Roblox credentials
+        env:
+          ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
+          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
+        run: |
+          if [ -z "$ROBLOX_OPEN_CLOUD_API_KEY" ] || [ -z "$ROBLOX_UNIVERSE_ID" ] || [ -z "$ROBLOX_PLACE_ID" ]; then
+            echo "Jest Roblox requires secret ROBLOX_OPEN_CLOUD_API_KEY and variables ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID."
+            exit 1
+          fi
+
+      - name: Run tests
+        env:
+          ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
+          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
+        run: jest-roblox --backend open-cloud --formatters github-actions --passWithNoTests
+"#
+        .to_string(),
     };
     format!(
         r#"name: CI
@@ -303,9 +344,7 @@ jobs:
 
       - name: Check code quality
         run: lute run check
-
-      - name: Run tests
-        run: lute test
+{tests}
 "#
     )
 }
@@ -450,7 +489,7 @@ mod tests {
     #[test]
     fn ci_workflow_runs_the_gate_and_tolerates_no_tests() {
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            let ci = ci_workflow(workflow, false);
+            let ci = ci_workflow(workflow, false, Some(TestRunner::TestEz));
             assert!(ci.contains("lute run check"));
             assert!(ci.contains("lute test"));
             assert!(!ci.contains("lute run tests"));
@@ -458,13 +497,34 @@ mod tests {
         }
     }
 
+    #[test]
+    fn ci_omits_tests_when_testing_is_disabled() {
+        let ci = ci_workflow(PackageWorkflow::None, false, None);
+        assert!(ci.contains("lute run check"));
+        assert!(!ci.contains("Run tests"), "{ci}");
+    }
+
+    #[test]
+    fn jest_ci_uses_dev_packages_and_fails_when_credentials_are_missing() {
+        let ci = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::JestRoblox));
+        assert!(ci.contains("jest.project.json"), "{ci}");
+        assert!(ci.contains("Packages DevPackages"), "{ci}");
+        assert!(ci.contains("ROBLOX_OPEN_CLOUD_API_KEY"), "{ci}");
+        assert!(ci.contains("ROBLOX_UNIVERSE_ID"), "{ci}");
+        assert!(ci.contains("ROBLOX_PLACE_ID"), "{ci}");
+        assert!(ci.contains("exit 1"), "{ci}");
+        assert!(ci.contains("--backend open-cloud"), "{ci}");
+        assert!(ci.contains("--formatters github-actions"), "{ci}");
+    }
+
     /// Packages/ is gitignored, so without an install step the gate's very
     /// first action - generating a sourcemap over a mapped $path that
     /// doesn't exist - fails, and every Wally project's CI is red.
     #[test]
     fn wally_ci_installs_packages_and_restores_their_types() {
-        let ci = ci_workflow(PackageWorkflow::Wally, false);
+        let ci = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz));
         assert!(ci.contains("wally install"), "{ci}");
+        assert!(ci.contains("mkdir -p Packages"), "{ci}");
         assert!(ci.contains("wally-package-types"), "{ci}");
         // The install must come before the gate, or it's pointless.
         assert!(
@@ -475,7 +535,11 @@ mod tests {
         // Submodule projects get their packages from `submodules: true` and
         // don't pin wally at all - invoking it would fail on a missing
         // binary.
-        let submodules = ci_workflow(PackageWorkflow::GitSubmodules, false);
+        let submodules = ci_workflow(
+            PackageWorkflow::GitSubmodules,
+            false,
+            Some(TestRunner::TestEz),
+        );
         assert!(!submodules.contains("wally"), "{submodules}");
     }
 
@@ -484,7 +548,7 @@ mod tests {
     /// silently goes back to using the broken one.
     #[test]
     fn wally_ci_builds_the_fixed_wally_package_types() {
-        let ci = ci_workflow(PackageWorkflow::Wally, false);
+        let ci = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz));
 
         // A branch or tag would make CI non-reproducible, and a short sha
         // is ambiguous.
@@ -521,13 +585,13 @@ mod tests {
     /// was selected - so the argument list has to track the manifest.
     #[test]
     fn ci_retypes_server_packages_only_when_there_are_any() {
-        let with = ci_workflow(PackageWorkflow::Wally, true);
+        let with = ci_workflow(PackageWorkflow::Wally, true, Some(TestRunner::TestEz));
         assert!(
             with.contains("sourcemap.json Packages ServerPackages"),
             "{with}"
         );
 
-        let without = ci_workflow(PackageWorkflow::Wally, false);
+        let without = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz));
         assert!(without.contains("sourcemap.json Packages\n"), "{without}");
         assert!(!without.contains("ServerPackages"), "{without}");
     }
@@ -537,6 +601,9 @@ mod tests {
     #[test]
     fn vendored_paths_use_wallys_real_capitalisation() {
         assert!(ANALYZE_BODY.contains("**/Packages/**"), "{ANALYZE_BODY}");
-        assert!(ci_workflow(PackageWorkflow::Wally, false).contains("sourcemap.json Packages"));
+        assert!(
+            ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz))
+                .contains("sourcemap.json Packages")
+        );
     }
 }

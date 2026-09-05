@@ -125,6 +125,10 @@ pub enum PackageWorkflow {
     None,
 }
 
+impl PackageWorkflow {
+    pub const ALL: &'static [Self] = &[Self::Wally, Self::GitSubmodules, Self::None];
+}
+
 /// Reading and writing `rproj.toml`, the per-project record.
 ///
 /// **The file *is* the project graph** - the decisions the project was built

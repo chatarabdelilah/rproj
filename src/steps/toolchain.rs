@@ -175,7 +175,9 @@ pub fn ensure_selene_config(
     let vendored = match workflow {
         // Both wally output folders: a project with server-realm packages
         // would otherwise have ServerPackages/ linted.
-        PackageWorkflow::Wally => r#"exclude = ["Packages/**", "ServerPackages/**"]"#,
+        PackageWorkflow::Wally => {
+            r#"exclude = ["Packages/**", "ServerPackages/**", "DevPackages/**"]"#
+        }
         PackageWorkflow::GitSubmodules => r#"exclude = ["modules/submodules/**"]"#,
         // Nothing vendored, so no exclude - an empty one would be a dead
         // key in a config the user is expected to read and edit.

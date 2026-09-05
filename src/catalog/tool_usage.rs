@@ -164,6 +164,29 @@ pub const USAGE: &[Usage] = &[
         ],
     },
     Usage {
+        key: "jest-roblox",
+        what: "Runs the maintained Roblox port of Jest inside Roblox and returns its results to the terminal.",
+        when: "Use `rproj test` for the configured local run; use runner arguments when filtering tests, updating snapshots, or collecting coverage.",
+        commands: &[
+            (
+                "rproj test",
+                "Run all Jest Roblox tests in a hidden local Studio process.",
+            ),
+            (
+                "rproj test --headed",
+                "Show Studio while the local test run executes.",
+            ),
+            (
+                "rproj test -t <name>",
+                "Run tests whose names match a pattern.",
+            ),
+        ],
+        notes: &[
+            "Local runs require a logged-in Roblox Studio installation and the matching JestRobloxRunner plugin.",
+            "CI uses Open Cloud and requires the documented API key, universe ID, place ID, and scopes.",
+        ],
+    },
+    Usage {
         key: "asphalt",
         what: "Uploads Roblox assets through Open Cloud or syncs them locally to Studio, then generates Luau or TypeScript references for code.",
         when: "When your project has images, audio, videos, animations or models and you want a maintained replacement for hand-managed asset IDs.",

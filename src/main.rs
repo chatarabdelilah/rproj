@@ -36,7 +36,11 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             ui::error(&err);
-            ExitCode::FAILURE
+            let code = err
+                .downcast_ref::<commands::test::RunnerFailure>()
+                .map(commands::test::RunnerFailure::exit_code)
+                .unwrap_or(1);
+            ExitCode::from(code)
         }
     }
 }
@@ -61,6 +65,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Configure { key }) => commands::configure::run(key.as_deref()),
         Some(Command::Upgrade { yes }) => commands::upgrade::run(yes),
         Some(Command::Watch) => commands::watch::run(),
+        Some(Command::Test { args }) => commands::test::run(&args),
         Some(Command::Copy) => commands::copy::run(),
         Some(Command::Info { key }) => commands::info::run(key.as_deref()),
     }
@@ -77,6 +82,7 @@ fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
         HubOutcome::SetupMachine => commands::setup::run(None),
         HubOutcome::Upgrade => commands::upgrade::run(false),
         HubOutcome::Watch => commands::watch::run(),
+        HubOutcome::Test => commands::test::run(&[]),
         HubOutcome::CopySource => commands::copy::run(),
     }
 }

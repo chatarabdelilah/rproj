@@ -85,6 +85,7 @@ pub struct Submodule {
 pub enum Realm {
     Shared,
     Server,
+    Dev,
 }
 
 /// Packages whose public API is a table holding both properties and
@@ -454,6 +455,34 @@ pub const PACKAGES: &[PackageSpec] = &[
         docs_url: "https://roblox.github.io/testez/",
         primary_choice: true,
     },
+    PackageSpec {
+        key: "jest",
+        source: "roblox/jest@=3.20.1",
+        realm: Realm::Dev,
+        git_repo: "https://github.com/Roblox/jest-roblox",
+        module_name: "Jest",
+        submodule: None,
+        requires: &[],
+        description: "Roblox's maintained Jest runtime, installed as a Wally development dependency",
+        maintenance: Maintenance::Active,
+        category: Category::Testing,
+        docs_url: "https://github.com/Roblox/jest-roblox",
+        primary_choice: false,
+    },
+    PackageSpec {
+        key: "jest-globals",
+        source: "roblox/jest-globals@=3.20.1",
+        realm: Realm::Dev,
+        git_repo: "https://github.com/Roblox/jest-roblox",
+        module_name: "JestGlobals",
+        submodule: None,
+        requires: &[],
+        description: "The explicit describe, it, and expect imports used by Jest Roblox specs",
+        maintenance: Maintenance::Active,
+        category: Category::Testing,
+        docs_url: "https://github.com/Roblox/jest-roblox",
+        primary_choice: false,
+    },
     // --- Utilities ---
     PackageSpec {
         key: "janitor",
@@ -753,7 +782,10 @@ mod tests {
         // Verified by installing all 22 catalog packages together: the
         // install succeeds only with ProfileStore under
         // `[server-dependencies]` and everything else under `[dependencies]`.
-        for spec in PACKAGES.iter().filter(|p| p.key != "profilestore") {
+        for spec in PACKAGES
+            .iter()
+            .filter(|p| p.key != "profilestore" && p.realm != Realm::Dev)
+        {
             assert!(
                 spec.realm == Realm::Shared,
                 "{} is marked server-realm; confirm with a real `wally install` before trusting it",

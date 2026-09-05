@@ -266,3 +266,58 @@ fn upgrade_respects_files_dropped_at_creation() {
         outcome.text
     );
 }
+
+#[test]
+fn jest_upgrade_regenerates_owned_files_and_preserves_user_options() {
+    let project = TempProject::new("jest-upgrade");
+    let production = r#"{
+  "name": "fixture",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": { "$className": "ReplicatedStorage" },
+    "ServerScriptService": { "$className": "ServerScriptService" },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": { "$className": "StarterPlayerScripts" }
+    }
+  }
+}
+"#;
+    project.write("default.project.json", production);
+    project.write(
+        "rproj.toml",
+        "mode = \"expert\"\npackage_workflow = \"wally\"\npackages = [\"jest\", \"jest-globals\"]\n\n\
+         [capabilities]\nlint = \"selene\"\ntest = \"jest-roblox\"\ngate = \"lute\"\nci = \"github-actions\"\n",
+    );
+    project.write(
+        "jest.config.json",
+        "{\"backend\":\"wrong\",\"timeout\":123,\"test\":{\"projects\":[\"old\"],\"verbose\":true}}\n",
+    );
+    let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    for path in [
+        "jest.project.json",
+        "jest.config.json",
+        ".github/workflows/ci.yml",
+    ] {
+        assert!(
+            project.exists(path),
+            "{path} was not generated:\n{}",
+            outcome.text
+        );
+    }
+    assert_eq!(project.read("default.project.json"), production);
+
+    let test_project = project.read("jest.project.json");
+    assert!(test_project.contains("DevPackages"), "{test_project}");
+    assert!(test_project.contains("tests/shared"), "{test_project}");
+
+    let config = project.read("jest.config.json");
+    assert!(config.contains(r#""backend": "studio-cli""#), "{config}");
+    assert!(config.contains(r#""timeout": 123"#), "{config}");
+    assert!(config.contains(r#""verbose": true"#), "{config}");
+
+    let ci = project.read(".github/workflows/ci.yml");
+    assert!(ci.contains("ROBLOX_OPEN_CLOUD_API_KEY"), "{ci}");
+    assert!(ci.contains("jest-roblox --backend open-cloud"), "{ci}");
+}

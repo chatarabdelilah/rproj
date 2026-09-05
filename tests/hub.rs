@@ -19,7 +19,7 @@ fn the_hub_opens_the_catalog_and_returns() {
     let project = TempProject::new("hub-catalog");
     let mut session = Session::start(project.path(), &[]);
     session.wait_for("Tasks");
-    for _ in 0..7 {
+    for _ in 0..8 {
         session.send(common::DOWN);
     }
     session.send(ENTER);

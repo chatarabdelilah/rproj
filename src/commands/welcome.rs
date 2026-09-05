@@ -47,6 +47,11 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
         &["Resume the dev loop: install what's missing, watch the sourcemap"],
     ),
     (
+        "🧪",
+        "rproj test [args]",
+        &["Restore dependencies and run the project's selected test runner"],
+    ),
+    (
         "📋",
         "rproj copy",
         &["Copy every file under src/ to the clipboard, with path headers"],
@@ -125,6 +130,7 @@ mod tests {
             "configure",
             "upgrade",
             "watch",
+            "test",
             "copy",
             "info",
         ] {

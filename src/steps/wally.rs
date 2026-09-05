@@ -24,9 +24,10 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
     if path.exists() {
         let content = fs::read_to_string(&path)?;
         let has_all = selected.iter().all(|key| {
+            let manifest_key = wally_packages::find(key).map(manifest_key).unwrap_or(key);
             content
                 .lines()
-                .any(|l| l.trim_start().starts_with(&format!("{key} =")))
+                .any(|l| l.trim_start().starts_with(&format!("{manifest_key} =")))
         });
         if has_all {
             ui::ok("wally.toml already configured");
@@ -34,6 +35,13 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
         }
     }
 
+    let body = render_wally_toml(package_name, selected)?;
+    fs::write(&path, body)?;
+    ui::ok("wrote wally.toml");
+    Ok(())
+}
+
+pub fn render_wally_toml(package_name: &str, selected: &[String]) -> Result<String> {
     let mut specs = Vec::new();
     for key in selected {
         specs.push(
@@ -62,9 +70,22 @@ pub fn write_wally_toml(project_dir: &Path, package_name: &str, selected: &[Stri
         }
     }
 
-    fs::write(&path, body)?;
-    ui::ok("wrote wally.toml");
-    Ok(())
+    let dev: Vec<_> = specs.iter().filter(|s| s.realm == Realm::Dev).collect();
+    if !dev.is_empty() {
+        body.push_str("\n[dev-dependencies]\n");
+        for spec in dev {
+            body.push_str(&format!("{} = \"{}\"\n", manifest_key(spec), spec.source));
+        }
+    }
+    Ok(body)
+}
+
+fn manifest_key(spec: &wally_packages::PackageSpec) -> &'static str {
+    if spec.realm == Realm::Dev {
+        spec.module_name
+    } else {
+        spec.key
+    }
 }
 
 pub fn wally_install(project_dir: &Path) -> Result<()> {
@@ -79,6 +100,7 @@ pub const PACKAGES_DIR: &str = "Packages";
 /// subfolder of `Packages/`, so everything that touches vendored package
 /// code has to know about both.
 pub const SERVER_PACKAGES_DIR: &str = "ServerPackages";
+pub const DEV_PACKAGES_DIR: &str = "DevPackages";
 
 /// Retypes the link files in whichever package folders exist.
 ///
@@ -88,7 +110,7 @@ pub const SERVER_PACKAGES_DIR: &str = "ServerPackages";
 /// argument list is built from what's on disk.
 pub fn wally_package_types(project_dir: &Path) -> Result<()> {
     let mut args = vec!["-s", "sourcemap.json"];
-    for dir in [PACKAGES_DIR, SERVER_PACKAGES_DIR] {
+    for dir in [PACKAGES_DIR, SERVER_PACKAGES_DIR, DEV_PACKAGES_DIR] {
         if project_dir.join(dir).is_dir() {
             args.push(dir);
         }
@@ -115,6 +137,10 @@ pub fn wally_package_types(project_dir: &Path) -> Result<()> {
 /// the packages have to be on disk before the sourcemap is generated, and
 /// the sourcemap has to exist before the retyping runs.
 pub fn sync(project_dir: &Path) -> Result<()> {
+    sync_for_project(project_dir, "default.project.json")
+}
+
+pub fn sync_for_project(project_dir: &Path, project_file: &str) -> Result<()> {
     wally_install(project_dir)?;
     // With zero dependencies `wally install` doesn't just skip creating
     // Packages/ - it *removes* an existing empty one (verified). The
@@ -122,7 +148,34 @@ pub fn sync(project_dir: &Path) -> Result<()> {
     // at all when a mapped $path is missing, so recreating it here is what
     // keeps a no-dependency project working.
     fs::create_dir_all(project_dir.join(PACKAGES_DIR))?;
-    rojo::generate_sourcemap(project_dir)?;
+    rojo::generate_sourcemap_from(project_dir, project_file)?;
     // Safe with no packages: an empty directory is a successful no-op.
     wally_package_types(project_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jest_packages_use_exact_dev_dependencies_and_aliases() {
+        let selected = vec!["jest".into(), "jest-globals".into()];
+        let manifest = render_wally_toml("rproj/demo", &selected).unwrap();
+        assert!(manifest.contains("[dev-dependencies]"), "{manifest}");
+        assert!(
+            manifest.contains("Jest = \"roblox/jest@=3.20.1\""),
+            "{manifest}"
+        );
+        assert!(
+            manifest.contains("JestGlobals = \"roblox/jest-globals@=3.20.1\""),
+            "{manifest}"
+        );
+    }
+
+    #[test]
+    fn ordinary_dependency_output_is_unchanged() {
+        let manifest = render_wally_toml("rproj/demo", &["promise".into()]).unwrap();
+        assert!(manifest.contains("[dependencies]\npromise ="), "{manifest}");
+        assert!(!manifest.contains("dev-dependencies"), "{manifest}");
+    }
 }

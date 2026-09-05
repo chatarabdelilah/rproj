@@ -28,6 +28,7 @@ pub enum HubOutcome {
     SetupMachine,
     Upgrade,
     Watch,
+    Test,
     CopySource,
 }
 
@@ -39,6 +40,7 @@ enum Action {
     Setup,
     Upgrade,
     Watch,
+    Test,
     Copy,
     Catalog,
 }
@@ -73,6 +75,11 @@ const ACTIONS: &[(Action, &str, &str)] = &[
         Action::Watch,
         "Watch Project",
         "Install missing dependencies and start the Rojo sourcemap watcher.",
+    ),
+    (
+        Action::Test,
+        "Test Project",
+        "Restore dependencies and run the test runner recorded by this project.",
     ),
     (
         Action::Copy,
@@ -165,6 +172,29 @@ impl WorkspaceContext {
             }
             Action::Watch if !self.has_rojo_file => {
                 Err("Watch requires default.project.json in the current directory.")
+            }
+            Action::Test if !self.has_project_file => {
+                Err("Test requires rproj.toml in the current directory.")
+            }
+            Action::Test if self.graph.is_none() => {
+                Err("rproj.toml is invalid; repair it before testing.")
+            }
+            Action::Test
+                if self
+                    .graph
+                    .as_ref()
+                    .and_then(|graph| graph.test_runner())
+                    .is_none() =>
+            {
+                Err("Testing is not enabled in this project.")
+            }
+            Action::Test
+                if self
+                    .graph
+                    .as_ref()
+                    .is_some_and(|graph| !graph.testing_is_compatible()) =>
+            {
+                Err("Jest Roblox requires the Wally dependency workflow.")
             }
             Action::Copy if !self.has_src => {
                 Err("Copy Source requires a src directory in the current directory.")
@@ -335,6 +365,7 @@ impl HubApp {
             Action::Setup => Some(HubOutcome::SetupMachine),
             Action::Upgrade => Some(HubOutcome::Upgrade),
             Action::Watch => Some(HubOutcome::Watch),
+            Action::Test => Some(HubOutcome::Test),
             Action::Copy => Some(HubOutcome::CopySource),
             Action::Catalog => {
                 self.screen = Screen::Catalog(CatalogApp::new());
@@ -553,6 +584,28 @@ mod tests {
                 .is_none()
         );
         assert!(app.status.contains("default.project.json"));
+    }
+
+    #[test]
+    fn test_action_tracks_the_recorded_runner() {
+        let temp = TempDir::new().unwrap();
+        let mut graph = ProjectGraph::default();
+        graph.choose("test", Some("testez"));
+        crate::config::project_file::save_to(&graph, temp.path()).unwrap();
+        let mut app = app_at(temp.path());
+        app.selected = ACTIONS
+            .iter()
+            .position(|(action, _, _)| *action == Action::Test)
+            .unwrap();
+        assert_eq!(app.activate(), Some(HubOutcome::Test));
+
+        let empty = TempDir::new().unwrap();
+        crate::config::project_file::save_to(&ProjectGraph::default(), empty.path()).unwrap();
+        let context = WorkspaceContext::load(empty.path().to_path_buf());
+        assert_eq!(
+            context.availability(Action::Test),
+            Err("Testing is not enabled in this project.")
+        );
     }
 
     #[test]

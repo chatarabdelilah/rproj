@@ -1,7 +1,8 @@
 use anyhow::{Context, Result, bail};
 
 use crate::config::project_file;
-use crate::steps::{git, rojo, toolchain, wally};
+use crate::graph::TestRunner;
+use crate::steps::{git, jest, rojo, toolchain, wally};
 
 pub fn run() -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
@@ -13,7 +14,8 @@ pub fn run() -> Result<()> {
         );
     }
 
-    if let Some(project) = project_file::load_from(&project_dir)? {
+    let project = project_file::load_from(&project_dir)?;
+    if let Some(project) = &project {
         println!("Packages: {}", project.packages.join(", "));
     }
 
@@ -35,9 +37,24 @@ pub fn run() -> Result<()> {
     // to silently strip the types off every package on each run. See
     // `steps::wally::sync`.
     if project_dir.join("wally.toml").exists() {
-        wally::sync(&project_dir)?;
+        if project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox) {
+            if !project
+                .as_ref()
+                .is_some_and(|graph| graph.testing_is_compatible())
+            {
+                anyhow::bail!("Jest Roblox requires the Wally dependency workflow");
+            }
+            jest::refresh_project(&project_dir)?;
+            wally::sync_for_project(&project_dir, jest::PROJECT_FILE)?;
+        } else {
+            wally::sync(&project_dir)?;
+        }
     }
 
     println!("\nWatching for changes - press Ctrl+C to stop.");
-    rojo::watch_sourcemap(&project_dir)
+    if project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox) {
+        rojo::watch_sourcemap_from(&project_dir, jest::PROJECT_FILE)
+    } else {
+        rojo::watch_sourcemap(&project_dir)
+    }
 }
