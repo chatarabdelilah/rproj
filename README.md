@@ -144,11 +144,14 @@ Use the arrow keys to navigate, Enter to edit, Tab to switch panes, and type in 
 
 Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain, Wally, and git-submodule mount combination with Rojo before atomically saving it under the rproj configuration directory. Rojo must resolve from the current project or Rokit's global manifest; `rokit add --global rojo` installs the global fallback. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
 
+Compound values use comma-separated components in the Inspector; rproj writes their required Rojo representation. UDim offsets must be signed 32-bit whole numbers, and numeric inputs must be finite. If an older draft contains a malformed UDim, UDim2, Rect, or CFrame attribute, re-enter that value in the Inspector before saving; existing templates are not silently rewritten.
+
 The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are visible but locked because rproj owns them. Package, module, server-package, development-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created source directories; use static instances and properties for other additions. The saved template is `<rproj config>/templates/default.project.json`.
 
 ## Behavior and scope
 
 - rproj asks before optional machine-level installation and project generation.
+- The project directory is created only after the final creation confirmation. Cancelling project choices leaves no project directory; if another process creates the destination while you answer, creation refuses to reuse it.
 - External command output is summarized; `--verbose` exposes the underlying commands and captured output.
 - Existing user-owned configuration is preserved where a command supports merging. Unreadable configuration is refused rather than replaced.
 - The current implementation targets Windows. Cross-platform support is not claimed.

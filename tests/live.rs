@@ -40,10 +40,10 @@ impl LiveProject {
     /// added is a test nobody keeps.
     fn scaffold(name: &str, packages: &[&str], submodules: bool) -> Self {
         let root = projects_root();
-        let path = root.join(name);
-        let _ = std::fs::remove_dir_all(&path);
+        let name = unique_name(name);
+        let path = root.join(&name);
 
-        let mut session = Session::start(&root, &["new", name]);
+        let mut session = Session::start(&root, &["new", &name]);
 
         // **Dependency strategy first.** It used to come after the packages,
         // which is what let a React selection silently overrule it.
@@ -57,7 +57,7 @@ impl LiveProject {
         session.wait_for("How do you want to pick packages?");
         session.send(&format!("{DOWN}{ENTER}")); // expert
         session.wait_for("Pick every package this project needs");
-        for key in packages {
+        for key in packages.iter().filter(|key| **key != "testez") {
             session.send(key);
             session.wait_for(&format!("{key} - "));
             session.send(" ");
@@ -70,7 +70,22 @@ impl LiveProject {
         // then files). Enter accepts the defaults, which is what every
         // assertion below assumes: lint, format, typecheck, gate, editor.
         session.wait_for("What should this project do?");
+        for key in ["ci"]
+            .into_iter()
+            .chain(packages.contains(&"testez").then_some("test"))
+        {
+            session.send(key);
+            session.wait_for(&format!("{key} - "));
+            session.send(" ");
+            session.send(&"\x7f".repeat(key.len()));
+        }
         session.send(ENTER);
+        if packages.contains(&"testez") && !submodules {
+            session.wait_for("test:");
+            session.send("testez");
+            session.wait_for("testez - ");
+            session.send(ENTER);
+        }
 
         // The summary is not a picker - nothing here is a new decision, so
         // there is exactly one keystroke to confirm it.
@@ -138,27 +153,51 @@ impl Drop for LiveProject {
     }
 }
 
-/// Where `rproj new` puts projects: the recorded root, or the default.
 fn projects_root() -> PathBuf {
-    let configured = std::env::var_os("APPDATA")
-        .map(|appdata| PathBuf::from(appdata).join("rproj").join("config.toml"))
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|text| {
-            text.lines().find_map(|line| {
-                line.trim()
-                    .strip_prefix("roblox_projects_root = ")?
-                    .trim()
-                    .strip_prefix('"')?
-                    .strip_suffix('"')
-                    .map(str::to_string)
-            })
+    let dirs = directories::ProjectDirs::from("", "", "rproj").expect("config directory");
+    let text = std::fs::read_to_string(dirs.config_dir().join("config.toml"))
+        .expect("live tests require an already provisioned machine");
+    let config: toml::Value = toml::from_str(&text).expect("valid machine configuration");
+    assert!(
+        config
+            .get("last_checked")
+            .and_then(toml::Value::as_str)
+            .is_some(),
+        "run machine setup explicitly before live tests"
+    );
+    let root = config
+        .get("roblox_projects_root")
+        .and_then(toml::Value::as_str)
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var_os("USERPROFILE").expect("USERPROFILE"))
+                .join("Documents/RobloxProjects")
         });
-    match configured {
-        Some(root) => PathBuf::from(root.replace("\\\\", "\\")),
-        None => PathBuf::from(std::env::var_os("USERPROFILE").expect("USERPROFILE"))
-            .join("Documents")
-            .join("RobloxProjects"),
-    }
+    assert!(
+        root.is_dir(),
+        "live test project root must already exist: {}",
+        root.display()
+    );
+    root
+}
+
+fn unique_name(label: &str) -> String {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let name = format!(
+        "rproj-audit-{label}-{}-{nanos}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    );
+    assert!(
+        !projects_root().join(&name).exists(),
+        "scratch project already exists"
+    );
+    name
 }
 
 /// Runs a toolchain command in `dir`, returning its exit code and output.
@@ -208,11 +247,10 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
 #[ignore]
 fn saying_no_to_everything_yields_only_the_rojo_basics() {
     let root = projects_root();
-    let name = "rproj-bare-basics";
-    let path = root.join(name);
-    let _ = std::fs::remove_dir_all(&path);
+    let name = unique_name("rproj-bare-basics");
+    let path = root.join(&name);
 
-    let mut session = Session::start(&root, &["new", name]);
+    let mut session = Session::start(&root, &["new", &name]);
     // `none` is now a real answer to the dependency question, and choosing
     // it skips the package prompts entirely rather than defaulting to Wally
     // and then offering a manifest for dependencies that don't exist.
@@ -260,6 +298,37 @@ fn saying_no_to_everything_yields_only_the_rojo_basics() {
     let _ = std::fs::remove_dir_all(&path);
 }
 
+#[test]
+#[ignore = "requires an already provisioned machine"]
+fn confirmation_and_cancellation_preserve_a_concurrently_created_directory() {
+    for cancel in [true, false] {
+        let root = projects_root();
+        let name = unique_name("concurrent");
+        let path = root.join(&name);
+        let mut session = Session::start(&root, &["new", &name]);
+        session.wait_for("How should this project get its dependencies?");
+        session.send("none");
+        session.wait_for("none - ");
+        session.send(ENTER);
+        session.wait_for("What should this project do?");
+        session.send(&format!("{LEFT}{ENTER}"));
+        session.wait_for("Create it?");
+        assert!(!path.exists());
+        std::fs::create_dir(&path).unwrap();
+        std::fs::write(path.join("user.txt"), "preserve me").unwrap();
+        let project = LiveProject { path };
+        if cancel {
+            session.send("cancel");
+            session.wait_for("cancel - ");
+        }
+        session.send(ENTER);
+        let outcome = session.finish();
+        assert_eq!(outcome.code, if cancel { 0 } else { 1 }, "{}", outcome.text);
+        assert_eq!(project.read("user.txt"), "preserve me");
+        assert!(!project.exists("default.project.json"));
+    }
+}
+
 /// **The redesign, end to end.** Pick a package, accept the capability
 /// defaults, and the summary must *explain* every file rather than offering
 /// it as a checkbox.
@@ -274,11 +343,10 @@ fn saying_no_to_everything_yields_only_the_rojo_basics() {
 #[ignore]
 fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
     let root = projects_root();
-    let name = "rproj-summary-report";
-    let path = root.join(name);
-    let _ = std::fs::remove_dir_all(&path);
+    let name = unique_name("rproj-summary-report");
+    let path = root.join(&name);
 
-    let mut session = Session::start(&root, &["new", name]);
+    let mut session = Session::start(&root, &["new", &name]);
     session.wait_for("How should this project get its dependencies?");
     session.send(ENTER); // Wally, the recommended default
     session.wait_for("How do you want to pick packages?");
@@ -323,9 +391,13 @@ fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
         );
     }
 
+    assert!(
+        !path.exists(),
+        "answering prompts must not create the project"
+    );
     session.send(ESC);
     let _ = session.finish();
-    let _ = std::fs::remove_dir_all(&path);
+    assert!(!path.exists(), "escape must leave no project behind");
 }
 
 /// **Revision, not navigation.** Change an early answer from the summary and
@@ -339,11 +411,10 @@ fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
 #[ignore]
 fn changing_an_early_answer_reasks_only_what_it_invalidates() {
     let root = projects_root();
-    let name = "rproj-revise";
-    let path = root.join(name);
-    let _ = std::fs::remove_dir_all(&path);
+    let name = unique_name("rproj-revise");
+    let path = root.join(&name);
 
-    let mut session = Session::start(&root, &["new", name]);
+    let mut session = Session::start(&root, &["new", &name]);
     session.wait_for("How should this project get its dependencies?");
     session.send(ENTER); // Wally
     session.wait_for("How do you want to pick packages?");
@@ -436,10 +507,19 @@ fn a_wally_project_scaffolds_and_passes_its_own_gate() {
         ".lute/check.luau",
         ".github/workflows/ci.yml",
         ".gitattributes",
-        ".vscode/settings.json",
     ] {
         assert!(project.exists(file), "{file} was not scaffolded");
     }
+    let dirs = directories::ProjectDirs::from("", "", "rproj").unwrap();
+    let config: toml::Value =
+        toml::from_str(&std::fs::read_to_string(dirs.config_dir().join("config.toml")).unwrap())
+            .unwrap();
+    let vscode = config["selected_system_apps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|app| app.as_str() == Some("vscode"));
+    assert_eq!(project.exists(".vscode/settings.json"), vscode);
 
     // Wally actually resolved and vendored, rather than leaving an empty
     // folder that everything downstream would fail on. Found by scanning
@@ -575,8 +655,7 @@ fn watch_restores_submodules_in_a_fresh_clone() {
     );
     assert_eq!(code, 0, "{output}");
 
-    let clone = projects_root().join("live-clone-copy");
-    let _ = std::fs::remove_dir_all(&clone);
+    let clone = projects_root().join(unique_name("clone-copy"));
     let (code, output) = run(
         projects_root().as_path(),
         "git",
