@@ -2,7 +2,7 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The release baseline is `v0.12.0`, M4: Jest Roblox as a TestEZ peer. It remains an alpha prerelease. The next candidate will be selected after the release-hardening audit establishes its changes. The shelved model-import branch's `0.13.0` version is not a publication target.
+The published baseline is `v0.12.0`; the current alpha candidate is `v0.12.1`, release hardening of project creation and Template Explorer values. See [the audit](release-audit.md) for verification and remaining prerequisites. The shelved model-import branch's `0.13.0` version is not a publication target.
 
 ## Maintainer preparation
 

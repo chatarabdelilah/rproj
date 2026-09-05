@@ -1041,11 +1041,14 @@ fn attribute_value(kind: &ValueKind, value: Value) -> Value {
         ValueKind::Color3 => "Color3",
         ValueKind::Vector2 => "Vector2",
         ValueKind::Vector3 => "Vector3",
-        ValueKind::UDim => "UDim",
-        ValueKind::UDim2 => "UDim2",
-        ValueKind::CFrame => "CFrame",
+        ValueKind::UDim | ValueKind::UDim2 | ValueKind::Rect => return value,
+        ValueKind::CFrame => {
+            return json!({"CFrame": {
+                "position": [value[0], value[1], value[2]],
+                "orientation": [[value[3], value[4], value[5]], [value[6], value[7], value[8]], [value[9], value[10], value[11]]]
+            }});
+        }
         ValueKind::NumberRange => "NumberRange",
-        ValueKind::Rect => "Rect",
         ValueKind::Enum(_) => "String",
     };
     json!({ label: value })
@@ -1154,10 +1157,17 @@ fn value_text(value: Option<&Value>) -> String {
         Some(Value::String(v)) => v.clone(),
         Some(Value::Array(v)) => v
             .iter()
-            .map(Value::to_string)
+            .map(|value| value_text(Some(value)))
             .collect::<Vec<_>>()
             .join(", "),
         Some(Value::Object(v)) if v.len() == 1 => value_text(v.values().next()),
+        Some(Value::Object(v)) if v.contains_key("position") && v.contains_key("orientation") => {
+            format!(
+                "{}, {}",
+                value_text(v.get("position")),
+                value_text(v.get("orientation"))
+            )
+        }
         Some(v) => v.to_string(),
         None => String::new(),
     }
@@ -1447,6 +1457,58 @@ fn render_too_small(frame: &mut ratatui::Frame<'_>, area: Rect) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn compound_attribute_values_round_trip_through_the_input() {
+        for (kind, input) in [
+            (super::ValueKind::UDim, "0.5, 12"),
+            (super::ValueKind::UDim2, "0.5, 12, 1, -24"),
+            (super::ValueKind::Rect, "1, 2, 10, 20"),
+            (
+                super::ValueKind::CFrame,
+                "1, 2, 3, 1, 0, 0, 0, 1, 0, 0, 0, 1",
+            ),
+        ] {
+            let value = super::attribute_value(&kind, kind.parse(input).unwrap());
+            assert!(kind.accepts(&value), "{value}");
+            let text = super::value_text(Some(&value));
+            assert_eq!(
+                super::attribute_value(&kind, kind.parse(&text).unwrap()),
+                value
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a real Rojo binary on PATH"]
+    fn guided_compound_values_pass_real_rojo_validation() {
+        let mut template = crate::steps::rojo::builtin_project_template();
+        let mut attributes = serde_json::Map::new();
+        for (name, kind) in [
+            ("Position", super::ValueKind::CFrame),
+            ("Layout", super::ValueKind::UDim2),
+            ("Padding", super::ValueKind::UDim),
+            ("Bounds", super::ValueKind::Rect),
+        ] {
+            attributes.insert(
+                name.into(),
+                super::attribute_value(&kind, kind.default_value()),
+            );
+        }
+        template["tree"]["Workspace"]["Probe"] = serde_json::json!({
+            "$className": "Part", "$properties": {"Attributes": attributes}
+        });
+        template["tree"]["StarterGui"] = serde_json::json!({
+            "$className": "StarterGui", "Screen": {"$className": "ScreenGui",
+                "Image": {"$className": "ImageLabel", "$properties": {
+                    "Size": super::ValueKind::UDim2.parse("1, 0, 1, 0").unwrap(),
+                    "SliceCenter": super::ValueKind::Rect.parse("0, 0, 10, 10").unwrap()
+                }, "Layout": {"$className": "UIListLayout", "$properties": {
+                    "Padding": super::ValueKind::UDim.parse("0, 8").unwrap()
+                }}}
+            }
+        });
+        crate::steps::rojo::validate_template_with_rojo(&template).unwrap();
+    }
     use super::*;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;

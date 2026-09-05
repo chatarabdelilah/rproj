@@ -63,9 +63,6 @@ pub fn run(
         ui::detail("rproj setup to re-check, or rproj new --reconfigure to change");
     }
 
-    std::fs::create_dir_all(&project_dir)
-        .with_context(|| format!("failed to create {}", project_dir.display()))?;
-
     ui::section(&format!("Scaffolding {name}"));
     ui::detail(&project_dir.display().to_string());
 
@@ -129,15 +126,13 @@ pub fn run(
                 apply_derived_packages(&mut graph);
             }
             Outcome::Cancel => {
-                // Nothing has been written yet beyond the directory, so
-                // backing out here leaves no half-project behind.
-                std::fs::remove_dir_all(&project_dir).ok();
                 println!("\nNothing created.");
                 return Ok(());
             }
         }
     };
 
+    create_project_dir(&project_dir)?;
     let packages = graph.package_set();
     let package_workflow = graph.package_workflow;
     let project_tools = graph.tools();
@@ -210,6 +205,17 @@ pub fn run(
         project_dir.display()
     );
     Ok(())
+}
+
+fn create_project_dir(path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create {}", parent.display()))?;
+    }
+    // Claim the destination only after confirmation; never reuse a directory
+    // another process created while the user was answering prompts.
+    std::fs::create_dir(path)
+        .with_context(|| format!("failed to create new project at {}", path.display()))
 }
 
 fn refresh_jest_plugin() -> Result<()> {
@@ -1245,6 +1251,26 @@ fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn creating_a_project_never_reuses_an_existing_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("existing");
+        std::fs::create_dir(&path).unwrap();
+        std::fs::write(path.join("user.txt"), "preserve me").unwrap();
+        assert!(super::create_project_dir(&path).is_err());
+        assert_eq!(
+            std::fs::read_to_string(path.join("user.txt")).unwrap(),
+            "preserve me"
+        );
+    }
+
+    #[test]
+    fn creating_a_project_creates_missing_parents() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("projects/new");
+        super::create_project_dir(&path).unwrap();
+        assert!(path.is_dir());
+    }
     use super::*;
 
     /// **Every package the picker offers is one the strategy can install.**

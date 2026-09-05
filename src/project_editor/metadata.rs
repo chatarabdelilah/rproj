@@ -176,9 +176,11 @@ impl ValueKind {
             Self::Enum(items) => json!(items.first().cloned().unwrap_or_default()),
             Self::BrickColor => json!({ "BrickColor": 194 }),
             Self::Color3 => json!([0.0, 0.0, 0.0]),
-            Self::Vector2 | Self::UDim | Self::NumberRange => json!([0.0, 0.0]),
+            Self::Vector2 | Self::NumberRange => json!([0.0, 0.0]),
+            Self::UDim => json!({"UDim": [0.0, 0]}),
             Self::Vector3 => json!([0.0, 0.0, 0.0]),
-            Self::UDim2 | Self::Rect => json!([0.0, 0.0, 0.0, 0.0]),
+            Self::UDim2 => json!({"UDim2": [[0.0, 0], [0.0, 0]]}),
+            Self::Rect => json!({"Rect": [[0.0, 0.0], [0.0, 0.0]]}),
             Self::CFrame => json!([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),
         }
     }
@@ -196,8 +198,10 @@ impl ValueKind {
                 .map_err(|_| "enter a whole number".into()),
             Self::Number => input
                 .parse::<f64>()
+                .ok()
+                .filter(|number| number.is_finite())
                 .map(|number| json!(number))
-                .map_err(|_| "enter a number".into()),
+                .ok_or_else(|| "enter a finite number".into()),
             Self::Enum(items) => items
                 .iter()
                 .find(|item| item.eq_ignore_ascii_case(input))
@@ -209,9 +213,22 @@ impl ValueKind {
                 .map(|number| json!({ "BrickColor": number }))
                 .map_err(|_| "enter a BrickColor number from 0 to 65535".into()),
             Self::Color3 => parse_components(input, 3),
-            Self::Vector2 | Self::UDim | Self::NumberRange => parse_components(input, 2),
+            Self::Vector2 | Self::NumberRange => parse_components(input, 2),
+            Self::UDim => {
+                let values = parse_components(input, 2)?;
+                Ok(json!({"UDim": [values[0], offset(&values[1])?]}))
+            }
             Self::Vector3 => parse_components(input, 3),
-            Self::UDim2 | Self::Rect => parse_components(input, 4),
+            Self::UDim2 => {
+                let values = parse_components(input, 4)?;
+                Ok(
+                    json!({"UDim2": [[values[0], offset(&values[1])?], [values[2], offset(&values[3])?]]}),
+                )
+            }
+            Self::Rect => {
+                let values = parse_components(input, 4)?;
+                Ok(json!({"Rect": [[values[0], values[1]], [values[2], values[3]]]}))
+            }
             Self::CFrame => parse_components(input, 12),
         }
     }
@@ -250,13 +267,61 @@ impl ValueKind {
             Self::Color3 => accepts_array(value, 3, &["Color3", "Color3uint8"]),
             Self::Vector2 => accepts_array(value, 2, &["Vector2"]),
             Self::Vector3 => accepts_array(value, 3, &["Vector3"]),
-            Self::UDim => accepts_array(value, 2, &["UDim"]),
-            Self::UDim2 => accepts_array(value, 4, &["UDim2"]),
-            Self::CFrame => accepts_array(value, 12, &["CFrame"]),
+            Self::UDim => explicit(&["UDim"]).is_some_and(valid_udim),
+            Self::UDim2 => explicit(&["UDim2"]).is_some_and(|value| {
+                value
+                    .as_array()
+                    .is_some_and(|values| values.len() == 2 && values.iter().all(valid_udim))
+            }),
+            Self::CFrame => {
+                accepts_array(value, 12, &[])
+                    || explicit(&["CFrame"]).is_some_and(|value| {
+                        value.as_object().is_some_and(|fields| {
+                            fields.len() == 2
+                                && fields
+                                    .get("position")
+                                    .is_some_and(|position| accepts_array(position, 3, &[]))
+                                && fields
+                                    .get("orientation")
+                                    .and_then(Value::as_array)
+                                    .is_some_and(|rows| {
+                                        rows.len() == 3
+                                            && rows.iter().all(|row| accepts_array(row, 3, &[]))
+                                    })
+                        })
+                    })
+            }
             Self::NumberRange => accepts_array(value, 2, &["NumberRange"]),
-            Self::Rect => accepts_array(value, 4, &["Rect"]),
+            Self::Rect => explicit(&["Rect"]).is_some_and(|value| {
+                value.as_array().is_some_and(|values| {
+                    values.len() == 2 && values.iter().all(|value| accepts_array(value, 2, &[]))
+                })
+            }),
         }
     }
+}
+
+fn offset(value: &Value) -> Result<i32, String> {
+    value
+        .as_f64()
+        .filter(|value| {
+            value.is_finite()
+                && value.fract() == 0.0
+                && *value >= i32::MIN as f64
+                && *value <= i32::MAX as f64
+        })
+        .map(|value| value as i32)
+        .ok_or_else(|| "offset must be a whole number in the signed 32-bit range".into())
+}
+
+fn valid_udim(value: &Value) -> bool {
+    value.as_array().is_some_and(|values| {
+        values.len() == 2
+            && values[0].is_number()
+            && values[1]
+                .as_i64()
+                .is_some_and(|value| i32::try_from(value).is_ok())
+    })
 }
 
 fn accepts_array(value: &Value, length: usize, explicit_names: &[&str]) -> bool {
@@ -282,12 +347,48 @@ fn parse_components(input: &str, expected: usize) -> Result<Value, String> {
     if values.len() != expected {
         return Err(format!("enter exactly {expected} comma-separated numbers"));
     }
+    if values.iter().any(|value| !value.is_finite()) {
+        return Err("all components must be finite numbers".into());
+    }
     Ok(json!(values))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn numeric_inputs_reject_non_finite_values_and_fractional_offsets() {
+        for input in ["NaN", "inf", "-inf", "1e999"] {
+            assert!(ValueKind::Number.parse(input).is_err());
+            assert!(ValueKind::Vector2.parse(&format!("0, {input}")).is_err());
+        }
+        for input in ["1, 2.5", "1, 2147483648", "1, -2147483649"] {
+            assert!(ValueKind::UDim.parse(input).is_err());
+        }
+        assert_eq!(
+            ValueKind::UDim.parse("0.5, -10").unwrap(),
+            json!({"UDim": [0.5, -10]})
+        );
+    }
+
+    #[test]
+    fn compound_defaults_and_parsed_values_use_valid_explicit_shapes() {
+        for (kind, input) in [
+            (ValueKind::UDim, "0.5, 10"),
+            (ValueKind::UDim2, "0.5, 10, 1, -20"),
+            (ValueKind::Rect, "1, 2, 3, 4"),
+        ] {
+            assert!(kind.accepts(&kind.default_value()));
+            assert!(kind.accepts(&kind.parse(input).unwrap()));
+        }
+        assert!(!ValueKind::UDim2.accepts(&json!({"UDim2": [1, 2, 3, 4]})));
+        assert!(!ValueKind::Rect.accepts(&json!({"Rect": [1, 2, 3, 4]})));
+        assert!(!ValueKind::CFrame.accepts(&json!({"CFrame": vec![0; 12]})));
+        assert!(ValueKind::CFrame.accepts(&json!({"CFrame": {
+            "position": [1, 2, 3], "orientation": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        }})));
+    }
 
     #[test]
     fn bundled_catalog_filters_uncreatable_children_but_keeps_services_at_root() {
