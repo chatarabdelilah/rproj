@@ -2,11 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is `v0.12.1`; the current alpha candidate is `v0.12.2`, release hardening of the Jest Roblox toolchain and generated configuration. See [the audit](release-audit.md) for verification and remaining prerequisites. The shelved model-import branch's `0.13.0` version is not a publication target.
+The published baseline is `v0.12.2`, an alpha prerelease containing the Jest Roblox toolchain and generated-configuration fixes. Its tag points to `f71bf4e`. The automated Jest pass/fail regression was merged on main afterward in PR #7; it is not part of that published archive. No new release candidate is selected. See [the audit](release-audit.md) for verification and remaining limits. The shelved model-import branch's `0.13.0` version is not a publication target.
+
+The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-1. Establish scope from verified defects and approved changes. Roadmap-only edits do not require Cargo publication.
+1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
 3. Run `cargo fmt --all --check`, `cargo test --locked`, and `cargo clippy --locked --all-targets -- -D warnings`.
 4. Run applicable ignored/live tests serially on a deliberately provisioned environment. Record commands, tool versions, outcomes, and missing prerequisites. Skipped tests are not passes; follow [the roadmap's workflow coverage](plan.md).

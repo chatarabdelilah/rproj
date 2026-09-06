@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 5, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated September 6, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,9 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.12.1, public alpha**. **v0.12.2** is the release-hardening candidate, with [audit evidence and limitations](release-audit.md). Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.12.2, public alpha**, with [audit evidence and limitations](release-audit.md). No new release candidate is selected. Public availability does not mean every integration or configuration contract is ready for a stable release.
+
+The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
 The existing product includes machine setup, configurable project generation, saved compositions, upgrades, tool configuration, the global Template Explorer, workspace hub and Catalog, watching, source copying, and optional TestEZ/Jest Roblox testing.
 
@@ -40,6 +42,8 @@ Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. The shel
 ## Next: Release Hardening
 
 No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
+
+The next focused check is **saved-setup replay**: verify that reusing a saved composition preserves its dependency workflow, packages, capabilities, and dropped artifacts. Local Jest pass/fail execution is now covered; Open Cloud and fresh-machine provisioning remain separate gaps.
 
 ### 1. Establish The Baseline
 
@@ -100,5 +104,7 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | M5-M5b: validated global template and built-in Explorer | v0.9.0-v0.10.2 |
 | T1: shared Ratatui foundation, workspace hub, Catalog | v0.11.0 |
 | M4: Jest Roblox as a TestEZ peer | v0.12.0 |
+| Project confirmation safety and Template Explorer compound values | v0.12.1 |
+| Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 
 **Active sequence: release audit -> targeted fixes -> verified release -> evaluate the next Ratatui workflow.**
