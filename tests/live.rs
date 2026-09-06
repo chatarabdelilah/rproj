@@ -21,6 +21,12 @@
 
 mod common;
 
+// Jest regression only (requires an already provisioned Studio/Jest machine).
+// Normal `rproj new` syncs shared Rokit/Wally caches and refreshes the Studio
+// runner plugin; only the temporary project itself is isolated and removed.
+// $env:RPROJ_TEST_TIMEOUT = '180'
+// cargo test --locked --test live jest_starter_specs_pass_and_report_failure -- --ignored --test-threads=1 --nocapture
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -225,6 +231,152 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
         String::from_utf8_lossy(&output.stderr)
     );
     (output.status.code().unwrap_or(-1), text)
+}
+
+/// Exercises the released CLI boundary, including scaffolded pins/config,
+/// runner discovery, and failure propagation. A no-tests success or a tool
+/// startup failure must never satisfy either half of this regression.
+#[test]
+#[ignore = "requires provisioned Rokit/Wally, Studio with JestRobloxRunner, network; run serially"]
+fn jest_starter_specs_pass_and_report_failure() {
+    let root = projects_root();
+    let plugin = PathBuf::from(std::env::var_os("LOCALAPPDATA").expect("LOCALAPPDATA"))
+        .join("Roblox/Plugins/JestRobloxRunner.rbxm");
+    assert!(
+        plugin.is_file(),
+        "install the Jest Studio runner before running this live test"
+    );
+
+    // Own the parent before starting the scaffold, so even a partial scaffold
+    // is cleaned up, without deleting or reusing any pre-existing directory.
+    // A relative name keeps rproj's generated Wally package name short.
+    let scratch = tempfile::Builder::new()
+        .prefix("rproj-jest-")
+        .tempdir_in(&root)
+        .expect("create unique Jest scratch directory");
+    let name = format!(
+        "{}/project",
+        scratch.path().file_name().unwrap().to_str().unwrap()
+    );
+    let project = scratch.path().join("project");
+    let mut session = Session::start(&root, &["new", &name]);
+    session.wait_for("How should this project get its dependencies?");
+    session.send(ENTER); // Wally
+    session.wait_for("How do you want to pick packages?");
+    session.send(&format!("{DOWN}{ENTER}")); // expert
+    session.wait_for("Pick every package this project needs");
+    session.send(&format!("{LEFT}{ENTER}")); // Jest adds its own dev dependencies
+    session.wait_for("What should this project do?");
+    session.send(LEFT);
+    session.send("test");
+    session.wait_for("test - ");
+    session.send(&format!(" {ENTER}"));
+    session.wait_for("test:");
+    session.send("jest-roblox");
+    session.wait_for("jest-roblox - ");
+    session.send(ENTER);
+    session.wait_for("Create it?");
+    session.send(ENTER);
+    session.wait_for("is ready");
+    let scaffold = session.finish();
+    assert_eq!(scaffold.code, 0, "{}", scaffold.text);
+
+    // Global shims must not hide a scaffold that forgot its project pins.
+    let manifest: toml::Value = toml::from_str(
+        &std::fs::read_to_string(project.join("rokit.toml")).expect("generated Rokit manifest"),
+    )
+    .expect("valid Rokit manifest");
+    let tools = manifest["tools"].as_table().expect("project tool pins");
+    for source in ["christopher-buss/jest-roblox-cli@", "UpliftGames/wally@"] {
+        assert!(
+            tools
+                .values()
+                .any(|pin| pin.as_str().is_some_and(|pin| pin.starts_with(source))),
+            "missing {source} pin: {manifest}\n{}",
+            scaffold.text
+        );
+    }
+
+    let passing = Session::start(
+        &project,
+        &[
+            "test",
+            "--backend",
+            "studio-cli",
+            "--no-color",
+            "--outputFile",
+            "passing.json",
+        ],
+    )
+    .finish();
+    assert_eq!(passing.code, 0, "{}", passing.text);
+    let report = |name: &str| -> serde_json::Value {
+        let text = std::fs::read_to_string(project.join(name)).expect("Jest result report");
+        serde_json::from_str(&text).expect("valid Jest result JSON")
+    };
+    let passed = report("passing.json");
+    assert_eq!(passed["success"], true, "{passed}");
+    assert_eq!(passed["numPassedTests"], 3, "{passed}\n{}", passing.text);
+    assert_eq!(passed["numFailedTests"], 0, "{passed}");
+    let suites = passed["testResults"].as_array().expect("per-file results");
+    assert_eq!(suites.len(), 3, "{passed}");
+    for area in ["shared", "server", "client"] {
+        let path = format!("tests/{area}/hello.spec.luau");
+        let suite = suites
+            .iter()
+            .find(|suite| suite["testFilePath"] == path)
+            .unwrap_or_else(|| panic!("missing {path}: {passed}"));
+        assert_eq!(suite["numPassingTests"], 1, "{suite}");
+        assert_eq!(suite["testResults"][0]["status"], "passed", "{suite}");
+    }
+
+    let spec_path = project.join("tests/shared/hello.spec.luau");
+    let spec = std::fs::read_to_string(&spec_path).expect("generated starter spec");
+    assert_eq!(spec.matches("expect(1 + 1).toBe(2)").count(), 1, "{spec}");
+    let broken = spec
+        .replace("expect(1 + 1).toBe(2)", "expect(1 + 1).toBe(987654)")
+        .replace("it(\"runs\"", "it(\"rproj deliberate failure\"");
+    std::fs::write(&spec_path, &broken).expect("break owned starter spec");
+    let failing = Session::start(
+        &project,
+        &[
+            "test",
+            "--backend",
+            "studio-cli",
+            "--no-color",
+            "--outputFile",
+            "failing.json",
+        ],
+    )
+    .finish();
+    assert_eq!(failing.code, 1, "{}", failing.text);
+    failing.assert_contains("rproj deliberate failure");
+    failing.assert_contains("987654");
+    failing.assert_contains("reported test failures (exit code 1)");
+    let failed = report("failing.json");
+    assert_eq!(failed["numPassedTests"], 2, "{failed}");
+    assert_eq!(failed["numFailedTests"], 1, "{failed}");
+    assert_eq!(failed["success"], false, "{failed}");
+    let failed_suites = failed["testResults"].as_array().expect("per-file results");
+    assert_eq!(failed_suites.len(), 3, "{failed}");
+    let shared = failed_suites
+        .iter()
+        .find(|suite| suite["testFilePath"] == "tests/shared/hello.spec.luau")
+        .expect("shared starter spec result");
+    assert_eq!(shared["numFailingTests"], 1, "{shared}");
+    assert_eq!(shared["testResults"][0]["status"], "failed", "{shared}");
+    assert_eq!(
+        shared["testResults"][0]["title"], "rproj deliberate failure",
+        "{shared}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(spec_path).unwrap(),
+        broken,
+        "rproj test must preserve the user's failing spec"
+    );
+    println!(
+        "Jest regression: 3 starter specs passed; deliberate failure returned 1 with 2 passed / 1 failed."
+    );
 }
 
 /// **"rproj needs to be such that if I want, I can create a project with only
