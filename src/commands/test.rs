@@ -143,7 +143,7 @@ fn invocation(runner: TestRunner, arguments: &[String]) -> (&'static str, Vec<St
                 .collect(),
         ),
         TestRunner::JestRoblox => (
-            "jest-roblox",
+            "jest-roblox-cli",
             std::iter::once("--passWithNoTests".to_string())
                 .chain(arguments.iter().cloned())
                 .collect(),
@@ -189,7 +189,7 @@ mod tests {
     fn runner_arguments_are_forwarded_after_required_defaults() {
         let supplied = vec!["--headed".into(), "-t".into(), "inventory".into()];
         let (program, args) = invocation(TestRunner::JestRoblox, &supplied);
-        assert_eq!(program, "jest-roblox");
+        assert_eq!(program, "jest-roblox-cli");
         assert_eq!(args, ["--passWithNoTests", "--headed", "-t", "inventory"]);
         let (program, args) = invocation(TestRunner::TestEz, &supplied);
         assert_eq!(program, "lute");

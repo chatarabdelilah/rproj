@@ -4,7 +4,6 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 
-use crate::steps::testez::TEST_ROOTS;
 use crate::ui;
 
 pub const PROJECT_FILE: &str = "jest.project.json";
@@ -14,6 +13,15 @@ const STARTER_SPECS: &[(&str, &str)] = &[
     ("tests/shared/hello.spec.luau", "shared"),
     ("tests/server/hello.spec.luau", "server"),
     ("tests/client/hello.spec.luau", "client"),
+];
+
+/// Jest Roblox 0.3.x treats a string in `test.projects` as the path to a
+/// project config file. Inline entries are therefore required for the three
+/// Luau test trees that rproj scaffolds.
+const PROJECTS: &[(&str, &str)] = &[
+    ("shared", "tests/shared/**/*.spec.luau"),
+    ("server", "tests/server/**/*.spec.luau"),
+    ("client", "tests/client/**/*.spec.luau"),
 ];
 
 fn starter_spec(area: &str) -> String {
@@ -143,7 +151,18 @@ pub fn merged_config(project_dir: &Path) -> Result<String> {
     let test = test
         .as_object_mut()
         .context("jest.config.json `test` must be an object")?;
-    test.insert("projects".into(), json!(TEST_ROOTS));
+    let projects: Vec<Value> = PROJECTS
+        .iter()
+        .map(|(display_name, include)| {
+            json!({
+                "test": {
+                    "displayName": display_name,
+                    "include": [include],
+                }
+            })
+        })
+        .collect();
+    test.insert("projects".into(), Value::Array(projects));
     Ok(format!(
         "{}\n",
         serde_json::to_string_pretty(&Value::Object(root))?
@@ -257,6 +276,19 @@ mod tests {
     }
 
     #[test]
+    fn generated_config_uses_inline_projects_for_luau_test_trees() {
+        let dir = TempDir::new().unwrap();
+        let config: Value = serde_json::from_str(&merged_config(dir.path()).unwrap()).unwrap();
+        let projects = config["test"]["projects"].as_array().unwrap();
+
+        assert_eq!(projects.len(), PROJECTS.len());
+        for (project, (display_name, include)) in projects.iter().zip(PROJECTS) {
+            assert_eq!(project["test"]["displayName"], json!(display_name));
+            assert_eq!(project["test"]["include"], json!([include]));
+        }
+    }
+
+    #[test]
     #[ignore = "requires Wally, Rojo, wally-package-types, jest-roblox, Roblox Studio, and its runner plugin"]
     fn real_jest_stack_installs_validates_retypes_and_executes() {
         let dir = TempDir::new().unwrap();
@@ -280,7 +312,7 @@ mod tests {
         ensure_config(dir.path()).unwrap();
         wally::sync_for_project(dir.path(), PROJECT_FILE).unwrap();
         run_in(
-            "jest-roblox",
+            "jest-roblox-cli",
             &["--passWithNoTests", "--backend", "studio-cli"],
             Some(dir.path()),
         )

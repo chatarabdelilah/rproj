@@ -79,18 +79,12 @@ fn run_rokit_add(
     tally: &mut Tally,
 ) -> Result<()> {
     let mut args = vec!["add"];
+    // Rokit 1.2 requires every first-use source to be trusted before either
+    // a global or project-local add. The command is idempotent; doing it for
+    // both scopes prevents a selected project tool from being skipped on a
+    // fresh machine.
+    let _ = capture("rokit", &["trust", rokit_source], None);
     if project_dir.is_none() {
-        // `rokit add --global` refuses a tool rokit hasn't seen before
-        // ("The following tool has not been marked as trusted"), unlike a
-        // project-local `rokit add`, which trusts implicitly as it
-        // installs. Since rproj does the global adds *first*, every one of
-        // them fails this way on a machine that has never installed the
-        // tool - i.e. exactly the fresh-PC case this tool exists for,
-        // which is invisible on a developer machine where everything is
-        // already trusted. Trusting up front is not extra exposure: these
-        // are catalog tools the user explicitly selected, and the
-        // project-local add that follows would trust them anyway.
-        let _ = capture("rokit", &["trust", rokit_source], None);
         args.push("--global");
     }
     args.push(rokit_source);

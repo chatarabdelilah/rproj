@@ -322,5 +322,5 @@ fn jest_upgrade_regenerates_owned_files_and_preserves_user_options() {
 
     let ci = project.read(".github/workflows/ci.yml");
     assert!(ci.contains("ROBLOX_OPEN_CLOUD_API_KEY"), "{ci}");
-    assert!(ci.contains("jest-roblox --backend open-cloud"), "{ci}");
+    assert!(ci.contains("jest-roblox-cli --backend open-cloud"), "{ci}");
 }

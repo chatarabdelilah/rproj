@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.12.0, public alpha**. **v0.12.1** is the release-hardening candidate, with [audit evidence and limitations](release-audit.md). Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.12.1, public alpha**. **v0.12.2** is the release-hardening candidate, with [audit evidence and limitations](release-audit.md). Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The existing product includes machine setup, configurable project generation, saved compositions, upgrades, tool configuration, the global Template Explorer, workspace hub and Catalog, watching, source copying, and optional TestEZ/Jest Roblox testing.
 

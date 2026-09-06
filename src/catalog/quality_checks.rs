@@ -315,7 +315,7 @@ pub fn ci_workflow(
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
           ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
-        run: jest-roblox --backend open-cloud --formatters github-actions --passWithNoTests
+        run: jest-roblox-cli --backend open-cloud --formatters github-actions --passWithNoTests
 "#
         .to_string(),
     };
