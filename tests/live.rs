@@ -233,6 +233,198 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
     (output.status.code().unwrap_or(-1), text)
 }
 
+/// Saving and replaying must preserve the complete composition, not just its
+/// packages. Exercise both dependency strategies so resetting to Wally cannot
+/// pass accidentally. This uses shared tool caches and a uniquely reserved
+/// setup file, but never replaces an existing user setup or machine config.
+#[test]
+#[ignore = "requires provisioned Rokit/Wally/Git, network and shared setup directory; run serially"]
+fn saved_setup_replays_workflow_packages_capabilities_and_dropped_files() {
+    let root = projects_root();
+    let dirs = directories::ProjectDirs::from("", "", "rproj").expect("config directory");
+    let setups = dirs.config_dir().join("setups");
+    std::fs::create_dir_all(&setups).expect("create setup directory");
+
+    for workflow in ["wally", "git-submodules"] {
+        let scratch = tempfile::Builder::new()
+            .prefix("rproj-replay-")
+            .tempdir_in(&root)
+            .expect("create unique replay scratch directory");
+        // Reserve the exact setup filename before the CLI writes it. TempPath
+        // releases the open handle and cleans up even if a later assertion fails.
+        let setup = tempfile::Builder::new()
+            .prefix("rproj-replay-")
+            .suffix(".toml")
+            .tempfile_in(&setups)
+            .expect("reserve unique saved setup")
+            .into_temp_path();
+        let setup_name = setup.file_stem().unwrap().to_str().unwrap();
+        let parent_name = scratch.path().file_name().unwrap().to_str().unwrap();
+        let original_name = format!("{parent_name}/original");
+        let replay_name = format!("{parent_name}/replayed");
+        let original = scratch.path().join("original");
+        let replayed = scratch.path().join("replayed");
+        let mut session =
+            Session::start(&root, &["new", &original_name, "--save-setup", setup_name]);
+        session.wait_for("How should this project get its dependencies?");
+        session.send(workflow);
+        session.wait_for(&format!("{workflow} - "));
+        session.send(ENTER);
+        session.wait_for("How do you want to pick packages?");
+        session.send(&format!("{DOWN}{ENTER}")); // expert
+        session.wait_for("Pick every package this project needs");
+        session.send(LEFT);
+        for key in ["charm", "promise"] {
+            session.send(key);
+            session.wait_for(&format!("{key} - "));
+            session.send(" ");
+            session.send(&"\x7f".repeat(key.len()));
+        }
+        session.send(ENTER);
+        session.wait_for("What should this project do?");
+        session.send(LEFT);
+        for key in ["format", "lint"] {
+            session.send(key);
+            session.wait_for(&format!("{key} - "));
+            session.send(" ");
+            session.send(&"\x7f".repeat(key.len()));
+        }
+        session.send(ENTER);
+        session.wait_for("Create it?");
+        session.send("customize");
+        session.wait_for("customize - ");
+        session.send(ENTER);
+        session.wait_for("Files to keep");
+        session.send(".gitignore");
+        session.wait_for(".gitignore - ");
+        session.send(&format!(" {ENTER}")); // drop only this housekeeping file
+        session.wait_for("Create it?");
+        session.send(ENTER);
+        session.wait_for("is ready");
+        let created = session.finish();
+        assert_eq!(created.code, 0, "{workflow}: {}", created.text);
+        created.assert_contains(&format!("saved setup `{setup_name}`"));
+
+        let read_toml = |path: &Path| -> toml::Value {
+            let text = std::fs::read_to_string(path)
+                .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
+            toml::from_str(&text).expect("valid generated TOML")
+        };
+        // Pin the intended answers before comparing two outputs: otherwise
+        // two equally incorrect scaffolds could satisfy the round trip.
+        let expected: toml::Value = toml::from_str(&format!(
+            "mode = 'expert'\npackage_workflow = '{workflow}'\n\
+             packages = ['charm', 'promise']\ndropped = ['.gitignore']\n\
+             [capabilities]\nformat = 'stylua'\nlint = 'selene'\n"
+        ))
+        .unwrap();
+        assert_eq!(read_toml(&original.join("rproj.toml")), expected);
+        assert_eq!(read_toml(&setup), expected);
+        let saved_bytes = std::fs::read(&setup).unwrap();
+
+        let mut session = Session::start(&root, &["new", &replay_name, "--like", setup_name]);
+        // No choice prompts are answered on this run. Re-asking any of them
+        // must fail, rather than silently repairing an incomplete replay.
+        session.wait_for("Create it?");
+        session.send(ENTER);
+        session.wait_for("is ready");
+        let replay = session.finish();
+        assert_eq!(replay.code, 0, "{workflow}: {}", replay.text);
+        replay.assert_contains(&format!("using saved setup `{setup_name}`"));
+        for prompt in [
+            "How should this project get its dependencies?",
+            "How do you want to pick packages?",
+            "Pick every package this project needs",
+            "What should this project do?",
+            "Files to keep",
+        ] {
+            replay.assert_lacks(prompt);
+        }
+        let mut expected_replay = expected;
+        expected_replay["mode"] = format!("like:{setup_name}").into();
+        assert_eq!(read_toml(&replayed.join("rproj.toml")), expected_replay);
+        assert_eq!(
+            std::fs::read(&setup).unwrap(),
+            saved_bytes,
+            "replay rewrote setup"
+        );
+
+        // The graph is not enough: the filesystem must honor those choices.
+        for project in [&original, &replayed] {
+            for kept in [
+                "default.project.json",
+                "stylua.toml",
+                ".gitattributes",
+                "selene.toml",
+            ] {
+                assert!(
+                    project.join(kept).is_file(),
+                    "missing {kept} in {project:?}"
+                );
+            }
+            for absent in [".gitignore", ".vscode/settings.json", ".lute/check.luau"] {
+                assert!(
+                    !project.join(absent).exists(),
+                    "unexpected {absent} in {project:?}"
+                );
+            }
+            if workflow == "wally" {
+                let manifest = read_toml(&project.join("wally.toml"));
+                let dependencies = manifest["dependencies"].as_table().unwrap();
+                assert_eq!(
+                    dependencies.keys().map(String::as_str).collect::<Vec<_>>(),
+                    ["charm", "promise"]
+                );
+                for key in ["charm", "promise"] {
+                    // Wally owns the generated link extension and casing.
+                    assert!(
+                        std::fs::read_dir(project.join("Packages"))
+                            .unwrap()
+                            .any(|entry| {
+                                let path = entry.unwrap().path();
+                                path.is_file()
+                                    && path
+                                        .file_stem()
+                                        .is_some_and(|stem| stem.eq_ignore_ascii_case(key))
+                            }),
+                        "missing installed Wally package {key} in {project:?}"
+                    );
+                }
+                assert!(!project.join("modules").exists());
+            } else {
+                for module in ["Charm", "Promise"] {
+                    assert!(project.join(format!("modules/{module}.luau")).is_file());
+                }
+                assert!(project.join(".gitmodules").is_file());
+                assert!(!project.join("wally.toml").exists());
+            }
+            let pins = read_toml(&project.join("rokit.toml"));
+            let tools = pins["tools"].as_table().expect("project-local tool pins");
+            for source in ["JohnnyMorganz/StyLua@", "Kampfkarren/selene@"] {
+                assert!(
+                    tools
+                        .values()
+                        .any(|pin| pin.as_str().is_some_and(|pin| pin.starts_with(source))),
+                    "missing selected {source} pin in {project:?}: {pins}"
+                );
+            }
+        }
+        assert_eq!(
+            read_toml(&original.join("rokit.toml"))["tools"],
+            read_toml(&replayed.join("rokit.toml"))["tools"],
+            "replay changed project-local tool pins"
+        );
+        let setup_path = setup.to_path_buf();
+        let scratch_path = scratch.path().to_path_buf();
+        setup.close().expect("remove temporary saved setup");
+        scratch
+            .close()
+            .expect("remove original and replayed scratch projects");
+        assert!(!setup_path.exists());
+        assert!(!scratch_path.exists());
+    }
+}
+
 /// Exercises the released CLI boundary, including scaffolded pins/config,
 /// runner discovery, and failure propagation. A no-tests success or a tool
 /// startup failure must never satisfy either half of this regression.

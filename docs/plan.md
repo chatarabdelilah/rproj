@@ -43,7 +43,7 @@ Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. The shel
 
 No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
 
-The next focused check is **saved-setup replay**: verify that reusing a saved composition preserves its dependency workflow, packages, capabilities, and dropped artifacts. Local Jest pass/fail execution is now covered; Open Cloud and fresh-machine provisioning remain separate gaps.
+Automated **saved-setup replay** now verifies both Wally and Git submodules: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. The next focused check is refusal safety for missing, malformed, or incompatible saved setups before project creation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.
 
 ### 1. Establish The Baseline
 
