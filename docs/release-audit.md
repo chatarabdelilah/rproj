@@ -15,7 +15,7 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 
 | Check | Result |
 | --- | --- |
-| Ordinary suite with saved-setup regression | 273 passed; 15 deliberately ignored; 288 discovered (253 unit + 35 integration) |
+| Ordinary suite with saved-setup refusal regression | 273 passed; 16 deliberately ignored; 289 discovered (253 unit + 36 integration) |
 | Formatting and clippy | Passed locally |
 | Existing live project suite | Seven passed in 38.39 seconds on September 5 after harness corrections |
 | Concurrent-destination live regression | Passed for both cancellation and confirmation |
@@ -24,6 +24,7 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 | Live Jest Roblox execution | `jest-roblox-cli` 0.3.24, Studio CLI backend: three generated starter specs passed in 11.58 seconds on September 6 |
 | Automated live Jest regression, PR #7 | Reviewed test passed in 26.84 seconds on September 6: scaffolded Wally + Jest in a unique temporary directory, verified project-local pins and three passing starter specs, then broke the shared spec and verified exit code 1, the assertion failure, and two passing / one failing test. Temporary project removed. |
 | Automated saved-setup replay | Passed in 20.07 seconds on September 6: real `new --save-setup` then `new --like` for both Wally and Git submodules, with charm/promise, lint/format, and a dropped `.gitignore`. Verified exact graphs, no repeated choices, installed package links, selected tool pins, generated/omitted files, unchanged saved setup, and cleanup. |
+| Automated saved-setup refusal | Passed in 7.78 seconds on September 6: missing setup, malformed TOML, and Jest with no manager or Git submodules each exited 1 with a case-specific error before explicit `--reconfigure`. No input was sent; no destination/parent was created; machine config, source fixtures, and an existing output-setup sentinel remained byte-identical. Temporary directories removed. |
 | Upstream badge check | Passed September 6; advisory to review Matter's Active badge (last reported push December 31, 2024); not proof that the project is abandoned |
 | Previous CodeRabbit findings, PR #4 | Both addressed in baseline commit 4737c84; plugin identity and ServerPackages exclusion regression present |
 | Published 0.12.2 package | cargo package --locked passed at `f71bf4e`; 73 files, 852.5 KiB uncompressed; crates.io reports 0.12.2 |
@@ -38,6 +39,7 @@ cargo clippy --locked --all-targets -- -D warnings
 $env:RPROJ_TEST_TIMEOUT = '180'
 cargo test --locked --test live jest_starter_specs_pass_and_report_failure -- --ignored --test-threads=1 --nocapture
 cargo test --locked --test live saved_setup_replays_workflow_packages_capabilities_and_dropped_files -- --ignored --test-threads=1 --nocapture
+cargo test --locked --test live invalid_saved_setups_refuse_before_reconfiguration_or_creation -- --ignored --test-threads=1 --nocapture
 cargo test --locked --test live -- --ignored --test-threads=1
 cargo test --locked steps::rojo::tests:: -- --ignored --test-threads=1
 cargo test --locked guided_compound_values_pass_real_rojo_validation -- --ignored
@@ -49,12 +51,14 @@ The live project suite uses unique directories under the configured projects roo
 
 ## Remaining Limits
 
+The refusal regression is also ignored because it reads real machine configuration and uses the configured projects/setup roots. It owns unique fixture directories and never answers provisioning prompts; a newly created empty setup directory may remain. A saved global template can invoke Rojo validation before setup refusal. This is not fresh-machine provisioning evidence.
+
 The saved-setup regression uses the real configured projects root and setup directory, reserving a unique setup filename before the CLI writes it. Both projects and the reserved setup are removed, including partial runs; a newly created empty setup directory may remain. Existing setups and machine configuration are not changed. Rokit/Wally caches and trust state remain shared; this test needs provisioned tools and network, runs serially, and does not install Studio plugins. Like the Jest regression, it is ignored by ordinary CI and does not change the published 0.12.2 package.
 
 - **Jest evidence covers the local Studio CLI backend.** The automated starter-spec pass/fail gap is closed by PR #7. This does not verify Open Cloud, an attached Studio session, or a fresh Windows installation. The older ignored `real_jest_stack_installs_validates_retypes_and_executes` test still exercises no-test success; the new live regression verifies actual execution through `rproj test`.
 - **Open Cloud execution was not performed.** No audit universe/place and credentials were supplied. Generated preflight and workflow text are tested, but that is not equivalent to a current hosted run.
 - **Fresh Windows provisioning was not performed.** winget/editor/Studio/plugin installation changes the machine. Existing unit coverage and inspection are not a substitute for a clean-machine acceptance test.
-- **Saved-setup replay evidence covers valid Wally and Git-submodule compositions.** Missing, malformed, and incompatible saved setups still need targeted refusal-path evidence. Clipboard contents, machine provisioning/recovery, and every template keyboard path also remain gaps. No claim of beta/1.0 readiness is made.
+- **Saved-setup evidence is bounded.** Replay covers valid Wally and Git-submodule compositions. Refusal covers missing/malformed records and Jest without Wally, before explicit reconfiguration or creation. It does not cover every hand-edited/legacy setup or unknown-package fallback. Clipboard contents, machine provisioning/recovery, and every template keyboard path also remain gaps. No claim of beta/1.0 readiness is made.
 - **Template validity remains Rojo-authoritative.** This patch repairs specific existing compound controls, not every possible explicit/future property representation. Unsupported advanced values and old malformed drafts are not automatically normalized.
 
 ## Handoff
@@ -63,4 +67,4 @@ Keep Ratatui and all external tool boundaries. The model-import experiment stays
 
 Release 0.12.2 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Next focused hardening check: saved-setup refusal safety. Verify that missing, malformed, or incompatible setups fail before project creation or provisioning. This is an existing-workflow check, not a new feature milestone.
+Next development step after this regression passes review and post-merge CI: scope project creation inside Ratatui, preserving guided/expert choices, saved setups, revision/cancellation, and generated output. This test-only change does not implement that UI. Remaining alpha audit gaps stay tracked; no further unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
