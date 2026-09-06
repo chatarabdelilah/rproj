@@ -43,7 +43,7 @@ cargo test --locked badges_do_not_contradict_upstream -- --ignored --nocapture
 cargo package --locked
 ```
 
-The live project suite uses unique directories under the configured projects root and shares real Rokit/Wally caches. The Jest regression requires installed Studio and JestRobloxRunner; normal scaffolding refreshes that plugin. Only its temporary project is isolated and removed. Run serially on an explicitly provisioned machine, not as an unattended installer on a fresh host. The regression remains ignored by ordinary CI and must be invoked explicitly.
+The live project suite uses unique directories under the configured projects root and shares real Rokit/Wally caches. The Jest regression requires Studio and JestRobloxRunner to be installed; normal scaffolding refreshes that plugin. Only its temporary project is isolated and removed. Run serially on an explicitly provisioned machine, not as an unattended installer on a fresh host. The regression remains ignored by ordinary CI and must be invoked explicitly.
 
 ## Remaining Limits
 
