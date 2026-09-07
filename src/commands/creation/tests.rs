@@ -292,10 +292,13 @@ fn create_needs_confirmation_and_ctrl_c_always_cancels() {
 #[test]
 fn unicode_paste_name_validation_and_setup_refusal_preserve_existing_data() {
     let mut draft = review_graph(ProjectGraph::default());
+    select(&mut draft, "name");
+    let name_row = draft.picker.selected;
     draft.modal = Some(Modal::Name(InputState::new("")));
     draft.paste("世界\nStudio");
     key(&mut draft, KeyCode::Enter);
     assert_eq!(draft.name, "世界Studio");
+    assert_eq!(draft.picker.selected, name_row);
     for name in [
         "",
         "..",
@@ -309,10 +312,12 @@ fn unicode_paste_name_validation_and_setup_refusal_preserve_existing_data() {
         assert!(validate_name(name).is_err(), "{name}");
     }
     select(&mut draft, "setup");
+    let setup_row = draft.picker.selected;
     draft.paste("saved");
     key(&mut draft, KeyCode::Enter);
     assert!(matches!(draft.modal,Some(Modal::Setup(ref input)) if input.error.is_some()));
     assert!(draft.save_setup.is_none());
+    assert_eq!(draft.picker.selected, setup_row);
 }
 
 #[test]

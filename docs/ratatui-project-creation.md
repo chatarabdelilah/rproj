@@ -1,6 +1,6 @@
 # Ratatui project creation: bounded implementation plan
 
-Status: creation model and screens implemented on `codex/ratatui-project-creation`; acceptance verification and PR review in progress.
+Status: creation model and screens implemented in [PR #14](https://github.com/chatarabdelilah/rproj/pull/14). The PR records reviewed-head checks and post-merge verification; publication requires a separately prepared version.
 The diagnostic logger is merged in PR #11. Model import remains shelved and is
 not a dependency. Direct-command prompts remain unchanged.
 

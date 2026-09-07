@@ -674,13 +674,15 @@ impl Draft {
     pub fn paste(&mut self, text: &str) {
         let input = match &mut self.modal {
             Some(Modal::Name(input) | Modal::Setup(input)) => input,
-            None if !self.details_focus => &mut self.picker.query,
+            None if !self.details_focus => {
+                self.picker.selected = 0;
+                &mut self.picker.query
+            }
             _ => return,
         };
         for ch in text.chars().filter(|ch| !ch.is_control()) {
             input.handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
         }
-        self.picker.selected = 0;
     }
 }
 
