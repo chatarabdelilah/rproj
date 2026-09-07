@@ -39,11 +39,11 @@ The unfinished v0.13.0 model-import experiment is **shelved and outside the rele
 
 Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. The shelved importer offered a different convenience: converting supported models into self-contained, editable global-template JSON. That does not justify delaying release. This decision does not expand rproj's current global-template `$path` rules. See Rojo's [sync details](https://rojo.space/docs/v7/sync-details/) and [project format](https://rojo.space/docs/v7/project-format/).
 
-## Next: Release Hardening
+## Release Hardening Baseline
 
 No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
 
-Automated **saved-setup replay** now verifies both Wally and Git submodules: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. The next focused check is refusal safety for missing, malformed, or incompatible saved setups before project creation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.
+Automated **saved-setup replay** now verifies both Wally and Git submodules: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. Refusal checks now cover missing/malformed setups and Jest without Wally, including explicit `--reconfigure`, with no project creation or fixture/config mutation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.
 
 ### 1. Establish The Baseline
 
@@ -76,11 +76,11 @@ Choose the version after the changes are known: a patch for compatible fixes, a 
 
 Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-## After Hardening: Continue Ratatui
+## Next: Ratatui Project Creation
 
 The next feature candidate is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-This is not a release prerequisite. Scope it after the audit, using the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
+After the saved-setup refusal PR passes review and post-merge CI, proceed to a bounded design and acceptance checklist for this Ratatui slice, unless a concrete blocker is discovered. Remaining Open Cloud and fresh-machine checks stay documented alpha limitations; they do not indefinitely block UI development. This is not a release prerequisite. Reuse the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -107,4 +107,4 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 
-**Active sequence: release audit -> targeted fixes -> verified release -> evaluate the next Ratatui workflow.**
+**Active sequence: finish refusal-check review/merge -> scope Ratatui project creation -> implement the approved slice.**

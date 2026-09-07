@@ -233,6 +233,108 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
     (output.status.code().unwrap_or(-1), text)
 }
 
+/// Invalid saved setups must fail before even explicit machine reconfiguration.
+/// Send no input: a regression reaching an installer prompt times out instead
+/// of approving it. All fixtures live in uniquely owned temporary directories.
+#[test]
+#[ignore = "uses real machine config/setup paths and optional Rojo template validation; run serially"]
+fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
+    let root = projects_root();
+    let dirs = directories::ProjectDirs::from("", "", "rproj").expect("config directory");
+    let config_path = dirs.config_dir().join("config.toml");
+    let machine_before = std::fs::read(&config_path).expect("read machine config");
+    let setups = dirs.config_dir().join("setups");
+    std::fs::create_dir_all(&setups).expect("create setup directory");
+    let fixtures = tempfile::Builder::new()
+        .prefix("rproj-refusal-")
+        .tempdir_in(&setups)
+        .expect("create unique setup fixtures");
+    let scratch = tempfile::Builder::new()
+        .prefix("rproj-refusal-")
+        .tempdir_in(&root)
+        .expect("create unique project scratch directory");
+    let setup_prefix = fixtures.path().file_name().unwrap().to_str().unwrap();
+    let project_prefix = scratch.path().file_name().unwrap().to_str().unwrap();
+    // Nested setup names keep every missing/file fixture under one exclusively
+    // owned parent. Existing user setup names are neither replaced nor removed.
+    let output_name = format!("{setup_prefix}/output");
+    let output_path = fixtures.path().join("output.toml");
+    let sentinel = b"preserve this existing setup byte-for-byte\n";
+    std::fs::write(&output_path, sentinel).unwrap();
+
+    for (label, contents, error) in [
+        ("missing", None, "no saved setup called"),
+        ("malformed", Some("mode = [".to_string()), "failed to parse"),
+        (
+            "jest-with-none",
+            Some("package_workflow = 'none'\n[capabilities]\ntest = 'jest-roblox'\n".to_string()),
+            "selects Jest Roblox without Wally",
+        ),
+        (
+            "jest-with-submodules",
+            Some(
+                "package_workflow = 'git-submodules'\n[capabilities]\ntest = 'jest-roblox'\n"
+                    .to_string(),
+            ),
+            "selects Jest Roblox without Wally",
+        ),
+    ] {
+        let setup_name = format!("{setup_prefix}/{label}");
+        let setup_path = fixtures.path().join(format!("{label}.toml"));
+        if let Some(text) = &contents {
+            std::fs::write(&setup_path, text).expect("write owned setup fixture");
+        }
+        let project_name = format!("{project_prefix}/{label}/project");
+        let outcome = Session::start(
+            &root,
+            &[
+                "new",
+                &project_name,
+                "--like",
+                &setup_name,
+                "--reconfigure",
+                "--save-setup",
+                &output_name,
+            ],
+        )
+        .finish();
+        assert_eq!(outcome.code, 1, "{label}: {}", outcome.text);
+        outcome.assert_contains(error);
+        // The setup-specific identifier prevents an unrelated template/config
+        // error (or a generic nonzero exit) from satisfying the refusal check.
+        outcome.assert_contains(label);
+        for forbidden in [
+            "System apps",
+            "Rokit-managed CLI tools",
+            "Machine setup",
+            "Scaffolding",
+            "Create it?",
+            "is ready",
+        ] {
+            outcome.assert_lacks(forbidden);
+        }
+        outcome.assert_lacks(&format!("saved setup `{output_name}`"));
+        assert!(
+            !scratch.path().join(label).exists(),
+            "{label}: refusal created the destination or its parent"
+        );
+        assert_eq!(std::fs::read(&config_path).unwrap(), machine_before);
+        assert_eq!(std::fs::read(&output_path).unwrap(), sentinel);
+        match contents {
+            Some(text) => assert_eq!(std::fs::read_to_string(&setup_path).unwrap(), text),
+            None => assert!(!setup_path.exists(), "missing setup was created"),
+        }
+    }
+    let fixture_path = fixtures.path().to_path_buf();
+    let scratch_path = scratch.path().to_path_buf();
+    fixtures.close().expect("remove owned setup fixtures");
+    scratch
+        .close()
+        .expect("remove empty project scratch directory");
+    assert!(!fixture_path.exists());
+    assert!(!scratch_path.exists());
+}
+
 /// Saving and replaying must preserve the complete composition, not just its
 /// packages. Exercise both dependency strategies so resetting to Wally cannot
 /// pass accidentally. This uses shared tool caches and a uniquely reserved
