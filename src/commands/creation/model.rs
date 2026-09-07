@@ -567,7 +567,11 @@ impl Draft {
                 if value == "testez" {
                     self.graph.choose("test", Some("testez"));
                 }
-                self.review();
+                if self.capabilities_complete {
+                    self.review();
+                } else {
+                    self.open(Step::Capabilities);
+                }
             }
             Step::Files => {
                 self.graph.dropped = self

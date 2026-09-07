@@ -174,6 +174,21 @@ fn backing_out_of_an_unanswered_runner_cannot_skip_capability_review() {
     select(&mut draft, "none");
     assert_eq!(draft.step, Step::Capabilities);
     assert!(draft.checked.contains("test"));
+
+    let mut draft = super::model::Draft::new("Example", vec![], vec![], vec![]);
+    select(&mut draft, "expert");
+    select(&mut draft, "wally");
+    key(&mut draft, KeyCode::Enter);
+    draft.checked = ["test".into(), "asset-pipeline".into()].into();
+    key(&mut draft, KeyCode::Enter);
+    select(&mut draft, "jest-roblox");
+    assert_eq!(draft.step, Step::Implementation("asset-pipeline"));
+    key(&mut draft, KeyCode::Esc);
+    key(&mut draft, KeyCode::Esc);
+    select(&mut draft, "none");
+    assert_eq!(draft.step, Step::RepairTesting);
+    select(&mut draft, "testez");
+    assert_eq!(draft.step, Step::Capabilities);
 }
 
 #[test]
