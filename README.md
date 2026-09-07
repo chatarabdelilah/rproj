@@ -10,6 +10,8 @@
 
 ## What rproj does
 
+Version 0.13 adds built-in project creation from the workspace hub and local diagnostic logs. Guided/expert choices, saved setups, revisions, and final confirmation stay in Ratatui; external tools run after the terminal is restored. Direct commands and existing project formats remain unchanged.
+
 rproj connects two layers that are usually assembled by hand:
 
 1. **Machine setup** installs and configures development applications, command-line tools, Roblox Studio plugins, and VS Code extensions.

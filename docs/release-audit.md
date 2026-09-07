@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-Updated September 7, 2026. Published baseline: **0.12.2**, alpha. No new release candidate is selected. The release-hardening baseline covers confirmed defects in existing workflows. Subsequent source development adds the explicitly requested diagnostic logger and hub-driven Ratatui creation; neither is in published 0.12.2. Model import, embedded tools, and frontend migration remain out of scope.
+Updated September 8, 2026. Published baseline: **0.12.2**, alpha. Selected candidate: **0.13.0**, diagnostic logging and hub-driven Ratatui creation. The release-hardening baseline covers confirmed defects in existing workflows; neither new feature is in published 0.12.2. Model import, embedded tools, and frontend migration remain out of scope. See [candidate release notes](release-notes-0.13.0.md).
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
@@ -15,6 +15,8 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 
 | Check | Result |
 | --- | --- |
+| 0.13.0 candidate local gates | September 8: 301 ordinary tests passed (19 explicitly ignored); formatting and clippy passed. All 14 serial live regressions passed in 183.89 seconds. The three real-Rojo checks passed in 5.22 seconds. Verified installed Rokit 1.2.0, Rojo 7.7.0, and Wally 0.3.2; the Jest runner was exercised through its project-local pin, not a global shim in this repository. Packaged verification and exact reviewed-head/main CI are recorded on the release PR before publication. |
+| Creation merge/main CI | PR #14 merged at `a90037f`, tree-identical to reviewed `ef1d5df`. [Main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34162680901) passed Windows stable, Rust 1.89, and package builds. Both CodeRabbit findings were resolved; the merged feature branch was deleted. |
 | Creation source verification | 301 ordinary tests passed; 19 explicitly ignored; 320 discovered (273 unit + 47 integration). Formatting, clippy, and `cargo package --locked` passed (80 files). The three real-Rojo template/Inspector checks passed. Windows stable, Rust 1.89, and package CI passed on `ea07979`; [PR #14](https://github.com/chatarabdelilah/rproj/pull/14) records subsequent reviewed-head and merge/main verification. |
 | Creation CodeRabbit review | Both actionable findings were verified and fixed: pasting into name/setup modals now preserves the Review selection (regression assertions added), and architecture live-test counts/breakdowns now match 14 live tests. Unfinished capability choices also have explicit back-navigation regressions. |
 | Creation CI correction | The first Windows stable/1.89 run exposed an existing hub-name test that depended on this machine's saved setup. The fixture now explicitly marks setup ready; the separate disabled-action test covers the unconfigured state. No machine provisioning was added to CI. |
@@ -73,7 +75,7 @@ Keep Ratatui and all external tool boundaries. The model-import experiment stays
 
 Release 0.12.2 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Saved-setup replay/refusal, diagnostic logging (PR #11), and shared confirmed execution (PR #12) are merged. The logger is an unreleased runtime change, not another test-only release follow-up. The [bounded Ratatui creation plan](ratatui-project-creation.md) now has shared preparation and creation screens in PR #14. After its reviewed merge and main CI, the next task is alpha release preparation for logger + creation, not another feature. The owner alone publishes. Remaining alpha audit gaps stay tracked; no unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
+Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) are merged with main CI verified. Version 0.13.0 is the selected candidate for logger + creation; only manifests and release-facing documentation change during preparation. After its release PR and main CI pass, the owner alone runs `cargo publish --locked`. The agent then verifies the published archive Git identity before tagging and creating the alpha prerelease. Remaining alpha audit gaps stay tracked; no additional feature is a release prerequisite.
 
 ## Post-Handoff Review: September 7, 2026
 
