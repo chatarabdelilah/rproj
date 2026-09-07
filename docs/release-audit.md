@@ -69,4 +69,34 @@ Keep Ratatui and all external tool boundaries. The model-import experiment stays
 
 Release 0.12.2 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Saved-setup replay/refusal review and merge are complete; [PR #10](https://github.com/chatarabdelilah/rproj/pull/10) passed [post-merge CI](https://github.com/chatarabdelilah/rproj/actions/runs/34078003445). The [diagnostic logger](diagnostic-logs.md) is an unreleased runtime change, not another test-only release follow-up. The [bounded Ratatui creation plan](ratatui-project-creation.md) preserves guided/expert choices, saved setups, revision/cancellation, and generated output. After logger review/merge, implement that UI slice. Remaining alpha audit gaps stay tracked; no further unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
+Saved-setup replay/refusal, diagnostic logging (PR #11), and shared confirmed execution (PR #12) are merged. The logger is an unreleased runtime change, not another test-only release follow-up. The [bounded Ratatui creation plan](ratatui-project-creation.md) preserves guided/expert choices, saved setups, revision/cancellation, and generated output. Preparation/validation and the creation screens are next. Remaining alpha audit gaps stay tracked; no further unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
+
+## Post-Handoff Review: September 7, 2026
+
+Reviewed the task history and changes from v0.12.1 through main at `fe8f4f4`.
+
+- **Release identity:** crates.io 0.12.2 is not yanked; its archive records
+  `f71bf4e103735a532b2e8de53cbbd560f5c2a3d3`, matching the annotated v0.12.2
+  tag and GitHub alpha release. Do not undo or retag that publication.
+- **Process correction:** 0.12.2 was pushed directly to main and Cargo-published
+  by the agent after a short "publish 0.12.2" request. That bypassed the intended
+  PR workflow and owner-operated publication handoff. Root `AGENTS.md` now makes
+  the ownership rule and new-task startup requirements explicit.
+- **Change assessment:** the Jest executable/configuration/trust fixes address
+  observed failures. PRs #7-#10 add regression coverage and documentation;
+  PR #11 adds the requested logger; PR #12 extracts existing confirmed execution.
+  No runtime blocker was found in this review. No rollback is indicated.
+- **Independent verification:** 286 ordinary tests passed, 16 deliberately
+  ignored; formatting and clippy passed locally. GitHub records successful
+  main CI for every post-0.12.1 merge, including
+  [fe8f4f4](https://github.com/chatarabdelilah/rproj/actions/runs/34101827132).
+  CodeRabbit's documentation findings in PRs #8/#10 are addressed; logger and
+  execution-boundary reviews report no actionable findings. The existing live
+  test evidence is historical, not a new live run during this review.
+- **Remaining caution:** logs contain local paths and selected names, have no
+  automatic retention cleanup, and are not a complete screen transcript. Review
+  them before sharing. Open Cloud and fresh-machine acceptance remain unverified.
+
+Next: implement the approved hub-driven Ratatui creation flow, retaining the
+direct CLI and existing scaffolding. No new release candidate is selected by
+this review, and the owner should not run Cargo publication yet.
