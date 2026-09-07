@@ -1,7 +1,20 @@
 # Ratatui project creation: bounded implementation plan
 
-Status: design scope, not an implemented UI. The diagnostic logger is being added
-alongside this plan; model import remains shelved and is not a dependency.
+Status: UI design scoped; implementation has started at the execution boundary.
+The diagnostic logger is merged in PR #11. Model import remains shelved and is
+not a dependency. No new creation screens are implemented yet.
+
+`commands::new::execute_confirmed` now separates the reviewed composition's
+execution from direct-command prompts. It retains exclusive destination creation,
+scaffolding, graph/setup persistence, Jest plugin refresh, and completion output.
+The direct command uses this same path. Preparation/validation extraction and the
+hub state model/screens are next; callers must validate and obtain explicit Create
+confirmation before invoking this boundary, with the terminal restored.
+
+Versioning: published 0.12.2 remains unchanged. This behavior-preserving extraction
+does not select a release or require a standalone version bump. The logger and
+future UI must be included in the next release's version/changelog preparation;
+do not publish the unreleased source under the existing 0.12.2 version or move its tag.
 
 ## First slice
 

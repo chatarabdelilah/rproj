@@ -134,14 +134,39 @@ pub fn run(
         }
     };
 
-    create_project_dir(&project_dir)?;
+    execute_confirmed(
+        name,
+        &project_dir,
+        &graph,
+        &planned,
+        project_template.as_ref(),
+        &mut config,
+        save_setup,
+    )
+}
+
+/// Executes an already reviewed composition without asking any questions.
+/// Callers must validate templates and setup compatibility before review, and
+/// obtain explicit Create confirmation and restore the terminal before calling.
+/// The supplied plan must be the one reviewed for this graph and machine.
+/// Destination ownership is rechecked before scaffolding or saving any setup.
+pub(super) fn execute_confirmed(
+    name: &str,
+    project_dir: &Path,
+    graph: &ProjectGraph,
+    planned: &[artifacts::Planned],
+    project_template: Option<&serde_json::Value>,
+    config: &mut GlobalConfig,
+    save_setup: Option<&str>,
+) -> Result<()> {
+    create_project_dir(project_dir)?;
     let packages = graph.package_set();
     let package_workflow = graph.package_workflow;
     let project_tools = graph.tools();
     let test_runner = graph.test_runner();
     let chosen_artifacts: Vec<String> = planned.iter().map(|p| p.key.to_string()).collect();
     scaffold(
-        &project_dir,
+        project_dir,
         name,
         ScaffoldOptions {
             packages: &packages,
@@ -149,12 +174,12 @@ pub fn run(
             project_tools: &project_tools,
             test_runner,
             chosen_artifacts: &chosen_artifacts,
-            project_template: project_template.as_ref(),
+            project_template,
         },
     )?;
 
     // Written here rather than in `scaffold`, because it records the mode
-    // and the saved-setup name, which are `run`'s knowledge. Gated on the
+    // and the saved-setup name, which belong to the reviewed graph. Gated on the
     // same artifact key so declining it declines it - the cost being that
     // `rproj upgrade` then has nothing to read, which its own error says.
     let writes = |key: &str| chosen_artifacts.iter().any(|k| k == key);
@@ -163,7 +188,7 @@ pub fn run(
         // out. That is what lets `rproj upgrade` re-derive from intent, so a
         // changed default reaches a project made months ago instead of
         // stranding it.
-        project_file::save_to(&graph, &project_dir)?;
+        project_file::save_to(graph, project_dir)?;
     } else {
         ui::skip("rproj.toml not written, so `rproj upgrade` won't know this project");
     }
@@ -171,7 +196,7 @@ pub fn run(
     if let Some(setup_name) = save_setup {
         // The whole graph, so `--like` replays the composition rather than
         // reusing the packages and asking three more questions.
-        Setups::save(&graph, setup_name)?;
+        Setups::save(graph, setup_name)?;
         ui::ok(&format!(
             "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
         ));
@@ -1272,6 +1297,20 @@ mod tests {
         std::fs::create_dir(&path).unwrap();
         std::fs::write(path.join("user.txt"), "preserve me").unwrap();
         assert!(super::create_project_dir(&path).is_err());
+        let mut config = GlobalConfig::default();
+        let before = serde_json::to_value(&config).unwrap();
+        let mut graph = ProjectGraph {
+            package_workflow: PackageWorkflow::Wally,
+            ..Default::default()
+        };
+        graph.choose("test", Some("jest-roblox"));
+        let planned = graph.plan(&[], &[]);
+        assert!(
+            execute_confirmed("existing", &path, &graph, &planned, None, &mut config, None,)
+                .is_err()
+        );
+        assert_eq!(serde_json::to_value(&config).unwrap(), before);
+        assert_eq!(std::fs::read_dir(&path).unwrap().count(), 1);
         assert_eq!(
             std::fs::read_to_string(path.join("user.txt")).unwrap(),
             "preserve me"
