@@ -89,11 +89,16 @@ pub fn run(assume_yes: bool) -> Result<()> {
              Your own selene lint levels are kept; only std, mixed_table and exclude are set.\n"
         );
 
-        if !assume_yes
-            && !Confirm::new("Apply these changes?")
+        crate::diagnostics::event("prompt", "Apply upgrade changes?");
+        let apply = assume_yes
+            || Confirm::new("Apply these changes?")
                 .with_default(true)
-                .prompt()?
-        {
+                .prompt()?;
+        crate::diagnostics::event(
+            "choice.upgrade",
+            format!("apply={apply}; assumed={assume_yes}"),
+        );
+        if !apply {
             ui::skip("nothing written");
             return Ok(());
         }

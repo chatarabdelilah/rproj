@@ -146,6 +146,7 @@ fn target_description(target: &ConfigTarget) -> String {
 /// precedence over the catalog default - a walkthrough that proposes
 /// reverting your own settings is worse than no walkthrough.
 fn ask(setting: &SettingSpec, current: Option<&Value>) -> Result<Value> {
+    crate::diagnostics::event("prompt.setting", setting.display_key());
     println!("{}\n  {}", setting.display_key(), setting.description);
 
     let value = match &setting.kind {
@@ -183,6 +184,10 @@ fn ask(setting: &SettingSpec, current: Option<&Value>) -> Result<Value> {
         }
     };
 
+    crate::diagnostics::event(
+        "choice.setting",
+        format!("{}={value}", setting.display_key()),
+    );
     println!();
     Ok(value)
 }

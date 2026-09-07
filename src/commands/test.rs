@@ -124,6 +124,7 @@ fn run_runner(program: &str, arguments: &[String], project_dir: &Path) -> Result
         .with_context(|| {
             format!("failed to start `{program}`; run `rproj watch` to restore pinned tools")
         })?;
+    crate::diagnostics::tool_exit(program, status);
     if !status.success() {
         return Err(RunnerFailure {
             program: program.to_string(),

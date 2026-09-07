@@ -164,6 +164,7 @@ fn run_headless_script(script: &str) -> Result<String> {
         .with_context(|| format!("failed to spawn `{}`", blender_exe.display()));
     let _ = fs::remove_file(&script_path);
     let output = output?;
+    crate::diagnostics::tool_exit("blender", output.status);
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();

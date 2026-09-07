@@ -236,6 +236,7 @@ fn pick_from_catalog(
         .map(|(i, _)| i)
         .collect();
 
+    crate::diagnostics::event("prompt", prompt);
     let selected = MultiSelect::new(prompt, options)
         .with_default(&default_indices)
         .with_help_message(ui::MULTISELECT_HELP)

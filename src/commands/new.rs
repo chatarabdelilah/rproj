@@ -27,6 +27,7 @@ pub fn run(
     let mut config = GlobalConfig::load()?;
 
     let project_dir = config.projects_root()?.join(name);
+    crate::diagnostics::event("new.destination", project_dir.display().to_string());
     if project_dir.exists() {
         bail!("{} already exists", project_dir.display());
     }
@@ -126,6 +127,7 @@ pub fn run(
                 apply_derived_packages(&mut graph);
             }
             Outcome::Cancel => {
+                crate::diagnostics::event("new.cancel", "nothing created");
                 println!("\nNothing created.");
                 return Ok(());
             }
@@ -251,6 +253,7 @@ fn ask_for_graph() -> Result<ProjectGraph> {
 /// the file list, and leaves the capabilities alone. Nothing here decides
 /// *what* goes stale - `Node::invalidates` does, in four rows.
 fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
+    crate::diagnostics::event("prompt.node", node.label());
     graph.invalidate(node);
     match node {
         Node::Strategy => {
@@ -455,6 +458,7 @@ fn owned(options: &[&str]) -> Vec<String> {
 /// `None` wherever there is only one; `asset-pipeline` names its provider
 /// because Asphalt and Tungsten are real alternatives.
 fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<String>)>> {
+    crate::diagnostics::event("prompt", "project capabilities");
     let offerable: Vec<&'static capabilities::Capability> =
         capabilities::CAPABILITIES.iter().collect();
 
@@ -607,6 +611,14 @@ fn confirm_plan(
     graph: &ProjectGraph,
     planned: &[artifacts::Planned],
 ) -> Result<Outcome> {
+    crate::diagnostics::event(
+        "new.review",
+        format!(
+            "workflow={:?}; packages={:?}; capabilities={:?}; dropped={:?}",
+            graph.package_workflow, graph.packages, graph.capabilities, graph.dropped
+        ),
+    );
+    crate::diagnostics::event("prompt", "Create it?");
     println!();
     for line in summary_lines(name, graph, planned) {
         println!("{line}");
@@ -656,6 +668,7 @@ enum Outcome {
 /// Not a prompt everyone answers: one keystroke past it for the nine, one
 /// extra screen for the tenth.
 fn customize_plan(full_plan: &[artifacts::Planned], dropped: &[String]) -> Result<Vec<String>> {
+    crate::diagnostics::event("prompt", "Files to keep");
     let droppable: Vec<&artifacts::Planned> = full_plan
         .iter()
         .filter(|p| artifacts::find(p.key).is_some_and(artifacts::Artifact::droppable))
@@ -870,6 +883,7 @@ fn pick_guided(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
         // the answer line reads as `State management: reflex` rather than
         // `State management: which do you want? reflex`.
         let prompt = format!("{}:", category.label());
+        crate::diagnostics::event("prompt", &prompt);
 
         if category.allows_multiple() {
             let selected = MultiSelect::new(&prompt, options)

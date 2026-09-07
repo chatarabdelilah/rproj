@@ -133,6 +133,11 @@ pub struct Session {
 
 impl Session {
     pub fn start(cwd: &Path, args: &[&str]) -> Self {
+        Self::start_with_env(cwd, args, &[])
+    }
+
+    /// Overrides only the child environment, never process-global test state.
+    pub fn start_with_env(cwd: &Path, args: &[&str], vars: &[(&str, &str)]) -> Self {
         let pair = native_pty_system()
             .openpty(PtySize {
                 rows: ROWS,
@@ -147,6 +152,9 @@ impl Session {
             cmd.arg(arg);
         }
         cmd.cwd(cwd);
+        for (key, value) in vars {
+            cmd.env(key, value);
+        }
         let child = pair.slave.spawn_command(cmd).expect("spawn rproj");
         // The slave has to go, or the reader below never sees EOF.
         drop(pair.slave);

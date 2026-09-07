@@ -86,6 +86,10 @@ Errors identify the operation and an actionable recovery step. A missing executa
 
 ## Next Ratatui Candidate
 
+See the bounded [project-creation plan](ratatui-project-creation.md) for the next
+implementation slice. [Diagnostic logs](diagnostic-logs.md) record semantic
+choices/actions without turning the interface into a keystroke recording.
+
 After release hardening, scope project creation around the existing graph:
 
 1. Enter the name and retain the current machine-setup boundary.

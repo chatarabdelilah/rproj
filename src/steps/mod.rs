@@ -81,11 +81,21 @@ pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captu
     let mut cmd = Command::new(program);
     cmd.args(args);
     if let Some(dir) = dir {
+        crate::diagnostics::event("tool.cwd", dir.display().to_string());
         cmd.current_dir(dir);
     }
     let output = cmd
         .output()
         .with_context(|| format!("failed to spawn `{program}`"))?;
+    crate::diagnostics::tool_exit(program, output.status);
+    crate::diagnostics::event(
+        "tool.output",
+        format!(
+            "stdout={} bytes stderr={} bytes; raw output omitted",
+            output.stdout.len(),
+            output.stderr.len()
+        ),
+    );
     Ok(Captured {
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -97,11 +107,14 @@ pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captu
 /// instead of an error - useful for detection probes where "not found" is
 /// an expected, non-fatal outcome.
 pub fn probe(program: &str, args: &[&str]) -> bool {
-    Command::new(program)
+    crate::diagnostics::command(program, args);
+    let found = Command::new(program)
         .args(args)
         .output()
         .map(|o| o.status.success())
-        .unwrap_or(false)
+        .unwrap_or(false);
+    crate::diagnostics::event("tool.probe", format!("{program}: success={found}"));
+    found
 }
 
 /// GETs `url` with a rproj User-Agent header and returns the body as text,
@@ -110,6 +123,7 @@ pub fn probe(program: &str, args: &[&str]) -> bool {
 /// hit - shared across every GitHub-touching step rproj *and* rokit itself
 /// make, so it's easy to reach while iterating quickly during testing.
 pub fn github_get_text(url: &str) -> Result<String> {
+    crate::diagnostics::event("network.get", url);
     match ureq::get(url).header("User-Agent", "rproj").call() {
         Ok(mut response) => response
             .body_mut()
