@@ -29,6 +29,11 @@ metadata/exit statuses, and TUI navigation/actions. Template input events record
 the input kind and length rather than arbitrary values. Resize, save, reset, and
 cancellation events help reconstruct an interactive session.
 
+Hub creation also records committed composition/strategy/package/capability choices,
+screen transitions, review confirmation, and cancellation. Search text and uncommitted
+name input remain omitted. The confirmed executor retains normal step and subprocess
+events after the full-screen terminal has been restored.
+
 This is **not a recording of everything on the screen or a keylogger**:
 
 - Environment values, source files, clipboard contents, raw typed characters,

@@ -82,11 +82,12 @@ The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
 checks. The [local diagnostic logger](diagnostic-logs.md) is merged in PR #11,
 and the shared confirmed-execution boundary is merged in PR #12. Neither is
-included in published 0.12.2. Creation screens are not implemented yet.
+included in published 0.12.2. Creation screens are implemented in
+[PR #14](https://github.com/chatarabdelilah/rproj/pull/14), which records review and CI evidence.
 
-The next feature candidate is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
+The implemented feature is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-The saved-setup refusal, logger, and execution-boundary PRs are merged and post-merge CI passed. Next, extract shared preparation/validation and implement the hub-driven creation state and screens using the bounded design and acceptance checklist. Remaining Open Cloud and fresh-machine checks stay documented alpha limitations; they do not indefinitely block UI development. This is not a release prerequisite. Reuse the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
+The saved-setup refusal, logger, and execution-boundary PRs are merged and post-merge CI passed. Shared preparation and the hub-driven screens now reuse the graph, catalog, and executor. Ordinary, live, and real-Rojo verification passed. Once PR #14 is merged and main CI passes, prepare the next alpha release containing the logger and creation UI; no additional feature milestone comes first. Open Cloud and fresh-machine checks remain documented limitations rather than inferred passes.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -113,4 +114,4 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 
-**Active sequence: shared creation preparation/validation -> Ratatui creation state and screens -> parity verification and alpha release preparation.**
+**Active sequence: verify PR #14's merge/main CI -> prepare the logger + creation alpha release -> owner Cargo publication -> tag and GitHub prerelease alignment.**

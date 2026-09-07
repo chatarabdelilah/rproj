@@ -122,7 +122,7 @@ fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
     diagnostics::event("hub.dispatch", format!("{outcome:?}"));
     match outcome {
         HubOutcome::Quit => Ok(()),
-        HubOutcome::New { name } => commands::new::run(&name, false, None, None),
+        HubOutcome::New { name } => commands::creation::run(&name),
         HubOutcome::EditProjectTemplate => commands::project_template::run(),
         HubOutcome::ConfigureTools => commands::configure::run(None),
         HubOutcome::SetupMachine => commands::setup::run(None),

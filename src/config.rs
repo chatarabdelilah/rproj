@@ -178,6 +178,24 @@ pub mod project_file {
 /// summary.
 pub type SavedSetup = crate::graph::ProjectGraph;
 
+fn save_new_setup_at(setup: &SavedSetup, path: &Path) -> Result<()> {
+    use std::io::Write;
+    let parent = path.parent().context("setup has no parent directory")?;
+    fs::create_dir_all(parent)?;
+    let text = toml::to_string_pretty(setup)?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+    temporary.write_all(text.as_bytes())?;
+    temporary.as_file().sync_all()?;
+    // The destination may have been created while scaffolding was running.
+    temporary.persist_noclobber(path).with_context(|| {
+        format!(
+            "could not save new setup {}; existing setups are never replaced",
+            path.display()
+        )
+    })?;
+    Ok(())
+}
+
 /// Reading and writing `<config>/setups/<name>.toml`.
 pub struct Setups;
 
@@ -211,6 +229,12 @@ impl Setups {
         Ok(Some(toml::from_str(&text).with_context(|| {
             format!("failed to parse {}", path.display())
         })?))
+    }
+
+    pub fn save_new(setup: &SavedSetup, name: &str) -> Result<PathBuf> {
+        let path = Self::path_for(name)?;
+        save_new_setup_at(setup, &path)?;
+        Ok(path)
     }
 
     /// Names of every saved setup, sorted. Missing directory is not an
@@ -324,6 +348,18 @@ pub mod project_template {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_setup_save_is_atomic_and_never_replaces_an_existing_file() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("setups/example.toml");
+        let graph = SavedSetup::default();
+        save_new_setup_at(&graph, &path).unwrap();
+        let before = fs::read(&path).unwrap();
+        assert!(save_new_setup_at(&graph, &path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+    }
 
     /// `read_dir` yields directories as well as files, and the extension
     /// filter alone does not tell them apart. Without the `is_file` check

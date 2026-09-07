@@ -26,20 +26,7 @@ pub fn run(
 ) -> Result<()> {
     let mut config = GlobalConfig::load()?;
 
-    let project_dir = config.projects_root()?.join(name);
-    crate::diagnostics::event("new.destination", project_dir.display().to_string());
-    if project_dir.exists() {
-        bail!("{} already exists", project_dir.display());
-    }
-
-    // A file edited by hand after rproj validated it must fail before any
-    // provisioning or project creation can leave changes behind.
-    let project_template = project_template::load()?;
-    if let Some(template) = &project_template {
-        rojo::validate_template_with_rojo(template).context(
-            "the saved project template is invalid; run `rproj configure project` to repair or reset it",
-        )?;
-    }
+    let (project_dir, project_template) = prepare_project(&config, name)?;
 
     // Resolve --like before doing any work, so a typo'd setup name fails
     // immediately rather than after provisioning and half a scaffold.
@@ -141,8 +128,32 @@ pub fn run(
         &planned,
         project_template.as_ref(),
         &mut config,
-        save_setup,
+        save_setup.map(SetupSave::Replace),
     )
+}
+
+pub(super) fn prepare_project(
+    config: &GlobalConfig,
+    name: &str,
+) -> Result<(std::path::PathBuf, Option<serde_json::Value>)> {
+    let project_dir = config.projects_root()?.join(name);
+    crate::diagnostics::event("new.destination", project_dir.display().to_string());
+    if project_dir.exists() {
+        bail!("{} already exists", project_dir.display());
+    }
+    // Validate before provisioning or claiming a project directory.
+    let template = project_template::load()?;
+    if let Some(template) = &template {
+        rojo::validate_template_with_rojo(template).context(
+            "the saved project template is invalid; run `rproj configure project` to repair or reset it",
+        )?;
+    }
+    Ok((project_dir, template))
+}
+
+pub(super) enum SetupSave<'a> {
+    Replace(&'a str),
+    New(&'a str),
 }
 
 /// Executes an already reviewed composition without asking any questions.
@@ -157,7 +168,7 @@ pub(super) fn execute_confirmed(
     planned: &[artifacts::Planned],
     project_template: Option<&serde_json::Value>,
     config: &mut GlobalConfig,
-    save_setup: Option<&str>,
+    save_setup: Option<SetupSave<'_>>,
 ) -> Result<()> {
     create_project_dir(project_dir)?;
     let packages = graph.package_set();
@@ -193,10 +204,19 @@ pub(super) fn execute_confirmed(
         ui::skip("rproj.toml not written, so `rproj upgrade` won't know this project");
     }
 
-    if let Some(setup_name) = save_setup {
+    if let Some(save) = save_setup {
         // The whole graph, so `--like` replays the composition rather than
         // reusing the packages and asking three more questions.
-        Setups::save(graph, setup_name)?;
+        let setup_name = match save {
+            SetupSave::Replace(name) => {
+                Setups::save(graph, name)?;
+                name
+            }
+            SetupSave::New(name) => {
+                Setups::save_new(graph, name)?;
+                name
+            }
+        };
         ui::ok(&format!(
             "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
         ));
@@ -597,7 +617,7 @@ fn capability_owned(key: &str) -> bool {
         .any(|c| c.implementations.iter().any(|i| i.packages.contains(&key)))
 }
 
-fn apply_derived_packages(graph: &mut ProjectGraph) {
+pub(super) fn apply_derived_packages(graph: &mut ProjectGraph) {
     graph.packages.retain(|key| !capability_owned(key));
     for key in graph.derived().packages {
         if !graph.packages.contains(&key) {
@@ -619,7 +639,7 @@ fn unvendorable_keys() -> Vec<&'static str> {
 /// Whether a package may be offered at all, given the strategy already
 /// chosen. Offering one that cannot be installed is offering a broken
 /// project.
-fn offerable_package(spec: &PackageSpec, workflow: PackageWorkflow) -> bool {
+pub(super) fn offerable_package(spec: &PackageSpec, workflow: PackageWorkflow) -> bool {
     !capability_owned(spec.key)
         && (workflow != PackageWorkflow::GitSubmodules || spec.submodule.is_some())
 }
@@ -730,7 +750,11 @@ fn customize_plan(full_plan: &[artifacts::Planned], dropped: &[String]) -> Resul
 
 /// The summary as text. Pure, so the wording is a test rather than something
 /// only visible by running the whole flow.
-fn summary_lines(name: &str, graph: &ProjectGraph, planned: &[artifacts::Planned]) -> Vec<String> {
+pub(super) fn summary_lines(
+    name: &str,
+    graph: &ProjectGraph,
+    planned: &[artifacts::Planned],
+) -> Vec<String> {
     let packages = &graph.package_set();
     let chosen = &graph.choices();
     let mut lines = vec![format!("  {name}"), String::new()];
@@ -981,7 +1005,7 @@ fn pick_expert(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
         .collect())
 }
 
-fn add_companions(packages: &mut BTreeSet<String>) {
+pub(super) fn add_companions(packages: &mut BTreeSet<String>) {
     let primaries: Vec<String> = packages.iter().cloned().collect();
     let snapshot = packages.clone();
     for key in primaries {
@@ -1233,6 +1257,15 @@ fn slugify(name: &str) -> String {
 /// file can be edited by hand), and scaffolding a submodule project around
 /// a package that has no vendorable source produces a broken tree.
 fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
+    let (setup, warnings) = read_setup(name)?;
+    for warning in warnings {
+        ui::warn(&warning);
+    }
+    Ok((name.to_string(), setup))
+}
+
+pub(super) fn read_setup(name: &str) -> Result<(ProjectGraph, Vec<String>)> {
+    let mut warnings = Vec::new();
     if let Some(mut setup) = Setups::load(name)? {
         if !setup.testing_is_compatible() {
             bail!(
@@ -1252,7 +1285,7 @@ fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
                     None => (*key).to_string(),
                 })
                 .collect();
-            ui::warn(&format!(
+            warnings.push(format!(
                 "setup `{name}` asks for git submodules, but {} can't be vendored that way - using Wally",
                 reasons.join(", ")
             ));
@@ -1266,14 +1299,14 @@ fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
             .map(String::as_str)
             .collect();
         if !unknown.is_empty() {
-            ui::warn(&format!(
+            warnings.push(format!(
                 "setup `{name}` names packages no longer in the catalog, skipping them: {}",
                 unknown.join(", ")
             ));
             setup.packages.retain(|k| wally_packages::find(k).is_some());
         }
 
-        return Ok((name.to_string(), setup));
+        return Ok((setup, warnings));
     }
     let available = Setups::list();
     if available.is_empty() {

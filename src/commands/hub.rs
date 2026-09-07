@@ -96,6 +96,7 @@ const ACTIONS: &[(Action, &str, &str)] = &[
 struct WorkspaceContext {
     cwd: PathBuf,
     machine: String,
+    machine_ready: bool,
     setups: Vec<String>,
     template: String,
     has_project_file: bool,
@@ -108,8 +109,10 @@ struct WorkspaceContext {
 impl WorkspaceContext {
     fn load(cwd: PathBuf) -> Self {
         let mut warnings = Vec::new();
+        let mut machine_ready = false;
         let machine = match GlobalConfig::load() {
             Ok(config) if config.machine_configured() => {
+                machine_ready = true;
                 format!("configured: {}", config.machine_summary())
             }
             Ok(_) => "not configured".into(),
@@ -147,6 +150,7 @@ impl WorkspaceContext {
             has_src: cwd.join("src").is_dir(),
             cwd,
             machine,
+            machine_ready,
             setups: Setups::list(),
             template,
             has_project_file,
@@ -161,6 +165,9 @@ impl WorkspaceContext {
 
     fn availability(&self, action: Action) -> std::result::Result<(), &'static str> {
         match action {
+            Action::New if !self.machine_ready => {
+                Err("Run Machine Setup first; New Project does not install machine applications.")
+            }
             Action::Configure if !self.recognized_project() => {
                 Err("No project here: default.project.json or rproj.toml is required.")
             }
@@ -332,8 +339,8 @@ impl HubApp {
                 KeyCode::Esc => None,
                 KeyCode::Enter => {
                     let name = input.text().trim();
-                    if name.is_empty() {
-                        input.error = Some("Project name cannot be empty.".into());
+                    if let Err(error) = super::creation::validate_name(name) {
+                        input.error = Some(error.into());
                         self.modal = Some(Modal::ProjectName(input));
                         None
                     } else {
@@ -522,6 +529,13 @@ pub fn run() -> Result<HubOutcome> {
             } else {
                 Some(terminal.read_event()?)
             };
+            if let Some(Event::Paste(text)) = &event
+                && let Some(Modal::ProjectName(input)) = &mut app.modal
+            {
+                for ch in text.chars().filter(|ch| !ch.is_control()) {
+                    input.handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+                }
+            }
             if let Some(Event::Key(key)) = event
                 && key.kind != crossterm::event::KeyEventKind::Release
                 && let Some(outcome) = app.handle_key(key)
@@ -546,6 +560,27 @@ mod tests {
         app.update_receiver = None;
         app.update = UpdateStatus::Current;
         app
+    }
+
+    #[test]
+    fn creation_requires_setup_and_rejects_invalid_names_without_leaving() {
+        let temp = TempDir::new().unwrap();
+        let mut app = app_at(temp.path());
+        app.context.machine_ready = false;
+        assert!(
+            app.context
+                .availability(Action::New)
+                .unwrap_err()
+                .contains("Machine Setup")
+        );
+        assert!(app.context.availability(Action::Setup).is_ok());
+        app.context.machine_ready = true;
+        app.modal = Some(Modal::ProjectName(InputState::new("../outside")));
+        assert!(
+            app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+                .is_none()
+        );
+        assert!(matches!(app.modal, Some(Modal::ProjectName(ref input)) if input.error.is_some()));
     }
 
     fn rendered(app: &HubApp, width: u16, height: u16) -> String {
@@ -614,6 +649,7 @@ mod tests {
     fn new_project_requires_a_nonempty_unicode_name() {
         let temp = TempDir::new().unwrap();
         let mut app = app_at(temp.path());
+        app.context.machine_ready = true;
         app.activate();
         assert!(
             app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))

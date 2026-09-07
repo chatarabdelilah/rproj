@@ -18,12 +18,12 @@ The current interface is hybrid:
 
 - Bare `rproj` opens the Ratatui workspace hub in an interactive terminal.
 - Catalog browsing and global-template editing stay within full-screen interfaces.
-- Setup, project creation, and tool configuration currently use inquire prompts.
+- Hub-driven New Project uses Ratatui for composition and review. Setup, direct `rproj new`, and tool configuration retain inquire prompts.
 - The hub restores the terminal before invoking the existing command implementation. It does not automatically return after completion.
 - Direct commands remain available for automation. Redirected welcome and Catalog output remain plain.
 - External tools continue doing their own work. Navigable results can be considered without embedding replacement tools.
 
-Release hardening comes before further migration. The next feature candidate is project creation within Ratatui, not replacing Ratatui or the external toolchain.
+Hub-driven creation is the current implementation slice. It does not replace Ratatui or the external toolchain.
 
 ## Project Decisions
 
@@ -84,13 +84,13 @@ Configure and upgrade preserve unrelated user-owned content and refuse data they
 
 Errors identify the operation and an actionable recovery step. A missing executable is not a lint failure; a test failure is not permission to switch runners.
 
-## Next Ratatui Candidate
+## Ratatui Creation
 
-See the bounded [project-creation plan](ratatui-project-creation.md) for the next
-implementation slice. [Diagnostic logs](diagnostic-logs.md) record semantic
+See the bounded [project-creation plan](ratatui-project-creation.md) for scope and
+verification. [Diagnostic logs](diagnostic-logs.md) record semantic
 choices/actions without turning the interface into a keystroke recording.
 
-After release hardening, scope project creation around the existing graph:
+The hub creation flow uses the existing graph:
 
 1. Enter the name and retain the current machine-setup boundary.
 2. Choose dependencies, packages, and capabilities through guided or expert interaction.

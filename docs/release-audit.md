@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-Updated September 7, 2026. Published baseline: **0.12.2**, alpha. No new release candidate is selected. The release-hardening baseline covers confirmed defects in existing workflows. Subsequent source development adds the explicitly requested diagnostic logger and a Ratatui creation-flow plan; neither is in published 0.12.2. Model import, embedded tools, and frontend migration remain out of scope.
+Updated September 7, 2026. Published baseline: **0.12.2**, alpha. No new release candidate is selected. The release-hardening baseline covers confirmed defects in existing workflows. Subsequent source development adds the explicitly requested diagnostic logger and hub-driven Ratatui creation; neither is in published 0.12.2. Model import, embedded tools, and frontend migration remain out of scope.
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
@@ -15,6 +15,10 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 
 | Check | Result |
 | --- | --- |
+| Creation source verification | 301 ordinary tests passed; 19 explicitly ignored; 320 discovered (273 unit + 47 integration). Formatting, clippy, and `cargo package --locked` passed (80 files). The three real-Rojo template/Inspector checks passed. Windows stable, Rust 1.89, and package CI passed on `ea07979`; [PR #14](https://github.com/chatarabdelilah/rproj/pull/14) records subsequent reviewed-head and merge/main verification. |
+| Creation CodeRabbit review | Both actionable findings were verified and fixed: pasting into name/setup modals now preserves the Review selection (regression assertions added), and architecture live-test counts/breakdowns now match 14 live tests. Unfinished capability choices also have explicit back-navigation regressions. |
+| Creation CI correction | The first Windows stable/1.89 run exposed an existing hub-name test that depended on this machine's saved setup. The fixture now explicitly marks setup ready; the separate disabled-action test covers the unconfigured state. No machine provisioning was added to CI. |
+| Creation live regression | September 7: all 14 serial live tests passed in 125.57 seconds, including hub cancellation, real confirmation, concurrent destination refusal, named setup save/replay, direct saved-setup replay/refusal, Wally/submodules, generated quality gates, and Jest starter success/deliberate failure. The initial hub test used the wrong prompt label; corrected to the existing `Project folder name` before the passing run. Only unique temporary fixtures were removed. |
 | Ordinary suite with saved-setup refusal regression | 273 passed; 16 deliberately ignored; 289 discovered (253 unit + 36 integration) |
 | Diagnostic-logger source suite | 286 passed; 16 deliberately ignored; 302 discovered (258 unit + 44 integration). Five logger unit tests and eight integration tests cover unique bounded logs, redaction/control escaping, command outcomes, accepted settings, TUI navigation without text capture, opaque runner arguments, opt-out, and non-fatal logging failures. |
 | Live regression rerun with diagnostic logging | Passed September 7: saved-setup refusal/replay together in 28.53 seconds; Jest starter specs passed, then the deliberate failure returned 1 with two passed / one failed in 28.93 seconds. Existing unique temporary fixtures were removed by the harness. |
@@ -69,7 +73,7 @@ Keep Ratatui and all external tool boundaries. The model-import experiment stays
 
 Release 0.12.2 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Saved-setup replay/refusal, diagnostic logging (PR #11), and shared confirmed execution (PR #12) are merged. The logger is an unreleased runtime change, not another test-only release follow-up. The [bounded Ratatui creation plan](ratatui-project-creation.md) preserves guided/expert choices, saved setups, revision/cancellation, and generated output. Preparation/validation and the creation screens are next. Remaining alpha audit gaps stay tracked; no further unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
+Saved-setup replay/refusal, diagnostic logging (PR #11), and shared confirmed execution (PR #12) are merged. The logger is an unreleased runtime change, not another test-only release follow-up. The [bounded Ratatui creation plan](ratatui-project-creation.md) now has shared preparation and creation screens in PR #14. After its reviewed merge and main CI, the next task is alpha release preparation for logger + creation, not another feature. The owner alone publishes. Remaining alpha audit gaps stay tracked; no unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
 
 ## Post-Handoff Review: September 7, 2026
 
