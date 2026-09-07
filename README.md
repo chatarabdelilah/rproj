@@ -159,6 +159,19 @@ The project name, DataModel root, `src/shared`, `src/server`, and `src/client` m
 
 ## Development
 
+### Diagnostic logs (source development)
+
+The source build writes a local `.txt` log for each command and prints its path
+on stderr when finished. Attach that file when reporting a problem, after checking
+it for private paths or names. Logs include choices, steps, and errors, but omit
+credentials-related fields, raw keystrokes, source/clipboard contents, and raw
+external-tool output. Nothing is uploaded automatically.
+
+See [diagnostic logs](https://github.com/chatarabdelilah/rproj/blob/main/docs/diagnostic-logs.md)
+for location, limits, and opt-out. This is not yet included in published 0.12.2.
+
+### Checks
+
 ```powershell
 cargo test
 cargo clippy --all-targets -- -D warnings

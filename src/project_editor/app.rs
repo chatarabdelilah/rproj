@@ -256,6 +256,7 @@ impl App {
     }
 
     fn enter_json(&mut self) {
+        crate::diagnostics::event("template.mode", "advanced JSON; content omitted");
         self.json = TextBuffer::new(&format!(
             "{}\n",
             serde_json::to_string_pretty(self.model().value()).expect("JSON value serializes")
@@ -301,11 +302,16 @@ impl App {
     }
 
     fn error(&mut self, error: impl ToString) {
+        crate::diagnostics::event(
+            "template.error",
+            error.to_string().lines().next().unwrap_or("error"),
+        );
         self.status = error.to_string();
     }
 }
 
 pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Result<Outcome> {
+    crate::diagnostics::event("template.open", "template content omitted");
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         anyhow::bail!("`rproj configure project` requires an interactive terminal");
     }
@@ -314,6 +320,7 @@ pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Resu
     loop {
         terminal.draw(|frame| render(frame, &app))?;
         let event = terminal.read_event()?;
+        let previous_status = app.status.clone();
         let request = match event {
             Event::Key(key) if key.kind != event::KeyEventKind::Release => {
                 handle_key(&mut app, key)
@@ -325,16 +332,29 @@ pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Resu
             Event::Resize(_, _) => None,
             _ => None,
         };
+        if app.status != previous_status {
+            crate::diagnostics::event(
+                "template.status",
+                app.status.lines().next().unwrap_or("changed"),
+            );
+        }
         match request {
             Some(Request::Save(value)) => {
+                crate::diagnostics::event("template.save", "requested; validating");
                 app.status = "Validating every generated Rojo project variant...".into();
                 terminal.draw(|frame| render(frame, &app))?;
                 if let Some(outcome) = validate_save(&mut app, value, &mut validate) {
                     return Ok(outcome);
                 }
             }
-            Some(Request::Reset) => return Ok(Outcome::Reset),
-            Some(Request::Cancel) => return Ok(Outcome::Cancel),
+            Some(Request::Reset) => {
+                crate::diagnostics::event("template.reset", "confirmed");
+                return Ok(Outcome::Reset);
+            }
+            Some(Request::Cancel) => {
+                crate::diagnostics::event("template.cancel", "no template saved");
+                return Ok(Outcome::Cancel);
+            }
             None => {}
         }
     }
@@ -865,6 +885,10 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
             KeyCode::Enter => match apply_input(app, action.clone(), state.text()) {
                 Ok(()) => None,
                 Err(message) => {
+                    crate::diagnostics::event(
+                        "template.input.rejected",
+                        message.lines().next().unwrap_or("invalid input"),
+                    );
                     state.error = Some(message);
                     app.modal = Some(Modal::Input {
                         title,
@@ -921,6 +945,17 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
 }
 
 fn apply_input(app: &mut App, action: InputAction, text: &str) -> std::result::Result<(), String> {
+    let kind = match &action {
+        InputAction::Rename(_) => "rename",
+        InputAction::Property(_, _, _) => "property",
+        InputAction::AttributeName(_) => "attribute name",
+        InputAction::AttributeValue(_, _, _) => "attribute value",
+        InputAction::Setting(_, _) => "setting",
+    };
+    crate::diagnostics::event(
+        "template.input",
+        format!("{kind}; {} characters; value omitted", text.chars().count()),
+    );
     match action {
         InputAction::Rename(path) => app
             .model_mut()
@@ -967,6 +1002,7 @@ fn apply_input(app: &mut App, action: InputAction, text: &str) -> std::result::R
 }
 
 fn apply_pick(app: &mut App, action: PickAction, picked: PickOption) -> Result<()> {
+    crate::diagnostics::event("template.choice", &picked.label);
     match action {
         PickAction::AddClass(parent) => {
             let path = app

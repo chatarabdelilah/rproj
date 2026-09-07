@@ -78,9 +78,15 @@ Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify mai
 
 ## Next: Ratatui Project Creation
 
+The bounded [project-creation implementation plan](ratatui-project-creation.md)
+defines the hub-driven first slice, shared execution boundary, and acceptance
+checks. A [local diagnostic logger](diagnostic-logs.md) is the accompanying source
+change; neither is included in published 0.12.2. The logger is implementation,
+while the Ratatui creation flow remains a plan until its separate UI change.
+
 The next feature candidate is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-After the saved-setup refusal PR passes review and post-merge CI, proceed to a bounded design and acceptance checklist for this Ratatui slice, unless a concrete blocker is discovered. Remaining Open Cloud and fresh-machine checks stay documented alpha limitations; they do not indefinitely block UI development. This is not a release prerequisite. Reuse the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
+The saved-setup refusal PR is merged and post-merge CI passed. The bounded design and acceptance checklist now exist; after logger review/merge, proceed to this Ratatui slice unless a concrete blocker is discovered. Remaining Open Cloud and fresh-machine checks stay documented alpha limitations; they do not indefinitely block UI development. This is not a release prerequisite. Reuse the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -107,4 +113,4 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 
-**Active sequence: finish refusal-check review/merge -> scope Ratatui project creation -> implement the approved slice.**
+**Active sequence: review/merge diagnostic logs and creation plan -> implement the hub-driven Ratatui creation slice.**

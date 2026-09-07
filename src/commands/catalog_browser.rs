@@ -82,6 +82,7 @@ impl CatalogApp {
     }
 
     fn back(&mut self) -> Option<CatalogExit> {
+        crate::diagnostics::event("catalog.back", format!("{:?}", self.level));
         match self.level {
             Level::Sections => Some(CatalogExit::Back),
             Level::Entries(_) => {
@@ -145,12 +146,22 @@ impl CatalogApp {
     }
 
     fn open_selected(&mut self) {
+        crate::diagnostics::event(
+            "catalog.open",
+            format!(
+                "level={:?}; selected={}; filter length={} (content omitted)",
+                self.level,
+                self.selected,
+                self.query.chars().count()
+            ),
+        );
         match self.level {
             Level::Sections => {
                 let Some(section) = self.filtered_section_indices().get(self.selected).copied()
                 else {
                     return;
                 };
+                crate::diagnostics::event("catalog.choice", self.sections[section].label());
                 self.query.clear();
                 self.selected = 0;
                 self.level = match self.sections[section] {
@@ -167,6 +178,9 @@ impl CatalogApp {
                     .get(self.selected)
                     .copied()
                 {
+                    if let CatalogSection::Entries { entries, .. } = &self.sections[section] {
+                        crate::diagnostics::event("catalog.choice", &entries[entry].key);
+                    }
                     self.level = Level::Detail {
                         section,
                         entry: Some(entry),

@@ -12,6 +12,7 @@ mod catalog_view;
 mod cli;
 mod commands;
 mod config;
+mod diagnostics;
 mod graph;
 mod project_editor;
 mod steps;
@@ -29,20 +30,64 @@ use cli::{Cli, Command};
 /// by `ui::error` instead of by Rust's default `Termination` impl, which
 /// writes an uncoloured `Error: ...` with the chain in `Debug` form.
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) => {
+            let code = error.exit_code() as u8;
+            if error.use_stderr() {
+                let log = diagnostics::start();
+                diagnostics::event(
+                    "cli.invalid",
+                    "argument parsing failed; raw arguments omitted",
+                );
+                let _ = error.print();
+                log.finish(code);
+            } else {
+                let _ = error.print();
+            }
+            return ExitCode::from(code);
+        }
+    };
+    let log = diagnostics::start();
+    log_command(&cli);
     ui::set_verbose(cli.verbose);
 
-    match dispatch(cli) {
-        Ok(()) => ExitCode::SUCCESS,
+    let code = match dispatch(cli) {
+        Ok(()) => 0,
         Err(err) => {
             ui::error(&err);
-            let code = err
-                .downcast_ref::<commands::test::RunnerFailure>()
+            err.downcast_ref::<commands::test::RunnerFailure>()
                 .map(commands::test::RunnerFailure::exit_code)
-                .unwrap_or(1);
-            ExitCode::from(code)
+                .unwrap_or(1)
         }
-    }
+    };
+    log.finish(code);
+    ExitCode::from(code)
+}
+
+fn log_command(cli: &Cli) {
+    let message = match &cli.command {
+        None => "hub/welcome".into(),
+        Some(Command::New {
+            name,
+            reconfigure,
+            like,
+            save_setup,
+        }) => format!(
+            "new name={name:?} reconfigure={reconfigure} like={like:?} save_setup={save_setup:?}"
+        ),
+        Some(Command::Setup { tool }) => format!("setup tool={tool:?}"),
+        Some(Command::Configure { key }) => format!("configure key={key:?}"),
+        Some(Command::Upgrade { yes }) => format!("upgrade yes={yes}"),
+        Some(Command::Watch) => "watch".into(),
+        Some(Command::Test { args }) => format!(
+            "test; {} passthrough arguments (values omitted)",
+            args.len()
+        ),
+        Some(Command::Copy) => "copy (source and clipboard contents omitted)".into(),
+        Some(Command::Info { key }) => format!("info key={key:?}"),
+    };
+    diagnostics::event("command", message);
 }
 
 fn dispatch(cli: Cli) -> anyhow::Result<()> {
@@ -74,6 +119,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
 fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
     use commands::hub::HubOutcome;
 
+    diagnostics::event("hub.dispatch", format!("{outcome:?}"));
     match outcome {
         HubOutcome::Quit => Ok(()),
         HubOutcome::New { name } => commands::new::run(&name, false, None, None),

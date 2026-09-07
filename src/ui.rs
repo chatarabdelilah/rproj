@@ -19,21 +19,25 @@ pub fn is_verbose() -> bool {
 
 /// A top-level phase, e.g. "Machine setup" or "Scaffolding creamy".
 pub fn section(title: &str) {
+    crate::diagnostics::event("step", title);
     println!("\n📦  {title}");
 }
 
 /// Something was done, or was already the case.
 pub fn ok(msg: &str) {
+    crate::diagnostics::event("ok", msg);
     println!("  {}{msg}", marker("✅", " "));
 }
 
 /// Deliberately not done, with the reason.
 pub fn skip(msg: &str) {
+    crate::diagnostics::event("skip", msg);
     println!("  {}{msg}", marker("➖", " "));
 }
 
 /// Something failed but the run continues.
 pub fn warn(msg: &str) {
+    crate::diagnostics::event("warning", msg.lines().next().unwrap_or("warning"));
     println!("  {}{msg}", marker("❗", " "));
 }
 
@@ -48,6 +52,7 @@ pub fn warn(msg: &str) {
 /// stderr is redirected to a file or a CI log rather than emitting escape
 /// codes into it. `NO_COLOR` and `CLICOLOR=0` are honoured for free.
 pub fn error(err: &anyhow::Error) {
+    crate::diagnostics::error(err);
     use anstyle::{AnsiColor, Color, Style};
     let red = Style::new()
         .fg_color(Some(Color::Ansi(AnsiColor::Red)))
@@ -66,6 +71,7 @@ pub fn error(err: &anyhow::Error) {
 /// Detail under the most recent line: indented, and only worth printing
 /// when it tells the user something they'd otherwise have to go find.
 pub fn detail(msg: &str) {
+    crate::diagnostics::event("detail", msg);
     for line in msg.lines() {
         println!("      {line}");
     }
@@ -74,6 +80,7 @@ pub fn detail(msg: &str) {
 /// The command about to run. Only shown under `--verbose` - the outcome
 /// line is what matters otherwise.
 pub fn command(program: &str, args: &[&str]) {
+    crate::diagnostics::command(program, args);
     if is_verbose() {
         println!("  $ {program} {}", args.join(" "));
     }
@@ -82,6 +89,14 @@ pub fn command(program: &str, args: &[&str]) {
 /// Raw captured sub-process output, shown when a step failed (so the user
 /// can see why) or when running verbose.
 pub fn passthrough(stdout: &str, stderr: &str) {
+    crate::diagnostics::event(
+        "tool.output",
+        format!(
+            "stdout={} bytes stderr={} bytes; raw output omitted",
+            stdout.len(),
+            stderr.len()
+        ),
+    );
     for stream in [stdout, stderr] {
         for line in stream.lines().filter(|l| !l.trim().is_empty()) {
             println!("      {line}");
@@ -298,6 +313,13 @@ pub const MULTISELECT_HELP: &str =
 /// selected option's full `key - description (badge)` text joined together,
 /// which is an unreadable wall once more than a couple are selected.
 pub fn compact_multi_answer(opts: &[inquire::list_option::ListOption<&String>]) -> String {
+    crate::diagnostics::event(
+        "choice.multi",
+        opts.iter()
+            .map(|o| option_key(o.value))
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
     if opts.is_empty() {
         return "none".to_string();
     }
@@ -307,6 +329,7 @@ pub fn compact_multi_answer(opts: &[inquire::list_option::ListOption<&String>]) 
 
 /// Post-answer summary for a single select.
 pub fn compact_select_answer(opt: inquire::list_option::ListOption<&String>) -> String {
+    crate::diagnostics::event("choice.single", option_key(opt.value));
     option_key(opt.value).to_string()
 }
 

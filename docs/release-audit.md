@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-Updated September 6, 2026. Published baseline: **0.12.2**, alpha. No new release candidate is selected. Scope: confirmed defects in existing workflows; no new features, model importer, embedded tools, or frontend migration.
+Updated September 7, 2026. Published baseline: **0.12.2**, alpha. No new release candidate is selected. The release-hardening baseline covers confirmed defects in existing workflows. Subsequent source development adds the explicitly requested diagnostic logger and a Ratatui creation-flow plan; neither is in published 0.12.2. Model import, embedded tools, and frontend migration remain out of scope.
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
@@ -16,6 +16,8 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 | Check | Result |
 | --- | --- |
 | Ordinary suite with saved-setup refusal regression | 273 passed; 16 deliberately ignored; 289 discovered (253 unit + 36 integration) |
+| Diagnostic-logger source suite | 286 passed; 16 deliberately ignored; 302 discovered (258 unit + 44 integration). Five logger unit tests and eight integration tests cover unique bounded logs, redaction/control escaping, command outcomes, accepted settings, TUI navigation without text capture, opaque runner arguments, opt-out, and non-fatal logging failures. |
+| Live regression rerun with diagnostic logging | Passed September 7: saved-setup refusal/replay together in 28.53 seconds; Jest starter specs passed, then the deliberate failure returned 1 with two passed / one failed in 28.93 seconds. Existing unique temporary fixtures were removed by the harness. |
 | Formatting and clippy | Passed locally |
 | Existing live project suite | Seven passed in 38.39 seconds on September 5 after harness corrections |
 | Concurrent-destination live regression | Passed for both cancellation and confirmation |
@@ -67,4 +69,4 @@ Keep Ratatui and all external tool boundaries. The model-import experiment stays
 
 Release 0.12.2 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Next development step after this regression passes review and post-merge CI: scope project creation inside Ratatui, preserving guided/expert choices, saved setups, revision/cancellation, and generated output. This test-only change does not implement that UI. Remaining alpha audit gaps stay tracked; no further unrelated hardening check is a prerequisite unless it reveals a concrete blocker.
+Saved-setup replay/refusal review and merge are complete; [PR #10](https://github.com/chatarabdelilah/rproj/pull/10) passed [post-merge CI](https://github.com/chatarabdelilah/rproj/actions/runs/34078003445). The [diagnostic logger](diagnostic-logs.md) is an unreleased runtime change, not another test-only release follow-up. The [bounded Ratatui creation plan](ratatui-project-creation.md) preserves guided/expert choices, saved setups, revision/cancellation, and generated output. After logger review/merge, implement that UI slice. Remaining alpha audit gaps stay tracked; no further unrelated hardening check is a prerequisite unless it reveals a concrete blocker.

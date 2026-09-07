@@ -9,6 +9,7 @@ pub fn run() -> Result<()> {
     let src_dir = cwd.join("src");
 
     if !src_dir.exists() {
+        crate::diagnostics::event("copy.skip", "no src folder");
         println!("No 'src' folder found in the current directory.");
         return Ok(());
     }
@@ -31,11 +32,15 @@ pub fn run() -> Result<()> {
                 output.push_str("\n\n");
                 file_count += 1;
             }
-            Err(err) => eprintln!("skipped {relative}: {err}"),
+            Err(err) => {
+                crate::diagnostics::event("copy.skip", format!("{relative}: {err}"));
+                eprintln!("skipped {relative}: {err}");
+            }
         }
     }
 
     if file_count == 0 {
+        crate::diagnostics::event("copy.skip", "no readable source files");
         println!("'src' folder is empty. Nothing to copy.");
         return Ok(());
     }
@@ -45,6 +50,13 @@ pub fn run() -> Result<()> {
         output.len()
     );
     copy_to_clipboard(&output)?;
+    crate::diagnostics::event(
+        "copy.complete",
+        format!(
+            "{file_count} files; {} bytes; content omitted",
+            output.len()
+        ),
+    );
     println!("All files from 'src' successfully copied to clipboard!");
     Ok(())
 }

@@ -351,7 +351,9 @@ impl HubApp {
 
     fn activate(&mut self) -> Option<HubOutcome> {
         let action = ACTIONS[self.selected].0;
+        crate::diagnostics::event("hub.action", format!("{action:?}"));
         if let Err(reason) = self.context.availability(action) {
+            crate::diagnostics::event("hub.unavailable", reason);
             self.status = reason.into();
             return None;
         }

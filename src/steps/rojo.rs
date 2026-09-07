@@ -491,7 +491,7 @@ pub fn watch_sourcemap_from(project_dir: &Path, project_file: &str) -> Result<()
     // Ctrl+C reaches the child too and is the normal way to stop watching,
     // so a non-zero exit here is expected rather than a failure worth
     // reporting as one.
-    let _ = status;
+    crate::diagnostics::tool_exit("rojo", status);
     Ok(())
 }
 

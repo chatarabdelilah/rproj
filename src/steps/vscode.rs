@@ -46,7 +46,8 @@ fn locate_code() -> Result<CodeInvocation> {
 /// this since PATH resolution there already goes through the same
 /// batch-file association machinery.
 fn run_code(args: &[&str]) -> Result<std::process::Output> {
-    match locate_code()? {
+    crate::diagnostics::command("code", args);
+    let output = match locate_code()? {
         CodeInvocation::OnPath => Command::new("code")
             .args(args)
             .output()
@@ -57,7 +58,9 @@ fn run_code(args: &[&str]) -> Result<std::process::Output> {
             cmd.output()
                 .with_context(|| format!("failed to spawn `{}` via cmd.exe", path.display()))
         }
-    }
+    }?;
+    crate::diagnostics::tool_exit("code", output.status);
+    Ok(output)
 }
 
 fn installed_extensions() -> HashSet<String> {
