@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 6, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated September 7, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -80,13 +80,13 @@ Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify mai
 
 The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
-checks. A [local diagnostic logger](diagnostic-logs.md) is the accompanying source
-change; neither is included in published 0.12.2. The logger is implementation,
-while the Ratatui creation flow remains a plan until its separate UI change.
+checks. The [local diagnostic logger](diagnostic-logs.md) is merged in PR #11,
+and the shared confirmed-execution boundary is merged in PR #12. Neither is
+included in published 0.12.2. Creation screens are not implemented yet.
 
 The next feature candidate is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-The saved-setup refusal PR is merged and post-merge CI passed. The bounded design and acceptance checklist now exist; after logger review/merge, proceed to this Ratatui slice unless a concrete blocker is discovered. Remaining Open Cloud and fresh-machine checks stay documented alpha limitations; they do not indefinitely block UI development. This is not a release prerequisite. Reuse the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
+The saved-setup refusal, logger, and execution-boundary PRs are merged and post-merge CI passed. Next, extract shared preparation/validation and implement the hub-driven creation state and screens using the bounded design and acceptance checklist. Remaining Open Cloud and fresh-machine checks stay documented alpha limitations; they do not indefinitely block UI development. This is not a release prerequisite. Reuse the existing project graph and execution logic, not another application framework. Preserve guided/expert behavior, saved compositions, generated output for unchanged choices, and direct commands.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -113,4 +113,4 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 
-**Active sequence: review/merge diagnostic logs and creation plan -> implement the hub-driven Ratatui creation slice.**
+**Active sequence: shared creation preparation/validation -> Ratatui creation state and screens -> parity verification and alpha release preparation.**
