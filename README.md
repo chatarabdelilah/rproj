@@ -86,7 +86,17 @@ rproj watch
 | `rproj info [key]` | Open the TUI Catalog or print one entry when a key is supplied |
 | `rproj --verbose ...` | Include commands and captured subprocess output |
 
-The hub keeps project actions visible when they cannot run, along with the exact missing file or directory. It examines only the current directory: it does not search for or manage a projects-root library. Select New Project to enter a name, Catalog to browse the ecosystem, or another task to leave the hub and run the corresponding command normally. Use arrows and Enter to navigate, Esc to leave, and `?` for help.
+The hub keeps unavailable actions visible with their prerequisites. It examines only the current directory: it does not search for or manage a projects-root library. Select Catalog to browse the ecosystem, or a task to begin its workflow. Use arrows and Enter to navigate, Esc to leave, and `?` for help.
+
+### New Project in the hub
+
+After Machine Setup, select **New Project** to enter a folder name and choose Guided, Expert, or a saved setup. The built-in screens cover dependencies, packages, capabilities, and a review of generated files. Saved setups go straight to review. Direct `rproj new <name>` retains its existing prompts and flags.
+
+Type to filter choices; Space toggles multiple selections without losing choices hidden by the filter. Enter advances, Tab changes focus, and Page Up/Down scrolls details. Review lets you revise decisions, omit optional files, rename the project, or save a new named setup. Existing setups are never replaced by the hub.
+
+Changing dependencies reopens package selection and clears stale file exclusions. If Jest becomes incompatible, choose TestEZ or disable Testing explicitly; unrelated capabilities remain selected. Esc cancels a revision or asks to discard the draft. Ctrl+C exits without creating anything.
+
+Only confirmed **Create** writes the project and saves the optional setup. The terminal is restored before installed tools run. If another process creates the destination meanwhile, rproj refuses to overwrite it. The hub does not install machine applications from a draft; use **Machine Setup** first.
 
 ## Generated project
 

@@ -555,8 +555,7 @@ flowchart TD
     TemplateCheck -- no --> TemplateFail(["Error: configure project\nto repair or reset"])
     TemplateCheck -- yes --> Provision["provision::run()\nwhen needed (see 6.3)"]
     Provision --> SaveConfig[Save GlobalConfig]
-    SaveConfig --> CreateDir[Create project folder]
-    CreateDir --> Strategy{"Dependencies?\nWally / submodules / none"}
+    SaveConfig --> Strategy{"Dependencies?\nWally / submodules / none"}
     Strategy -- none --> Capabilities
     Strategy -- Wally or submodules --> PickMode{Guided or\nExpert?}
     PickMode -- Guided --> Guided["Per-category prompts\n(State, UI, Architecture,\nData, Utilities;\nnone listed first)\n+ auto companions"]
@@ -570,14 +569,25 @@ flowchart TD
     Plan --> Summary{"Summary\ncreate / customize / cancel"}
     Summary -- customize --> Drop["MultiSelect 'Files to keep'\n-> re-plan, show again"]
     Drop --> Summary
-    Summary -- cancel --> Removed(["Remove the empty dir,\nnothing created"])
-    Summary -- create --> Scaffold["scaffold() (see 6.2)"]
+    Summary -- cancel --> Cancelled(["Nothing created;\nnever remove the destination"])
+    Summary -- create --> CreateDir["Exclusively claim project folder\nfail if it now exists"]
+    CreateDir --> Scaffold["scaffold() (see 6.2)"]
     Scaffold --> Done(["Ready — run rproj watch"])
 ```
 
 Four questions on the expert path, eight on the guided baseline, plus one sub-prompt for each chosen capability with multiple implementations. The count is not the point — **no prompt asks about a consequence of a decision made after it**, and the two that used to ("Tools to pin", "Files to generate") are gone because they asked one decision at the two levels below the one the user thinks in.
 
 ### 6.1b Derivation — one decision, three consequences
+
+#### Hub-driven creation
+
+`commands::creation` supplies a Ratatui adapter over the same `ProjectGraph`, catalogs, and confirmed executor. `model.rs` owns screen transitions and uncommitted picker/input state; `render.rs` uses shared responsive panes and Unicode inputs; `mod.rs` owns read-only preparation, saved-setup loading, terminal lifetime, and final handoff. It does not introduce another graph or replace any external runner.
+
+Hub creation requires recorded machine setup. Both entry points share `new::prepare_project` for destination and saved-template validation, and `new::read_setup` for replay compatibility. The latter returns warnings as data: direct prompts print them, whereas the TUI displays them without corrupting the terminal. `new::execute_confirmed` is called only after its terminal guard has dropped. It exclusively claims the destination before any scaffold or setup save.
+
+Guided categories add the catalog's companions; expert mode keeps explicit selections. Git submodule selections validate the transitive closure before proceeding. Revision uses `Node` invalidation; a snapshot restores an abandoned revision, not an independent wizard dependency graph. A Jest-to-non-Wally change requires TestEZ or disabling Testing. Checked sets are independent of search results. Required artifacts never enter the file-removal picker. Saved setups preserve concrete implementations and exclusions; newly named hub setups use atomic no-clobber persistence, including a race during scaffolding. Direct `--save-setup` retains its prior replacement behavior.
+
+Composition, dependency, package, capability, implementation, and review screens emit semantic diagnostic events. Raw filter/input text is not recorded. Initial config/template validation can run read-only Rojo checks before the draft opens; tool execution and normal completion output remain outside the TUI.
 
 The summary is not a screen with its own logic; it is this pipeline rendered. That is what stops it drifting from what actually gets written.
 
@@ -1155,7 +1165,7 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-302 tests are discovered by `cargo test`: 258 unit tests and 44 integration tests. The upstream-badge check, three real-Rojo template/editor checks, the real Jest stack check, and eleven live project tests are ignored in the ordinary suite, so 286 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from a locally packaged tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3). Current execution evidence and remaining limitations are recorded in [the release audit](release-audit.md).
+320 tests are discovered by `cargo test`: 273 unit tests and 47 integration tests. The upstream-badge check, three real-Rojo template/editor checks, the real Jest stack check, and fourteen live project tests are ignored in the ordinary suite, so 301 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from a locally packaged tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3). Current execution evidence and remaining limitations are recorded in [the release audit](release-audit.md).
 
 `src/diagnostics.rs` owns best-effort per-run text logging, with semantic events at command, prompt, shared UI, TUI, and subprocess boundaries. It writes outside the project, bounds file/event sizes, omits opaque input/output at call sites, and applies conservative redaction before writing. Logging cannot replace the command's exit status. See [coverage, privacy, and controls](diagnostic-logs.md); this is not a terminal transcript or a substitute for an external runner's detailed report.
 
@@ -1163,6 +1173,7 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 
 | Test file | Covers |
 | --- | --- |
+| `src/commands/creation` (13 tests), new config/hub regressions (2 tests), new live hub regressions (3 ignored tests) | Guided companions, expert filtering and graph parity, none/Wally/submodule choices, concrete TestEZ/Jest selection, saved replay, selective invalidation, abandoned revisions and unanswered implementations, managed files, explicit confirmation, Unicode and name safety, wide/narrow/minimum/help/input rendering, machine prerequisites, and atomic no-clobber setup saves. Real PTY checks cover cancellation, concurrent destination preservation, confirmed creation, named setup persistence, saved replay, and terminal restoration. |
 | `src/diagnostics.rs` (5 tests), `tests/diagnostics.rs` (8 tests) | Unique retained files, bounded size, escaped control characters, redaction before truncation, non-fatal initialization/write failures, unchanged stdout/exit status, invalid CLI handling, omitted runner/environment values, opt-out, accepted setting choices, and TUI navigation without typed filter contents. |
 | `src/graph.rs` (17 tests) | Project-graph invalidation, derivation, and persistence, plus explicit TestEZ/Jest selection, Wally compatibility, peer-artifact isolation, and package-only legacy TestEZ fallback. |
 | `src/catalog/artifacts.rs` (14 tests) | §8.9's whole model, in three groups. **Structure**, holding for any future entry: keys unique; every artifact requirement resolves; the graph is acyclic; mandatory entries require nothing and are never also entailed; no entailment names an artifact (it would be checked against an empty set and never fire); nothing entailed depends on an artifact (resolution could then drop something declared non-negotiable); every reason reads as a lowercase clause with no full stop, since it is printed mid-line. **The user story that used to fail**: a minimal answer writes exactly `src` + `default.project.json`, and all six previously-unconditional artifacts are droppable. **The incoherence** (§7): picking packages settles the manifest they install from, under both workflows, and `resolve` writes it even when handed a `chosen` list that omits it; pinning tools settles `rokit.toml`; a pinned linter settles the config without which it cannot run; a tool with working defaults keeps its config optional *and* declining it is honoured; the companion config needs the companion extension; `offered` and `entailed` never overlap and together with the mandatory entries cover exactly `offerable`; and with no packages the manifest is a question again, so "just the Rojo basics" stays reachable. Plus the property test: over every subset of a representative selection × both workflows × tick-everything and tick-nothing, nothing is written with an unmet requirement and the mandatory two are always present. |

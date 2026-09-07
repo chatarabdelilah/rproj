@@ -32,6 +32,133 @@ use std::process::Command;
 
 use common::{DOWN, ENTER, ESC, LEFT, Session};
 
+fn hub_creation(name: &str) -> Session {
+    let mut session = Session::start(&projects_root(), &[]);
+    session.wait_for("Tasks");
+    session.send(ENTER);
+    session.wait_for("Project folder name");
+    session.send(name);
+    session.send(ENTER);
+    session.wait_for("Composition");
+    session
+}
+
+fn hub_minimal_review(session: &mut Session) {
+    session.send("Expert");
+    session.send(ENTER);
+    session.wait_for("Dependencies");
+    session.send("None");
+    session.send(ENTER);
+    session.wait_for("Capabilities");
+    for capability in ["lint", "format", "typecheck", "gate", "editor"] {
+        session.send(capability);
+        session.send(" ");
+        session.send(&"\x7f".repeat(capability.len()));
+    }
+    session.send(ENTER);
+    session.wait_for("Review");
+}
+
+#[test]
+#[ignore = "requires recorded machine setup and optional real Rojo template validation; run serially"]
+fn hub_creation_cancel_preserves_draft_boundary_and_restores_terminal() {
+    let name = unique_name("hub-cancel");
+    let path = projects_root().join(&name);
+    let mut session = hub_creation(&name);
+    hub_minimal_review(&mut session);
+    assert!(!path.exists());
+    session.send(ESC);
+    session.wait_for("Discard this draft");
+    session.send(ESC);
+    session.wait_for("Review");
+    session.send("\x03");
+    let result = session.finish();
+    assert_eq!(result.code, 0, "{}", result.text);
+    assert!(result.text.contains("Nothing created."));
+    assert!(!path.exists());
+}
+
+#[test]
+#[ignore = "requires recorded machine setup and optional real Rojo template validation; run serially"]
+fn hub_creation_refuses_a_concurrent_destination_without_overwriting() {
+    let name = unique_name("hub-concurrent");
+    let project = LiveProject {
+        path: projects_root().join(&name),
+    };
+    let mut session = hub_creation(&name);
+    hub_minimal_review(&mut session);
+    std::fs::create_dir(project.path()).unwrap();
+    std::fs::write(project.path().join("owner.txt"), "preserve").unwrap();
+    session.send(ENTER);
+    session.wait_for("reviewed files?");
+    session.send(ENTER);
+    session.wait_for("Destination already exists");
+    session.send("\x03");
+    assert_eq!(session.finish().code, 0);
+    assert_eq!(project.read("owner.txt"), "preserve");
+    assert!(!project.exists("default.project.json"));
+}
+
+#[test]
+#[ignore = "requires provisioned Git/Rokit/Rojo; creates only a unique temporary project; run serially"]
+fn hub_creation_confirm_hands_the_reviewed_graph_to_the_existing_executor() {
+    let dirs = directories::ProjectDirs::from("", "", "rproj").unwrap();
+    let setups = dirs.config_dir().join("setups");
+    std::fs::create_dir_all(&setups).unwrap();
+    let setup = tempfile::Builder::new()
+        .prefix("rproj-hub-save-")
+        .suffix(".toml")
+        .tempfile_in(&setups)
+        .unwrap()
+        .into_temp_path();
+    let setup_name = setup.file_stem().unwrap().to_str().unwrap().to_owned();
+    std::fs::remove_file(&setup).unwrap();
+    let name = unique_name("hub-create");
+    let project = LiveProject {
+        path: projects_root().join(&name),
+    };
+    let mut session = hub_creation(&name);
+    hub_minimal_review(&mut session);
+    session.send("Save named setup");
+    session.send(ENTER);
+    session.wait_for("New setup name");
+    session.send(&setup_name);
+    session.send(ENTER);
+    session.wait_for("Save setup on Create");
+    session.send(&"\x7f".repeat("Save named setup".len()));
+    session.send("Create");
+    assert!(!project.path().exists());
+    assert!(!setup.exists());
+    session.send(ENTER);
+    session.wait_for("reviewed files?");
+    assert!(!project.path().exists());
+    session.send(ENTER);
+    session.wait_for("is ready");
+    let result = session.finish();
+    assert_eq!(result.code, 0, "{}", result.text);
+    let graph: toml::Value = toml::from_str(&project.read("rproj.toml")).unwrap();
+    assert_eq!(graph["package_workflow"].as_str(), Some("none"));
+    assert!(graph["capabilities"].as_table().unwrap().is_empty());
+    assert!(project.exists("src/shared"));
+    assert!(project.exists("default.project.json"));
+    assert!(!project.exists("wally.toml"));
+    assert!(!project.exists("rokit.toml"));
+    let saved = std::fs::read(&setup).unwrap();
+    assert_eq!(
+        saved,
+        std::fs::read(project.path().join("rproj.toml")).unwrap()
+    );
+    let replay_name = unique_name("hub-replay");
+    let mut replay = hub_creation(&replay_name);
+    replay.send(&setup_name);
+    replay.send(ENTER);
+    replay.wait_for("Review");
+    replay.send("\x03");
+    assert_eq!(replay.finish().code, 0);
+    assert_eq!(std::fs::read(&setup).unwrap(), saved);
+    assert!(!projects_root().join(replay_name).exists());
+}
+
 /// A scaffolded project, removed when the test ends however it ends.
 struct LiveProject {
     path: PathBuf,

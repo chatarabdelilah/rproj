@@ -1,19 +1,18 @@
 # Ratatui project creation: bounded implementation plan
 
-Status: UI design scoped; implementation has started at the execution boundary.
+Status: creation model and screens implemented on `codex/ratatui-project-creation`; acceptance verification and PR review in progress.
 The diagnostic logger is merged in PR #11. Model import remains shelved and is
-not a dependency. No new creation screens are implemented yet.
+not a dependency. Direct-command prompts remain unchanged.
 
 `commands::new::execute_confirmed` now separates the reviewed composition's
 execution from direct-command prompts. It retains exclusive destination creation,
 scaffolding, graph/setup persistence, Jest plugin refresh, and completion output.
-The direct command uses this same path. Preparation/validation extraction and the
-hub state model/screens are next; callers must validate and obtain explicit Create
+The direct command uses this same path. Shared preparation/validation and the
+hub state model/screens are implemented; callers validate and obtain explicit Create
 confirmation before invoking this boundary, with the terminal restored.
 
-Versioning: published 0.12.2 remains unchanged. This behavior-preserving extraction
-does not select a release or require a standalone version bump. The logger and
-future UI must be included in the next release's version/changelog preparation;
+Versioning: published 0.12.2 remains unchanged. This feature PR does not select a
+release version. The logger and creation UI must be included in the next release's version/changelog preparation;
 do not publish the unreleased source under the existing 0.12.2 version or move its tag.
 
 ## First slice
@@ -58,6 +57,11 @@ Wide layouts show choices and explanations together; narrow layouts retain both
 through focus switching. Too-small windows offer resize guidance and safe exit.
 Filtering does not discard selected packages. Esc backs out or asks to discard
 a changed draft; Ctrl+C restores the terminal and exits without creating a project.
+
+Review saves only a new named setup, with atomic no-clobber persistence. Use a different
+name when one already exists; the direct command's existing replacement semantics
+remain unchanged. Project and setup names accept Unicode but reject reserved Windows
+names and path separators. Paste is supported in the name inputs and search fields.
 
 ## Acceptance checks before merge
 
