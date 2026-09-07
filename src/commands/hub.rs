@@ -649,6 +649,7 @@ mod tests {
     fn new_project_requires_a_nonempty_unicode_name() {
         let temp = TempDir::new().unwrap();
         let mut app = app_at(temp.path());
+        app.context.machine_ready = true;
         app.activate();
         assert!(
             app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
