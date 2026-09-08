@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.13.0, public alpha**, containing diagnostic logging and Ratatui project creation, with [release notes](release-notes-0.13.0.md) and [audit evidence and limitations](release-audit.md). Its crates.io archive, annotated tag, and GitHub alpha release agree on `50f2e34`. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.13.0, public alpha**, containing diagnostic logging and Ratatui project creation, with [release notes](release-notes-0.13.0.md) and [audit evidence and limitations](release-audit.md). Its crates.io archive, annotated tag, and GitHub alpha release agree on `50f2e34`. The selected **0.13.1** patch candidate fixes interactive configuration preservation; its publication remains gated by review and release verification. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -76,7 +76,7 @@ Choose the version after the changes are known: a patch for compatible fixes, a 
 
 Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-## Next: Configuration Preservation
+## Next: Release 0.13.1
 
 The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
@@ -89,7 +89,7 @@ The implemented feature is **project creation inside Ratatui**: choose dependenc
 
 Release PR #15 is merged at `50f2e34`; its reviewed-head and main CI passed, the owner published 0.13.0, and release alignment is verified. Open Cloud and fresh-machine checks remain documented limitations rather than inferred passes.
 
-The next bounded change fixes confirmed `configure` preservation failures before expanding configuration screens: keep unlisted or unsupported existing values unless explicitly replaced, avoid writes when existing settings are unchanged, and refuse TOML merges that fail parsing or alter unrelated values. No new UI dependency or external-tool migration is involved. These runtime fixes are unreleased until a separate patch candidate is prepared. Focused prompt/merge regressions and ordinary CI cover this scope; Studio provisioning is unrelated.
+The completed bounded change fixes confirmed `configure` preservation failures: unlisted or unsupported existing values remain unless explicitly replaced, unchanged settings avoid writes, and TOML merges that fail parsing or alter unrelated values are refused. No new UI dependency or external-tool migration is involved. The patch candidate is 0.13.1. Focused prompt/merge regressions and ordinary CI cover this scope; Studio provisioning is unrelated and remains historical evidence.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -116,5 +116,6 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 | Local diagnostic logging and hub-driven Ratatui project creation | v0.13.0 |
+| Interactive configuration preservation | v0.13.1 candidate |
 
-**Active sequence: review and merge configuration-preservation fixes -> prepare the next patch candidate -> owner publication and release alignment.** Further Ratatui configuration screens follow a bounded plan, not an automatic rewrite of every command.
+**Active sequence: verify and merge the 0.13.1 candidate -> owner Cargo publication -> archive identity, annotated tag, and GitHub alpha prerelease alignment.** Further Ratatui configuration screens follow a bounded plan, not an automatic rewrite of every command.

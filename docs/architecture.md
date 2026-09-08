@@ -901,7 +901,7 @@ Both targets are read *before the first prompt*, and an unparseable file aborts 
 
 **Keeping all existing settings unchanged is a byte-exact no-op.** `configure` omits unchanged answers and does not call either writer when no answers remain. Missing settings still receive the prompted defaults. Unknown choices and values outside a setting's supported type receive a default-No replacement confirmation; keeping them never serializes them back through a narrower codec. Unsupported values are not validated as tool-compatible merely because they are preserved.
 
-TOML is re-read before a changed save so malformed concurrent edits are refused. The semantic guard also catches valid-but-wrong merges, such as rewriting text inside an unrelated multiline string. It does not replace the shared writer used by upgrade/scaffolding, preserve every whitespace detail on changed saves, provide file locking, or make writes crash-atomic. These are bounded command-level preservation checks, not a universal TOML editor. The post-0.13.0 fix is unreleased pending the next patch candidate.
+TOML is re-read before a changed save so malformed concurrent edits are refused. The semantic guard also catches valid-but-wrong merges, such as rewriting text inside an unrelated multiline string. It does not replace the shared writer used by upgrade/scaffolding, preserve every whitespace detail on changed saves, provide file locking, or make writes crash-atomic. These are bounded command-level preservation checks, not a universal TOML editor. They shipped in 0.13.1.
 
 Option names and accepted values are taken from each tool's own upstream documentation (StyLua's README options table, Selene's lint docs, the luau-lsp extension's own `package.json` contributions), not from memory.
 

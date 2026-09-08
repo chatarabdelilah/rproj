@@ -11,9 +11,10 @@ The direct command uses this same path. Shared preparation/validation and the
 hub state model/screens are implemented; callers validate and obtain explicit Create
 confirmation before invoking this boundary, with the terminal restored.
 
-Versioning: the logger and creation UI shipped together as 0.13.0. Existing
-release tags remain unchanged. Follow [the release workflow](releasing.md)
-and [0.13.0 release notes](release-notes-0.13.0.md).
+Versioning: the logger and creation UI shipped together as 0.13.0; the
+configuration-preservation correction shipped as 0.13.1. Existing release tags
+remain unchanged. Follow [the release workflow](releasing.md) and the matching
+release notes.
 
 ## First slice
 
