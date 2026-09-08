@@ -23,6 +23,21 @@ During implementation, run focused tests for the changed behavior and its caller
 
 Run external/live checks when the changed paths require them, not for unrelated configuration or documentation edits. Do not rerun the same successful local gate after a documentation-only correction; record the unchanged runtime/dependency identity instead. Reviewed-head and merged-main CI remain mandatory. A release candidate still requires the preparation checklist above, including locked packaging and applicable live evidence. Never count a skipped prerequisite as a pass.
 
+## CodeRabbit review
+
+Run `cr review --agent --uncommitted` while changing a meaningful runtime, CI, or
+release candidate. Before opening its PR, run `cr review --agent --base main` to
+review the whole branch. Address valid critical or major findings; record why an
+inapplicable finding was not changed. Use `--light` only for a narrow, repeated
+follow-up, not for release or compatibility work.
+
+The repository configuration keeps GitHub PR reviews opt-in: add
+`coderabbit:review` to a ready PR description when a remote review is wanted.
+It disables incremental reviews, automatic request-change workflow, generated AI
+prompts, web search, and chat replies. These limits keep the review signal focused
+and do not replace required local checks or CI. Do not invoke CodeRabbit for a
+documentation-only correction unless the wording changes a technical guarantee.
+
 ## Cargo publication
 
 The repository owner publishes from a clean `main` checkout:
