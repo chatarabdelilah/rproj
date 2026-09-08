@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  review_details: false
+  review_progress: true
+  collapse_walkthrough: true
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  assess_linked_issues: false
+  related_issues: false
+  suggested_labels: false
+  poem: false
+  enable_prompt_for_ai_agents: false
+  auto_review:
+    enabled: false
+    description_keyword: "coderabbit:review"
+    auto_incremental_review: false
+    drafts: false
+  path_instructions:
+    - path: "src/**/*.rs"
+      instructions: >-
+        Prioritize behavior regressions, data loss, Windows subprocess and terminal
+        restoration, CLI compatibility, configuration preservation, and actionable
+        error handling. Do not report style handled by rustfmt or clippy.
+    - path: "tests/**/*.rs"
+      instructions: >-
+        Flag flaky timing, shared state, real-machine mutation, nonunique fixtures,
+        and ignored tests presented as evidence.
+    - path: ".github/workflows/**"
+      instructions: >-
+        Check locked dependency use, Windows compatibility, package-from-tarball
+        verification, secret handling, and false-success paths.
+    - path: "docs/**"
+      instructions: >-
+        Flag factual contradictions with current release state or code behavior, not
+        prose preference.
+
+chat:
+  art: false
+  auto_reply: false
+
+knowledge_base:
+  web_search:
+    enabled: false
+  code_guidelines:
+    enabled: true
+  learnings:
+    scope: local
+    approval_delay: 7
