@@ -82,7 +82,7 @@ The summary renders the graph and explains why files are created. Users can revi
 
 Configure and upgrade preserve unrelated user-owned content and refuse data they cannot safely interpret. Ownership and merge behavior are artifact-specific; do not claim every configuration is universally mergeable.
 
-The unreleased post-0.13.0 `configure` fix keeps existing values outside the guided catalog behind a default-No replacement confirmation. Existing answers that remain unchanged are not written; missing settings still receive prompted defaults. Unsafe TOML layouts produce a refusal with manual-edit guidance, not a damaged file. This safety correction retains inquire; further Ratatui configuration screens are not implemented by this change.
+The 0.13.1 `configure` fix keeps existing values outside the guided catalog behind a default-No replacement confirmation. Existing answers that remain unchanged are not written; missing settings still receive prompted defaults. Unsafe TOML layouts produce a refusal with manual-edit guidance, not a damaged file. This safety correction retains inquire; further Ratatui configuration screens are not implemented by this change.
 
 Errors identify the operation and an actionable recovery step. A missing executable is not a lint failure; a test failure is not permission to switch runners.
 
