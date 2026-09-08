@@ -1,6 +1,6 @@
 # Ratatui project creation: bounded implementation plan
 
-Status: creation model and screens implemented in [PR #14](https://github.com/chatarabdelilah/rproj/pull/14). The PR records reviewed-head checks and post-merge verification; publication requires a separately prepared version.
+Status: implemented and merged in [PR #14](https://github.com/chatarabdelilah/rproj/pull/14), with reviewed-head and main CI verified. Included in the selected 0.13.0 alpha candidate; publication remains a separate owner action.
 The diagnostic logger is merged in PR #11. Model import remains shelved and is
 not a dependency. Direct-command prompts remain unchanged.
 
@@ -11,9 +11,9 @@ The direct command uses this same path. Shared preparation/validation and the
 hub state model/screens are implemented; callers validate and obtain explicit Create
 confirmation before invoking this boundary, with the terminal restored.
 
-Versioning: published 0.12.2 remains unchanged. This feature PR does not select a
-release version. The logger and creation UI must be included in the next release's version/changelog preparation;
-do not publish the unreleased source under the existing 0.12.2 version or move its tag.
+Versioning: the logger and creation UI are prepared together as 0.13.0. Published
+0.12.2 remains unchanged; do not move its tag. Follow [the release workflow](releasing.md)
+and [0.13.0 release notes](release-notes-0.13.0.md).
 
 ## First slice
 

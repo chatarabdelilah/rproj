@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 7, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated September 8, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -8,7 +8,7 @@ Updated September 7, 2026. This describes current priorities, not every idea con
 
 rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
 
-- Ratatui remains the interactive interface: the workspace hub, Catalog, and Template Explorer.
+- Ratatui remains the interactive interface: the workspace hub, project creation, Catalog, and Template Explorer.
 - Direct commands remain available for automation and normal subprocess output.
 - Rojo owns model loading, builds, synchronization, and sourcemaps.
 - Selene owns linting, StyLua owns formatting, and luau-lsp owns type analysis.
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.12.2, public alpha**, with [audit evidence and limitations](release-audit.md). No new release candidate is selected. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.12.2, public alpha**. The selected candidate is **0.13.0: diagnostic logging and Ratatui project creation**, with [release notes](release-notes-0.13.0.md) and [audit evidence and limitations](release-audit.md). Publication, tagging, and GitHub release alignment are still gated by the release workflow. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -76,7 +76,7 @@ Choose the version after the changes are known: a patch for compatible fixes, a 
 
 Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-## Next: Ratatui Project Creation
+## Next: Release 0.13.0
 
 The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
@@ -87,7 +87,7 @@ included in published 0.12.2. Creation screens are implemented in
 
 The implemented feature is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-The saved-setup refusal, logger, and execution-boundary PRs are merged and post-merge CI passed. Shared preparation and the hub-driven screens now reuse the graph, catalog, and executor. Ordinary, live, and real-Rojo verification passed. Once PR #14 is merged and main CI passes, prepare the next alpha release containing the logger and creation UI; no additional feature milestone comes first. Open Cloud and fresh-machine checks remain documented limitations rather than inferred passes.
+PR #14 is merged at `a90037f`; its reviewed-head and main CI passed. Shared preparation and the hub-driven screens reuse the graph, catalog, and executor. Prepare and verify the 0.13.0 release candidate, merge its reviewed PR, verify main CI, then ask the owner to run `cargo publish --locked`. Only after crates.io confirms the archive identity should the agent tag that commit and create the matching GitHub alpha prerelease. No additional feature milestone comes first. Open Cloud and fresh-machine checks remain documented limitations rather than inferred passes.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -114,4 +114,4 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 
-**Active sequence: verify PR #14's merge/main CI -> prepare the logger + creation alpha release -> owner Cargo publication -> tag and GitHub prerelease alignment.**
+**Active sequence: verify and merge the 0.13.0 candidate -> owner Cargo publication -> archive identity, annotated tag, and GitHub alpha prerelease alignment.**

@@ -1,6 +1,6 @@
 [package]
 name = "rproj"
-version = "0.12.2"
+version = "0.13.0"
 edition = "2024"
 rust-version = "1.89"
 description = "Guided bootstrap-to-game-dev CLI for Roblox: takes a fresh Windows PC to a working Roblox/Luau setup, then scaffolds projects on it"

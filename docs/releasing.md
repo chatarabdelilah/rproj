@@ -2,7 +2,7 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is `v0.12.2`, an alpha prerelease containing the Jest Roblox toolchain and generated-configuration fixes. Its tag points to `f71bf4e`. The automated Jest pass/fail regression was merged on main afterward in PR #7; it is not part of that published archive. No new release candidate is selected. See [the audit](release-audit.md) for verification and remaining limits. The shelved model-import branch's `0.13.0` version is not a publication target.
+The published baseline is `v0.12.2` at `f71bf4e`. The selected candidate is **0.13.0**, an alpha release containing diagnostic logging and hub-driven Ratatui project creation. [Release notes](release-notes-0.13.0.md) define its scope; [the audit](release-audit.md) records verification and remaining limits. The candidate is built from reviewed main after PR #14, not from the shelved model-import experiment. Cargo manifests agree on 0.13.0; no 0.13.0 publication, tag, or GitHub release is claimed until verified.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
@@ -33,10 +33,17 @@ Do not create the version tag before crates.io accepts the package. A failed pub
 
 After the matching version is visible on crates.io:
 
+Download the published crate archive and inspect `.cargo_vcs_info.json`. Verify its
+Git SHA against the clean, reviewed release commit and manifest version. Create
+the annotated tag at that exact commit, not whichever commit happens to be HEAD.
+If publication and repository identity disagree, stop and investigate; never move
+a shipped tag. For 0.13.0, use `docs/release-notes-0.13.0.md` as the GitHub release body.
+
 ```powershell
-git tag -a vX.Y.Z -m "rproj vX.Y.Z"
-git push origin vX.Y.Z
-gh release create vX.Y.Z --verify-tag --generate-notes --prerelease --title "rproj vX.Y.Z"
+$publishedCommit = '<verified Git SHA from the published archive>'
+git tag -a v0.13.0 $publishedCommit -m "rproj v0.13.0"
+git push origin v0.13.0
+gh release create v0.13.0 --verify-tag --notes-file docs/release-notes-0.13.0.md --prerelease --title "rproj v0.13.0"
 ```
 
-Verify that the GitHub release points to the same commit as the tag, remains marked as a prerelease throughout the alpha phase, and that crates.io reports `X.Y.Z` as the current version.
+Verify that the GitHub release points to the same commit as the tag, remains marked as a prerelease throughout the alpha phase, and that crates.io reports `0.13.0` as the current version.
