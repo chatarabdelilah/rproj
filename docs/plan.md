@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.12.2, public alpha**. The selected candidate is **0.13.0: diagnostic logging and Ratatui project creation**, with [release notes](release-notes-0.13.0.md) and [audit evidence and limitations](release-audit.md). Publication, tagging, and GitHub release alignment are still gated by the release workflow. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.13.0, public alpha**, containing diagnostic logging and Ratatui project creation, with [release notes](release-notes-0.13.0.md) and [audit evidence and limitations](release-audit.md). Its crates.io archive, annotated tag, and GitHub alpha release agree on `50f2e34`. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -76,18 +76,20 @@ Choose the version after the changes are known: a patch for compatible fixes, a 
 
 Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-## Next: Release 0.13.0
+## Next: Configuration Preservation
 
 The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
 checks. The [local diagnostic logger](diagnostic-logs.md) is merged in PR #11,
-and the shared confirmed-execution boundary is merged in PR #12. Neither is
-included in published 0.12.2. Creation screens are implemented in
+and the shared confirmed-execution boundary is merged in PR #12. Both are
+included in published 0.13.0. Creation screens are implemented in
 [PR #14](https://github.com/chatarabdelilah/rproj/pull/14), which records review and CI evidence.
 
 The implemented feature is **project creation inside Ratatui**: choose dependencies, packages, and capabilities, revise the summary, and confirm creation without switching between unrelated prompt styles.
 
-PR #14 is merged at `a90037f`; its reviewed-head and main CI passed. Shared preparation and the hub-driven screens reuse the graph, catalog, and executor. Prepare and verify the 0.13.0 release candidate, merge its reviewed PR, verify main CI, then ask the owner to run `cargo publish --locked`. Only after crates.io confirms the archive identity should the agent tag that commit and create the matching GitHub alpha prerelease. No additional feature milestone comes first. Open Cloud and fresh-machine checks remain documented limitations rather than inferred passes.
+Release PR #15 is merged at `50f2e34`; its reviewed-head and main CI passed, the owner published 0.13.0, and release alignment is verified. Open Cloud and fresh-machine checks remain documented limitations rather than inferred passes.
+
+The next bounded change fixes confirmed `configure` preservation failures before expanding configuration screens: keep unlisted or unsupported existing values unless explicitly replaced, avoid writes when existing settings are unchanged, and refuse TOML merges that fail parsing or alter unrelated values. No new UI dependency or external-tool migration is involved. These runtime fixes are unreleased until a separate patch candidate is prepared. Focused prompt/merge regressions and ordinary CI cover this scope; Studio provisioning is unrelated.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -113,5 +115,6 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | M4: Jest Roblox as a TestEZ peer | v0.12.0 |
 | Project confirmation safety and Template Explorer compound values | v0.12.1 |
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
+| Local diagnostic logging and hub-driven Ratatui project creation | v0.13.0 |
 
-**Active sequence: verify and merge the 0.13.0 candidate -> owner Cargo publication -> archive identity, annotated tag, and GitHub alpha prerelease alignment.**
+**Active sequence: review and merge configuration-preservation fixes -> prepare the next patch candidate -> owner publication and release alignment.** Further Ratatui configuration screens follow a bounded plan, not an automatic rewrite of every command.

@@ -91,6 +91,102 @@ fn agreeing_with_every_prompt_leaves_the_file_byte_identical() {
     assert_eq!(project.read("selene.toml"), SCAFFOLDED_SELENE);
 }
 
+#[test]
+fn unlisted_and_structured_current_values_are_kept_by_default() {
+    for value in [r#""roblox+custom""#, "['roblox', 'custom']"] {
+        let project = TempProject::new("selene-custom");
+        let existing = SCAFFOLDED_SELENE.replace(r#""roblox+testez""#, value);
+        project.write("selene.toml", &existing);
+        let mut session = Session::start(project.path(), &["configure", "selene"]);
+        session.enter_through(SELENE_PROMPTS);
+        let outcome = session.finish();
+        assert_eq!(outcome.code, 0, "{}", outcome.text);
+        assert_eq!(project.read("selene.toml"), existing);
+    }
+}
+
+#[test]
+fn unchanged_settings_preserve_handwritten_toml_bytes() {
+    let project = TempProject::new("selene-handwritten");
+    let existing = SCAFFOLDED_SELENE
+        .replace("std = \"roblox+testez\"", "'std'='roblox+testez' # keep")
+        .replace("[rules]", "[rules] # custom rules")
+        .trim_end()
+        .replace('\n', "\r\n");
+    project.write("selene.toml", &existing);
+    let mut session = Session::start(project.path(), &["configure", "selene"]);
+    session.enter_through(SELENE_PROMPTS);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(project.read("selene.toml"), existing);
+}
+
+#[test]
+fn unsupported_json_values_are_not_replaced_by_boolean_defaults() {
+    let project = TempProject::new("vscode-custom-value");
+    let existing =
+        r#"{"editor.formatOnSave":{"future":true},"stylua.searchParentDirectories":false}"#;
+    project.write(".vscode/settings.json", existing);
+    let mut session = Session::start(project.path(), &["configure", "stylua-vscode"]);
+    session.enter_through(VSCODE_STYLUA_PROMPTS);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(project.read(".vscode/settings.json"), existing);
+}
+
+#[test]
+fn replacing_an_unlisted_value_requires_an_explicit_choice() {
+    let project = TempProject::new("selene-replace-custom");
+    let existing = SCAFFOLDED_SELENE.replace("roblox+testez", "roblox+custom");
+    project.write("selene.toml", &existing);
+    let mut session = Session::start(project.path(), &["configure", "selene"]);
+    session.wait_for("Replace the existing value? (y/N)");
+    session.send(&format!("y{ENTER}"));
+    session.wait_for("Value:");
+    session.send(ENTER);
+    session.enter_through(&SELENE_PROMPTS[1..]);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(
+        project.read("selene.toml"),
+        existing.replace("roblox+custom", "roblox")
+    );
+}
+
+#[test]
+fn toml_broken_while_prompting_is_not_written_over() {
+    let project = TempProject::new("selene-changed-during-prompt");
+    project.write("selene.toml", SCAFFOLDED_SELENE);
+    let mut session = Session::start(project.path(), &["configure", "selene"]);
+    session.enter_through(&SELENE_PROMPTS[..3]);
+    session.wait_for_prompt("rules.shadowing");
+    session.send(&format!("{DOWN}{ENTER}"));
+    session.wait_for_prompt(SELENE_PROMPTS[4]);
+    let broken = "std = [\n";
+    project.write("selene.toml", broken);
+    session.enter_through(&SELENE_PROMPTS[4..]);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 1, "{}", outcome.text);
+    outcome.assert_contains("was not changed");
+    assert_eq!(project.read("selene.toml"), broken);
+}
+
+#[test]
+fn unsafe_toml_layout_is_refused_without_changing_the_file() {
+    let project = TempProject::new("selene-unsafe-layout");
+    let existing = SCAFFOLDED_SELENE.replace("[rules]", "[rules] # custom rules");
+    project.write("selene.toml", &existing);
+    let mut session = Session::start(project.path(), &["configure", "selene"]);
+    session.enter_through(&SELENE_PROMPTS[..3]);
+    session.wait_for_prompt("rules.shadowing");
+    session.send(&format!("{DOWN}{ENTER}"));
+    session.enter_through(&SELENE_PROMPTS[4..]);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 1, "{}", outcome.text);
+    outcome.assert_contains("cannot safely edit this TOML layout");
+    assert_eq!(project.read("selene.toml"), existing);
+}
+
 /// A changed answer has to land, without disturbing anything else -
 /// including the keys the catalog knows nothing about.
 #[test]

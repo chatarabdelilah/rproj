@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-Updated September 8, 2026. Published baseline: **0.12.2**, alpha. Selected candidate: **0.13.0**, diagnostic logging and hub-driven Ratatui creation. The release-hardening baseline covers confirmed defects in existing workflows; neither new feature is in published 0.12.2. Model import, embedded tools, and frontend migration remain out of scope. See [candidate release notes](release-notes-0.13.0.md).
+Updated September 8, 2026. Published baseline: **0.13.0**, alpha, with diagnostic logging and hub-driven Ratatui creation. Its crates.io archive records `50f2e3419d9fb252d71810536944e1a5fe445a79`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.0). SHA256: `3ea4689594edb17f5de95fa55f5382b9a42ac36e9d2be202657c8ce542c53617`. Model import, embedded tools, and frontend migration remain out of scope. See [release notes](release-notes-0.13.0.md).
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
@@ -12,6 +12,14 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 4. **Jest Roblox projects could not run their selected test runner.** Rokit 1.2 rejected untrusted project-local sources, the generated runner invoked `jest-roblox` while Rokit installs `jest-roblox-cli`, and `test.projects` used DataModel-path strings that 0.3.24 interprets as configuration-file paths. rproj now trusts selected sources before every add, invokes the installed executable, and emits inline project entries with filesystem include globs.
 
 ## Evidence
+
+### Unreleased Configuration Preservation
+
+Three new regressions first reproduced destructive behavior in 0.13.0: an unlisted choice was reset to its catalog default, a structured JSON value was replaced with a boolean, and accepting handwritten TOML produced duplicate keys/tables. The fix omits unchanged answers, keeps unsupported values by default, and validates a proposed TOML merge against the expected parsed document before writing. Explicit replacement remains available. This does not introduce file locking or crash-atomic writes, and the legacy TOML writer may refuse unusual valid layouts rather than rewrite them unsafely. Shared upgrade/scaffolding writers are unchanged.
+
+September 8: all 309 ordinary tests passed (19 explicitly ignored, 328 discovered). Eight regressions were added: two unit tests and six PTY tests. An initial new replacement test used the heading-wait helper for an inline confirmation; correcting that test synchronization produced the passing full run. Formatting, clippy, reviewed-head CI, and main CI evidence are recorded on the fix PR. Live Studio/Rojo/provisioning checks are not rerun because their execution paths are unchanged; the dated 0.13.0 evidence below remains historical, not a new pass.
+
+### Released Evidence
 
 | Check | Result |
 | --- | --- |
@@ -73,9 +81,9 @@ The saved-setup regression uses the real configured projects root and setup dire
 
 Keep Ratatui and all external tool boundaries. The model-import experiment stays on its separate local branch and is not a dependency of this release.
 
-Release 0.12.2 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
+Release 0.13.0 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) are merged with main CI verified. Version 0.13.0 is the selected candidate for logger + creation; only manifests and release-facing documentation change during preparation. After its release PR and main CI pass, the owner alone runs `cargo publish --locked`. The agent then verifies the published archive Git identity before tagging and creating the alpha prerelease. Remaining alpha audit gaps stay tracked; no additional feature is a release prerequisite.
+Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) shipped in 0.13.0 through release PR #15. [Merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34181012236) passed. The release branch is deleted; the model-import experiment remains preserved. Next, finish the reviewed configuration-preservation fix, then prepare a separate patch candidate. Do not republish or move v0.13.0. Remaining alpha audit gaps stay tracked.
 
 ## Post-Handoff Review: September 7, 2026
 
@@ -103,8 +111,8 @@ Reviewed the task history and changes from v0.12.1 through main at `fe8f4f4`.
   automatic retention cleanup, and are not a complete screen transcript. Review
   them before sharing. Open Cloud and fresh-machine acceptance remain unverified.
 
-Update September 8: the creation flow is merged and **0.13.0 is the selected
-candidate**. After [release PR #15](https://github.com/chatarabdelilah/rproj/pull/15)
-and merged-main CI pass, the owner runs `cargo publish --locked` from clean main.
-The agent then verifies the published archive's Git identity, creates the annotated
-`v0.13.0` tag at that commit, and creates the matching GitHub alpha prerelease.
+Update September 8: **0.13.0 is published and aligned** after
+[release PR #15](https://github.com/chatarabdelilah/rproj/pull/15) and successful
+merged-main CI. The owner performed publication; the agent verified the archive
+identity before creating the annotated tag and GitHub alpha prerelease. The next
+configuration-preservation fix is separate and unreleased.
