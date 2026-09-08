@@ -103,6 +103,8 @@ Reviewed the task history and changes from v0.12.1 through main at `fe8f4f4`.
   automatic retention cleanup, and are not a complete screen transcript. Review
   them before sharing. Open Cloud and fresh-machine acceptance remain unverified.
 
-Next: implement the approved hub-driven Ratatui creation flow, retaining the
-direct CLI and existing scaffolding. No new release candidate is selected by
-this review, and the owner should not run Cargo publication yet.
+Update September 8: the creation flow is merged and **0.13.0 is the selected
+candidate**. After [release PR #15](https://github.com/chatarabdelilah/rproj/pull/15)
+and merged-main CI pass, the owner runs `cargo publish --locked` from clean main.
+The agent then verifies the published archive's Git identity, creates the annotated
+`v0.13.0` tag at that commit, and creates the matching GitHub alpha prerelease.

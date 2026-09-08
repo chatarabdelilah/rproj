@@ -41,9 +41,9 @@ a shipped tag. For 0.13.0, use `docs/release-notes-0.13.0.md` as the GitHub rele
 
 ```powershell
 $publishedCommit = '<verified Git SHA from the published archive>'
-git tag -a vX.Y.Z $publishedCommit -m "rproj vX.Y.Z"
-git push origin vX.Y.Z
-gh release create vX.Y.Z --verify-tag --generate-notes --prerelease --title "rproj vX.Y.Z"
+git tag -a v0.13.0 $publishedCommit -m "rproj v0.13.0"
+git push origin v0.13.0
+gh release create v0.13.0 --verify-tag --notes-file docs/release-notes-0.13.0.md --prerelease --title "rproj v0.13.0"
 ```
 
-Verify that the GitHub release points to the same commit as the tag, remains marked as a prerelease throughout the alpha phase, and that crates.io reports `X.Y.Z` as the current version.
+Verify that the GitHub release points to the same commit as the tag, remains marked as a prerelease throughout the alpha phase, and that crates.io reports `0.13.0` as the current version.
