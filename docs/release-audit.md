@@ -83,7 +83,7 @@ Keep Ratatui and all external tool boundaries. The model-import experiment stays
 
 Release 0.13.0 is aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) shipped in 0.13.0 through release PR #15. [Merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34181012236) passed. The release branch is deleted; the model-import experiment remains preserved. Next, finish the reviewed configuration-preservation fix, then prepare a separate patch candidate. Do not republish or move v0.13.0. Remaining alpha audit gaps stay tracked.
+Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) shipped in 0.13.0 through release PR #15. [Merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34181012236) passed. The release branch is deleted; the model-import experiment remains preserved. The configuration-preservation implementation is complete and locally verified but remains unreleased; [PR #16](https://github.com/chatarabdelilah/rproj/pull/16) records review and merge checks. Prepare a separate patch candidate after that PR is merged and main CI passes. Do not repeat the implementation, republish, or move v0.13.0. Remaining alpha audit gaps stay tracked.
 
 ## Post-Handoff Review: September 7, 2026
 
