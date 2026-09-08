@@ -744,16 +744,9 @@ pub fn current_toml_values(tool: &ConfigurableTool, existing: &str) -> Vec<Optio
         .collect()
 }
 
-/// Only the shapes a `SettingKind` can hold. Anything else (an array, a
-/// nested table) isn't a value this walkthrough could have written, so it's
-/// left alone rather than offered back as a default.
 fn toml_to_json(value: &toml::Value) -> Option<Value> {
-    match value {
-        toml::Value::Boolean(b) => Some(json!(b)),
-        toml::Value::Integer(i) => Some(json!(i)),
-        toml::Value::String(s) => Some(json!(s)),
-        _ => None,
-    }
+    // Unsupported shapes still count as present, so configure can keep them without rewriting.
+    serde_json::to_value(value).ok()
 }
 
 /// The config file a tool gets at scaffold time: every setting at its

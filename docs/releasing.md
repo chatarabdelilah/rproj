@@ -2,7 +2,7 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is `v0.12.2` at `f71bf4e`. The selected candidate is **0.13.0**, an alpha release containing diagnostic logging and hub-driven Ratatui project creation. [Release notes](release-notes-0.13.0.md) define its scope; [the audit](release-audit.md) records verification and remaining limits. The candidate is built from reviewed main after PR #14, not from the shelved model-import experiment. Cargo manifests agree on 0.13.0; no 0.13.0 publication, tag, or GitHub release is claimed until verified.
+The published baseline is **v0.13.0** at `50f2e3419d9fb252d71810536944e1a5fe445a79`, an alpha release containing diagnostic logging and hub-driven Ratatui project creation. The crates.io archive Git identity, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.0) are aligned. [Release notes](release-notes-0.13.0.md) define its scope; [the audit](release-audit.md) records verification and remaining limits. Configuration-preservation fixes after this commit are unreleased; Cargo manifests stay at 0.13.0 until the next candidate is prepared.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
@@ -16,6 +16,12 @@ The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merg
 6. Push a pull request, inspect CodeRabbit findings, and verify Windows stable, Rust 1.89, and package CI. Address findings or document why they do not apply.
 7. Merge into `main`, push, and verify main CI. Remove merged local and remote branches only after checking their work is preserved. Do not delete unmerged experiments as if they were merged.
 8. Request publication only with a ready candidate, clean checkout, and recorded residual risks. The repository owner performs Cargo publication, not the agent.
+
+## Proportionate verification
+
+During implementation, run focused tests for the changed behavior and its callers. Run the ordinary suite, formatting, and clippy before the runtime PR is ready. Capture summaries and failures rather than repeatedly loading successful test output. Wait for CI state changes instead of frequent unchanged polling.
+
+Run external/live checks when the changed paths require them, not for unrelated configuration or documentation edits. Do not rerun the same successful local gate after a documentation-only correction; record the unchanged runtime/dependency identity instead. Reviewed-head and merged-main CI remain mandatory. A release candidate still requires the preparation checklist above, including locked packaging and applicable live evidence. Never count a skipped prerequisite as a pass.
 
 ## Cargo publication
 

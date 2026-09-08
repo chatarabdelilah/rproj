@@ -100,6 +100,10 @@ Changing dependencies reopens package selection and clears stale file exclusions
 
 Only confirmed **Create** writes the project and saves the optional setup. The terminal is restored before installed tools run. If another process creates the destination meanwhile, rproj refuses to overwrite it. The hub does not install machine applications from a draft; use **Machine Setup** first.
 
+### Tool configuration (unreleased fix)
+
+Run `rproj configure selene`, `stylua`, `luau-lsp`, or `stylua-vscode` in the project directory. Existing settings are the prompt defaults; missing settings use catalog defaults. An unlisted or unsupported existing value is kept unless you explicitly agree to replace it. Keeping all existing settings unchanged avoids rewriting the file. TOML layouts the writer cannot safely modify are refused without saving; edit those files manually. This preservation fix is on the development branch after 0.13.0, not in the published 0.13.0 binary.
+
 ## Generated project
 
 The exact tree follows your choices. A full project can include:
