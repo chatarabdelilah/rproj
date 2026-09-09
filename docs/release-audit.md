@@ -49,14 +49,20 @@ September 9 local evidence:
 Locked packaging passed at `8389643`: 85 files, 1.0 MiB uncompressed and 263.9 KiB
 compressed; the crate built from its archive. The package includes the new source
 modules and PTY fixture, while retaining the existing documentation/CI exclusions.
-The final reviewed candidate is packaged again after review fixes.
+After review fixes, locked packaging passed again at `4889a48`: the same 85 files,
+1.0 MiB uncompressed and 264.2 KiB compressed, compiled from the archive.
 
 Local CodeRabbit review identified recovery and cancellation improvements:
 creation now names the retained destination on failure/cancellation, Blender's
 temporary script has RAII cleanup, and VS Code/Blender discovery preserves
 cancellation instead of a misleading missing-tool error. VS Code extension
 cancellation is propagated, and README states the help/version logging exception.
-The ordinary suite and clippy passed again after these runtime fixes.
+The ordinary suite and clippy passed again after these runtime fixes. The full
+local review completed with 11 findings; the narrow six-file follow-up completed
+with zero findings. [Release PR #20](https://github.com/chatarabdelilah/rproj/pull/20)
+records reviewed-head CI, any remote review follow-up, and merged-main verification
+before the owner is asked to publish. Documentation-only evidence updates do not
+change the tested runtime or dependency graph.
 
 Review decisions: do not force `process::exit` on a second interrupt because it
 skips terminal restoration and child waiting. Do not record machine setup as
