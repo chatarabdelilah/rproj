@@ -1,8 +1,8 @@
 # Ratatui project creation: bounded implementation plan
 
 Status: shipped in 0.13.0 alpha after [PR #14](https://github.com/chatarabdelilah/rproj/pull/14) and release PR #15, with reviewed-head and main CI verified. Owner publication and archive/tag/GitHub release alignment are complete.
-The diagnostic logger is merged in PR #11. Model import remains shelved and is
-not a dependency. Direct-command prompts remain unchanged.
+The diagnostic logger is merged in PR #11. Model import is permanently dropped,
+not a dependency or future milestone. Direct-command prompts remain unchanged.
 
 `commands::new::execute_confirmed` now separates the reviewed composition's
 execution from direct-command prompts. It retains exclusive destination creation,

@@ -12,7 +12,7 @@ Interactive bare `rproj` is a workspace hub over the existing commands. It repor
 
 This version is Windows-only (installs go through `winget`).
 
-**Scope decision (September 5, 2026):** Ratatui remains the interactive frontend. There is no planned desktop GUI or broad migration to embedded tool libraries. Rojo, Selene, StyLua, and the other external tools retain their existing responsibilities. The unfinished model-import experiment is outside the release baseline. Release hardening is next; see [the roadmap](plan.md) for commitments rather than treating historical implementation notes as future work.
+**Scope decision (September 9, 2026):** Ratatui remains the interactive frontend. There is no planned desktop GUI or broad migration to embedded tool libraries. Rojo, Selene, StyLua, and the other external tools retain their existing responsibilities. Model-to-template import is permanently dropped; the owner requested deletion of the unfinished experiment. See [the roadmap](plan.md) for current commitments rather than treating historical implementation notes as future work.
 
 ## 2. Behavior / Rules Specification
 

@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-Updated September 9, 2026. Published baseline: **0.13.1**, alpha, with interactive configuration preservation. Its crates.io archive records `0fad0db8213dda1bfa9c3b0f97e24c808894fc0f`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.1). SHA256: `e43aa97c52b170a483da1abb4d0e0eb718be6b81249388d8b3b9092a69bad518`. Model import, embedded tools, and frontend migration remain out of scope. See [release notes](release-notes-0.13.1.md).
+Updated September 9, 2026. Published baseline: **0.14.0**, alpha, with persistent Home, template save continuity, and Catalog clarity. Its crates.io archive records `f86a7bd06d0f5b637a41a0e0ca05792be66c42e5`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0). SHA256: `b3469e9cf85ae5f1a88f6ec6aaf5065ce05301cd52172414b5adafc34974b95e`. Model import and embedded quality tools are permanently dropped. See [release notes](release-notes-0.14.0.md).
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
@@ -13,10 +13,10 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 
 ## Evidence
 
-### 0.14.0 T2 Candidate
+### 0.14.0 T2 Published
 
-Branch: `codex/t2-home-catalog`. Published baseline remains 0.13.1 until the owner
-publishes the reviewed 0.14.0 candidate. Scope: persistent Home, template save
+Published at `f86a7bd` after PR #20 and owner publication; archive, annotated tag,
+and alpha release are aligned. Scope: persistent Home, template save
 baselines, foreground cancellation, Catalog hierarchy/readability, and bundled
 package guidance. No new catalog packages or machine applications are installed.
 
@@ -70,8 +70,8 @@ eight Home PTYs passed, and all eight Catalog snippets passed again through
 Studio in 37.88 seconds. Its prose-wrapping edge case was reproduced and fixed
 with assertions in the existing Catalog test; the four Catalog tests pass.
 The audit header date was corrected. Windows stable, Rust 1.89, and package CI
-passed at `13ffed0`; the final correction commit must pass those checks again
-before merge. The owner's `.codex/` and `.serena/` ignore rules keep local agent
+passed at both `13ffed0` and final correction commit `2ec83ba`, then on merged
+main `f86a7bd`. The owner's `.codex/` and `.serena/` ignore rules keep local agent
 configuration outside Git and Cargo archives; no such configuration is shipped.
 
 Review decisions: do not force `process::exit` on a second interrupt because it
@@ -154,11 +154,11 @@ The saved-setup regression uses the real configured projects root and setup dire
 
 ## Handoff
 
-Keep Ratatui and all external tool boundaries. The model-import experiment stays on its separate local branch and is not a dependency of this release.
+Keep Ratatui and all external tool boundaries. The model-import experiment was permanently retired at the owner's request on September 9, 2026. The local branch and importer-only build artifacts were deleted; no remote branch, separate worktree, or stash existed. No importer code was merged. Historical commits are not rewritten.
 
-Releases 0.13.0 and 0.13.1 are aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
+Releases 0.13.0, 0.13.1, and 0.14.0 are aligned and complete. The agent handles review findings, merge, post-merge CI, merged-branch cleanup, and release alignment; the owner alone runs `cargo publish --locked` when a new package is ready. Test-only and documentation-only follow-ups do not require publication or moving an existing release tag.
 
-Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) shipped in 0.13.0 through release PR #15. [Merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34181012236) passed. The release branch is deleted; the model-import experiment remains preserved. The configuration-preservation implementation shipped in 0.13.1 after [PR #16](https://github.com/chatarabdelilah/rproj/pull/16) and release PR #17. Its archive identity, tag, and alpha release are aligned. Do not republish or move v0.13.0 or v0.13.1. Remaining alpha audit gaps stay tracked.
+Saved-setup replay/refusal, diagnostic logging (PR #11), shared confirmed execution (PR #12), and Ratatui creation (PR #14) shipped in 0.13.0 through release PR #15. [Merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34181012236) passed. Configuration preservation shipped in 0.13.1 through PRs #16 and #17. T2 shipped in 0.14.0 through [PR #20](https://github.com/chatarabdelilah/rproj/pull/20), with [merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/34317249700) passing at `f86a7bd`. The owner published; archive identity, annotated tag, and alpha release are aligned. Completed release branches are deleted. Do not republish or move shipped tags. Remaining alpha audit gaps stay tracked.
 
 ## Post-Handoff Review: September 7, 2026
 
