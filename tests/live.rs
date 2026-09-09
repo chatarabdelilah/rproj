@@ -35,6 +35,7 @@ use common::{DOWN, ENTER, ESC, LEFT, Session};
 fn hub_creation(name: &str) -> Session {
     let mut session = Session::start(&projects_root(), &[]);
     session.wait_for("Tasks");
+    session.send(DOWN);
     session.send(ENTER);
     session.wait_for("Project folder name");
     session.send(name);
@@ -137,9 +138,11 @@ fn hub_creation_confirm_hands_the_reviewed_graph_to_the_existing_executor() {
     assert!(!project.path().exists());
     session.send(ENTER);
     session.wait_for("is ready");
-    session.wait_for("Press Enter to return Home.");
+    session.wait_for("Press Enter to return the project.");
     session.send(ENTER);
-    session.wait_for("Returned Home.");
+    session.wait_for("Project actions");
+    session.send("\x03");
+    session.wait_for("Tasks");
     session.send(ESC);
     let result = session.finish();
     assert_eq!(result.code, 0, "{}", result.text);

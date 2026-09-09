@@ -10,7 +10,7 @@
 
 ## What rproj does
 
-Version 0.14 makes the workspace hub a persistent Home screen, keeps template editing open after saving, and organizes the Catalog into readable groups with offline package examples. Direct commands and existing project formats remain unchanged. rproj remains alpha software.
+Version 0.15 adds a Projects browser: choose a project before configuring, upgrading, watching, testing, or copying its source. Home remains machine-level; direct commands and project formats are unchanged. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
@@ -19,7 +19,7 @@ rproj connects two layers that are usually assembled by hand:
 
 It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
 
-Run `rproj` with no arguments in a terminal to open Home. It summarizes the current directory, machine setup, saved setups, project template, and version state. Catalog, project questions, and Template Explorer share the full-screen session. Commands use normal terminal output; press Enter after their outcome to return Home. Direct commands remain the interface for scripts and repeatable workflows.
+Run `rproj` with no arguments in a terminal to open Home: Projects, New Project, Edit Project Template, Machine Setup, and Catalog. Internal screens share one terminal session. Commands use normal terminal output and return to their caller after acknowledgement. Direct commands remain the interface for scripts.
 
 ## Ecosystems
 
@@ -88,13 +88,17 @@ rproj watch
 | `rproj info [key]` | Open the TUI Catalog or print one entry when a key is supplied |
 | `rproj --verbose ...` | Include commands and captured subprocess output |
 
-The hub keeps unavailable actions visible with their prerequisites. It examines only the current directory: it does not search for or manage a projects-root library. Select Catalog to browse the ecosystem, or a task to begin its workflow. Use arrows and Enter to navigate, Esc to leave, and `?` for help.
+### Projects
 
-Home remembers the selected action and refreshes project/setup state on return. Setup, Configure, Upgrade, Test, Watch, Copy, and confirmed creation retain their existing prompts and subprocess output. Cancellation and failure return Home after acknowledgement. Watch stays foreground-only: Ctrl+C stops the active watcher before Home resumes; an unexpected nonzero exit is reported as a failure.
+Projects lists recognized folders directly beneath the configured projects root, plus the launch directory when it contains `rproj.toml` or `default.project.json`. It does not recurse or follow linked child directories. Malformed projects stay visible with warnings; missing or unreadable roots are reported without creating folders.
+
+Type to filter by name or path; use arrows and Enter to open a project, F5 to refresh, Tab to focus details, and `?` for help. Esc returns to the list with its filter, selection, and scroll intact; Ctrl+C returns Home. Selection lasts only for this session.
+
+The project screen offers Configure Tools, Upgrade Project, Watch Project, Test Project, and Copy Source. Unavailable actions explain their requirements. Actions target the selected directory, never the launch directory. Their existing prompts and subprocess output are acknowledged before returning to that project and refreshing its status. Watch stays foreground-only: Ctrl+C stops the child before returning; unexpected nonzero exits remain failures. Successful creation opens the new project's screen; Back selects it in the refreshed Projects list.
 
 ### Catalog
 
-Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and its descendants, or search from the root to cover the entire Catalog.
+Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and descendants. Project-template editing belongs to Home, not Catalog. Saved setups remain listed until their dedicated manager ships.
 
 Enter opens a group or focuses its detail pane; Tab switches panes. Arrows, Page Up/Down, Home, and End navigate entries or scroll details. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally/submodule import differences; they are starting points, not complete production systems.
 

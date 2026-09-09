@@ -42,6 +42,17 @@ pub fn run(key: Option<&str>) -> Result<()> {
         },
     };
 
+    configure_tool(&project_dir, tool)
+}
+
+pub(super) fn run_tools_in(project_dir: &Path) -> Result<()> {
+    let options: Vec<&str> = CONFIGURABLE_TOOLS.iter().map(|tool| tool.key).collect();
+    let key = Select::new("Configure which tool?", options).prompt()?;
+    let tool = tool_settings::find(key).context("selected tool is not configurable")?;
+    configure_tool(project_dir, tool)
+}
+
+fn configure_tool(project_dir: &Path, tool: &ConfigurableTool) -> Result<()> {
     println!(
         "\n{} - {}\n{}\n",
         tool.display_name, tool.summary, tool.docs_url
@@ -51,7 +62,7 @@ pub fn run(key: Option<&str>) -> Result<()> {
         target_description(&tool.target)
     );
 
-    let current = current_values(&project_dir, tool)?;
+    let current = current_values(project_dir, tool)?;
 
     let mut answers: Vec<(&SettingSpec, Value)> = Vec::new();
     for (setting, current) in tool.settings.iter().zip(current) {
@@ -68,8 +79,8 @@ pub fn run(key: Option<&str>) -> Result<()> {
     }
 
     match &tool.target {
-        ConfigTarget::ProjectToml { filename } => write_toml(&project_dir, filename, &answers)?,
-        ConfigTarget::VsCodeSettings => write_vscode_settings(&project_dir, &answers)?,
+        ConfigTarget::ProjectToml { filename } => write_toml(project_dir, filename, &answers)?,
+        ConfigTarget::VsCodeSettings => write_vscode_settings(project_dir, &answers)?,
     }
     Ok(())
 }

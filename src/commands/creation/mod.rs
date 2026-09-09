@@ -22,6 +22,12 @@ pub struct Prepared {
     config: GlobalConfig,
 }
 
+impl Prepared {
+    pub fn project_dir(&self) -> std::path::PathBuf {
+        self.root.join(&self.draft.name)
+    }
+}
+
 pub fn prepare(terminal: &mut tui::TerminalSession, name: &str) -> Result<Option<Prepared>> {
     terminal.draw(|frame| {
         frame.render_widget(

@@ -125,11 +125,7 @@ pub(crate) fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result
         HubOutcome::Quit => Ok(()),
         HubOutcome::New { .. } => unreachable!("creation questions run inside the hub"),
         HubOutcome::EditProjectTemplate => commands::project_template::run(),
-        HubOutcome::ConfigureTools => commands::configure::run(None),
         HubOutcome::SetupMachine => commands::setup::run(None),
-        HubOutcome::Upgrade => commands::upgrade::run(false),
-        HubOutcome::Watch => commands::watch::run(),
-        HubOutcome::Test => commands::test::run(&[]),
-        HubOutcome::CopySource => commands::copy::run(),
+        HubOutcome::Project { path, action } => action.run(&path),
     }
 }

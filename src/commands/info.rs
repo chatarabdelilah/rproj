@@ -115,9 +115,6 @@ fn list_all() -> Result<()> {
         println!("    {:<18} {}", tool.key, tool.display_name);
     }
 
-    println!("\nPLACE TEMPLATE (applied to every new project's default.project.json)");
-    print_place_template();
-
     let setups = Setups::list();
     if !setups.is_empty() {
         println!("\nSAVED SETUPS (rproj new <name> --like <setup>)");
@@ -131,10 +128,6 @@ fn list_all() -> Result<()> {
 
     println!("\nRun `rproj info <key>` for what it does, the commands to use it, and the gotchas.");
     Ok(())
-}
-
-fn print_place_template() {
-    println!("{}", catalog_view::place_template_text());
 }
 
 fn print_saved_setups() {

@@ -57,17 +57,17 @@ Testing stays optional. TestEZ remains the internal compatibility fallback for o
 
 ## Workspace Hub
 
-The hub reads the exact current directory and reports machine setup, saved setups, template state, project context, and cached update information.
+T3 (0.15.0) makes Home machine-level: Projects, New Project, Edit Project Template, Machine Setup, Catalog. Project selection is session-only. Home still reports machine setup, saved setups, global template state, and cached updates.
 
-Unavailable project actions remain visible with precise reasons. Dispatch uses the existing command's authoritative validation after terminal restoration. The hub is not a project-directory manager or alternative tool runner.
+Projects discovers only immediate, non-linked children of the configured projects root and the recognized launch directory. Missing roots and malformed projects have explanatory warnings; browsing never creates directories or invokes tools. Filtering matches names and paths. F5 refreshes on one read-only worker; stale results are discarded. Enter opens the selected project's actions; Back preserves the browser state.
 
 Wide terminals show actions and details side by side; narrow terminals switch focus between stacked panes. Minimum-size screens retain Help and Exit. Esc and Ctrl+C exit cleanly.
 
-The Catalog groups Packages by category and Tools by installation type. VS Code contains Extensions and Themes & Icons. Groups sort alphabetically; search covers the current group and descendants, including the whole Catalog at its root. Entry rows are short; full descriptions, versioned examples, placement, caveats, and official links remain in scrollable details.
+The Catalog excludes Place Template, which belongs to the dedicated Explorer. It groups Packages by category and Tools by installation type. VS Code contains Extensions and Themes & Icons. Groups sort alphabetically; search covers the current group and descendants. Existing package examples, metadata, and named lookups remain available.
 
 Enter opens a group or focuses details. Tab changes panes; arrows/Page Up/Page Down/Home/End navigate or scroll. Esc unwinds detail focus and the navigation stack, restoring selection/filter/scroll. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
 
-Foreground command handoffs preserve normal prompts/output, then acknowledge success, cancellation, or failure before returning Home. Ctrl+C during Watch stops the active child; unexpected watcher exits are failures. Interrupted provisioning stops before another install or a completion save. Commands that ignore interruption must finish before Home resumes; no background daemon or force-kill feature is introduced.
+Configure Tools, Upgrade, Watch, Test, and Copy Source live on the project screen, with unavailable reasons. Each action revalidates its selected directory, runs outside the alternate screen, and returns to the same project after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Watch remains foreground-only and awaits the active child before returning.
 
 ## Template Explorer
 
