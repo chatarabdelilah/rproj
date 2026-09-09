@@ -32,8 +32,9 @@ not just context from an earlier chat.
 - Ratatui is the UI direction. Reuse existing project graph, catalogs, and
   scaffolding. Keep direct commands and external Rojo, Selene, StyLua, luau-lsp,
   Rokit, Wally, Git, Lute, and test-runner boundaries.
-- Tauri and embedded lint/format/parser migrations are dropped. Preserve
-  `codex/m7-model-import` as a shelved experiment; do not merge or delete it.
+- Tauri, embedded lint/format/parser migrations, and model-to-template import are
+  dropped. The owner permanently retired the model-import experiment on September
+  9, 2026; its branch was deleted. Do not restore or plan it as future work.
 - Keep comments for non-obvious invariants. Put broader rationale in docs;
   do not add comments just to satisfy a docstring-percentage advisory.
 - Missing prerequisites and ignored tests are not passes. Do not provision

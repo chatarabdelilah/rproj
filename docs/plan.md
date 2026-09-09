@@ -17,13 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.13.1, public alpha**, adding interactive configuration preservation to the diagnostic logging and Ratatui project creation released in 0.13.0. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.1) agree on `0fad0db`. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.14.0, public alpha**: persistent Home, template saves that stay open, and a grouped Catalog with offline examples. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0) agree on `f86a7bd`. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
 The existing product includes machine setup, configurable project generation, saved compositions, upgrades, tool configuration, the global Template Explorer, workspace hub and Catalog, watching, source copying, and optional TestEZ/Jest Roblox testing.
 
-The unfinished v0.13.0 model-import experiment is **shelved and outside the release baseline**. Work is preserved on `codex/m7-model-import`; it must not be merged as part of release hardening. Its version bump does not establish a release commitment.
+The unfinished model-import experiment is **permanently dropped** by the owner's September 9, 2026 decision. Its unmerged local branch and importer-specific build artifacts were removed; no importer implementation or DOM/serializer dependencies entered main. It is not a future milestone.
 
 ## Scope Removed
 
@@ -32,12 +32,12 @@ The unfinished v0.13.0 model-import experiment is **shelved and outside the rele
 | M7: broad library migration | Cancelled. There is no goal to move the toolchain into rproj. |
 | Embedded Selene or StyLua | Removed. Working external tools do not need internal replacements. |
 | Full Moon | Removed. No approved standalone Lua/Luau parsing requirement exists. |
-| M6 / M7a + M6a: static model-to-template conversion | Shelved, not a release prerequisite. Conversion and data-preservation obligations are unnecessary for the current product. |
+| M6 / M7a + M6a: static model-to-template conversion | Permanently dropped. The owner requested deletion of the experiment and its branch; it will not be reintroduced. |
 | Tauri GUI and GUI-driven core-library extraction | Dropped, not deferred. Ratatui is the selected interface direction. |
 | R4: additional project types | Uncommitted backlog, requiring a concrete use case and working build targets. |
 | M8: rproj Studio plugin | Uncommitted backlog. No new plugin is needed to release the existing product. |
 
-Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. The shelved importer offered a different convenience: converting supported models into self-contained, editable global-template JSON. That does not justify delaying release. This decision does not expand rproj's current global-template `$path` rules. See Rojo's [sync details](https://rojo.space/docs/v7/sync-details/) and [project format](https://rojo.space/docs/v7/project-format/).
+Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. rproj will not add a competing model conversion/import layer. This decision does not expand rproj's current global-template `$path` rules. See Rojo's [sync details](https://rojo.space/docs/v7/sync-details/) and [project format](https://rojo.space/docs/v7/project-format/).
 
 ## Release Hardening Baseline
 
@@ -76,11 +76,11 @@ Choose the version after the changes are known: a patch for compatible fixes, a 
 
 Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-## Current: T2 Home Navigation and Catalog Clarity
+## Shipped: T2 Home Navigation and Catalog Clarity
 
-The approved **0.14.0 alpha candidate** makes Home persistent, keeps Template Explorer open after successful saves, and groups the Catalog with offline package examples and scrollable details. Internal views borrow one terminal session; existing prompts and foreground processes run outside the alternate screen and return after acknowledgement. Direct commands and project formats remain unchanged.
+Published **0.14.0 alpha** makes Home persistent, keeps Template Explorer open after successful saves, and groups the Catalog with offline package examples and scrollable details. Internal views borrow one terminal session; existing prompts and foreground processes run outside the alternate screen and return after acknowledgement. Direct commands and project formats remain unchanged.
 
-Implementation is on `codex/t2-home-catalog`. Release gates are focused/ordinary tests, real Rojo and applicable live checks, CodeRabbit, reviewed-head Windows stable/Rust 1.89/package CI, and merged-main CI. Only then does the owner publish. [Release notes](release-notes-0.14.0.md) and [audit evidence](release-audit.md) track readiness; a manifest bump alone is not a release.
+[PR #20](https://github.com/chatarabdelilah/rproj/pull/20) is merged at `f86a7bd`. CodeRabbit findings were addressed, reviewed-head and merged-main Windows stable/Rust 1.89/package CI passed, and the completed feature branch was deleted. Owner publication and archive/tag/alpha-release alignment are verified. [Release notes](release-notes-0.14.0.md) and [audit evidence](release-audit.md) record the scope and remaining limits.
 
 The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
@@ -123,5 +123,6 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Jest Roblox provisioning, executable name, and generated config fixes | v0.12.2 |
 | Local diagnostic logging and hub-driven Ratatui project creation | v0.13.0 |
 | Interactive configuration preservation | v0.13.1 |
+| T2: persistent Home, template save continuity, grouped Catalog and examples | v0.14.0 |
 
 **Active sequence: observe real workflows -> select one bounded improvement -> review, release, and align it.**
