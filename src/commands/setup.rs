@@ -35,6 +35,7 @@ fn setup_machine() -> Result<()> {
 
     let mut config = GlobalConfig::load()?;
     provision::run(&mut config)?;
+    crate::interrupt::check()?;
     config.save()?;
 
     notify::summary(

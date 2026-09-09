@@ -654,6 +654,14 @@ pub const PACKAGES: &[PackageSpec] = &[
 ];
 
 impl PackageSpec {
+    pub fn alias(&self) -> &'static str {
+        if self.realm == Realm::Dev {
+            self.module_name
+        } else {
+            self.key
+        }
+    }
+
     /// The wally author/org, parsed from `source` (e.g. "littensy" out of
     /// "littensy/reflex@4.3.1"). Used for the compact `rproj info` listing.
     pub fn author(&self) -> &'static str {

@@ -3,4 +3,4 @@ mod metadata;
 mod model;
 mod text_buffer;
 
-pub use app::{Outcome, run};
+pub use app::{run, run_in};

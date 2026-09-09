@@ -72,6 +72,7 @@ fn install_release_asset(
         return Ok(());
     }
 
+    crate::interrupt::check()?;
     let bytes = ureq::get(download_url)
         .header("User-Agent", "rproj")
         .call()
@@ -79,6 +80,7 @@ fn install_release_asset(
         .body_mut()
         .read_to_vec()
         .context("failed to read release asset body")?;
+    crate::interrupt::check()?;
 
     if bytes.is_empty() {
         bail!("downloaded asset {name} was empty");

@@ -2,7 +2,7 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.13.1** at `0fad0db8213dda1bfa9c3b0f97e24c808894fc0f`, an alpha configuration-preservation patch. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.1) are aligned. [Release notes](release-notes-0.13.1.md) define its scope; [the audit](release-audit.md) records verification and remaining limits. No next release candidate is selected.
+The published baseline is **v0.13.1** at `0fad0db8213dda1bfa9c3b0f97e24c808894fc0f`; its archive, tag, and GitHub alpha release are aligned. The next candidate is **v0.14.0, T2: Home navigation and Catalog clarity**, prepared on `codex/t2-home-catalog`. [Release notes](release-notes-0.14.0.md) define its scope; [the audit](release-audit.md) records verification and remaining limits. It is not published until the owner runs Cargo publication after the reviewed merge.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 

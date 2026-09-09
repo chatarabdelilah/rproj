@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 8, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated September 9, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -76,7 +76,11 @@ Choose the version after the changes are known: a patch for compatible fixes, a 
 
 Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify main CI, and remove merged branches. The owner runs `cargo publish --locked`; tags and the GitHub prerelease follow confirmed crates.io publication.
 
-## Next: Observe And Prioritize
+## Current: T2 Home Navigation and Catalog Clarity
+
+The approved **0.14.0 alpha candidate** makes Home persistent, keeps Template Explorer open after successful saves, and groups the Catalog with offline package examples and scrollable details. Internal views borrow one terminal session; existing prompts and foreground processes run outside the alternate screen and return after acknowledgement. Direct commands and project formats remain unchanged.
+
+Implementation is on `codex/t2-home-catalog`. Release gates are focused/ordinary tests, real Rojo and applicable live checks, CodeRabbit, reviewed-head Windows stable/Rust 1.89/package CI, and merged-main CI. Only then does the owner publish. [Release notes](release-notes-0.14.0.md) and [audit evidence](release-audit.md) track readiness; a manifest bump alone is not a release.
 
 The bounded [project-creation implementation plan](ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
@@ -91,7 +95,7 @@ Release PR #15 is merged at `50f2e34`; its reviewed-head and main CI passed, the
 
 The completed 0.13.1 change fixes confirmed `configure` preservation failures: unlisted or unsupported existing values remain unless explicitly replaced, unchanged settings avoid writes, and TOML merges that fail parsing or alter unrelated values are refused. No new UI dependency or external-tool migration is involved. Focused prompt/merge regressions and ordinary CI cover this scope; Studio provisioning is unrelated and remains historical evidence.
 
-No feature milestone is committed next. Collect actual friction from rproj use, then choose one bounded workflow improvement with a clear user story, source boundary, and test plan. Further Ratatui configuration screens remain an option, not an automatic rewrite of existing direct commands.
+After T2, prioritize one separate workflow based on use: project browsing under the configured projects root, Ratatui Machine Setup, foreground/background Watch lifecycle, catalog package additions, or a bounded structural audit. None is part of 0.14.0; no new dependency or broad rewrite is approved by this list.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 

@@ -115,6 +115,7 @@ fn ensure_jest_runtime() -> Result<()> {
 }
 
 fn run_runner(program: &str, arguments: &[String], project_dir: &Path) -> Result<()> {
+    crate::interrupt::check()?;
     let shown: Vec<&str> = arguments.iter().map(String::as_str).collect();
     ui::command(program, &shown);
     let status = Command::new(program)
@@ -125,6 +126,7 @@ fn run_runner(program: &str, arguments: &[String], project_dir: &Path) -> Result
             format!("failed to start `{program}`; run `rproj watch` to restore pinned tools")
         })?;
     crate::diagnostics::tool_exit(program, status);
+    crate::interrupt::check()?;
     if !status.success() {
         return Err(RunnerFailure {
             program: program.to_string(),

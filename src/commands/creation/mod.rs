@@ -3,8 +3,6 @@ mod render;
 #[cfg(test)]
 mod tests;
 
-use std::io::IsTerminal;
-
 use anyhow::{Result, bail};
 use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 
@@ -17,16 +15,68 @@ use model::{Draft, Effect};
 
 pub(super) use model::validate_name;
 
-pub fn run(name: &str) -> Result<()> {
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-        bail!("Interactive creation requires a terminal; use `rproj new <name>`.");
-    }
+pub struct Prepared {
+    draft: Draft,
+    root: std::path::PathBuf,
+    template: Option<serde_json::Value>,
+    config: GlobalConfig,
+}
+
+pub fn prepare(terminal: &mut tui::TerminalSession, name: &str) -> Result<Option<Prepared>> {
+    terminal.draw(|frame| {
+        frame.render_widget(
+            ratatui::widgets::Paragraph::new(
+                "Preparing New Project...\nValidating the project template.",
+            ),
+            frame.area(),
+        )
+    })?;
     model::validate_name(name).map_err(anyhow::Error::msg)?;
-    let mut config = GlobalConfig::load()?;
+    let config = GlobalConfig::load()?;
     if !config.machine_configured() {
         bail!("Run Machine Setup from the hub, or `rproj setup`, before creating a project here.");
     }
-    let (_, template) = new::prepare_project(&config, name)?;
+    let template =
+        std::thread::scope(|scope| -> Result<Option<Option<serde_json::Value>>> {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let config = &config;
+            scope.spawn(move || {
+                let _ = sender.send(new::prepare_project(config, name));
+            });
+            let mut cancelled = false;
+            loop {
+                if let Some(Event::Key(key)) =
+                    terminal.poll_event(std::time::Duration::from_millis(50))?
+                    && key.kind != KeyEventKind::Release
+                    && (key.code == KeyCode::Esc
+                        || (key.modifiers.contains(KeyModifiers::CONTROL)
+                            && key.code == KeyCode::Char('c')))
+                {
+                    cancelled = true;
+                    crate::interrupt::request();
+                }
+                terminal.draw(|frame| {
+                    frame.render_widget(
+                ratatui::widgets::Paragraph::new(if cancelled {
+                    "Cancelling preparation... Waiting for the active validation process."
+                } else {
+                    "Preparing New Project...\nValidating the project template.\nEsc cancels."
+                }).wrap(ratatui::widgets::Wrap { trim: false }), frame.area())
+                })?;
+                match receiver.try_recv() {
+                    Ok(_) if cancelled => return Ok(None),
+                    Ok(result) => return result.map(|(_, template)| Some(template)),
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {}
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        bail!("Project preparation stopped unexpectedly")
+                    }
+                }
+            }
+        })?;
+    let Some(template) = template else {
+        crate::diagnostics::event("creation.cancel", "preparation cancelled; nothing created");
+        return Ok(None);
+    };
     let root = config.projects_root()?;
     let mut draft = Draft::new(
         name,
@@ -35,7 +85,6 @@ pub fn run(name: &str) -> Result<()> {
         config.selected_vscode_extensions.clone(),
     );
     let create = {
-        let mut terminal = tui::TerminalSession::enter()?;
         loop {
             let mut small = false;
             terminal.draw(|frame| {
@@ -105,8 +154,7 @@ pub fn run(name: &str) -> Result<()> {
     };
     if !create {
         crate::diagnostics::event("creation.cancel", "nothing created");
-        println!("Nothing created.");
-        return Ok(());
+        return Ok(None);
     }
     crate::diagnostics::event(
         "creation.confirmed",
@@ -118,14 +166,32 @@ pub fn run(name: &str) -> Result<()> {
             draft.graph.dropped
         ),
     );
-    let planned = draft.graph.plan(&draft.apps, &draft.extensions);
-    new::execute_confirmed(
-        &draft.name,
-        &root.join(&draft.name),
-        &draft.graph,
-        &planned,
-        template.as_ref(),
-        &mut config,
-        draft.save_setup.as_deref().map(new::SetupSave::New),
-    )
+    Ok(Some(Prepared {
+        draft,
+        root,
+        template,
+        config,
+    }))
+}
+
+impl Prepared {
+    pub fn execute(self) -> Result<()> {
+        let Self {
+            draft,
+            root,
+            template,
+            mut config,
+        } = self;
+        crate::interrupt::check()?;
+        let planned = draft.graph.plan(&draft.apps, &draft.extensions);
+        new::execute_confirmed(
+            &draft.name,
+            &root.join(&draft.name),
+            &draft.graph,
+            &planned,
+            template.as_ref(),
+            &mut config,
+            draft.save_setup.as_deref().map(new::SetupSave::New),
+        )
+    }
 }

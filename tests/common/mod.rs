@@ -138,6 +138,13 @@ impl Session {
 
     /// Overrides only the child environment, never process-global test state.
     pub fn start_with_env(cwd: &Path, args: &[&str], vars: &[(&str, &str)]) -> Self {
+        let binary = option_env!("CARGO_BIN_EXE_rproj")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| std::env::current_exe().expect("unit test executable"));
+        Self::start_program(&binary, cwd, args, vars)
+    }
+
+    pub fn start_program(program: &Path, cwd: &Path, args: &[&str], vars: &[(&str, &str)]) -> Self {
         let pair = native_pty_system()
             .openpty(PtySize {
                 rows: ROWS,
@@ -147,7 +154,7 @@ impl Session {
             })
             .expect("open pty");
 
-        let mut cmd = CommandBuilder::new(env!("CARGO_BIN_EXE_rproj"));
+        let mut cmd = CommandBuilder::new(program);
         for arg in args {
             cmd.arg(arg);
         }

@@ -53,7 +53,6 @@ enum SettingKind {
 }
 
 pub enum Outcome {
-    Save(Value),
     Reset,
     Cancel,
 }
@@ -116,6 +115,10 @@ struct PickOption {
 
 enum Modal {
     Help,
+    Error {
+        message: String,
+        scroll: std::cell::Cell<u16>,
+    },
     Input {
         title: String,
         hint: String,
@@ -294,38 +297,71 @@ impl App {
     fn dirty(&self) -> bool {
         match self.mode {
             Mode::Explorer => self.initially_corrupt || self.model().is_dirty(),
-            Mode::Json => self.model.as_ref().is_none_or(|model| {
-                serde_json::to_string_pretty(model.value()).ok().as_deref()
-                    != Some(self.json.text().trim())
-            }),
+            Mode::Json => {
+                self.initially_corrupt
+                    || self.model.as_ref().is_none_or(|model| {
+                        parse_explorer_json(&self.json.text())
+                            .map_or(true, |value| !model.matches_saved(&value))
+                    })
+            }
         }
     }
 
     fn error(&mut self, error: impl ToString) {
-        crate::diagnostics::event(
-            "template.error",
-            error.to_string().lines().next().unwrap_or("error"),
-        );
+        crate::diagnostics::event("template.error", "draft error; contents omitted");
         self.status = error.to_string();
     }
 }
 
-pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Result<Outcome> {
+pub fn run(
+    text: String,
+    save: impl FnMut(&Value) -> Result<()>,
+    reset: impl FnMut() -> Result<()>,
+) -> Result<Outcome> {
     crate::diagnostics::event("template.open", "template content omitted");
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         anyhow::bail!("`rproj configure project` requires an interactive terminal");
     }
     let mut terminal = TerminalSession::enter()?;
+    run_in(&mut terminal, text, save, reset)
+}
+
+pub fn run_in(
+    terminal: &mut TerminalSession,
+    text: String,
+    mut save: impl FnMut(&Value) -> Result<()>,
+    mut reset: impl FnMut() -> Result<()>,
+) -> Result<Outcome> {
+    crate::diagnostics::event("screen", "Template");
     let mut app = App::from_text(text);
+    let mut pending = None;
+    let mut last_draw = std::time::Instant::now();
+    let mut small = false;
     loop {
-        terminal.draw(|frame| render(frame, &app))?;
-        let event = terminal.read_event()?;
+        if pending.is_none() || last_draw.elapsed() >= std::time::Duration::from_millis(16) {
+            terminal.draw(|frame| {
+                small = is_too_small(frame.area());
+                render(frame, &app);
+            })?;
+            last_draw = std::time::Instant::now();
+        }
+        let event = match pending.take() {
+            Some(event) => event,
+            None => terminal.read_event()?,
+        };
         let previous_status = app.status.clone();
         let request = match event {
             Event::Key(key) if key.kind != event::KeyEventKind::Release => {
+                if small
+                    && !matches!(key.code, KeyCode::Esc | KeyCode::Char('?'))
+                    && !(key.modifiers.contains(KeyModifiers::CONTROL)
+                        && key.code == KeyCode::Char('c'))
+                {
+                    continue;
+                }
                 handle_key(&mut app, key)
             }
-            Event::Paste(text) if app.mode == Mode::Json && app.modal.is_none() => {
+            Event::Paste(text) if !small && app.mode == Mode::Json && app.modal.is_none() => {
                 app.json.insert_text(&text);
                 None
             }
@@ -333,30 +369,39 @@ pub fn run(text: String, mut validate: impl FnMut(&Value) -> Result<()>) -> Resu
             _ => None,
         };
         if app.status != previous_status {
-            crate::diagnostics::event(
-                "template.status",
-                app.status.lines().next().unwrap_or("changed"),
-            );
+            crate::diagnostics::event("template.status", "draft status changed; contents omitted");
         }
         match request {
             Some(Request::Save(value)) => {
                 crate::diagnostics::event("template.save", "requested; validating");
                 app.status = "Validating every generated Rojo project variant...".into();
                 terminal.draw(|frame| render(frame, &app))?;
-                if let Some(outcome) = validate_save(&mut app, value, &mut validate) {
-                    return Ok(outcome);
-                }
+                validate_save(&mut app, value, &mut save);
             }
             Some(Request::Reset) => {
                 crate::diagnostics::event("template.reset", "confirmed");
-                return Ok(Outcome::Reset);
+                match reset() {
+                    Ok(()) => return Ok(Outcome::Reset),
+                    Err(error) => {
+                        app.error(format!("Template was not reset: {error:#}"));
+                        app.modal = Some(Modal::Error {
+                            message: format!(
+                                "{}\n\n{}",
+                                app.status,
+                                crate::diagnostics::path_message()
+                            ),
+                            scroll: 0.into(),
+                        });
+                    }
+                }
             }
             Some(Request::Cancel) => {
-                crate::diagnostics::event("template.cancel", "no template saved");
+                crate::diagnostics::event("template.close", "discarded unsaved changes only");
                 return Ok(Outcome::Cancel);
             }
             None => {}
         }
+        pending = terminal.poll_event(std::time::Duration::ZERO)?;
     }
 }
 
@@ -364,15 +409,39 @@ fn validate_save(
     app: &mut App,
     value: Value,
     validate: &mut impl FnMut(&Value) -> Result<()>,
-) -> Option<Outcome> {
-    match validate(&value) {
-        Ok(()) => Some(Outcome::Save(value)),
+) -> bool {
+    match representable(&value)
+        .and_then(|()| rojo::validate_template_structure(&value))
+        .and_then(|()| validate(&value))
+    {
+        Ok(()) => {
+            if let Some(model) = &mut app.model {
+                if model.value() != &value {
+                    model
+                        .replace_from_json(value.clone())
+                        .expect("save validates representability");
+                }
+                model.mark_saved();
+            } else {
+                app.model =
+                    Some(EditorModel::new(value.clone()).expect("save validates representability"));
+            }
+            app.initially_corrupt = false;
+            app.json_error = None;
+            app.status = "Template saved. Future projects will inherit this tree.".into();
+            crate::diagnostics::event("template.saved", "atomic replacement complete");
+            true
+        }
         Err(error) => {
             app.error(format!("Template was not saved: {error:#}"));
             if app.mode == Mode::Json {
                 app.json_error = Some(format!("{error:#}"));
             }
-            None
+            app.modal = Some(Modal::Error {
+                message: format!("{}\n\n{}", app.status, crate::diagnostics::path_message()),
+                scroll: 0.into(),
+            });
+            false
         }
     }
 }
@@ -384,19 +453,19 @@ enum Request {
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Option<Request> {
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+        if app.dirty() {
+            app.modal = Some(confirm("Discard changes and exit?", ConfirmAction::Exit));
+            return None;
+        }
+        return Some(Request::Cancel);
+    }
     if app.modal.is_some() {
         return handle_modal(app, key);
     }
     if key.code == KeyCode::Char('?') {
         app.modal = Some(Modal::Help);
         return None;
-    }
-    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
-        if app.dirty() || app.initially_corrupt {
-            app.modal = Some(confirm("Discard changes and exit?", ConfirmAction::Exit));
-            return None;
-        }
-        return Some(Request::Cancel);
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('r') {
         app.modal = Some(confirm(
@@ -420,6 +489,17 @@ fn save_request(app: &mut App) -> Option<Request> {
             Ok(value) => value,
             Err(error) => {
                 app.json_error = Some(format!("{error:#}"));
+                app.modal = Some(Modal::Error {
+                    message: format!(
+                        "Template was not saved: {error:#}\n\n{}",
+                        crate::diagnostics::path_message()
+                    ),
+                    scroll: 0.into(),
+                });
+                crate::diagnostics::event(
+                    "template.save",
+                    "rejected invalid JSON; contents omitted",
+                );
                 return None;
             }
         }
@@ -848,6 +928,21 @@ fn confirm(prompt: impl Into<String>, action: ConfirmAction) -> Modal {
 fn handle_modal(app: &mut App, key: KeyEvent) -> Option<Request> {
     let modal = app.modal.take().expect("checked by caller");
     match modal {
+        Modal::Error { message, scroll } => {
+            if !matches!(key.code, KeyCode::Esc | KeyCode::Enter) {
+                scroll.set(match key.code {
+                    KeyCode::Up => scroll.get().saturating_sub(1),
+                    KeyCode::Down => scroll.get().saturating_add(1),
+                    KeyCode::PageUp => scroll.get().saturating_sub(10),
+                    KeyCode::PageDown => scroll.get().saturating_add(10),
+                    KeyCode::Home => 0,
+                    KeyCode::End => u16::MAX,
+                    _ => scroll.get(),
+                });
+                app.modal = Some(Modal::Error { message, scroll });
+            }
+            None
+        }
         Modal::Help => {
             if matches!(key.code, KeyCode::Esc | KeyCode::Enter | KeyCode::Char('?')) {
                 None
@@ -1227,6 +1322,9 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &App) {
     let area = frame.area();
     if is_too_small(area) {
         render_too_small(frame, area);
+        if let Some(Modal::Help) = app.modal {
+            render_modal(frame, &Modal::Help, area);
+        }
         return;
     }
     match app.mode {
@@ -1480,6 +1578,15 @@ fn render_modal(frame: &mut ratatui::Frame<'_>, modal: &Modal, area: Rect) {
     );
     frame.render_widget(Clear, popup);
     match modal {
+        Modal::Error { message, scroll } => {
+            let areas = Layout::vertical([Constraint::Min(3), Constraint::Length(2)]).split(area);
+            let lines = crate::tui::wrap_lines(message, areas[0].width.saturating_sub(2) as usize);
+            let max = lines.len().saturating_sub(areas[0].height.saturating_sub(2) as usize).min(u16::MAX as usize) as u16;
+            scroll.set(scroll.get().min(max));
+            frame.render_widget(Clear, area);
+            frame.render_widget(Paragraph::new(lines.join("\n")).scroll((scroll.get(), 0)).block(Block::bordered().title(" Template error ")), areas[0]);
+            frame.render_widget(Paragraph::new("Arrows / Page Up / Page Down scroll   Home / End\nEnter or Esc returns to the draft"), areas[1]);
+        }
         Modal::Help => frame.render_widget(Paragraph::new("Navigation\n  Up/Down select; Left/Right collapse and expand; Tab changes pane\n\nEditing\n  Enter edits; A adds; F2 renames; D duplicates; M moves; Delete removes\n  Ctrl+E opens Advanced JSON; Ctrl+Z/Y undo and redo\n\nFile\n  Ctrl+S validates and saves; Ctrl+R restores built-in; Esc exits\n\nNo command launches an external editor.").wrap(Wrap { trim: false }).block(Block::default().title(" Help ").borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan))), popup),
         Modal::Confirm { state, .. } => render_confirm(frame, area, state),
         Modal::Input { title, hint, state, .. } => render_input(frame, area, title, hint, state),
@@ -1492,7 +1599,123 @@ fn render_too_small(frame: &mut ratatui::Frame<'_>, area: Rect) {
 }
 
 #[cfg(test)]
+#[path = "../../tests/common/mod.rs"]
+mod common;
+
+#[cfg(test)]
 mod tests {
+    use super::common;
+
+    #[test]
+    fn editor_pty_driver() {
+        let Some(path) = std::env::var_os("RPROJ_EDITOR_TEST_PATH") else {
+            return;
+        };
+        let path = std::path::PathBuf::from(path);
+        let text = std::fs::read_to_string(&path).unwrap_or_else(|_| {
+            serde_json::to_string_pretty(&crate::steps::rojo::builtin_project_template()).unwrap()
+        });
+        super::run(
+            text,
+            |value| crate::config::project_template::save_to(value, &path).map(|_| ()),
+            || crate::config::project_template::reset_at(&path).map(|_| ()),
+        )
+        .unwrap();
+        println!("Editor returned");
+    }
+
+    fn pty_editor(path: &std::path::Path) -> common::Session {
+        common::Session::start_program(
+            &std::env::current_exe().unwrap(),
+            path.parent().unwrap(),
+            &[
+                "project_editor::app::tests::editor_pty_driver",
+                "--exact",
+                "--nocapture",
+            ],
+            &[("RPROJ_EDITOR_TEST_PATH", path.to_str().unwrap())],
+        )
+    }
+
+    #[test]
+    fn pty_repeated_save_stays_open_then_exit_and_reset_return() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        session.send("\x13");
+        session.wait_for("Template saved.");
+        let saved = std::fs::read(&path).unwrap();
+        session.send("\x13");
+        session.send("?");
+        session.wait_for("Navigation");
+        session.send(common::ESC);
+        session.wait_for("rproj project template");
+        session.send(common::ESC);
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+        assert_eq!(std::fs::read(&path).unwrap(), saved);
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        session.send("\x12");
+        session.wait_for("Restore the built-in");
+        session.send(common::ENTER);
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn pty_malformed_template_repair_saves_in_json_mode() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        std::fs::write(&path, "").unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("Advanced JSON");
+        let text =
+            serde_json::to_string_pretty(&crate::steps::rojo::builtin_project_template()).unwrap();
+        session.send(&format!("\x1b[200~{text}\x1b[201~"));
+        session.wait_for("StarterPlayerScripts");
+        session.send("\x13");
+        session.wait_for("Template saved.");
+        assert!(session.text().contains("Advanced JSON"));
+        session.send("\x03");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&std::fs::read(&path).unwrap()).unwrap(),
+            crate::steps::rojo::builtin_project_template()
+        );
+    }
+
+    #[test]
+    fn json_baseline_and_atomic_failure_keep_the_saved_document() {
+        let value = crate::steps::rojo::builtin_project_template();
+        let mut app = super::App::from_text(serde_json::to_string_pretty(&value).unwrap());
+        app.model_mut().add(&[], "Folder", false).unwrap();
+        app.enter_json();
+        app.json = super::TextBuffer::new(&serde_json::to_string_pretty(&value).unwrap());
+        assert!(
+            !app.dirty(),
+            "JSON matching disk is clean even if the Explorer checkpoint differs"
+        );
+        let root = tempfile::tempdir().unwrap();
+        let blocked = root.path().join("template.json");
+        std::fs::create_dir(&blocked).unwrap();
+        std::fs::write(blocked.join("owned"), "preserve").unwrap();
+        let draft = app.model().value().clone();
+        assert!(!super::validate_save(
+            &mut app,
+            draft.clone(),
+            &mut |value| crate::config::project_template::save_to(value, &blocked).map(|_| ())
+        ));
+        assert_eq!(app.model().value(), &draft);
+        assert_eq!(
+            std::fs::read_to_string(blocked.join("owned")).unwrap(),
+            "preserve"
+        );
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+    }
     #[test]
     fn compound_attribute_values_round_trip_through_the_input() {
         for (kind, input) in [
@@ -1636,15 +1859,18 @@ mod tests {
         let candidate = app.model().value().clone();
 
         let mut reject = |_: &Value| anyhow::bail!("invalid property");
-        assert!(validate_save(&mut app, candidate.clone(), &mut reject).is_none());
+        assert!(!validate_save(&mut app, candidate.clone(), &mut reject));
         assert!(app.model().value()["tree"].get("Folder").is_some());
         assert!(app.status.contains("invalid property"));
 
         let mut accept = |_: &Value| Ok(());
-        assert!(matches!(
-            validate_save(&mut app, candidate.clone(), &mut accept),
-            Some(Outcome::Save(saved)) if saved == candidate
-        ));
+        assert!(validate_save(&mut app, candidate.clone(), &mut accept));
+        assert!(!app.dirty());
+        assert_eq!(app.model().value(), &candidate);
+        app.model_mut().undo();
+        assert!(app.dirty());
+        app.model_mut().redo();
+        assert!(!app.dirty());
     }
 
     #[test]

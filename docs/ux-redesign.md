@@ -19,11 +19,12 @@ The current interface is hybrid:
 - Bare `rproj` opens the Ratatui workspace hub in an interactive terminal.
 - Catalog browsing and global-template editing stay within full-screen interfaces.
 - Hub-driven New Project uses Ratatui for composition and review. Setup, direct `rproj new`, and tool configuration retain inquire prompts.
-- The hub restores the terminal before invoking the existing command implementation. It does not automatically return after completion.
+- Home, Catalog, creation questions, and Template Explorer borrow one terminal session. There is no alternate-screen teardown between these internal views.
+- The hub suspends the terminal session before invoking existing command implementations, presents their result, and waits for Enter before returning Home. It keeps the selected action and refreshes workspace context.
 - Direct commands remain available for automation. Redirected welcome and Catalog output remain plain.
 - External tools continue doing their own work. Navigable results can be considered without embedding replacement tools.
 
-Hub-driven creation is the current implementation slice. It does not replace Ratatui or the external toolchain.
+T2 (0.14.0) extends hub-driven creation with persistent Home navigation and Catalog clarity. It does not replace the external toolchain or migrate Machine Setup to Ratatui.
 
 ## Project Decisions
 
@@ -62,7 +63,11 @@ Unavailable project actions remain visible with precise reasons. Dispatch uses t
 
 Wide terminals show actions and details side by side; narrow terminals switch focus between stacked panes. Minimum-size screens retain Help and Exit. Esc and Ctrl+C exit cleanly.
 
-The Catalog supports filtering, sections, entries, details, Help, and hierarchical Back. From the hub it returns there; direct `rproj info` exits at its root. Named lookups remain plain.
+The Catalog groups Packages by category and Tools by installation type. VS Code contains Extensions and Themes & Icons. Groups sort alphabetically; search covers the current group and descendants, including the whole Catalog at its root. Entry rows are short; full descriptions, versioned examples, placement, caveats, and official links remain in scrollable details.
+
+Enter opens a group or focuses details. Tab changes panes; arrows/Page Up/Page Down/Home/End navigate or scroll. Esc unwinds detail focus and the navigation stack, restoring selection/filter/scroll. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
+
+Foreground command handoffs preserve normal prompts/output, then acknowledge success, cancellation, or failure before returning Home. Ctrl+C during Watch stops the active child; unexpected watcher exits are failures. Interrupted provisioning stops before another install or a completion save. Commands that ignore interruption must finish before Home resumes; no background daemon or force-kill feature is introduced.
 
 ## Template Explorer
 
@@ -72,7 +77,9 @@ The Explorer provides structural instance edits, a typed Inspector, settings, un
 
 rproj owns the project name, DataModel root class, conventional source mounts, and dependency/testing mount positions. Static nodes and settings remain editable around those boundaries. Ownership errors identify conflicting paths instead of silently overwriting them.
 
-Saving requires structural checks and the applicable Rojo validation matrix before atomic replacement. Invalid stored JSON opens in repair mode. Cancel, failed validation, and failed writes preserve the saved template; reset requires confirmation.
+Ctrl+S requires structural checks and the complete Rojo validation matrix before atomic replacement, then stays in the editor. Selection, mode, and bounded history remain. Only successful persistence updates the saved baseline; undo after saving becomes dirty. JSON repair follows the same rule. Errors are scrollable and retain the draft.
+
+Esc retains local Back behavior; leaving Explorer and Ctrl+C protect unsaved changes since the last save. Reset requires confirmation, removes only the custom template, and returns to the caller. Standalone editing owns its terminal; Home editing borrows Home's terminal.
 
 Model-file conversion/import is not part of this interface. Rojo's model support remains available in ordinary projects; this does not expand global-template filesystem-path permissions.
 

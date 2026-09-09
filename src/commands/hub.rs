@@ -292,18 +292,18 @@ impl HubApp {
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> Option<HubOutcome> {
-        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
-            return Some(HubOutcome::Quit);
-        }
         if let Screen::Catalog(catalog) = &mut self.screen {
             return match catalog.handle_key(key) {
-                Some(CatalogExit::Back) => {
+                Some(CatalogExit::Back | CatalogExit::Quit) => {
                     self.screen = Screen::Hub;
+                    crate::diagnostics::event("screen", "Home");
                     None
                 }
-                Some(CatalogExit::Quit) => Some(HubOutcome::Quit),
                 None => None,
             };
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
+            return Some(HubOutcome::Quit);
         }
         if let Some(modal) = self.modal.take() {
             return self.handle_modal(modal, key);
@@ -378,6 +378,7 @@ impl HubApp {
             Action::Copy => Some(HubOutcome::CopySource),
             Action::Catalog => {
                 self.screen = Screen::Catalog(CatalogApp::new());
+                crate::diagnostics::event("screen", "Catalog");
                 None
             }
         }
@@ -397,6 +398,9 @@ impl HubApp {
                     .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Yellow))),
                 area,
             );
+            if matches!(self.modal, Some(Modal::Help)) {
+                self.render_help(frame, area);
+            }
             return;
         }
         let outer = Layout::vertical([
@@ -513,17 +517,23 @@ impl HubApp {
     }
 }
 
-pub fn run() -> Result<HubOutcome> {
+pub fn run() -> Result<()> {
     if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
         anyhow::bail!("the rproj workspace hub requires an interactive terminal");
     }
     let cwd = std::env::current_dir().context("could not read the current directory")?;
+    crate::interrupt::install()?;
+    crate::diagnostics::quiet_hub();
     let mut app = HubApp::new(WorkspaceContext::load(cwd));
-    let outcome = {
+    {
         let mut terminal = TerminalSession::enter()?;
         loop {
             app.refresh_update();
-            terminal.draw(|frame| app.render(frame))?;
+            let mut small = false;
+            terminal.draw(|frame| {
+                small = is_too_small(frame.area());
+                app.render(frame);
+            })?;
             let event = if app.update_receiver.is_some() {
                 terminal.poll_event(Duration::from_millis(150))?
             } else {
@@ -538,13 +548,118 @@ pub fn run() -> Result<HubOutcome> {
             }
             if let Some(Event::Key(key)) = event
                 && key.kind != crossterm::event::KeyEventKind::Release
+                && (!small
+                    || matches!(key.code, KeyCode::Esc | KeyCode::Char('?'))
+                    || (key.modifiers.contains(KeyModifiers::CONTROL)
+                        && key.code == KeyCode::Char('c')))
                 && let Some(outcome) = app.handle_key(key)
             {
-                break outcome;
+                if outcome == HubOutcome::Quit {
+                    break;
+                }
+                crate::diagnostics::event(
+                    "hub.dispatch",
+                    match &outcome {
+                        HubOutcome::New { .. } => "New (name omitted)".into(),
+                        outcome => format!("{outcome:?}"),
+                    },
+                );
+                crate::interrupt::reset();
+                let mut acknowledged = false;
+                let mut cancelled = false;
+                let watch = outcome == HubOutcome::Watch;
+                let result = match outcome {
+                    HubOutcome::EditProjectTemplate => {
+                        super::project_template::run_in(&mut terminal)
+                    }
+                    HubOutcome::New { name } => {
+                        match super::creation::prepare(&mut terminal, &name) {
+                            Ok(Some(prepared)) => {
+                                terminal.suspend()?;
+                                let result = prepared.execute();
+                                acknowledge(&result, false)?;
+                                acknowledged = true;
+                                terminal.resume()?;
+                                result
+                            }
+                            Ok(None) => {
+                                cancelled = true;
+                                Ok(())
+                            }
+                            Err(error) => Err(error),
+                        }
+                    }
+                    outcome => {
+                        terminal.suspend()?;
+                        let result = crate::dispatch_hub(outcome);
+                        if result
+                            .as_ref()
+                            .is_err_and(|error| error.is::<crate::tui::TerminalFailure>())
+                        {
+                            return result;
+                        }
+                        acknowledge(&result, watch)?;
+                        acknowledged = true;
+                        terminal.resume()?;
+                        result
+                    }
+                };
+                if result
+                    .as_ref()
+                    .is_err_and(|error| error.is::<crate::tui::TerminalFailure>())
+                {
+                    return result;
+                }
+                if result.is_err() && !acknowledged {
+                    terminal.suspend()?;
+                    acknowledge(&result, false)?;
+                    terminal.resume()?;
+                }
+                app.status = action_status(&result, cancelled, watch).into();
+                crate::diagnostics::event("hub.result", &app.status);
+                crate::interrupt::reset();
+                app.context = WorkspaceContext::load(app.context.cwd.clone());
+                crate::diagnostics::event("screen", "Home");
             }
         }
-    };
-    Ok(outcome)
+    }
+    Ok(())
+}
+
+fn action_status(result: &Result<()>, cancelled: bool, watch: bool) -> &'static str {
+    match result {
+        Err(error) if crate::interrupt::is_cancelled(error) => "Cancelled.",
+        Err(_) => "Failed. Details recorded in the diagnostic log.",
+        Ok(()) if cancelled => "Cancelled. Nothing created.",
+        Ok(()) if watch => "Stopped.",
+        Ok(()) => "Returned Home.",
+    }
+}
+
+fn acknowledge(result: &Result<()>, watch: bool) -> Result<()> {
+    use std::io::Write;
+    match result {
+        Err(error) if crate::interrupt::is_cancelled(error) => println!("\nCancelled."),
+        Err(error) => {
+            crate::ui::error(error);
+            eprintln!("{}", crate::diagnostics::path_message());
+        }
+        Ok(()) => println!("\n{}", if watch { "Stopped." } else { "Completed." }),
+    }
+    print!("Press Enter to return Home.");
+    std::io::stdout().flush()?;
+    crate::interrupt::reset();
+    let mut input = String::new();
+    loop {
+        match std::io::stdin().read_line(&mut input) {
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            result => {
+                result?;
+                break;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

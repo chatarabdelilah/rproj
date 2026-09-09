@@ -1,5 +1,6 @@
 pub mod artifacts;
 pub mod capabilities;
+pub mod package_usage;
 pub mod place_template;
 pub mod quality_checks;
 pub mod tool_catalog;

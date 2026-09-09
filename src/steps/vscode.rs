@@ -21,7 +21,9 @@ enum CodeInvocation {
 /// in this codebase. Falls back to the standard winget install location,
 /// `%LocalAppData%\Programs\Microsoft VS Code\bin\code.cmd`.
 fn locate_code() -> Result<CodeInvocation> {
-    if probe("code", &["--version"]) {
+    let on_path = probe("code", &["--version"]);
+    crate::interrupt::check()?;
+    if on_path {
         return Ok(CodeInvocation::OnPath);
     }
     let local_app_data = std::env::var_os("LOCALAPPDATA").context("LOCALAPPDATA is not set")?;
@@ -46,8 +48,11 @@ fn locate_code() -> Result<CodeInvocation> {
 /// this since PATH resolution there already goes through the same
 /// batch-file association machinery.
 fn run_code(args: &[&str]) -> Result<std::process::Output> {
+    crate::interrupt::check()?;
     crate::diagnostics::command("code", args);
-    let output = match locate_code()? {
+    let invocation = locate_code()?;
+    crate::interrupt::check()?;
+    let output = match invocation {
         CodeInvocation::OnPath => Command::new("code")
             .args(args)
             .output()
@@ -60,6 +65,7 @@ fn run_code(args: &[&str]) -> Result<std::process::Output> {
         }
     }?;
     crate::diagnostics::tool_exit("code", output.status);
+    crate::interrupt::check()?;
     Ok(output)
 }
 
@@ -86,15 +92,18 @@ pub fn ensure_extensions(extension_ids: &[&str]) -> Result<()> {
     let installed = installed_extensions();
     let mut tally = Tally::new();
     for id in extension_ids {
+        crate::interrupt::check()?;
         if installed.contains(&id.to_lowercase()) {
             tally.already(id);
             continue;
         }
         match install_extension(id) {
             Ok(()) => tally.did(id),
+            Err(err) if crate::interrupt::is_cancelled(&err) => return Err(err),
             Err(err) => ui::warn(&format!("VS Code extension {id} skipped - {err}")),
         }
     }
+    crate::interrupt::check()?;
     tally.finish("VS Code extensions");
     Ok(())
 }

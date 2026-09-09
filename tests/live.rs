@@ -72,9 +72,10 @@ fn hub_creation_cancel_preserves_draft_boundary_and_restores_terminal() {
     session.send(ESC);
     session.wait_for("Review");
     session.send("\x03");
+    session.wait_for("Cancelled. Nothing created.");
+    session.send(ESC);
     let result = session.finish();
     assert_eq!(result.code, 0, "{}", result.text);
-    assert!(result.text.contains("Nothing created."));
     assert!(!path.exists());
 }
 
@@ -94,6 +95,8 @@ fn hub_creation_refuses_a_concurrent_destination_without_overwriting() {
     session.send(ENTER);
     session.wait_for("Destination already exists");
     session.send("\x03");
+    session.wait_for("Cancelled. Nothing created.");
+    session.send(ESC);
     assert_eq!(session.finish().code, 0);
     assert_eq!(project.read("owner.txt"), "preserve");
     assert!(!project.exists("default.project.json"));
@@ -134,6 +137,10 @@ fn hub_creation_confirm_hands_the_reviewed_graph_to_the_existing_executor() {
     assert!(!project.path().exists());
     session.send(ENTER);
     session.wait_for("is ready");
+    session.wait_for("Press Enter to return Home.");
+    session.send(ENTER);
+    session.wait_for("Returned Home.");
+    session.send(ESC);
     let result = session.finish();
     assert_eq!(result.code, 0, "{}", result.text);
     let graph: toml::Value = toml::from_str(&project.read("rproj.toml")).unwrap();
@@ -154,6 +161,8 @@ fn hub_creation_confirm_hands_the_reviewed_graph_to_the_existing_executor() {
     replay.send(ENTER);
     replay.wait_for("Review");
     replay.send("\x03");
+    replay.wait_for("Cancelled. Nothing created.");
+    replay.send(ESC);
     assert_eq!(replay.finish().code, 0);
     assert_eq!(std::fs::read(&setup).unwrap(), saved);
     assert!(!projects_root().join(replay_name).exists());
