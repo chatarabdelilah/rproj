@@ -187,7 +187,7 @@ The project name, DataModel root, `src/shared`, `src/server`, and `src/client` m
 
 ### Diagnostic logs
 
-rproj writes a local `.txt` log for each run. Direct commands print its path
+rproj writes a local `.txt` log for each run except `--help` and `--version`. Direct commands print its path
 on stderr when finished; Home shows the full path with failures and stays quiet
 after ordinary navigation or cancellation. Attach that file when reporting a problem, after checking
 it for private paths or names. Logs include choices, steps, and errors, but omit

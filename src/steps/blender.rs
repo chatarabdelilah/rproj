@@ -151,7 +151,8 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
 /// Returns the captured stdout so callers can parse `RPROJ_*:` markers.
 fn run_headless_script(script: &str) -> Result<String> {
     crate::interrupt::check()?;
-    let script_path = std::env::temp_dir().join(format!("rproj-blender-{}.py", std::process::id()));
+    let script_dir = tempfile::tempdir().context("failed to create Blender script directory")?;
+    let script_path = script_dir.path().join("script.py");
     fs::write(&script_path, script)?;
 
     let blender_exe = locate_blender_exe()?;
@@ -164,7 +165,6 @@ fn run_headless_script(script: &str) -> Result<String> {
         .args(["--background", "--python", &script_path.to_string_lossy()])
         .output()
         .with_context(|| format!("failed to spawn `{}`", blender_exe.display()));
-    let _ = fs::remove_file(&script_path);
     let output = output?;
     crate::diagnostics::tool_exit("blender", output.status);
     crate::interrupt::check()?;
@@ -196,7 +196,9 @@ fn run_headless_script(script: &str) -> Result<String> {
 /// own dev setup hit with cargo/rustc. Falls back to scanning the standard
 /// winget/installer location under Program Files.
 fn locate_blender_exe() -> Result<PathBuf> {
-    if probe("blender", &["--version"]) {
+    let on_path = probe("blender", &["--version"]);
+    crate::interrupt::check()?;
+    if on_path {
         return Ok(PathBuf::from("blender"));
     }
 

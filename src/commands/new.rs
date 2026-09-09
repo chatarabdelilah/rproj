@@ -170,93 +170,103 @@ pub(super) fn execute_confirmed(
     config: &mut GlobalConfig,
     save_setup: Option<SetupSave<'_>>,
 ) -> Result<()> {
-    create_project_dir(project_dir)?;
-    let packages = graph.package_set();
-    let package_workflow = graph.package_workflow;
-    let project_tools = graph.tools();
-    let test_runner = graph.test_runner();
-    let chosen_artifacts: Vec<String> = planned.iter().map(|p| p.key.to_string()).collect();
-    scaffold(
-        project_dir,
-        name,
-        ScaffoldOptions {
-            packages: &packages,
-            package_workflow,
-            project_tools: &project_tools,
-            test_runner,
-            chosen_artifacts: &chosen_artifacts,
-            project_template,
-        },
-    )?;
-
     crate::interrupt::check()?;
+    create_project_dir(project_dir)?;
+    let result = (|| {
+        let packages = graph.package_set();
+        let package_workflow = graph.package_workflow;
+        let project_tools = graph.tools();
+        let test_runner = graph.test_runner();
+        let chosen_artifacts: Vec<String> = planned.iter().map(|p| p.key.to_string()).collect();
+        scaffold(
+            project_dir,
+            name,
+            ScaffoldOptions {
+                packages: &packages,
+                package_workflow,
+                project_tools: &project_tools,
+                test_runner,
+                chosen_artifacts: &chosen_artifacts,
+                project_template,
+            },
+        )?;
 
-    // Written here rather than in `scaffold`, because it records the mode
-    // and the saved-setup name, which belong to the reviewed graph. Gated on the
-    // same artifact key so declining it declines it - the cost being that
-    // `rproj upgrade` then has nothing to read, which its own error says.
-    let writes = |key: &str| chosen_artifacts.iter().any(|k| k == key);
-    if writes("rproj.toml") {
-        // The graph itself, decisions and all - not a summary of what came
-        // out. That is what lets `rproj upgrade` re-derive from intent, so a
-        // changed default reaches a project made months ago instead of
-        // stranding it.
-        project_file::save_to(graph, project_dir)?;
-    } else {
-        ui::skip("rproj.toml not written, so `rproj upgrade` won't know this project");
-    }
-
-    if let Some(save) = save_setup {
         crate::interrupt::check()?;
-        // The whole graph, so `--like` replays the composition rather than
-        // reusing the packages and asking three more questions.
-        let setup_name = match save {
-            SetupSave::Replace(name) => {
-                Setups::save(graph, name)?;
-                name
-            }
-            SetupSave::New(name) => {
-                Setups::save_new(graph, name)?;
-                name
-            }
-        };
-        ui::ok(&format!(
-            "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
-        ));
-    }
 
-    if test_runner == Some(TestRunner::JestRoblox) {
-        crate::interrupt::check()?;
-        if !config
-            .selected_studio_plugins
-            .iter()
-            .any(|key| key == "jest-roblox-plugin")
-        {
-            config
-                .selected_studio_plugins
-                .push("jest-roblox-plugin".into());
-            config.save()?;
+        // Written here rather than in `scaffold`, because it records the mode
+        // and the saved-setup name, which belong to the reviewed graph. Gated on the
+        // same artifact key so declining it declines it - the cost being that
+        // `rproj upgrade` then has nothing to read, which its own error says.
+        let writes = |key: &str| chosen_artifacts.iter().any(|k| k == key);
+        if writes("rproj.toml") {
+            // The graph itself, decisions and all - not a summary of what came
+            // out. That is what lets `rproj upgrade` re-derive from intent, so a
+            // changed default reaches a project made months ago instead of
+            // stranding it.
+            project_file::save_to(graph, project_dir)?;
+        } else {
+            ui::skip("rproj.toml not written, so `rproj upgrade` won't know this project");
         }
-        if let Err(error) = refresh_jest_plugin() {
-            ui::warn(&format!(
-                "Jest Roblox Studio runner was not updated - {error}. Run `rproj setup` to retry"
+
+        if let Some(save) = save_setup {
+            crate::interrupt::check()?;
+            // The whole graph, so `--like` replays the composition rather than
+            // reusing the packages and asking three more questions.
+            let setup_name = match save {
+                SetupSave::Replace(name) => {
+                    Setups::save(graph, name)?;
+                    name
+                }
+                SetupSave::New(name) => {
+                    Setups::save_new(graph, name)?;
+                    name
+                }
+            };
+            ui::ok(&format!(
+                "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
             ));
         }
-    }
 
-    // A new project is exactly when someone doesn't yet know what to run,
-    // so end with the next steps rather than just "done".
-    crate::interrupt::check()?;
-    let (party, folder, eye, gate, book) = ("🎉  ", "📁", "👀", "🧪", "📖");
-    println!(
-        "\n{party}{name} is ready.\n\n\
+        if test_runner == Some(TestRunner::JestRoblox) {
+            crate::interrupt::check()?;
+            if !config
+                .selected_studio_plugins
+                .iter()
+                .any(|key| key == "jest-roblox-plugin")
+            {
+                config
+                    .selected_studio_plugins
+                    .push("jest-roblox-plugin".into());
+                config.save()?;
+            }
+            if let Err(error) = refresh_jest_plugin() {
+                ui::warn(&format!(
+                    "Jest Roblox Studio runner was not updated - {error}. Run `rproj setup` to retry"
+                ));
+            }
+        }
+
+        // A new project is exactly when someone doesn't yet know what to run,
+        // so end with the next steps rather than just "done".
+        crate::interrupt::check()?;
+        let (party, folder, eye, gate, book) = ("🎉  ", "📁", "👀", "🧪", "📖");
+        println!(
+            "\n{party}{name} is ready.\n\n\
          \x20 {folder}  cd {}\n\
          \x20 {eye}  rproj watch          start the dev loop (Rojo sourcemap watcher)\n\
          \x20 {gate}  lute run check       run the quality gate (types, lint, format)\n\
          \x20 {book}  rproj info <tool>    what a tool does, and the commands to use it\n",
-        project_dir.display()
-    );
-    Ok(())
+            project_dir.display()
+        );
+        Ok(())
+    })();
+    if result.is_err() {
+        ui::warn(&format!(
+            "Project creation did not finish. Files remain at {} and may be incomplete. Inspect this directory before retrying; rproj will not overwrite it.",
+            project_dir.display()
+        ));
+    }
+    result
 }
 
 fn create_project_dir(path: &Path) -> Result<()> {

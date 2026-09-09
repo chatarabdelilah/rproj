@@ -46,6 +46,27 @@ September 9 local evidence:
   The corrected complete live stack check passed in 12.83 seconds.
   [Example evidence](catalog-examples.md) separates source review from runtime coverage.
 
+Locked packaging passed at `8389643`: 85 files, 1.0 MiB uncompressed and 263.9 KiB
+compressed; the crate built from its archive. The package includes the new source
+modules and PTY fixture, while retaining the existing documentation/CI exclusions.
+The final reviewed candidate is packaged again after review fixes.
+
+Local CodeRabbit review identified recovery and cancellation improvements:
+creation now names the retained destination on failure/cancellation, Blender's
+temporary script has RAII cleanup, and VS Code/Blender discovery preserves
+cancellation instead of a misleading missing-tool error. VS Code extension
+cancellation is propagated, and README states the help/version logging exception.
+The ordinary suite and clippy passed again after these runtime fixes.
+
+Review decisions: do not force `process::exit` on a second interrupt because it
+skips terminal restoration and child waiting. Do not record machine setup as
+completed after cancellation. Do not relax the immediate child-lock assertion:
+the subprocess wait must already have completed before acknowledgement. Catalog
+Ctrl+C intentionally returns to Home (standalone Catalog exits); its separate
+Quit/Back outcomes express that caller-dependent behavior. Acknowledgement remains
+the documented Enter action: the suggested interrupted-read shortcut did not
+work in a Windows PTY and was reverted, not counted as a passing Ctrl+C check.
+
 Remaining limits: no fresh-machine installation/cancellation certification,
 no Open Cloud run, and no full UI/data/replication lifecycle execution for every
 package. Commands ignoring Ctrl+C can delay return until they finish; no forced
@@ -109,7 +130,7 @@ The refusal regression is also ignored because it reads real machine configurati
 
 The saved-setup regression uses the real configured projects root and setup directory, reserving a unique setup filename before the CLI writes it. Both projects and the reserved setup are removed, including partial runs; a newly created empty setup directory may remain. Existing setups and machine configuration are not changed. Rokit/Wally caches and trust state remain shared; this test requires provisioned tools and network access, runs serially, and does not install Studio plugins. Like the Jest regression, it is ignored by ordinary CI and does not change the published 0.12.2 package.
 
-- **Jest evidence covers the local Studio CLI backend.** The automated starter-spec pass/fail gap is closed by PR #7. This does not verify Open Cloud, an attached Studio session, or a fresh Windows installation. The older ignored `real_jest_stack_installs_validates_retypes_and_executes` test still exercises no-test success; the new live regression verifies actual execution through `rproj test`.
+- **Jest evidence covers the local Studio CLI backend.** The automated starter-spec pass/fail gap is closed by PR #7. This does not verify Open Cloud, an attached Studio session, or a fresh Windows installation. In T2, the ignored `real_jest_stack_installs_validates_retypes_and_executes` test now executes eight Catalog snippets instead of only no-test success; the live regression separately verifies starter execution through `rproj test`.
 - **Open Cloud execution was not performed.** No audit universe/place and credentials were supplied. Generated preflight and workflow text are tested, but that is not equivalent to a current hosted run.
 - **Fresh Windows provisioning was not performed.** winget/editor/Studio/plugin installation changes the machine. Existing unit coverage and inspection are not a substitute for a clean-machine acceptance test.
 - **Saved-setup evidence is bounded.** Replay covers valid Wally and Git-submodule compositions. Refusal covers missing/malformed records and Jest without Wally, before explicit reconfiguration or creation. It does not cover every hand-edited/legacy setup or unknown-package fallback. Clipboard contents, machine provisioning/recovery, and every template keyboard path also remain gaps. No claim of beta/1.0 readiness is made.
