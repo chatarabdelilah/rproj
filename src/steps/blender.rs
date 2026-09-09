@@ -150,10 +150,12 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
 /// printed above it. This guarantees whatever Blender wrote is visible.
 /// Returns the captured stdout so callers can parse `RPROJ_*:` markers.
 fn run_headless_script(script: &str) -> Result<String> {
+    crate::interrupt::check()?;
     let script_path = std::env::temp_dir().join(format!("rproj-blender-{}.py", std::process::id()));
     fs::write(&script_path, script)?;
 
     let blender_exe = locate_blender_exe()?;
+    crate::interrupt::check()?;
     ui::command(
         &blender_exe.to_string_lossy(),
         &["--background", "--python", &script_path.to_string_lossy()],
@@ -165,6 +167,7 @@ fn run_headless_script(script: &str) -> Result<String> {
     let _ = fs::remove_file(&script_path);
     let output = output?;
     crate::diagnostics::tool_exit("blender", output.status);
+    crate::interrupt::check()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();

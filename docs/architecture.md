@@ -425,7 +425,7 @@ rproj/
     │   ├── mod.rs               module declarations only
     │   ├── welcome.rs           redirected bare-`rproj` overview  [+ 3 tests]
     │   ├── hub.rs               workspace context, task hub and HubOutcome  [+ 4 tests]
-    │   ├── catalog_browser.rs   shared full-screen Catalog navigation  [+ 2 tests]
+    │   ├── catalog_browser.rs   grouped full-screen Catalog navigation  [+ 4 tests]
     │   ├── setup.rs             `rproj setup [tool]` — machine provisioning, or one tool into this project  [+ 2 tests]
     │   ├── provision.rs         shared picker+installer for system apps/rokit tools/plugins/vscode ext
     │   ├── new.rs               `rproj new <name>` — composition, artifact picker, project scaffold  [+ 12 tests]
@@ -873,7 +873,9 @@ Packages with `submodule: None` are the deliberate exception: they cannot be ven
 
 Wide terminals show Explorer and Inspector side by side; narrow terminals stack them. Protected nodes remain visible so users can understand the generated shape, but structural actions are refused before they mutate the draft. The editor supports add, rename, class change, duplicate, reparent, and delete. Common values are typed at entry, while unknown values are retained and clearly marked for Advanced JSON. Changing a class never discards now-incompatible properties; it flags them for repair instead.
 
-Advanced JSON is an internal multiline buffer, not another process. A malformed stored file opens there with its parse or ownership error. Returning to Explorer requires strict JSON plus a representable, ownership-valid tree. The draft stays in memory while Rojo sourcemap and build checks run against all eight reachable combinations of dependency workflow, tests, and server packages. A successful candidate is written to a temporary sibling, synced, and atomically moved over the stored file, so validation or write failures leave the last valid template intact. Raw terminal mode, bracketed paste, and the alternate screen are owned by an RAII guard so every return and unwinding error restores the console.
+Advanced JSON is an internal multiline buffer, not another process. A malformed stored file opens there with its parse or ownership error. Returning to Explorer requires strict JSON plus a representable, ownership-valid tree. The draft stays in memory while Rojo sourcemap/build checks run against eight conventional workflow combinations and two Jest variants. A successful candidate is written to a temporary sibling, synced, and atomically moved over the stored file. Ctrl+S stays open and updates the saved baseline only after persistence; selection, mode, and operation history remain. JSON dirty checks compare against that baseline, not an unapplied Explorer checkpoint. Validation/write errors are scrollable and leave the saved template intact.
+
+Raw terminal mode, bracketed paste, and the alternate screen have one RAII owner. Home passes it to internal screens; standalone editing creates its own. The editor batches already-pending input with a 16 ms redraw budget so Windows character-by-character paste does not redraw a large screen for every character. JSON uses serde_json's float_roundtrip feature to avoid changing representable float values across save/reload. Uncommon JSON fields remain data rather than being rebuilt from the Inspector.
 
 `rproj new` repeats the complete JSON, ownership, sourcemap, and build validation before provisioning or creating the project directory. This matters because the config file is ordinary JSON and can be edited outside rproj after it was saved; a hand-corrupted template must fail before setup or scaffolding leaves changes behind.
 
@@ -956,6 +958,29 @@ Every command was checked against the tool's own `--help` on an installed binary
 **Adding usage notes for a tool requires only a `USAGE` entry — no code changes.**
 
 ### 8.7 Catalog contents
+
+T2 adds `catalog::package_usage` for bundled version-specific examples and shared
+detail sections. Package imports derive from the catalog's manifest alias,
+realm, and module name. Tools reuse existing usage guidance without repeating
+their introductory descriptions; themes add activation instructions.
+
+`commands::catalog_browser` builds a grouped tree over the existing flat catalog.
+Each navigation-stack entry retains its group path, query, selection, list
+offset, detail focus, and detail scroll. Root search includes descendants and
+labels their breadcrumb. List rows are Unicode-width truncated; details wrap
+with code indentation retained and remain scrollable. Source checks and runtime
+limits are recorded in [Catalog example evidence](catalog-examples.md).
+
+Home is a small explicit session loop, not a router/framework. One
+`TerminalSession` is borrowed by Catalog, creation questions, and Template
+Explorer. External commands suspend that session, await their child, show an
+outcome and log path on failure, then resume after Enter. Workspace context is
+reloaded while Home selection remains. Terminal I/O errors are typed and
+terminate the session rather than being mistaken for recoverable action errors.
+New Project preflight runs in a scoped worker; cancellation prevents the next
+validation step and joins the worker before returning Home. It never creates the
+project directory. Interrupted external work similarly stops at execution
+boundaries; no generic process supervisor or background Watch is introduced.
 
 **System apps** (`SYSTEM_APPS`, all family `"System apps"`):
 
@@ -1167,7 +1192,9 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-328 tests are discovered by `cargo test`: 275 unit tests and 53 integration tests. The upstream-badge check, three real-Rojo template/editor checks, the real Jest stack check, and fourteen live project tests are ignored in the ordinary suite, so 309 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from a locally packaged tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3). Current execution evidence and remaining limitations are recorded in [the release audit](release-audit.md).
+339 tests are discovered by `cargo test`: 282 unit tests and 57 integration tests. The upstream-badge check, three real-Rojo template/editor checks, the real Jest stack check, and fourteen live project tests are ignored in the ordinary suite, so 320 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from a locally packaged tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3). Current execution evidence and remaining limitations are recorded in [the release audit](release-audit.md).
+
+T2 adds package-guide coverage and import-alias tests; grouped Catalog completeness, ordering, Back state, End/Up detail scrolling, and four-size renders; real PTY repeated save/reset and malformed-JSON repair; save-baseline/atomic-failure regressions; and Home template/command cancellation plus Windows foreground child-interruption tests. The editor PTY driver exists only in the unit-test executable and writes isolated temporary files. Its persistence callback exercises the real atomic writer; Rojo authority is covered separately by the real-Rojo suite. Existing live creation checks now acknowledge command completion and return Home before exiting.
 
 `src/diagnostics.rs` owns best-effort per-run text logging, with semantic events at command, prompt, shared UI, TUI, and subprocess boundaries. It writes outside the project, bounds file/event sizes, omits opaque input/output at call sites, and applies conservative redaction before writing. Logging cannot replace the command's exit status. See [coverage, privacy, and controls](diagnostic-logs.md); this is not a terminal transcript or a substitute for an external runner's detailed report.
 
@@ -1231,6 +1258,7 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 | `rbx_reflection`, `rbx_reflection_database`, `rbx_types` | Roblox class, service, property, enum and value metadata | The bundled database makes searchable guided controls deterministic and avoids network or machine-local metadata overrides; Rojo validation remains authoritative. |
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
 | `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |
+| `ctrlc` 3.5.2 | Hub-session console interruption | Registered only for interactive bare rproj. The safe API records cancellation while active children receive the Windows console event; process boundaries await completion and refuse further work when cancelled. Direct CLI handler/exit behavior remains unchanged. |
 | `unicode-width` | Display width of option lines and markers | Also already in the tree via `inquire`. Truncating by `char` count or byte length overshoots on any double-width character, and it is what settled the `⚠️` padding question empirically rather than by guess (§2.4). |
 | `anstream`, `anstyle` | Red, bold error output (`ui::error`) | Both already in the tree via `clap`. `anstream` is what makes colouring errors safe at all: it strips escape codes when stderr is redirected to a file or CI log rather than emitting them into it, and honours `NO_COLOR`/`CLICOLOR=0` for free. |
 | `serde` (derive), `toml` | `GlobalConfig`/`ProjectConfig` (de)serialization | TOML chosen for both config files to match the Rust/Rokit/Wally ecosystem's own convention (`Cargo.toml`, `rokit.toml`, `wally.toml`). |

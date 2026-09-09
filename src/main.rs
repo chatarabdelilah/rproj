@@ -14,6 +14,7 @@ mod commands;
 mod config;
 mod diagnostics;
 mod graph;
+mod interrupt;
 mod project_editor;
 mod steps;
 mod tui;
@@ -94,7 +95,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         None => {
             if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
-                dispatch_hub(commands::hub::run()?)
+                commands::hub::run()
             } else {
                 commands::welcome::run();
                 Ok(())
@@ -116,13 +117,13 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
     }
 }
 
-fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
+pub(crate) fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
     use commands::hub::HubOutcome;
 
     diagnostics::event("hub.dispatch", format!("{outcome:?}"));
     match outcome {
         HubOutcome::Quit => Ok(()),
-        HubOutcome::New { name } => commands::creation::run(&name),
+        HubOutcome::New { .. } => unreachable!("creation questions run inside the hub"),
         HubOutcome::EditProjectTemplate => commands::project_template::run(),
         HubOutcome::ConfigureTools => commands::configure::run(None),
         HubOutcome::SetupMachine => commands::setup::run(None),

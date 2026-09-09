@@ -77,6 +77,7 @@ impl Captured {
 /// data, since for several of these tools it's an expected, benign outcome
 /// (a tool already installed, for instance).
 pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captured> {
+    crate::interrupt::check()?;
     ui::command(program, args);
     let mut cmd = Command::new(program);
     cmd.args(args);
@@ -88,6 +89,7 @@ pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captu
         .output()
         .with_context(|| format!("failed to spawn `{program}`"))?;
     crate::diagnostics::tool_exit(program, output.status);
+    crate::interrupt::check()?;
     crate::diagnostics::event(
         "tool.output",
         format!(
@@ -107,6 +109,9 @@ pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captu
 /// instead of an error - useful for detection probes where "not found" is
 /// an expected, non-fatal outcome.
 pub fn probe(program: &str, args: &[&str]) -> bool {
+    if crate::interrupt::requested() {
+        return false;
+    }
     crate::diagnostics::command(program, args);
     let found = Command::new(program)
         .args(args)
@@ -123,8 +128,9 @@ pub fn probe(program: &str, args: &[&str]) -> bool {
 /// hit - shared across every GitHub-touching step rproj *and* rokit itself
 /// make, so it's easy to reach while iterating quickly during testing.
 pub fn github_get_text(url: &str) -> Result<String> {
+    crate::interrupt::check()?;
     crate::diagnostics::event("network.get", url);
-    match ureq::get(url).header("User-Agent", "rproj").call() {
+    let result = match ureq::get(url).header("User-Agent", "rproj").call() {
         Ok(mut response) => response
             .body_mut()
             .read_to_string()
@@ -134,5 +140,7 @@ pub fn github_get_text(url: &str) -> Result<String> {
              calling {url}. Wait for it to reset (up to an hour) and try again."
         ),
         Err(err) => Err(err).with_context(|| format!("failed to call {url}")),
-    }
+    };
+    crate::interrupt::check()?;
+    result
 }

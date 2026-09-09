@@ -189,6 +189,8 @@ pub(super) fn execute_confirmed(
         },
     )?;
 
+    crate::interrupt::check()?;
+
     // Written here rather than in `scaffold`, because it records the mode
     // and the saved-setup name, which belong to the reviewed graph. Gated on the
     // same artifact key so declining it declines it - the cost being that
@@ -205,6 +207,7 @@ pub(super) fn execute_confirmed(
     }
 
     if let Some(save) = save_setup {
+        crate::interrupt::check()?;
         // The whole graph, so `--like` replays the composition rather than
         // reusing the packages and asking three more questions.
         let setup_name = match save {
@@ -223,6 +226,7 @@ pub(super) fn execute_confirmed(
     }
 
     if test_runner == Some(TestRunner::JestRoblox) {
+        crate::interrupt::check()?;
         if !config
             .selected_studio_plugins
             .iter()
@@ -242,6 +246,7 @@ pub(super) fn execute_confirmed(
 
     // A new project is exactly when someone doesn't yet know what to run,
     // so end with the next steps rather than just "done".
+    crate::interrupt::check()?;
     let (party, folder, eye, gate, book) = ("🎉  ", "📁", "👀", "🧪", "📖");
     println!(
         "\n{party}{name} is ready.\n\n\

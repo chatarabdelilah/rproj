@@ -60,6 +60,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     bootstrap::ensure_rokit()?;
     let mut apps = Tally::new();
     for key in &system_apps {
+        crate::interrupt::check()?;
         let Some(entry) = SYSTEM_APPS.iter().find(|e| e.key == *key) else {
             continue;
         };
@@ -78,6 +79,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
         }
     }
     apps.finish("system apps");
+    crate::interrupt::check()?;
 
     let projects_root = config
         .roblox_projects_root
@@ -93,6 +95,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     if let Err(err) = toolchain::add_global_tools(&rokit_tools) {
         warn_and_continue("rokit tools", &err);
     }
+    crate::interrupt::check()?;
 
     // Rojo's plugin installer locates Studio via the Windows registry and
     // fails with a confusing "couldn't find registry keys" error if Studio
@@ -122,6 +125,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
         .iter()
         .filter(|e| plugins.iter().any(|k| *k == e.key))
     {
+        crate::interrupt::check()?;
         match entry.kind {
             ToolKind::StudioPlugin {
                 github_repo,
@@ -153,6 +157,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     if plugins.iter().any(|k| k == "blender-plugin")
         && let Some(repo) = blender_addon_repo()
     {
+        crate::interrupt::check()?;
         match blender::download_latest_plugin_zip(repo).and_then(|zip| blender::install_addon(&zip))
         {
             Ok(()) => blender::print_account_link_instructions(),
@@ -161,6 +166,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
     }
 
     if system_apps.iter().any(|k| k == "vscode") {
+        crate::interrupt::check()?;
         // vscode_extensions holds catalog keys (e.g. "luau-lsp"), not the
         // actual marketplace extension ids (e.g. "JohnnyMorganz.luau-lsp") -
         // look those up rather than passing the key straight to `code
@@ -178,6 +184,7 @@ pub fn run(config: &mut GlobalConfig) -> Result<()> {
         }
     }
 
+    crate::interrupt::check()?;
     config.roblox_projects_root = Some(projects_root);
     config.selected_system_apps = system_apps;
     config.selected_rokit_tools = rokit_tools;

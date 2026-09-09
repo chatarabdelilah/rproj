@@ -1,8 +1,9 @@
 # Diagnostic logs
 
 rproj automatically writes one local `.txt` diagnostic log per command run. At
-completion it prints `Diagnostic log: <full path>` on stderr, including when the
-command fails. The file lives outside the project, so failed creation and machine
+completion direct commands print `Diagnostic log: <full path>` on stderr. Home
+shows the full path with failures, but prints no closing notice for ordinary
+navigation or cancellation. The file lives outside the project, so failed creation and machine
 setup can be diagnosed too. Nothing is uploaded automatically.
 
 On Windows the default directory is `%LOCALAPPDATA%\rproj\data\logs` (resolved by
@@ -25,8 +26,8 @@ Handled panics record their source location, not their potentially private paylo
 The log records rproj version, platform, current directory, timestamp/elapsed
 time, command intent, accepted catalog/prompt choices, project-graph reviews,
 settings answers, steps, warnings, operation-level errors, subprocess invocation
-metadata/exit statuses, and TUI navigation/actions. Template input events record
-the input kind and length rather than arbitrary values. Resize, save, reset, and
+metadata/exit statuses, and semantic TUI actions/screen transitions. Paste events record
+length rather than arbitrary values; individual navigation keys are not logged. Resize, save, reset, and
 cancellation events help reconstruct an interactive session.
 
 Hub creation also records committed composition/strategy/package/capability choices,

@@ -81,11 +81,7 @@ pub fn render_wally_toml(package_name: &str, selected: &[String]) -> Result<Stri
 }
 
 fn manifest_key(spec: &wally_packages::PackageSpec) -> &'static str {
-    if spec.realm == Realm::Dev {
-        spec.module_name
-    } else {
-        spec.key
-    }
+    spec.alias()
 }
 
 pub fn wally_install(project_dir: &Path) -> Result<()> {

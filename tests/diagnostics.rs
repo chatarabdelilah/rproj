@@ -105,10 +105,10 @@ fn tui_navigation_is_logged_without_recording_filter_keystrokes() {
             ("RPROJ_NO_LOG", "0"),
         ],
     );
-    session.wait_for("Catalog");
+    session.wait_for("rproj catalog");
     session.send("Packages");
     session.send(common::ENTER);
-    session.wait_for("charm");
+    session.wait_for("State management");
     session.send("opaque-filter-do-not-record");
     session.send(common::ENTER);
     session.send(common::ESC);

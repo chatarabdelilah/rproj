@@ -46,6 +46,7 @@ fn locate_code() -> Result<CodeInvocation> {
 /// this since PATH resolution there already goes through the same
 /// batch-file association machinery.
 fn run_code(args: &[&str]) -> Result<std::process::Output> {
+    crate::interrupt::check()?;
     crate::diagnostics::command("code", args);
     let output = match locate_code()? {
         CodeInvocation::OnPath => Command::new("code")
@@ -60,6 +61,7 @@ fn run_code(args: &[&str]) -> Result<std::process::Output> {
         }
     }?;
     crate::diagnostics::tool_exit("code", output.status);
+    crate::interrupt::check()?;
     Ok(output)
 }
 
@@ -86,6 +88,7 @@ pub fn ensure_extensions(extension_ids: &[&str]) -> Result<()> {
     let installed = installed_extensions();
     let mut tally = Tally::new();
     for id in extension_ids {
+        crate::interrupt::check()?;
         if installed.contains(&id.to_lowercase()) {
             tally.already(id);
             continue;

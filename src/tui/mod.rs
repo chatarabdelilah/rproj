@@ -1,9 +1,13 @@
 mod layout;
 mod terminal;
+mod text;
 mod widgets;
 
 pub use layout::{centered, is_too_small, responsive_panes};
+pub use terminal::TerminalFailure;
 pub use terminal::TerminalSession;
+pub use terminal::active;
+pub use text::wrap_lines;
 pub use widgets::{
     ConfirmState, InputState, PickerItem, PickerState, render_confirm, render_footer, render_input,
     render_picker,

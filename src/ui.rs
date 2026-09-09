@@ -14,7 +14,7 @@ pub fn set_verbose(on: bool) {
 }
 
 pub fn is_verbose() -> bool {
-    VERBOSE.load(Ordering::Relaxed)
+    VERBOSE.load(Ordering::Relaxed) && !crate::tui::active()
 }
 
 /// A top-level phase, e.g. "Machine setup" or "Scaffolding creamy".
@@ -89,6 +89,9 @@ pub fn command(program: &str, args: &[&str]) {
 /// Raw captured sub-process output, shown when a step failed (so the user
 /// can see why) or when running verbose.
 pub fn passthrough(stdout: &str, stderr: &str) {
+    if crate::tui::active() {
+        return;
+    }
     crate::diagnostics::event(
         "tool.output",
         format!(

@@ -9,6 +9,22 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 const MAX_EVENT_CHARS: usize = 4096;
 static LOG: OnceLock<Mutex<Option<Log>>> = OnceLock::new();
+static QUIET_HUB: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn quiet_hub() {
+    QUIET_HUB.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn path_message() -> String {
+    LOG.get()
+        .and_then(|state| {
+            state.lock().ok().and_then(|log| {
+                log.as_ref()
+                    .map(|log| format!("Diagnostic log: {}", log.path.display()))
+            })
+        })
+        .unwrap_or_else(|| "Diagnostic logging is unavailable.".into())
+}
 
 struct Log {
     file: File,
@@ -197,6 +213,9 @@ pub fn start() -> RunLog {
 impl RunLog {
     pub fn finish(self, code: u8) {
         event("run.end", format!("exit_code={code}"));
+        if code != 0 {
+            QUIET_HUB.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
     }
 }
 
@@ -205,6 +224,9 @@ impl Drop for RunLog {
         if let Some(state) = LOG.get() {
             let mut state = state.lock().unwrap_or_else(|poison| poison.into_inner());
             if let Some(log) = state.take() {
+                if QUIET_HUB.load(std::sync::atomic::Ordering::Relaxed) {
+                    return;
+                }
                 eprintln!(
                     "Diagnostic log: {}{}",
                     log.path.display(),

@@ -2,11 +2,26 @@ use std::fmt::Write;
 
 use crate::catalog::artifacts::{self, Artifact};
 use crate::catalog::capabilities;
+use crate::catalog::package_usage;
 use crate::catalog::place_template::PLACE_TEMPLATE;
 use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
 use crate::catalog::tool_usage::{self, Usage};
 use crate::catalog::wally_packages;
+
+struct DetailSection {
+    heading: &'static str,
+    text: String,
+}
+
+fn detail_sections(sections: Vec<DetailSection>) -> String {
+    sections
+        .into_iter()
+        .filter(|s| !s.text.is_empty())
+        .map(|s| format!("## {}\n{}", s.heading, s.text))
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
 use crate::config::Setups;
 
 #[derive(Clone, Debug)]
@@ -45,6 +60,7 @@ pub enum CatalogSection {
     },
 }
 
+#[cfg(test)]
 impl CatalogSection {
     pub fn label(&self) -> &str {
         match self {
@@ -152,17 +168,72 @@ pub fn sections() -> Vec<CatalogSection> {
 
 pub fn lookup(key: &str) -> Option<CatalogDetail> {
     if let Some(package) = wally_packages::find(key) {
-        let mut body = format!(
-            "category: {}\nstatus:   {}\nsource:   {}\ndocs:     {}\n\n{}",
-            package.category.label(),
-            package.maintenance.badge(),
-            package.source,
-            package.docs_url,
-            package.description
+        let guide = package_usage::find(key)?;
+        let mut placement = format!(
+            "{}\n\nWally imports use the generated aliases below. Select: {}.",
+            guide.context,
+            if guide.imports.is_empty() {
+                package.key.into()
+            } else {
+                guide.imports.join(", ")
+            }
         );
-        if let Some(usage) = tool_usage::find(key) {
-            append_usage(&mut body, usage);
+        let dependencies = guide.imports.iter().map(|key| (*key).to_owned()).collect();
+        if guide.imports.is_empty() {
+            placement = format!(
+                "{}\n\nSelect Testing with TestEZ. These specs work across Wally, Git submodules, and no-manager projects through rproj test; no direct package import is needed.",
+                guide.context
+            );
+        } else if package.submodule.is_some()
+            && wally_packages::unvendorable_in_closure(&dependencies).is_empty()
+        {
+            placement.push_str("\n\nGit submodules: replace the Wally imports with:\n");
+            for dependency in guide.imports {
+                placement.push_str(&package_usage::import(
+                    wally_packages::find(dependency).expect("guide dependency"),
+                    true,
+                ));
+                placement.push('\n');
+            }
+            placement.push_str("Submodules track repository commits, not these Wally versions; verify the checked-out API. No-manager projects do not install this package.");
+        } else {
+            placement.push_str("\n\nUse Wally: this example's dependency tree is not supported by rproj's submodule workflow. No-manager projects do not install it.");
         }
+        let body = detail_sections(vec![
+            DetailSection {
+                heading: "Purpose",
+                text: package.description.into(),
+            },
+            DetailSection {
+                heading: "When useful",
+                text: guide.when.into(),
+            },
+            DetailSection {
+                heading: "Requirements / placement",
+                text: placement,
+            },
+            DetailSection {
+                heading: "Example",
+                text: package_usage::example(&guide),
+            },
+            DetailSection {
+                heading: "Caveats",
+                text: guide.caveats.into(),
+            },
+            DetailSection {
+                heading: "Package",
+                text: format!(
+                    "{}\n{}\n{}",
+                    package.source,
+                    package.category.label(),
+                    package.maintenance.badge()
+                ),
+            },
+            DetailSection {
+                heading: "Official documentation",
+                text: package.docs_url.into(),
+            },
+        ]);
         return Some(CatalogDetail {
             title: package.key.into(),
             body,
@@ -170,16 +241,25 @@ pub fn lookup(key: &str) -> Option<CatalogDetail> {
     }
     if let Some(tool) = tool_catalog::find(key) {
         let mut body = format!(
-            "family:   {}\nkind:     {}\nprovider: {}\nstatus:   {}\ndocs:     {}\n\n{}",
+            "## Purpose\n{}\n\n## Tool\nfamily:   {}\nkind:     {}\nprovider: {}\nstatus:   {}\n\n## Official documentation\n{}",
+            tool.description,
             tool.family,
             tool.kind.label(),
             tool.kind.provider(),
             tool.maintenance.badge(),
-            tool.docs_url,
-            tool.description
+            tool.docs_url
         );
         if let Some(usage) = tool_usage::find(key) {
-            append_usage(&mut body, usage);
+            append_guidance(&mut body, usage);
+        }
+        if key.starts_with("theme-") {
+            body.push_str("\n\n## Usage steps\nIn VS Code, open the Command Palette and choose Preferences: Color Theme");
+            if key.ends_with("-icons") {
+                body.push_str(" (use Preferences: File Icon Theme for this icon set)");
+            }
+            body.push_str(
+                ". Select the installed theme. This changes the editor, not the game's UI.",
+            );
         }
         if tool_settings::find(key).is_some() {
             let _ = write!(body, "\n\nConfigure: rproj configure {key}");
@@ -279,9 +359,14 @@ pub fn lookup(key: &str) -> Option<CatalogDetail> {
 }
 
 fn append_usage(body: &mut String, usage: &Usage) {
-    let _ = write!(body, "\n\n{}\n\nWhen: {}", usage.what, usage.when);
+    let _ = write!(body, "## Purpose\n{}", usage.what);
+    append_guidance(body, usage);
+}
+
+fn append_guidance(body: &mut String, usage: &Usage) {
+    let _ = write!(body, "\n\n## When useful\n{}", usage.when);
     if !usage.commands.is_empty() {
-        body.push_str("\n\nCommands:");
+        body.push_str("\n\n## Usage steps");
         let width = usage
             .commands
             .iter()
@@ -293,7 +378,7 @@ fn append_usage(body: &mut String, usage: &Usage) {
         }
     }
     if !usage.notes.is_empty() {
-        body.push_str("\n\nWorth knowing:");
+        body.push_str("\n\n## Caveats");
         for note in usage.notes {
             let _ = write!(body, "\n  - {note}");
         }

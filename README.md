@@ -10,7 +10,7 @@
 
 ## What rproj does
 
-Version 0.13 adds built-in project creation from the workspace hub and local diagnostic logs. Guided/expert choices, saved setups, revisions, and final confirmation stay in Ratatui; external tools run after the terminal is restored. Direct commands and existing project formats remain unchanged.
+Version 0.14 makes the workspace hub a persistent Home screen, keeps template editing open after saving, and organizes the Catalog into readable groups with offline package examples. Direct commands and existing project formats remain unchanged. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
@@ -19,7 +19,7 @@ rproj connects two layers that are usually assembled by hand:
 
 It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
 
-Run `rproj` with no arguments in a terminal to open the workspace hub. It summarizes the current directory, machine setup, saved setups, project template, and version state, then launches the selected existing command after restoring the terminal. Direct commands remain the stable interface for scripts and repeatable workflows.
+Run `rproj` with no arguments in a terminal to open Home. It summarizes the current directory, machine setup, saved setups, project template, and version state. Catalog, project questions, and Template Explorer share the full-screen session. Commands use normal terminal output; press Enter after their outcome to return Home. Direct commands remain the interface for scripts and repeatable workflows.
 
 ## Ecosystems
 
@@ -90,13 +90,21 @@ rproj watch
 
 The hub keeps unavailable actions visible with their prerequisites. It examines only the current directory: it does not search for or manage a projects-root library. Select Catalog to browse the ecosystem, or a task to begin its workflow. Use arrows and Enter to navigate, Esc to leave, and `?` for help.
 
+Home remembers the selected action and refreshes project/setup state on return. Setup, Configure, Upgrade, Test, Watch, Copy, and confirmed creation retain their existing prompts and subprocess output. Cancellation and failure return Home after acknowledgement. Watch stays foreground-only: Ctrl+C stops the active watcher before Home resumes; an unexpected nonzero exit is reported as a failure.
+
+### Catalog
+
+Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and its descendants, or search from the root to cover the entire Catalog.
+
+Enter opens a group or focuses its detail pane; Tab switches panes. Arrows, Page Up/Down, Home, and End navigate entries or scroll details. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally/submodule import differences; they are starting points, not complete production systems.
+
 ### New Project in the hub
 
 After Machine Setup, select **New Project** to enter a folder name and choose Guided, Expert, or a saved setup. The built-in screens cover dependencies, packages, capabilities, and a review of generated files. Saved setups go straight to review. Direct `rproj new <name>` retains its existing prompts and flags.
 
 Type to filter choices; Space toggles multiple selections without losing choices hidden by the filter. Enter advances, Tab changes focus, and Page Up/Down scrolls details. Review lets you revise decisions, omit optional files, rename the project, or save a new named setup. Existing setups are never replaced by the hub.
 
-Changing dependencies reopens package selection and clears stale file exclusions. If Jest becomes incompatible, choose TestEZ or disable Testing explicitly; unrelated capabilities remain selected. Esc cancels a revision or asks to discard the draft. Ctrl+C exits without creating anything.
+Changing dependencies reopens package selection and clears stale file exclusions. If Jest becomes incompatible, choose TestEZ or disable Testing explicitly; unrelated capabilities remain selected. Esc cancels a revision or asks to discard the draft. Ctrl+C cancels creation and returns Home without creating anything. Preparation displays template validation before the questions; Esc cancels preparation after its active validation process finishes.
 
 Only confirmed **Create** writes the project and saves the optional setup. The terminal is restored before installed tools run. If another process creates the destination meanwhile, rproj refuses to overwrite it. The hub does not install machine applications from a draft; use **Machine Setup** first.
 
@@ -160,6 +168,8 @@ Use the arrow keys to navigate, Enter to edit, Tab to switch panes, and type in 
 
 Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain, Wally, and git-submodule mount combination with Rojo before atomically saving it under the rproj configuration directory. Rojo must resolve from the current project or Rokit's global manifest; `rokit add --global rojo` installs the global fallback. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
 
+Saving does **not** close the editor, including standalone `rproj configure project`. Selection, editing mode, and undo history remain intact. Undoing a saved change makes the draft unsaved again. Esc keeps local Back behavior; leaving Explorer or pressing Ctrl+C confirms discarding changes since the last successful save. Confirmed reset removes only the custom template and returns to Home (or ends the standalone command). Failed validation/writes keep the draft and show a scrollable error.
+
 Compound values use comma-separated components in the Inspector; rproj writes their required Rojo representation. UDim offsets must be signed 32-bit whole numbers, and numeric inputs must be finite. If an older draft contains a malformed UDim, UDim2, Rect, or CFrame attribute, re-enter that value in the Inspector before saving; existing templates are not silently rewritten.
 
 The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are visible but locked because rproj owns them. Package, module, server-package, development-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created source directories; use static instances and properties for other additions. The saved template is `<rproj config>/templates/default.project.json`.
@@ -175,16 +185,17 @@ The project name, DataModel root, `src/shared`, `src/server`, and `src/client` m
 
 ## Development
 
-### Diagnostic logs (source development)
+### Diagnostic logs
 
-The source build writes a local `.txt` log for each command and prints its path
-on stderr when finished. Attach that file when reporting a problem, after checking
+rproj writes a local `.txt` log for each run. Direct commands print its path
+on stderr when finished; Home shows the full path with failures and stays quiet
+after ordinary navigation or cancellation. Attach that file when reporting a problem, after checking
 it for private paths or names. Logs include choices, steps, and errors, but omit
 credentials-related fields, raw keystrokes, source/clipboard contents, and raw
 external-tool output. Nothing is uploaded automatically.
 
 See [diagnostic logs](https://github.com/chatarabdelilah/rproj/blob/main/docs/diagnostic-logs.md)
-for location, limits, and opt-out. This is not yet included in published 0.12.2.
+for location, limits, and opt-out.
 
 ### Checks
 

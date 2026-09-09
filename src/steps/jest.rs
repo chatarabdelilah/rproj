@@ -291,7 +291,14 @@ mod tests {
     #[test]
     #[ignore = "requires Wally, Rojo, wally-package-types, jest-roblox, Roblox Studio, and its runner plugin"]
     fn real_jest_stack_installs_validates_retypes_and_executes() {
+        use crate::catalog::package_usage;
+        let examples = [
+            "charm", "reflex", "matter", "sift", "t", "greentea", "janitor", "ripple",
+        ];
         let dir = TempDir::new().unwrap();
+        for path in ["src/shared", "src/server", "src/client"] {
+            fs::create_dir_all(dir.path().join(path)).unwrap();
+        }
         let production = production();
         fs::write(
             dir.path().join("default.project.json"),
@@ -302,20 +309,46 @@ mod tests {
             dir.path().join("wally.toml"),
             wally::render_wally_toml(
                 "rproj/jest-validation",
-                &["jest".into(), "jest-globals".into()],
+                &["jest", "jest-globals"]
+                    .into_iter()
+                    .chain(examples)
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>(),
             )
             .unwrap(),
         )
         .unwrap();
         ensure_test_tree(dir.path(), false).unwrap();
+        let mut spec = package_usage::import(
+            crate::catalog::wally_packages::find("jest-globals").unwrap(),
+            false,
+        );
+        for key in examples {
+            let guide = package_usage::find(key).unwrap();
+            spec.push_str(&format!(
+                "\nJestGlobals.it(\"catalog {key}\", function()\n{}\nend)\n",
+                package_usage::example(&guide)
+            ));
+        }
+        fs::write(dir.path().join("tests/shared/catalog.spec.luau"), spec).unwrap();
         refresh_project(dir.path()).unwrap();
         ensure_config(dir.path()).unwrap();
         wally::sync_for_project(dir.path(), PROJECT_FILE).unwrap();
         run_in(
             "jest-roblox-cli",
-            &["--passWithNoTests", "--backend", "studio-cli"],
+            &[
+                "--backend",
+                "studio-cli",
+                "--no-color",
+                "--outputFile",
+                "report.json",
+            ],
             Some(dir.path()),
         )
         .unwrap();
+        let report: Value =
+            serde_json::from_slice(&fs::read(dir.path().join("report.json")).unwrap()).unwrap();
+        assert_eq!(report["numPassedTests"], examples.len(), "{report}");
+        assert_eq!(report["numFailedTests"], 0, "{report}");
     }
 }

@@ -70,6 +70,14 @@ impl EditorModel {
         self.current != self.original
     }
 
+    pub fn mark_saved(&mut self) {
+        self.original = self.current.clone();
+    }
+
+    pub fn matches_saved(&self, value: &Value) -> bool {
+        &self.original == value
+    }
+
     pub fn can_restructure(&self, path: &[String]) -> bool {
         !path.is_empty() && !is_required(path) && !is_mount_or_descendant(path)
     }

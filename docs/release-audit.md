@@ -13,6 +13,44 @@ The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`
 
 ## Evidence
 
+### 0.14.0 T2 Candidate
+
+Branch: `codex/t2-home-catalog`. Published baseline remains 0.13.1 until the owner
+publishes the reviewed 0.14.0 candidate. Scope: persistent Home, template save
+baselines, foreground cancellation, Catalog hierarchy/readability, and bundled
+package guidance. No new catalog packages or machine applications are installed.
+
+September 9 local evidence:
+
+- The ordinary locked suite passed: 320 passed, 19 explicitly ignored,
+  339 discovered (282 unit and 57 integration). Formatting, clippy with warnings
+  denied, and diff whitespace checks passed. Reviewed-head/main CI and package
+  identities are recorded below when complete.
+- Windows PTY fixtures passed repeated Watch interruption, unexpected Watch
+  failure, Home re-entry, and interrupted Rokit restoration without starting Lute.
+  An exclusively held child file proves the child has exited before Home returns.
+- Template PTYs passed repeated saves without closing, confirmed reset, and
+  malformed JSON repair. Unit tests cover saved-baseline undo/redo and atomic
+  failure. A large paste exposed per-character full-screen redraw cost; queued
+  input now redraws at a bounded interval. Float round-trip testing exposed
+  serde_json's default parser rounding; float_roundtrip now preserves those values.
+- All three real-Rojo template/editor checks passed with Rojo 7.7.0. All three
+  live Home-creation regressions passed in 29.51 seconds: cancellation,
+  concurrent-destination refusal, and confirmed creation/saved-setup replay.
+  Initial sandbox denials were not counted as passes; the successful run used
+  unique temporary projects and a unique saved setup outside the sandbox.
+- Eight Catalog package snippets executed without errors through installed
+  Jest Roblox CLI 0.3.24 and Studio, following Wally installation and sourcemap
+  retyping. The fixture needed its missing source directories restored; its
+  original count incorrectly assumed starter specs despite requesting none.
+  The corrected complete live stack check passed in 12.83 seconds.
+  [Example evidence](catalog-examples.md) separates source review from runtime coverage.
+
+Remaining limits: no fresh-machine installation/cancellation certification,
+no Open Cloud run, and no full UI/data/replication lifecycle execution for every
+package. Commands ignoring Ctrl+C can delay return until they finish; no forced
+termination or detached supervisor is added.
+
 ### Unreleased Configuration Preservation
 
 Three new regressions first reproduced destructive behavior in 0.13.0: an unlisted choice was reset to its catalog default, a structured JSON value was replaced with a boolean, and accepting handwritten TOML produced duplicate keys/tables. The fix omits unchanged answers, keeps unsupported values by default, and validates a proposed TOML merge against the expected parsed document before writing. Explicit replacement remains available. This does not introduce file locking or crash-atomic writes, and the legacy TOML writer may refuse unusual valid layouts rather than rewrite them unsafely. Shared upgrade/scaffolding writers are unchanged.

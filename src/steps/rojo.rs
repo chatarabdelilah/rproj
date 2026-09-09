@@ -481,6 +481,7 @@ pub fn watch_sourcemap(project_dir: &Path) -> Result<()> {
 }
 
 pub fn watch_sourcemap_from(project_dir: &Path, project_file: &str) -> Result<()> {
+    crate::interrupt::check()?;
     let args = ["sourcemap", "--watch", project_file, "-o", "sourcemap.json"];
     ui::command("rojo", &args);
     let status = Command::new("rojo")
@@ -488,10 +489,14 @@ pub fn watch_sourcemap_from(project_dir: &Path, project_file: &str) -> Result<()
         .current_dir(project_dir)
         .status()
         .context("failed to start `rojo sourcemap --watch`")?;
-    // Ctrl+C reaches the child too and is the normal way to stop watching,
-    // so a non-zero exit here is expected rather than a failure worth
-    // reporting as one.
+    // Windows reports console interruption as STATUS_CONTROL_C_EXIT.
     crate::diagnostics::tool_exit("rojo", status);
+    if !status.success()
+        && !crate::interrupt::requested()
+        && status.code() != Some(0xC000013Au32 as i32)
+    {
+        bail!("Rojo watcher failed: {status}");
+    }
     Ok(())
 }
 
