@@ -420,6 +420,8 @@ mod tests {
 
     #[test]
     fn every_entry_resolves_to_the_same_detail_model() {
+        assert!(!sections().iter().any(|section| matches!(section,
+            CatalogSection::Page { label, .. } if label.starts_with("Place template"))));
         for section in sections() {
             if let CatalogSection::Entries { label, entries } = section {
                 assert!(!entries.is_empty(), "{label} has no entries");
