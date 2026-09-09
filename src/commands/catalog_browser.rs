@@ -568,6 +568,8 @@ mod tests {
         }
         assert_eq!(truncate("世界abc", 5), "世界…");
         assert_eq!(wrap_lines("  abc\nxyz", 4), ["  ab", "c", "xyz"]);
+        assert_eq!(wrap_lines("abcde fg", 5), ["abcde", "fg"]);
+        assert_eq!(wrap_lines("abcde ", 5), ["abcde"]);
     }
 
     #[test]

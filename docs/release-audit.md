@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-Updated September 8, 2026. Published baseline: **0.13.1**, alpha, with interactive configuration preservation. Its crates.io archive records `0fad0db8213dda1bfa9c3b0f97e24c808894fc0f`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.1). SHA256: `e43aa97c52b170a483da1abb4d0e0eb718be6b81249388d8b3b9092a69bad518`. Model import, embedded tools, and frontend migration remain out of scope. See [release notes](release-notes-0.13.1.md).
+Updated September 9, 2026. Published baseline: **0.13.1**, alpha, with interactive configuration preservation. Its crates.io archive records `0fad0db8213dda1bfa9c3b0f97e24c808894fc0f`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.13.1). SHA256: `e43aa97c52b170a483da1abb4d0e0eb718be6b81249388d8b3b9092a69bad518`. Model import, embedded tools, and frontend migration remain out of scope. See [release notes](release-notes-0.13.1.md).
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
@@ -63,6 +63,16 @@ with zero findings. [Release PR #20](https://github.com/chatarabdelilah/rproj/pu
 records reviewed-head CI, any remote review follow-up, and merged-main verification
 before the owner is asked to publish. Documentation-only evidence updates do not
 change the tested runtime or dependency graph.
+
+Remote CodeRabbit review at `13ffed0` added an explicit Jest JSON formatter and a
+90-second failing watchdog for the PTY child fixture. Both were applied: all
+eight Home PTYs passed, and all eight Catalog snippets passed again through
+Studio in 37.88 seconds. Its prose-wrapping edge case was reproduced and fixed
+with assertions in the existing Catalog test; the four Catalog tests pass.
+The audit header date was corrected. Windows stable, Rust 1.89, and package CI
+passed at `13ffed0`; the final correction commit must pass those checks again
+before merge. The owner's `.codex/` and `.serena/` ignore rules keep local agent
+configuration outside Git and Cargo archives; no such configuration is shipped.
 
 Review decisions: do not force `process::exit` on a second interrupt because it
 skips terminal restoration and child waiting. Do not record machine setup as

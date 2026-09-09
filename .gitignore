@@ -10,3 +10,5 @@
 # it; cargo takes its file list from git, so ignoring it here also keeps
 # it out of `cargo package`.
 /study/
+.codex/
+.serena/

@@ -15,6 +15,9 @@ pub fn wrap_lines(text: &str, width: usize) -> Vec<String> {
             }
             for ch in word.chars() {
                 let size = ch.width().unwrap_or(0);
+                if !code && ch == ' ' && (current.is_empty() || used + size > width) {
+                    continue;
+                }
                 if used + size > width && !current.is_empty() {
                     lines.push(current);
                     current = String::new();

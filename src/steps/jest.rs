@@ -340,6 +340,8 @@ mod tests {
                 "--backend",
                 "studio-cli",
                 "--no-color",
+                "--formatters",
+                "json",
                 "--outputFile",
                 "report.json",
             ],

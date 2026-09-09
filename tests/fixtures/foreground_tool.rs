@@ -21,7 +21,12 @@ fn main() {
         }
         let _lock = options.open("active-child.lock").unwrap();
         println!("fixture child running");
-        loop { std::thread::sleep(std::time::Duration::from_millis(100)); }
+        let started = std::time::Instant::now();
+        while started.elapsed() < std::time::Duration::from_secs(90) {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        eprintln!("fixture child timed out waiting for interruption");
+        std::process::exit(10);
     }
     println!("fixture tool completed");
 }
