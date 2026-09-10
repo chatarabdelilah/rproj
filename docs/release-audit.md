@@ -1,15 +1,17 @@
 # Release-Hardening Audit
 
-## T3: 0.15.0 Candidate (September 9, 2026)
+## T3: 0.15.0 Published (September 10, 2026)
+
+Owner publication is verified: crates.io's archive SHA256 is `2dc75bbd10e4e11180995ce267f2b5a7f96b8eb60802fe1adf4e10ce50424a45`; `.cargo_vcs_info.json` records clean commit `b1c1664273bea2fce9bb0f4b954f554cc96f9dfb`. The annotated `v0.15.0` tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.15.0) match that identity. Version 0.15.0 is not yanked.
 
 - Scope: Projects browser, selected-path command dispatch, creation handoff, and removal of Catalog Place Template presentation. No dependency or configuration-schema change; model import stays dropped.
 - Local ordinary locked suite: 330 passed, 19 ignored (349 discovered: 292 unit and 57 integration tests). Coverage includes junction exclusion, malformed projects, missing roots, stale scans, Back state, four-size rendering, deleted targets, and A/B path isolation with fake tools and a fake clipboard sink.
 - Eight Home PTY checks cover terminal continuity, selected-project actions, repeated Watch interruption, watcher failure, cancelled provisioning, and redirected output. Three live creation checks passed serially using installed tools: cancellation, concurrent-destination refusal, and successful creation/saved-setup handoff. Their scratch projects are removed; no machine applications were installed.
 - Formatting, clippy, and locked packaging passed. Packaging at `c57221c` contained 86 files (1.0 MiB uncompressed, 272.1 KiB compressed) and compiled successfully from its archive. Local CodeRabbit CLI 0.7.6 completed the base-main review on September 10 with zero findings. [PR #22](https://github.com/chatarabdelilah/rproj/pull/22) records reviewed-head and merged-main Windows stable/Rust 1.89/package CI; publication is gated on both runs passing.
 - Existing Open Cloud and fresh-machine provisioning limitations remain. Ordinary tests do not modify the real clipboard or provision machine applications.
-- Owner alone runs `cargo publish --locked` after review and merge. No 0.15.0 tag or GitHub release is created before archive verification.
+- Reviewed head `2eb6b49` passed CI run `34426275526`; merged main `b1c1664` passed CI run `34426498712`. Both runs passed Windows stable, Rust 1.89, and package verification. The merged feature branch was deleted locally and remotely. Owner publication, annotated tag, and GitHub prerelease are complete; documentation-only alignment needs no further Cargo publication.
 
-Updated September 9, 2026. Published baseline: **0.14.0**, alpha, with persistent Home, template save continuity, and Catalog clarity. Its crates.io archive records `f86a7bd06d0f5b637a41a0e0ca05792be66c42e5`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0). SHA256: `b3469e9cf85ae5f1a88f6ec6aaf5065ce05301cd52172414b5adafc34974b95e`. Model import and embedded quality tools are permanently dropped. See [release notes](release-notes-0.14.0.md).
+Previous baseline (September 9, 2026): **0.14.0**, alpha, with persistent Home, template save continuity, and Catalog clarity. Its crates.io archive records `f86a7bd06d0f5b637a41a0e0ca05792be66c42e5`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0). SHA256: `b3469e9cf85ae5f1a88f6ec6aaf5065ce05301cd52172414b5adafc34974b95e`. Model import and embedded quality tools are permanently dropped. See [release notes](release-notes-0.14.0.md).
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 
