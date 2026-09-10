@@ -5,7 +5,7 @@
 - Scope: Projects browser, selected-path command dispatch, creation handoff, and removal of Catalog Place Template presentation. No dependency or configuration-schema change; model import stays dropped.
 - Local ordinary locked suite: 330 passed, 19 ignored (349 discovered: 292 unit and 57 integration tests). Coverage includes junction exclusion, malformed projects, missing roots, stale scans, Back state, four-size rendering, deleted targets, and A/B path isolation with fake tools and a fake clipboard sink.
 - Eight Home PTY checks cover terminal continuity, selected-project actions, repeated Watch interruption, watcher failure, cancelled provisioning, and redirected output. Three live creation checks passed serially using installed tools: cancellation, concurrent-destination refusal, and successful creation/saved-setup handoff. Their scratch projects are removed; no machine applications were installed.
-- Final clippy passed. Formatting, locked packaging, CodeRabbit, reviewed-head CI, and merged-main CI remain pending; this candidate is not release-ready yet.
+- Formatting, clippy, and locked packaging passed. Packaging at `c57221c` contained 86 files (1.0 MiB uncompressed, 272.1 KiB compressed) and compiled successfully from its archive. Local CodeRabbit CLI 0.7.6 completed the base-main review on September 10 with zero findings. Reviewed-head CI and merged-main CI remain pending; this candidate is not release-ready yet.
 - Existing Open Cloud and fresh-machine provisioning limitations remain. Ordinary tests do not modify the real clipboard or provision machine applications.
 - Owner alone runs `cargo publish --locked` after review and merge. No 0.15.0 tag or GitHub release is created before archive verification.
 

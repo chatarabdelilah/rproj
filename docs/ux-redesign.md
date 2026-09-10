@@ -19,8 +19,8 @@ The current interface is hybrid:
 - Bare `rproj` opens the Ratatui workspace hub in an interactive terminal.
 - Catalog browsing and global-template editing stay within full-screen interfaces.
 - Hub-driven New Project uses Ratatui for composition and review. Setup, direct `rproj new`, and tool configuration retain inquire prompts.
-- Home, Catalog, creation questions, and Template Explorer borrow one terminal session. There is no alternate-screen teardown between these internal views.
-- The hub suspends the terminal session before invoking existing command implementations, presents their result, and waits for Enter before returning Home. It keeps the selected action and refreshes workspace context.
+- Home, Projects, Catalog, creation questions, and Template Explorer borrow one terminal session. There is no alternate-screen teardown between these internal views.
+- The hub suspends the terminal session before invoking existing command implementations, presents their result, and waits for Enter before returning to the selected project or Home. It keeps the selected action and refreshes workspace context.
 - Direct commands remain available for automation. Redirected welcome and Catalog output remain plain.
 - External tools continue doing their own work. Navigable results can be considered without embedding replacement tools.
 
