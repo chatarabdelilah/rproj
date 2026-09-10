@@ -1,6 +1,6 @@
 # Releasing rproj
 
-The next candidate is **0.15.0, T3: Projects Browser**, on `codex/t3-projects-browser`. See [its release notes](release-notes-0.15.0.md) and [audit gates](release-audit.md). The published baseline below remains 0.14.0 until owner publication and archive verification complete.
+The next candidate is **0.15.0, T3: Projects Browser**, prepared through [PR #22](https://github.com/chatarabdelilah/rproj/pull/22). See [its release notes](release-notes-0.15.0.md) and [audit gates](release-audit.md). The published baseline below remains 0.14.0 until owner publication and archive verification complete.
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
