@@ -29,15 +29,6 @@ impl PropValue {
             }
         }
     }
-
-    /// How the value is shown in `rproj info`, in the same 0-255 terms it
-    /// was authored in rather than the converted floats.
-    pub fn display(self) -> String {
-        match self {
-            PropValue::Number(n) => format!("{n}"),
-            PropValue::Color(r, g, b) => format!("{r}, {g}, {b}"),
-        }
-    }
 }
 
 pub struct PropertySpec {

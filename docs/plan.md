@@ -95,7 +95,15 @@ Release PR #15 is merged at `50f2e34`; its reviewed-head and main CI passed, the
 
 The completed 0.13.1 change fixes confirmed `configure` preservation failures: unlisted or unsupported existing values remain unless explicitly replaced, unchanged settings avoid writes, and TOML merges that fail parsing or alter unrelated values are refused. No new UI dependency or external-tool migration is involved. Focused prompt/merge regressions and ordinary CI cover this scope; Studio provisioning is unrelated and remains historical evidence.
 
-After T2, prioritize one separate workflow based on use: project browsing under the configured projects root, Ratatui Machine Setup, foreground/background Watch lifecycle, catalog package additions, or a bounded structural audit. None is part of 0.14.0; no new dependency or broad rewrite is approved by this list.
+## T3: Projects Browser (0.15.0 candidate)
+
+Home now leads to Projects, New Project, Edit Project Template, Machine Setup, and Catalog. Projects is read-only shallow discovery plus explicit-path action dispatch; it is not a registry or filesystem manager. The redundant Catalog Place Template section is removed. Verification and release gates remain tracked in the audit until the owner publishes.
+
+## Next Milestones
+
+1. **T4 - Saved Setup manager:** dedicated Home destination to inspect, edit, rename, duplicate, and delete saved compositions using existing graph/creation controls. Confirm deletion, preserve unsupported configuration, and affect future reuse only. Remove saved-setup presentation from Catalog when this ships.
+2. **T5 - Ratatui Machine Setup:** migrate Inquire selection to shared TUI controls while retaining installers, explicit confirmation, cancellation, and recovery.
+3. **Separate backlog:** package additions, background Watch, and a bounded code audit. No project deletion, arbitrary folder browser, persistent project registry, new dependency, or configuration schema is added in T3. Model import remains permanently dropped.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 

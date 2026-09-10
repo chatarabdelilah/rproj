@@ -49,7 +49,10 @@ struct Rewrite {
 
 pub fn run(assume_yes: bool) -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
+    run_in(&project_dir, assume_yes)
+}
 
+pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
     if !project_dir.join("default.project.json").exists() {
         bail!(
             "no default.project.json here - `rproj upgrade` updates an existing project, \
@@ -58,7 +61,7 @@ pub fn run(assume_yes: bool) -> Result<()> {
     }
     // The package list is what decides most of these files, and guessing it
     // from what's on disk would be guessing.
-    let Some(project) = project_file::load_from(&project_dir)? else {
+    let Some(project) = project_file::load_from(project_dir)? else {
         bail!(
             "no rproj.toml here - `rproj upgrade` needs the package list it records to know \
              what this project's config should say. Projects scaffolded by `rproj new` have one"
@@ -73,7 +76,7 @@ pub fn run(assume_yes: bool) -> Result<()> {
             "Jest Roblox requires the Wally dependency workflow; repair rproj.toml before upgrading"
         );
     }
-    let rewrites = plan(&project_dir, &project, &packages, workflow, runner)?;
+    let rewrites = plan(project_dir, &project, &packages, workflow, runner)?;
 
     if rewrites.is_empty() {
         ui::ok("already up to date - every generated file matches this version of rproj");
@@ -117,10 +120,10 @@ pub fn run(assume_yes: bool) -> Result<()> {
 
     // These merge rather than replace and are no-ops when nothing is
     // missing, so they run either way rather than being planned.
-    gitignore::ensure_entries(&project_dir)?;
-    quality::ensure_luaurc(&project_dir)?;
+    gitignore::ensure_entries(project_dir)?;
+    quality::ensure_luaurc(project_dir)?;
     if runner == Some(TestRunner::TestEz) {
-        testez::ensure_tests_luaurc(&project_dir)?;
+        testez::ensure_tests_luaurc(project_dir)?;
     }
     Ok(())
 }

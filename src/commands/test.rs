@@ -39,7 +39,7 @@ pub fn run(arguments: &[String]) -> Result<()> {
     run_in(&project_dir, arguments)
 }
 
-fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
+pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
     let Some(project) = project_file::load_from(project_dir)? else {
         bail!("no rproj.toml here - `rproj test` needs the recorded Testing capability");
     };

@@ -3,7 +3,6 @@ use std::fmt::Write;
 use crate::catalog::artifacts::{self, Artifact};
 use crate::catalog::capabilities;
 use crate::catalog::package_usage;
-use crate::catalog::place_template::PLACE_TEMPLATE;
 use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
 use crate::catalog::tool_usage::{self, Usage};
@@ -140,13 +139,6 @@ pub fn sections() -> Vec<CatalogSection> {
                     badge: "configure".into(),
                 })
                 .collect(),
-        },
-        CatalogSection::Page {
-            label: "Place template - the instance tree every project starts with".into(),
-            detail: CatalogDetail {
-                title: "Place template".into(),
-                body: place_template_text(),
-            },
         },
     ];
     let setups = Setups::list();
@@ -415,26 +407,6 @@ fn owning_capability(key: &str) -> Option<&'static str> {
         .map(|capability| capability.key)
 }
 
-pub fn place_template_text() -> String {
-    let mut text = String::new();
-    for spec in PLACE_TEMPLATE {
-        let location = match spec.parent {
-            Some(parent) => format!("{parent}.{}", spec.name),
-            None => spec.name.into(),
-        };
-        let _ = writeln!(text, "  {location} ({})", spec.class_name);
-        for property in spec.properties {
-            let _ = writeln!(
-                text,
-                "    {:<26} {}",
-                property.name,
-                property.value.display()
-            );
-        }
-    }
-    text.trim_end().into()
-}
-
 pub fn first_sentence(text: &str) -> &str {
     match text.find(". ") {
         Some(index) => &text[..=index],
@@ -448,6 +420,8 @@ mod tests {
 
     #[test]
     fn every_entry_resolves_to_the_same_detail_model() {
+        assert!(!sections().iter().any(|section| matches!(section,
+            CatalogSection::Page { label, .. } if label.starts_with("Place template"))));
         for section in sections() {
             if let CatalogSection::Entries { label, entries } = section {
                 assert!(!entries.is_empty(), "{label} has no entries");

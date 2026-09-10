@@ -70,6 +70,8 @@ fn without_a_terminal_it_lists_instead_of_prompting() {
     for expected in ["WALLY PACKAGES", "TOOLS", "GENERATED FILES", "TOPICS"] {
         assert!(text.contains(expected), "expected {expected:?} in:\n{text}");
     }
+    assert!(!text.contains("PLACE TEMPLATE"));
+    assert!(!text.contains("\x1b["));
     assert!(
         !text.contains("What do you want to look up?"),
         "must not try to prompt:\n{text}"

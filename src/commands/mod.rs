@@ -6,6 +6,7 @@ pub mod hub;
 pub mod info;
 pub mod new;
 pub mod project_template;
+pub mod projects;
 pub mod provision;
 pub mod setup;
 pub mod test;

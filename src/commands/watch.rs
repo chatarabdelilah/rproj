@@ -6,7 +6,10 @@ use crate::steps::{git, jest, rojo, toolchain, wally};
 
 pub fn run() -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
+    run_in(&project_dir)
+}
 
+pub(super) fn run_in(project_dir: &std::path::Path) -> Result<()> {
     if !project_dir.join("default.project.json").exists() {
         bail!(
             "no default.project.json here - `rproj watch` resumes an existing project, \
@@ -14,7 +17,7 @@ pub fn run() -> Result<()> {
         );
     }
 
-    let project = project_file::load_from(&project_dir)?;
+    let project = project_file::load_from(project_dir)?;
     let jest =
         project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox);
     validate_jest_project(project.as_ref(), project_dir.join("wally.toml").exists())?;
@@ -26,7 +29,7 @@ pub fn run() -> Result<()> {
     // not yet installed locally) or a project already being worked on - both
     // just converge to "everything the manifest asks for is present".
     if project_dir.join("rokit.toml").exists() {
-        toolchain::sync_installed_tools(&project_dir)?;
+        toolchain::sync_installed_tools(project_dir)?;
     }
     // Both package workflows leave the vendored code out of the repo -
     // Wally's `Packages/` is gitignored, and a submodule's directory is
@@ -34,25 +37,25 @@ pub fn run() -> Result<()> {
     // own restore step before anything reads those paths. Only the Wally
     // half was here, which made `rproj watch` work on a cloned Wally
     // project and fail on a cloned submodule one.
-    git::sync_submodules(&project_dir)?;
+    git::sync_submodules(project_dir)?;
     // `sync`, never a bare `wally install`: an install rewrites every link
     // file in packages/ without the `export type` lines, so watching used
     // to silently strip the types off every package on each run. See
     // `steps::wally::sync`.
     if project_dir.join("wally.toml").exists() {
         if jest {
-            jest::refresh_project(&project_dir)?;
-            wally::sync_for_project(&project_dir, jest::PROJECT_FILE)?;
+            jest::refresh_project(project_dir)?;
+            wally::sync_for_project(project_dir, jest::PROJECT_FILE)?;
         } else {
-            wally::sync(&project_dir)?;
+            wally::sync(project_dir)?;
         }
     }
 
     println!("\nWatching for changes - press Ctrl+C to stop.");
     if jest {
-        rojo::watch_sourcemap_from(&project_dir, jest::PROJECT_FILE)
+        rojo::watch_sourcemap_from(project_dir, jest::PROJECT_FILE)
     } else {
-        rojo::watch_sourcemap(&project_dir)
+        rojo::watch_sourcemap(project_dir)
     }
 }
 

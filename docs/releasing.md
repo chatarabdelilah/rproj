@@ -1,5 +1,7 @@
 # Releasing rproj
 
+The next candidate is **0.15.0, T3: Projects Browser**, prepared through [PR #22](https://github.com/chatarabdelilah/rproj/pull/22). See [its release notes](release-notes-0.15.0.md) and [audit gates](release-audit.md). The published baseline below remains 0.14.0 until owner publication and archive verification complete.
+
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
 The published baseline is **v0.14.0, T2: Home navigation and Catalog clarity**, at `f86a7bd06d0f5b637a41a0e0ca05792be66c42e5`. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0) are aligned. [Release notes](release-notes-0.14.0.md) define its scope; [the audit](release-audit.md) records verification and remaining limits. Publication is complete; no further version or Cargo publication is needed for documentation-only retirement of the abandoned importer.

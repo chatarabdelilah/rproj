@@ -6,7 +6,7 @@
 
 Every choice `rproj` presents — which system app, which CLI tool, which Studio plugin, which VS Code extension, which Roblox package — is shown with a plain-language description and a maintenance-status badge, so a newcomer is guided toward a working, professional setup without needing to already know the ecosystem, while an experienced developer can move through the same prompts quickly by picking exactly what they want.
 
-Interactive bare `rproj` is a workspace hub over the existing commands. It reports machine, template, saved-setup, update, and exact-current-directory project state, but it does not absorb command execution: selecting a task restores the terminal and dispatches the same command implementation used by direct CLI invocation. `rproj new <name>` remains the self-sufficient project entry point. `rproj setup` handles machine provisioning, `rproj setup <tool>` adds one tool to a project, `rproj configure project` edits the global Rojo template, `rproj upgrade` re-applies generated config, `rproj watch` runs the development loop, `rproj test` runs the selected test implementation, `rproj copy` copies `src`, and `rproj info` opens the shared Catalog or prints one named entry.
+Interactive bare `rproj` is a workspace hub over the existing commands. It reports machine, template, saved-setup, and update state on Home, with project context in Projects, but it does not absorb command execution: selecting a task restores the terminal and dispatches the same command implementation used by direct CLI invocation. `rproj new <name>` remains the self-sufficient project entry point. `rproj setup` handles machine provisioning, `rproj setup <tool>` adds one tool to a project, `rproj configure project` edits the global Rojo template, `rproj upgrade` re-applies generated config, `rproj watch` runs the development loop, `rproj test` runs the selected test implementation, `rproj copy` copies `src`, and `rproj info` opens the shared Catalog or prints one named entry.
 
 **Every generated file is a catalog entry, not a step in a script** (§8.9). A project is composed from answers the same way its package list is, so the minimum `rproj new` can produce is `src/` plus `default.project.json` — no CI workflow, no editor settings, no quality script. What keeps that from becoming *incoherent* freedom is the other half of the same model: an artifact an earlier answer has already decided is reported rather than offered, because a checkbox whose only sane answer is yes is not a question, and answering it the other way used to make the packages the user had just picked silently evaporate.
 
@@ -20,7 +20,7 @@ This version is Windows-only (installs go through `winget`).
 
 | Command | Behavior |
 |---|---|
-| `rproj` (no args, terminal) | Opens the workspace hub. Reads the current directory and machine-wide rproj state, shows every task, disables unavailable project actions with a reason, and refreshes stale version information on a detached worker. Selecting a command restores terminal state before dispatch. |
+| `rproj` (no args, terminal) | Opens machine-level Home. Projects discovers the configured root and recognized launch directory; selected-project actions carry explicit paths. External commands run after terminal suspension and return to their caller. |
 | `rproj` (redirected) | Prints the plain welcome and command list without terminal escape sequences. |
 | `rproj setup` | Runs machine provisioning only (see 2.2): system apps, global CLI tools, Studio plugins, editor extensions. Does not create a project. Safe to re-run any time to add or remove tools. |
 | `rproj setup <tool>` | Sets one tool up **in the project you are standing in** (found by walking ancestors for `default.project.json`). Runs `rokit init` if needed, pins the tool, writes its config where rproj knows the format (§8.4), then prints the tool's usage notes and the first command to run. Replaces the previous workflow of reading `rproj info <tool>` and performing four steps by hand. Errors with the valid keys on an unknown name, and with a reason when not inside a project. |
@@ -972,11 +972,26 @@ with code indentation retained and remain scrollable. Source checks and runtime
 limits are recorded in [Catalog example evidence](catalog-examples.md).
 
 Home is a small explicit session loop, not a router/framework. One
-`TerminalSession` is borrowed by Catalog, creation questions, and Template
-Explorer. External commands suspend that session, await their child, show an
-outcome and log path on failure, then resume after Enter. Workspace context is
-reloaded while Home selection remains. Terminal I/O errors are typed and
-terminate the session rather than being mistaken for recoverable action errors.
+`TerminalSession` is borrowed by Projects, Catalog, creation questions, and
+Template Explorer. External commands suspend it, await their child, and
+acknowledge their outcome before resuming the calling project or Home.
+Terminal I/O failures remain fatal.
+
+`commands::projects` owns shallow discovery, the project-context model, browser
+state, and selected-path action outcomes. Discovery reads direct children of
+`GlobalConfig::projects_root()` plus the recognized launch directory, excludes
+linked children, canonicalizes/deduplicates paths, and sorts deterministically.
+One read-only worker runs at a time; refresh generations discard obsolete results.
+Missing roots never cause directory creation. Browser filter, selection, and
+list offset survive Back. Successful creation selects its actual final path.
+
+A project action reloads its context immediately before dispatch. Path-aware
+command entrypoints pass that directory through file operations and subprocess
+working directories; direct CLI wrappers still resolve the exact current directory.
+No process-wide working-directory mutation or persistent selection is introduced.
+Project Configure Tools excludes the standalone global-template picker option.
+Malformed records remain discoverable with warnings. Commands retain authoritative
+validation, runner behavior, and existing tool pins.
 New Project preflight runs in a scoped worker; cancellation prevents the next
 validation step and joins the worker before returning Home. It never creates the
 project directory. Interrupted external work similarly stops at execution
@@ -1192,7 +1207,9 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-339 tests are discovered by `cargo test`: 282 unit tests and 57 integration tests. The upstream-badge check, three real-Rojo template/editor checks, the real Jest stack check, and fourteen live project tests are ignored in the ordinary suite, so 320 run locally. rproj's own CI (`.github/workflows/ci.yml`) runs the suite on Windows against stable and 1.89 with `--locked`, with clippy and `cargo fmt --all --check` on stable only. A `package` job builds from a locally packaged tarball, and a weekly `badges` job on ubuntu runs the maintenance-badge freshness gate authenticated (§3). Current execution evidence and remaining limitations are recorded in [the release audit](release-audit.md).
+349 tests are discovered by `cargo test`: 292 unit tests and 57 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 330 ordinary tests. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
+
+T3 covers shallow discovery, canonical deduplication, Unicode filtering, junction exclusion, malformed/missing-root warnings, stale-worker results, Back preservation, creation handoff, responsive renders, and removed-target rejection. A child test process launched in B exercises Watch subprocess and Upgrade writes in A; Copy uses an injected sink instead of the real clipboard. Existing PTY checks cover selected-project actions and repeated Watch interruption. Catalog presentation removal leaves generated template data unchanged.
 
 T2 adds package-guide coverage and import-alias tests; grouped Catalog completeness, ordering, Back state, End/Up detail scrolling, and four-size renders; real PTY repeated save/reset and malformed-JSON repair; save-baseline/atomic-failure regressions; and Home template/command cancellation plus Windows foreground child-interruption tests. The editor PTY driver exists only in the unit-test executable and writes isolated temporary files. Its persistence callback exercises the real atomic writer; Rojo authority is covered separately by the real-Rojo suite. Existing live creation checks now acknowledge command completion and return Home before exiting.
 

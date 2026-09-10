@@ -38,6 +38,20 @@ fn tool_path(project: &TempProject) -> String {
     .into_owned()
 }
 
+fn open_project(session: &mut Session, project: &TempProject) {
+    session.send(ENTER);
+    session.wait_for("Filter:");
+    session.send(project.path().file_name().unwrap().to_str().unwrap());
+    session.wait_for(project.path().file_name().unwrap().to_str().unwrap());
+    session.wait_for(if project.exists("rproj.toml") {
+        "Workflow:"
+    } else {
+        "Rojo project without rproj.toml."
+    });
+    session.send(ENTER);
+    session.wait_for("Project actions");
+}
+
 #[test]
 fn template_cancel_and_catalog_share_one_terminal_session() {
     let project = TempProject::new("home-template");
@@ -52,14 +66,15 @@ fn template_cancel_and_catalog_share_one_terminal_session() {
     );
     session.wait_for("Tasks");
     session.send(common::DOWN);
+    session.send(common::DOWN);
     session.send(ENTER);
     session.wait_for("rproj project template");
     session.send(ESC);
-    session.wait_for("Returned Home.");
+    session.wait_for("Completed.");
     session.send(ENTER);
     session.wait_for("rproj project template");
     session.send("\x03");
-    session.wait_for("Returned Home.");
+    session.wait_for("Completed.");
     session.send(ESC);
     let result = session.finish();
     assert_eq!(result.code, 0);
@@ -104,7 +119,8 @@ fn foreground_watch_interrupt_and_failure_return_to_a_usable_home() {
     let path = tool_path(&project);
     let mut session = Session::start_with_env(project.path(), &[], &[("PATH", &path)]);
     session.wait_for("Tasks");
-    for _ in 0..5 {
+    open_project(&mut session, &project);
+    for _ in 0..2 {
         session.send(common::DOWN);
     }
     for _ in 0..2 {
@@ -112,20 +128,22 @@ fn foreground_watch_interrupt_and_failure_return_to_a_usable_home() {
         session.wait_for("fixture child running");
         session.send("\x03");
         session.wait_for("Stopped.");
-        session.wait_for("Press Enter to return Home.");
+        session.wait_for("Press Enter to return the project.");
         assert!(
             std::fs::File::open(project.path().join("active-child.lock")).is_ok(),
             "child must have exited"
         );
         session.send(ENTER);
-        session.wait_for("Tasks");
+        session.wait_for("Project actions");
     }
     std::fs::remove_file(project.path().join("hold-tool")).unwrap();
     project.write("fail-tool", "");
     session.send(ENTER);
     session.wait_for("Rojo watcher failed");
-    session.wait_for("Press Enter to return Home.");
+    session.wait_for("Press Enter to return the project.");
     session.send(ENTER);
+    session.wait_for("Project actions");
+    session.send("\x03");
     session.wait_for("Tasks");
     session.send(ESC);
     assert_eq!(session.finish().code, 0);
@@ -144,7 +162,8 @@ fn interrupted_tool_restore_never_starts_the_test_runner() {
     let path = tool_path(&project);
     let mut session = Session::start_with_env(project.path(), &[], &[("PATH", &path)]);
     session.wait_for("Tasks");
-    for _ in 0..6 {
+    open_project(&mut session, &project);
+    for _ in 0..3 {
         session.send(common::DOWN);
     }
     session.send(ENTER);
@@ -155,10 +174,12 @@ fn interrupted_tool_restore_never_starts_the_test_runner() {
     }
     session.send("\x03");
     session.wait_for("Cancelled.");
-    session.wait_for("Press Enter to return Home.");
+    session.wait_for("Press Enter to return the project.");
     assert_eq!(project.read("tools.log").trim(), "rokit");
     assert!(std::fs::File::open(project.path().join("active-child.lock")).is_ok());
     session.send(ENTER);
+    session.wait_for("Project actions");
+    session.send("\x03");
     session.wait_for("Tasks");
     session.send(ESC);
     assert_eq!(session.finish().code, 0);
@@ -179,7 +200,7 @@ fn the_hub_opens_the_catalog_and_returns() {
     let project = TempProject::new("hub-catalog");
     let mut session = Session::start(project.path(), &[]);
     session.wait_for("Tasks");
-    for _ in 0..8 {
+    for _ in 0..4 {
         session.send(common::DOWN);
     }
     session.send(ENTER);
@@ -193,13 +214,15 @@ fn the_hub_opens_the_catalog_and_returns() {
 #[test]
 fn a_disabled_action_explains_itself_without_launching() {
     let project = TempProject::new("hub-disabled");
+    project.write("default.project.json", "{}");
     let mut session = Session::start(project.path(), &[]);
     session.wait_for("Tasks");
-    for _ in 0..4 {
-        session.send(common::DOWN);
-    }
+    open_project(&mut session, &project);
+    session.send(common::DOWN);
     session.send(ENTER);
-    session.wait_for("Upgrade requires rproj.toml");
+    session.wait_for("requires a valid rproj.toml");
+    session.send("\x03");
+    session.wait_for("Tasks");
     session.send(ESC);
     assert_eq!(session.finish().code, 0);
 }
