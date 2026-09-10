@@ -1,6 +1,6 @@
 # rproj 0.15.0 - T3: Projects Browser
 
-This is an alpha release. Publication is performed by the repository owner.
+Published September 10, 2026 as an alpha release. The crates.io archive and annotated tag identify commit `b1c1664273bea2fce9bb0f4b954f554cc96f9dfb`.
 
 ## Changes
 
@@ -18,4 +18,4 @@ Machine Setup still uses existing prompts; its Ratatui migration is T5. Saved Se
 
 ## Verification
 
-See [release audit](release-audit.md) for local tests, live prerequisites, review, and CI evidence. The owner runs `cargo publish --locked` only after the release candidate is reviewed and merged. Tag and GitHub alpha release follow published-archive verification.
+330 ordinary tests and three applicable live creation checks passed. Nineteen prerequisite-dependent tests remain ignored in the ordinary suite. Formatting, clippy, locked packaging, local CodeRabbit review, and reviewed-head/main Windows stable and Rust 1.89 CI passed. See the [release audit](https://github.com/chatarabdelilah/rproj/blob/main/docs/release-audit.md) for evidence and remaining Open Cloud/fresh-machine limitations. Owner publication and archive/tag/release alignment are verified.

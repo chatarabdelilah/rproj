@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.14.0, public alpha**: persistent Home, template saves that stay open, and a grouped Catalog with offline examples. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0) agree on `f86a7bd`. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.15.0, public alpha**: the Projects browser adds explicit project selection to persistent Home, Template Explorer, and Catalog. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.15.0) agree on `b1c1664`. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -95,9 +95,9 @@ Release PR #15 is merged at `50f2e34`; its reviewed-head and main CI passed, the
 
 The completed 0.13.1 change fixes confirmed `configure` preservation failures: unlisted or unsupported existing values remain unless explicitly replaced, unchanged settings avoid writes, and TOML merges that fail parsing or alter unrelated values are refused. No new UI dependency or external-tool migration is involved. Focused prompt/merge regressions and ordinary CI cover this scope; Studio provisioning is unrelated and remains historical evidence.
 
-## T3: Projects Browser (0.15.0 candidate)
+## Shipped: T3 Projects Browser (0.15.0)
 
-Home now leads to Projects, New Project, Edit Project Template, Machine Setup, and Catalog. Projects is read-only shallow discovery plus explicit-path action dispatch; it is not a registry or filesystem manager. The redundant Catalog Place Template section is removed. Verification and release gates remain tracked in the audit until the owner publishes.
+Home now leads to Projects, New Project, Edit Project Template, Machine Setup, and Catalog. Projects is read-only shallow discovery plus explicit-path action dispatch; it is not a registry or filesystem manager. The redundant Catalog Place Template section is removed. PR #22 passed local review and reviewed-head/main CI, and owner publication was verified on September 10, 2026. Its merged feature branch was deleted. See the release audit for evidence. T4 Saved Setup manager is next; implementation requires its bounded plan.
 
 ## Next Milestones
 
@@ -132,5 +132,6 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Local diagnostic logging and hub-driven Ratatui project creation | v0.13.0 |
 | Interactive configuration preservation | v0.13.1 |
 | T2: persistent Home, template save continuity, grouped Catalog and examples | v0.14.0 |
+| T3: Projects browser, selected-path commands, creation handoff | v0.15.0 |
 
 **Active sequence: observe real workflows -> select one bounded improvement -> review, release, and align it.**
