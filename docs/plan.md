@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.15.0, public alpha**: the Projects browser adds explicit project selection to persistent Home, Template Explorer, and Catalog. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.15.0) agree on `b1c1664`. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.16.0, public alpha**: Saved Setups joins Projects, persistent Home, Template Explorer, and Catalog. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) agree on `d54a9a8`. Public availability does not mean every integration or configuration contract is ready for a stable release.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -97,15 +97,14 @@ The completed 0.13.1 change fixes confirmed `configure` preservation failures: u
 
 ## Shipped: T3 Projects Browser (0.15.0)
 
-Home now leads to Projects, New Project, Edit Project Template, Machine Setup, and Catalog. Projects is read-only shallow discovery plus explicit-path action dispatch; it is not a registry or filesystem manager. The redundant Catalog Place Template section is removed. PR #22 passed local review and reviewed-head/main CI, and owner publication was verified on September 10, 2026. Its merged feature branch was deleted. See the release audit for evidence. T4 Saved Setup manager is next; implementation requires its bounded plan.
+T3 introduced Projects, New Project, Edit Project Template, Machine Setup, and Catalog on Home. Projects is read-only shallow discovery plus explicit-path action dispatch; it is not a registry or filesystem manager. The redundant Catalog Place Template section was removed. PR #22 passed local review and reviewed-head/main CI, and owner publication was verified on September 10, 2026. Its merged feature branch was deleted. T4 subsequently added Saved Setups to Home; see the release audit for evidence.
 
 ## Next Milestones
 
-T4 is implemented for **0.16.0** in [PR #24](https://github.com/chatarabdelilah/rproj/pull/24). The bounded scope is management of existing setup documents, with preservation-aware guided editing and byte-preserving file operations. New setup creation remains part of New Project. Publication awaits successful release gates and the owner; do not treat this candidate as shipped. T5 is the next development milestone after release alignment.
+T4 shipped as **0.16.0 alpha** in [PR #24](https://github.com/chatarabdelilah/rproj/pull/24). The published archive, annotated tag, and GitHub prerelease identify `d54a9a8`. Existing saved setups now have their own Home manager; changes affect future reuse. New setup creation remains part of New Project. T5 is the next development milestone.
 
-1. **T4 - Saved Setup manager:** dedicated Home destination to inspect, edit, rename, duplicate, and delete saved compositions using existing graph/creation controls. Confirm deletion, preserve unsupported configuration, and affect future reuse only. Remove saved-setup presentation from Catalog when this ships.
-2. **T5 - Ratatui Machine Setup:** migrate Inquire selection to shared TUI controls while retaining installers, explicit confirmation, cancellation, and recovery.
-3. **Separate backlog:** package additions, background Watch, and a bounded code audit. No project deletion, arbitrary folder browser, persistent project registry, new dependency, or configuration schema is added in T3. Model import remains permanently dropped.
+1. **T5 - Ratatui Machine Setup:** migrate Inquire selection to shared TUI controls while retaining installers, explicit confirmation, cancellation, and recovery.
+2. **Separate backlog:** package additions, background Watch, and a bounded code audit. Model import remains permanently dropped.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
@@ -135,5 +134,6 @@ Legacy IDs explain earlier discussions; they no longer determine the sequence.
 | Interactive configuration preservation | v0.13.1 |
 | T2: persistent Home, template save continuity, grouped Catalog and examples | v0.14.0 |
 | T3: Projects browser, selected-path commands, creation handoff | v0.15.0 |
+| T4: Saved Setup manager, preservation-aware editing and file operations | v0.16.0 |
 
 **Active sequence: observe real workflows -> select one bounded improvement -> review, release, and align it.**
