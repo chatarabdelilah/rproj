@@ -58,6 +58,18 @@ impl Category {
         entries.sort_by_key(|e| e.key);
         entries
     }
+
+    pub fn shares_storage(self, other: Self) -> bool {
+        self == other
+            || matches!(
+                (self, other),
+                (Self::Plugins | Self::Blender, Self::Plugins | Self::Blender)
+                    | (
+                        Self::Extensions | Self::Themes,
+                        Self::Extensions | Self::Themes
+                    )
+            )
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -51,6 +51,7 @@ struct App {
     truncated: bool,
     statuses: Vec<Status>,
     started: Option<Instant>,
+    elapsed: Option<Duration>,
     running: bool,
     stopping: bool,
     outcome: Option<Outcome>,
@@ -74,6 +75,7 @@ impl App {
             truncated: false,
             statuses: vec![],
             started: None,
+            elapsed: None,
             running: false,
             stopping: false,
             outcome: None,
@@ -161,7 +163,12 @@ impl App {
         .split(area);
         let elapsed = self
             .started
-            .map(|time| format!("  {}s", time.elapsed().as_secs()))
+            .map(|time| {
+                format!(
+                    "  {}s",
+                    self.elapsed.unwrap_or_else(|| time.elapsed()).as_secs()
+                )
+            })
             .unwrap_or_default();
         frame.render_widget(
             Paragraph::new(format!(
@@ -273,6 +280,10 @@ impl App {
                 .unwrap_or_else(|| "No matching entries".into())
         } else {
             let mut text = "Selections describe what to prepare, not what is installed.\nDeselecting never uninstalls software.\nRokit is foundational and checked on Apply.\n\n".to_string();
+            text.push_str(&format!(
+                "Projects folder: {}\n\n",
+                self.selection.root.display()
+            ));
             if let Some(category) = Category::ALL.get(self.selected) {
                 text.push_str(category.label());
                 text.push('\n');
@@ -284,12 +295,27 @@ impl App {
                         None => {
                             text.push_str(&format!("\n{key} [unknown, preserved; not executed]"))
                         }
+                        Some(entry)
+                            if !Category::ALL.iter().any(|other| {
+                                other.shares_storage(*category) && other.contains(entry)
+                            }) =>
+                        {
+                            text.push_str(&format!(
+                                "\n{key} [unsupported in this category; preserved, not executed]"
+                            ))
+                        }
                         _ => {}
                     }
                 }
                 if !self.selection.active(*category) {
                     text.push_str("\n\nInactive until the parent application is selected. Choices remain remembered.");
                 }
+            } else if self.selected == 6 {
+                text.push_str("Planned operations:\n");
+                for item in worker::plan(&self.selection) {
+                    text.push_str(&format!("\n{}", item.label()));
+                }
+                text.push_str("\n\nKnown inactive and unsupported choices are preserved but not executed. Marketplace plugins and account linking may require manual steps.");
             }
             text
         };
@@ -417,6 +443,7 @@ fn run_with(
     let mut app = App::new(Selection::load(config)?);
     let mut worker: Option<Worker> = None;
     let mut pending_outcome = None;
+    let mut last_outcome = None;
     crate::diagnostics::event("setup.open", "review");
     loop {
         if let Some(active) = &worker {
@@ -434,7 +461,10 @@ fn run_with(
                         }
                     }
                     Event::Finished(index, status) => app.statuses[index] = status,
-                    Event::Done(outcome) => pending_outcome = Some(outcome),
+                    Event::Done(outcome) => {
+                        app.elapsed = app.started.map(|started| started.elapsed());
+                        pending_outcome = Some(outcome);
+                    }
                 }
             }
             if active.dropped.swap(0, Ordering::Relaxed) > 0 {
@@ -467,6 +497,7 @@ fn run_with(
                     app.message(&crate::diagnostics::path_message());
                 }
                 app.outcome = Some(outcome);
+                last_outcome = Some(outcome);
                 crate::diagnostics::event("setup.result", format!("{outcome:?}"));
                 worker.take();
             }
@@ -520,6 +551,7 @@ fn run_with(
                         app.scroll = 0;
                         app.follow_output = true;
                         app.started = Some(Instant::now());
+                        app.elapsed = None;
                         app.running = true;
                         app.stopping = false;
                         worker = Some(start(app.selection.clone()));
@@ -597,16 +629,7 @@ fn run_with(
                 }
                 KeyCode::Home => app.selected = 0,
                 KeyCode::End => app.selected = app.statuses.len().saturating_sub(1),
-                KeyCode::Enter => {
-                    return match outcome {
-                        Outcome::Completed | Outcome::Warnings => Ok(true),
-                        Outcome::Cancelled => Ok(false),
-                        Outcome::Failed => Err(anyhow::anyhow!(
-                            "Machine Setup failed; see {}",
-                            crate::diagnostics::path_message()
-                        )),
-                    };
-                }
+                KeyCode::Enter => return exit_result(Some(outcome)),
                 KeyCode::Esc => {
                     app.outcome = None;
                     app.selected = 0;
@@ -614,13 +637,13 @@ fn run_with(
                     app.error = None;
                     app.started = None;
                 }
-                _ if ctrl_c(key) => return Ok(false),
+                _ if ctrl_c(key) => return exit_result(last_outcome),
                 _ => {}
             }
             continue;
         }
         if ctrl_c(key) {
-            return Ok(false);
+            return exit_result(last_outcome);
         }
         if let Some(draft) = &mut app.draft {
             match key.code {
@@ -644,7 +667,7 @@ fn run_with(
             continue;
         }
         match key.code {
-            KeyCode::Esc => return Ok(false),
+            KeyCode::Esc => return exit_result(last_outcome),
             KeyCode::Up => app.selected = app.selected.saturating_sub(1),
             KeyCode::Down => app.selected = (app.selected + 1).min(7),
             KeyCode::Home => app.selected = 0,
@@ -652,10 +675,21 @@ fn run_with(
             KeyCode::Enter => match app.selected {
                 0..=5 => app.edit(Category::ALL[app.selected]),
                 6 => app.confirmation = Some(Confirmation::Apply),
-                _ => return Ok(false),
+                _ => return exit_result(last_outcome),
             },
             _ => {}
         }
+    }
+}
+
+fn exit_result(outcome: Option<Outcome>) -> Result<bool> {
+    match outcome {
+        Some(Outcome::Completed | Outcome::Warnings) => Ok(true),
+        Some(Outcome::Failed) => anyhow::bail!(
+            "Machine Setup failed; see {}",
+            crate::diagnostics::path_message()
+        ),
+        Some(Outcome::Cancelled) | None => Ok(false),
     }
 }
 
@@ -805,15 +839,28 @@ mod tests {
 
     #[test]
     fn pty_success_failure_and_save_failure_preserve_return_paths() {
-        for mode in ["success", "failure", "save-failure"] {
+        for mode in ["success", "success-back", "failure", "save-failure"] {
             let root = tempfile::tempdir().unwrap();
             let mut session = fixture_session(root.path(), mode);
             apply(&mut session);
             session.wait_for("Enter Done");
-            session.send(crate::test_common::ENTER);
-            session.wait_for("Setup returned:");
+            if mode == "success-back" {
+                session.send(crate::test_common::ESC);
+                session.wait_for("Enter edit/apply");
+                session.send(crate::test_common::ESC);
+            } else {
+                session.send(crate::test_common::ENTER);
+            }
+            session.wait_for(if mode.starts_with("success") {
+                "Setup returned: Ok(true)"
+            } else {
+                "Setup returned: Err("
+            });
             assert_eq!(session.finish().code, 0);
-            assert_eq!(root.path().join("saved.toml").exists(), mode == "success");
+            assert_eq!(
+                root.path().join("saved.toml").exists(),
+                mode.starts_with("success")
+            );
             assert!(!root.path().join("projects").exists());
             if mode == "failure" {
                 assert!(!root.path().join("Projects-folder").exists());

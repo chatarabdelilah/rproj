@@ -524,6 +524,7 @@ pub fn run() -> Result<()> {
                 let mut acknowledged = false;
                 let mut cancelled = false;
                 let project_action = matches!(outcome, HubOutcome::Project { .. });
+                let machine_setup = matches!(outcome, HubOutcome::SetupMachine);
                 let watch = matches!(
                     outcome,
                     HubOutcome::Project {
@@ -595,6 +596,10 @@ pub fn run() -> Result<()> {
                     terminal.resume()?;
                 }
                 app.status = action_status(&result, cancelled, watch).into();
+                if machine_setup && cancelled {
+                    app.status =
+                        "Machine setup cancelled. Completed installations, if any, remain.".into();
+                }
                 crate::diagnostics::event("hub.result", &app.status);
                 crate::interrupt::reset();
                 app.context = WorkspaceContext::load(app.context.cwd.clone());

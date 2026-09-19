@@ -314,6 +314,7 @@ mod tests {
     fn plan_ignores_unknown_and_inactive_entries() {
         let mut selection = selection();
         selection.tools.insert("future".into());
+        selection.tools.insert("studio".into());
         selection.extensions.insert("luau-lsp".into());
         selection.plugins.insert("blender-plugin".into());
         assert_eq!(plan(&selection), vec![Item::Rokit, Item::ProjectsFolder]);
@@ -328,6 +329,23 @@ mod tests {
                 break;
             }
         }
+    }
+
+    #[test]
+    fn panicked_worker_reports_failure_without_starting_another_item() {
+        let worker = Worker::spawn(selection(), |_, _, _| panic!("fixture worker panic"));
+        let mut started = 0;
+        loop {
+            match worker.receiver.as_ref().unwrap().recv().unwrap() {
+                Event::Started(_) => started += 1,
+                Event::Done(outcome) => {
+                    assert_eq!(outcome, Outcome::Failed);
+                    break;
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(started, 1);
     }
 
     #[test]

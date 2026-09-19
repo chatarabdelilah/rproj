@@ -432,6 +432,10 @@ rproj/
     │   ├── catalog_browser.rs   grouped full-screen Catalog navigation  [+ 4 tests]
     │   ├── setup.rs             `rproj setup [tool]` — machine provisioning, or one tool into this project  [+ 2 tests]
     │   ├── provision.rs         shared entry into the Machine Setup TUI
+    │   ├── machine_setup/
+    │   │   ├── mod.rs         review, progress, results, and command orchestration
+    │   │   ├── model.rs       read-only selections and category ownership
+    │   │   └── worker.rs      immutable item plan and sequential execution
     │   ├── new.rs               `rproj new <name>` — composition, artifact picker, project scaffold  [+ 12 tests]
     │   ├── configure.rs         `rproj configure [key]` — routes tool settings or the global project template
     │   ├── project_template.rs  TUI orchestration, validation, save/reset outcomes
@@ -442,6 +446,7 @@ rproj/
     │   └── info.rs              `rproj info [key]` — TUI/plain routing and flat listing  [+ 2 tests]
     └── steps/
         ├── mod.rs               run / run_in / probe / github_get_text — shared process + HTTP helpers
+        ├── execution.rs      setup reporter, bounded capture, concurrent pipe draining
         ├── bootstrap.rs         winget install/detect, rokit self-install, RobloxProjects folder creation  [+ 6 tests]
         ├── toolchain.rs         rokit init/add (project-local and --global), selene.toml/stylua.toml
         ├── rojo.rs              built-in/custom project rendering, template guards and validation, Rojo commands  [+ 6 tests]
@@ -642,37 +647,28 @@ figma/exports/ when that folder exists)"]
     Q --> R(["done"])
 ```
 
-### 6.3 Machine provisioning (`provision::run`)
+### 6.3 Machine provisioning
+
+`provision::run` routes first-use/reconfigured creation into the same Machine Setup interface as Home and standalone setup. The selection and worker contract is defined in section 2.2.
 
 ```mermaid
 flowchart TD
-    A["Pick System apps (MultiSelect)"] --> B["Pick Rokit tools (MultiSelect)"]
-    B --> C["Pick Plugins (MultiSelect)\nBlender add-on entry only shown\nif blender was picked in A"]
-    C --> D{vscode among\nselected system apps?}
-    D -- yes --> E["Pick VS Code extensions\n+ themes (MultiSelect)"]
-    D -- no --> F[empty list]
-    E --> G["bootstrap::ensure_rokit"]
-    F --> G
-    G --> H["Install each selected system app\n(skip if winget already reports it installed)"]
-    H --> I[ensure RobloxProjects folder exists]
-    I --> J["rokit add --global\nfor each selected rokit tool"]
-    J --> K{rojo-plugin\nselected?}
-    K -- yes --> L{Studio actually\ninstalled?}
-    L -- yes --> M[rojo plugin install]
-    L -- no --> N["skip — print reason\n(needs Studio)"]
-    K -- no --> O
-    M --> O["hoarcekat / luau-lsp-plugin —\ndownload from latest GitHub release"]
-    N --> O
-    O --> P{blender-plugin\nselected?}
-    P -- yes --> Q["download zip + headless\nBlender install"]
-    P -- no --> R
-    Q --> R{vscode\nselected?}
-    R -- yes --> S["install VS Code extensions/themes\n(each failure warned, not fatal)"]
-    R -- no --> T[Persist all selections to GlobalConfig]
-    S --> T
+    A[Review saved choices or first-use defaults] --> B[Edit searchable categories]
+    B --> A
+    A --> C{Confirm Apply - default No}
+    C -- no --> A
+    C -- yes --> D[Sequential worker and live TUI output]
+    D --> E[Rokit bootstrap, apps, projects folder]
+    E --> F[Global tools, plugins, Blender, VS Code]
+    F --> G{Outcome}
+    G -- completed or warnings --> H[Atomically save selection intent]
+    G -- cancelled or fatal --> I[Do not save configuration]
+    H --> J[Results - Done or Back to Review]
+    I --> J
+    J -- Back --> A
 ```
 
-Every install step in this flow that can fail per-item (system app install, rokit global add, each plugin, each VS Code extension) is implemented to warn and continue rather than propagate — a single flaky installer never aborts the rest of the run.
+Stop confirmation waits for the active item, skips later items, and suppresses configuration saving. Individual installer failures continue with warnings; bootstrap and projects-folder errors are fatal. Returning through Review after a completed attempt retains its completion result. Existing project commands and pins remain separate.
 
 ### 6.3b `rproj upgrade`
 
@@ -1211,7 +1207,9 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-393 tests are discovered by `cargo test`: 333 unit tests and 60 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 374 ordinary tests. T5 adds selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
+T5's `commands::machine_setup` selection/worker/TUI tests and `steps::execution` process-adapter tests use temporary storage and harmless fixture executables. They cover recorded-empty/unknown selections, no-op cancellation, explicit confirmation, success/failure/save failure, returning through Review after completion, cooperative cancellation awaiting the child, output saturation, worker panic, Unicode/ANSI/CRLF handling, and concurrent stdout/stderr. `tests/setup.rs` covers redirected refusal and standalone terminal restoration. Windows configuration tests verify complete replacement and preservation on sharing violations.
+
+394 tests are discovered by `cargo test`: 334 unit tests and 60 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 375 ordinary tests. T5 adds selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
 
 T3 covers shallow discovery, canonical deduplication, Unicode filtering, junction exclusion, malformed/missing-root warnings, stale-worker results, Back preservation, creation handoff, responsive renders, and removed-target rejection. A child test process launched in B exercises Watch subprocess and Upgrade writes in A; Copy uses an injected sink instead of the real clipboard. Existing PTY checks cover selected-project actions and repeated Watch interruption. Catalog presentation removal leaves generated template data unchanged.
 

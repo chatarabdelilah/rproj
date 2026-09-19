@@ -28,7 +28,7 @@ pub(crate) fn add_global_tool_with(
         );
         return Ok(());
     }
-    if combined.contains("not been marked trusted") {
+    if combined.contains("not been marked as trusted") {
         anyhow::bail!("Source is not trusted; run `rokit trust {source}` and retry");
     }
     if combined.contains("403 Forbidden") || combined.to_lowercase().contains("rate limit") {

@@ -98,6 +98,7 @@ impl Reporter {
 struct OutputText {
     pending: Vec<u8>,
     escape: u8,
+    carriage: bool,
 }
 
 impl OutputText {
@@ -155,9 +156,24 @@ impl OutputText {
                 4 => self.escape = if character == '\\' { 0 } else { 3 },
                 _ => match character {
                     '\u{1b}' => self.escape = 1,
-                    '\r' => clean.push('\n'),
-                    '\n' | '\t' => clean.push(character),
-                    c if !c.is_control() => clean.push(c),
+                    '\r' => {
+                        clean.push('\n');
+                        self.carriage = true;
+                    }
+                    '\n' => {
+                        if !self.carriage {
+                            clean.push('\n');
+                        }
+                        self.carriage = false;
+                    }
+                    '\t' => {
+                        clean.push(character);
+                        self.carriage = false;
+                    }
+                    c if !c.is_control() => {
+                        clean.push(c);
+                        self.carriage = false;
+                    }
                     _ => {}
                 },
             }
@@ -249,6 +265,8 @@ mod tests {
             .collect();
         assert_eq!(clean, "\u{4e2d} done");
         assert!(output.feed(&[], true).is_empty());
+        assert_eq!(output.feed(b"one\r", false), "one\n");
+        assert_eq!(output.feed(b"\ntwo\rthree\r\n", true), "two\nthree\n");
     }
 
     #[test]
