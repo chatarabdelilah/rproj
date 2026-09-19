@@ -10,7 +10,7 @@
 
 ## What rproj does
 
-Version 0.16 adds a Saved Setup manager: inspect, edit, rename, duplicate, or delete existing saved compositions. Changes affect future reuse, never existing projects. Direct commands and project formats are unchanged. rproj remains alpha software.
+Version 0.17 moves Machine Setup into Ratatui: review selections, explicitly apply them, and follow installation output without leaving Home. Existing projects and direct project commands are unchanged. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
@@ -19,7 +19,19 @@ rproj connects two layers that are usually assembled by hand:
 
 It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
 
-Run `rproj` with no arguments in a terminal to open Home: Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, and Catalog. Internal screens share one terminal session. Commands use normal terminal output and return to their caller after acknowledgement. Direct commands remain the interface for scripts.
+Run `rproj` with no arguments in a terminal to open Home: Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, and Catalog. Internal screens share one terminal session. Project commands use normal terminal output and return to their caller after acknowledgement. Machine Setup keeps its own progress and results inside Ratatui. Direct commands remain the interface for scripts.
+
+## Machine Setup
+
+Open **Machine Setup** from Home, or run `rproj setup` in a terminal. Start at the review screen and edit System Apps, CLI Tools, Studio Plugins, Blender Add-ons, or VS Code Extensions and Themes & Icons. Type to filter; Space toggles; Enter accepts the category; Esc abandons its edits. Recorded empty selections stay empty. Unrecognized saved entries remain visible and preserved, but are not installed.
+
+**Apply Setup** asks for explicit confirmation; Enter defaults to No, and Y confirms. The review displays the projects folder (read-only) and Rokit's foundational role. Selections describe intent, not verified installation state. Deselecting an application never uninstalls it. Blender and VS Code dependent choices remain remembered but inactive when their parent application is deselected.
+
+Installations run sequentially with per-item outcomes and scrollable output. Tab changes focus; arrows, Page Up/Down, Home and End navigate or scroll. End resumes following output. Native installer/UAC dialogs can still appear. Marketplace plugins and account linking require the displayed manual steps.
+
+Esc/Ctrl+C during installation asks to **stop after the current item**. rproj waits for that item; it does not force-kill installers or roll back completed work. Cancelled or fatal runs do not save machine selections. A completed attempt saves selections even when individual installations need repair, and clearly reports warnings instead of claiming everything is ready. Back returns to review for a confirmed rerun.
+
+Output is bounded: 500 lines of up to 2,048 characters, with truncation notices; parsing output is limited to 8 MiB per stream. Raw installer output is not copied into diagnostic logs. A stuck installer must finish or be resolved externally before rproj can safely return. Machine Setup does not accept redirected input; `rproj setup <tool>` retains its existing project-tool behavior.
 
 ## Saved Setups
 

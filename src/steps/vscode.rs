@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -8,11 +7,43 @@ use serde_json::{Value, json};
 
 use crate::config::PackageWorkflow;
 use crate::steps::probe;
-use crate::ui::{self, Tally};
+use crate::ui;
 
 enum CodeInvocation {
     OnPath,
     Cmd(PathBuf),
+}
+
+pub(crate) fn ensure_extension_with(id: &str, reporter: &super::execution::Reporter) -> Result<()> {
+    let capture = |args: &[&str]| {
+        let mut command = match locate_code()? {
+            CodeInvocation::OnPath => Command::new("code"),
+            CodeInvocation::Cmd(path) => {
+                let mut command = Command::new("cmd");
+                command.arg("/C").arg(path);
+                command
+            }
+        };
+        reporter.capture(command.args(args))
+    };
+    let listed = capture(&["--list-extensions"])?;
+    if listed.success
+        && listed
+            .stdout
+            .lines()
+            .any(|line| line.trim().eq_ignore_ascii_case(id))
+    {
+        reporter.message(
+            super::execution::MessageKind::Already,
+            "Extension already installed",
+        );
+        return Ok(());
+    }
+    let output = capture(&["--install-extension", id])?;
+    if !output.success {
+        bail!("VS Code extension {id} failed to install; see output");
+    }
+    Ok(())
 }
 
 /// Finds the VS Code CLI even when it's not on PATH yet. winget's default
@@ -40,88 +71,6 @@ fn locate_code() -> Result<CodeInvocation> {
             candidate.display()
         )
     }
-}
-
-/// `code.cmd` is a batch file - Windows can't execute it directly via
-/// CreateProcess (Rust's `Command::new` won't implicitly wrap it either),
-/// it has to be run through `cmd.exe /C`. Plain `code` on PATH doesn't need
-/// this since PATH resolution there already goes through the same
-/// batch-file association machinery.
-fn run_code(args: &[&str]) -> Result<std::process::Output> {
-    crate::interrupt::check()?;
-    crate::diagnostics::command("code", args);
-    let invocation = locate_code()?;
-    crate::interrupt::check()?;
-    let output = match invocation {
-        CodeInvocation::OnPath => Command::new("code")
-            .args(args)
-            .output()
-            .context("failed to spawn `code`"),
-        CodeInvocation::Cmd(path) => {
-            let mut cmd = Command::new("cmd");
-            cmd.arg("/C").arg(&path).args(args);
-            cmd.output()
-                .with_context(|| format!("failed to spawn `{}` via cmd.exe", path.display()))
-        }
-    }?;
-    crate::diagnostics::tool_exit("code", output.status);
-    crate::interrupt::check()?;
-    Ok(output)
-}
-
-fn installed_extensions() -> HashSet<String> {
-    run_code(&["--list-extensions"])
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .lines()
-                .map(|l| l.trim().to_lowercase())
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// Installs any extension in `extension_ids` that isn't already present.
-/// Fails fast if `code` can't be found at all (one clear message instead of
-/// repeating that same failure for every extension), but a single
-/// extension's install failing doesn't stop the rest from being attempted.
-pub fn ensure_extensions(extension_ids: &[&str]) -> Result<()> {
-    locate_code()?;
-
-    let installed = installed_extensions();
-    let mut tally = Tally::new();
-    for id in extension_ids {
-        crate::interrupt::check()?;
-        if installed.contains(&id.to_lowercase()) {
-            tally.already(id);
-            continue;
-        }
-        match install_extension(id) {
-            Ok(()) => tally.did(id),
-            Err(err) if crate::interrupt::is_cancelled(&err) => return Err(err),
-            Err(err) => ui::warn(&format!("VS Code extension {id} skipped - {err}")),
-        }
-    }
-    crate::interrupt::check()?;
-    tally.finish("VS Code extensions");
-    Ok(())
-}
-
-fn install_extension(id: &str) -> Result<()> {
-    let output = run_code(&["--install-extension", id])
-        .with_context(|| format!("failed to spawn install for {id}"))?;
-    if !output.stdout.is_empty() {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-    }
-    if !output.status.success() {
-        ui::passthrough(
-            &String::from_utf8_lossy(&output.stdout),
-            &String::from_utf8_lossy(&output.stderr),
-        );
-        bail!("exited with {}", output.status);
-    }
-    Ok(())
 }
 
 /// The project's `.vscode/settings.json`, or an empty object when there

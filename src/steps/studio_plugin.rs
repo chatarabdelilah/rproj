@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
+use crate::steps::execution::{MessageKind, Reporter};
 use crate::steps::github_get_text;
 use crate::ui;
 
@@ -13,17 +14,6 @@ pub fn studio_plugins_dir() -> Result<PathBuf> {
     Ok(PathBuf::from(local_app_data).join("Roblox").join("Plugins"))
 }
 
-/// Downloads the latest release asset from `owner/repo` whose filename ends
-/// with `asset_suffix` (e.g. ".rbxmx") and copies it into the Studio plugins
-/// folder. Skips the download if a file with that name is already there.
-pub fn install_from_latest_release(
-    plugin: &str,
-    github_repo: &str,
-    asset_suffix: &str,
-) -> Result<()> {
-    install_release_asset(plugin, github_repo, asset_suffix, false)
-}
-
 /// Refreshes a protocol-coupled plugin while preserving the previous file
 /// if the download or final replacement fails.
 pub fn refresh_from_latest_release(
@@ -31,14 +21,15 @@ pub fn refresh_from_latest_release(
     github_repo: &str,
     asset_suffix: &str,
 ) -> Result<()> {
-    install_release_asset(plugin, github_repo, asset_suffix, true)
+    install_release_asset(plugin, github_repo, asset_suffix, true, None)
 }
 
-fn install_release_asset(
+pub(crate) fn install_release_asset(
     plugin: &str,
     github_repo: &str,
     asset_suffix: &str,
     replace: bool,
+    reporter: Option<&Reporter>,
 ) -> Result<()> {
     let api_url = format!("https://api.github.com/repos/{github_repo}/releases/latest");
     let body = github_get_text(&api_url)?;
@@ -68,7 +59,11 @@ fn install_release_asset(
     fs::create_dir_all(&plugins_dir)?;
     let dest = plugins_dir.join(name);
     if dest.exists() && !replace {
-        ui::ok(&format!("{name} already in Studio plugins"));
+        report(
+            reporter,
+            MessageKind::Already,
+            &format!("{name} already in Studio plugins"),
+        );
         return Ok(());
     }
 
@@ -106,11 +101,23 @@ fn install_release_asset(
             return Err(replace_error).with_context(|| format!("failed to replace {plugin}"));
         }
         let _ = fs::remove_file(backup);
-        ui::ok(&format!("updated {name}"));
+        report(reporter, MessageKind::Installed, &format!("updated {name}"));
     } else {
         fs::rename(&pending, &dest)
             .with_context(|| format!("failed to install {}", dest.display()))?;
-        ui::ok(&format!("installed {name}"));
+        report(
+            reporter,
+            MessageKind::Installed,
+            &format!("installed {name}"),
+        );
     }
     Ok(())
+}
+
+fn report(reporter: Option<&Reporter>, kind: MessageKind, text: &str) {
+    if let Some(reporter) = reporter {
+        reporter.message(kind, text);
+    } else {
+        ui::ok(text);
+    }
 }

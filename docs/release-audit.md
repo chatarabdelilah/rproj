@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## T5: 0.17.0 Candidate
+
+Implementation is on `codex/t5-machine-setup`; not yet published or tagged.
+
+- Local locked ordinary suite: **374 passed, 19 ignored**, 393 discovered (333 unit and 60 integration tests). Fixture PTY coverage exercises review/category cancellation, default-No confirmation, success, fatal failure, save failure, and stop-after-active-child without configuration saving or a subsequent item. Home cancellation remains in one terminal session.
+- Real fixture subprocesses exercise concurrent stdout/stderr draining, Unicode/control-sequence handling, failed spawning, nonzero exits, and cooperative stopping. All roots/configuration writes are injected temporary fixtures; no applications are installed. Global-config replacement is staged, synced, and tested for preserving the old file when Windows denies replacement.
+- Formatting and clippy passed. Locked packaging, CodeRabbit, reviewed-head CI, and merged-main CI are still pending; this is not publication authorization.
+- Missing live acceptance: fresh Windows provisioning, winget/vendor/UAC dialogs, real VS Code/Blender installation, and manual plugin/account linking were not exercised. Existing installers and project paths remain, but fixture parity does not establish fresh-machine installation success. No unrelated ignored live integrations were rerun.
+- Limits: stop waits for the active item; no rollback or force-kill. A stalled installer may require external intervention. Display/output parsing are bounded with explicit truncation/failure behavior. Completed attempts record selection intent even when individual installations need repair; warnings are not proof of readiness.
+
 ## T4: 0.16.0 Published
 
 Owner publication is verified. Crates.io reports non-yanked `0.16.0`; its archive SHA256 is `8031eb010130589d0b9ab74233845aabc53557e9d799f54d372ad04ee0373c3d`, matching the registry checksum. `.cargo_vcs_info.json` identifies clean commit `d54a9a874d8f23f5a57ebd573b6f1cd806506000`. The annotated `v0.16.0` tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) use that commit. [Main CI](https://github.com/chatarabdelilah/rproj/actions/runs/35426957745) passed, and the fully merged implementation branch was deleted locally and remotely.

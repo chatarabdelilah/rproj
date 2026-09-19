@@ -49,25 +49,19 @@ This version is Windows-only (installs go through `winget`).
 | `--verbose` / `-v` | Global flag on every command. Prints each sub-process command and all of its output. Without it, sub-process output is shown only when a step fails (§2.4). |
 | `--version` / `-V` | clap's own, from `Cargo.toml`. Capital `V`, because lowercase `-v` is `--verbose` above. |
 
-### 2.2 Machine provisioning (`rproj setup`, and `rproj new` on a fresh machine)
+### 2.2 Machine provisioning
 
-Machine setup is a once-per-PC concern, kept out of the per-project path. `rproj new` runs it inline only when `GlobalConfig` records no previous run (`last_checked` unset) or when `--reconfigure` is passed; otherwise it prints a summary line and skips straight to project questions. Re-asking four multi-selects about winget packages on every new project was friction with no payoff — the answers almost never differ.
+T5 (0.17.0 candidate) separates the read-only selection model, immutable item plan, sequential worker, and Ratatui orchestration. Home lends its terminal; standalone machine setup owns one. First-use and explicitly reconfigured direct creation use the same setup interface, then continue their existing project flow only after a completed setup attempt. Named project-tool setup remains separate.
 
-Provisioning always asks, in this order:
+Selection loading consults only saved configuration and catalogs. Catalog defaults apply before recorded setup; recorded empty and unknown choices survive. Blender/VS Code parent selections gate execution without deleting dependent choices. Review never probes tools, creates the projects root, or installs anything. Apply requires a default-No confirmation. Deselecting is not uninstalling.
 
-1. **System apps** — multi-select (Git, VS Code, Roblox Studio, Roblox client, Blender, Figma).
-2. **Rokit-managed CLI tools** — multi-select (Rojo, Wally, wally-package-types, Selene, StyLua, Lute, jest-roblox, luau-lsp CLI, Asphalt, Tungsten). Note the rokit key is `luau-lsp-cli`: it is the *command-line* type checker the quality gate runs, distinct from the `luau-lsp` VS Code extension and the `luau-lsp-plugin` Studio plugin — same upstream project, three separate install mechanisms and three separate catalog keys. `luau-lsp` alone resolves to the extension, so a plausible-looking guess picks the wrong entry.
-3. **Plugins** — multi-select, contextually filtered: every entry is shown *except* the Blender add-on, which only appears if "blender" was picked in step 1 during the same run.
-4. **VS Code extensions & themes** — multi-select, only asked at all if "vscode" was picked in step 1.
+One worker executes the established Rokit bootstrap, application checks/installers, projects-folder creation, global tools, plugins, Blender add-on, and editor extensions in order. It emits typed events through a bounded 128-event channel. Output events may be dropped under pressure with an explicit notice; item states and final outcomes are retained. The renderer alone owns terminal input/output. Explicit reporters connect setup-specific helper entrypoints; project callers retain their existing output paths and tool pins.
 
-Rules that hold regardless of which command triggered provisioning:
+The process adapter supplies null stdin, drains stdout/stderr concurrently, preserves parsing bytes up to 8 MiB per stream, and strips terminal controls from streamed display text with Unicode-safe incremental decoding. Excess parsing output fails the item after draining, rather than claiming a potentially misread success. Display retains 500 lines of up to 2,048 characters. Diagnostic logs record transitions, item indices, process identity/exit, and outcomes, not raw installer output.
 
-- Every picker defaults to the caller's *previous* selection (read from `GlobalConfig`) if one exists; otherwise it defaults to each catalog entry's own `default_selected` flag.
-- Nothing already installed/present is ever reinstalled — every install path checks first (via `winget list`, a rokit-add idempotency check, `code --list-extensions`, a destination-file/folder existence check, or a Blender-internal module-name check, depending on the item).
-- A single item failing to install is reported as a warning to the user and does **not** stop the rest of provisioning, nor the project scaffold that follows it (in `rproj new`).
-- Rokit tools are registered in rokit's *global* manifest (not just a project's) before anything tries to invoke one of them outside a project directory — this is required for `rojo plugin install` to work during provisioning, since no project (and thus no project-local `rokit.toml`) necessarily exists yet.
-- The Rojo Studio-plugin install is skipped (with an explanatory message, not attempted at all) if Roblox Studio isn't detected as installed.
-- Provisioning always ends by persisting every resulting selection back into `GlobalConfig`.
+Cancellation is cooperative at item boundaries. Confirmed stop waits for the active item, skips later work, and prevents configuration persistence. The worker guard disconnects the event receiver before joining during terminal errors/unwinding, avoiding a full-channel deadlock. No overlapping worker or automatic retry is allowed. A pending stop confirmation is resolved before completion can save configuration. Completed installations are never rolled back.
+
+Individual installer failures remain recoverable warnings; foundational Rokit and projects-folder failures are fatal. Completed attempts persist selection intent and last_checked, including when some items need repair; cancellation/fatal failure does not. Configuration-save errors retain the draft and are reported separately. The global configuration schema is unchanged; saves now stage and sync a complete document before atomic replacement so a failed replacement preserves the prior configuration. Results distinguish completion, warnings/manual steps, cancellation, and fatal failure.
 
 ### 2.3 Project scaffolding (`rproj new`, after provisioning)
 
@@ -437,7 +431,7 @@ rproj/
 │   ├── hub.rs               workspace context, task hub and HubOutcome  [+ 6 tests]
     │   ├── catalog_browser.rs   grouped full-screen Catalog navigation  [+ 4 tests]
     │   ├── setup.rs             `rproj setup [tool]` — machine provisioning, or one tool into this project  [+ 2 tests]
-    │   ├── provision.rs         shared picker+installer for system apps/rokit tools/plugins/vscode ext
+    │   ├── provision.rs         shared entry into the Machine Setup TUI
     │   ├── new.rs               `rproj new <name>` — composition, artifact picker, project scaffold  [+ 12 tests]
     │   ├── configure.rs         `rproj configure [key]` — routes tool settings or the global project template
     │   ├── project_template.rs  TUI orchestration, validation, save/reset outcomes
@@ -549,7 +543,7 @@ graph TD
     Toolchain -. "HTTPS via rokit's own client" .-> GitHub
 ```
 
-`catalog::*` is pure, static, read-only data with no side effects. `steps::*` is where every side-effecting operation (process spawns, filesystem writes, HTTP calls) lives. `commands::*` is orchestration only — it reads the catalog, drives `inquire` prompts, and calls into `steps::*` in a specific order; it does not itself spawn processes or make HTTP calls (`provision.rs` and `new.rs` are the two files that do the most orchestration, and are correspondingly the largest).
+`catalog::*` supplies static choice data. `commands::machine_setup` owns review state, an immutable selection snapshot, sequential execution orchestration, and terminal rendering; setup helpers in `steps::*` perform detection/install operations through explicit reporters. Other command paths retain their established Inquire/Ratatui adapters and external tool boundaries. No process-wide stdout redirection or generic application framework is introduced.
 
 ## 6. Flow Diagrams
 
@@ -1217,7 +1211,7 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-370 tests are discovered by `cargo test`: 312 unit tests and 58 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 351 ordinary tests. T4 adds preservation and persistence tests, guided-editing parity, responsive render checks, and manager/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
+393 tests are discovered by `cargo test`: 333 unit tests and 60 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 374 ordinary tests. T5 adds selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
 
 T3 covers shallow discovery, canonical deduplication, Unicode filtering, junction exclusion, malformed/missing-root warnings, stale-worker results, Back preservation, creation handoff, responsive renders, and removed-target rejection. A child test process launched in B exercises Watch subprocess and Upgrade writes in A; Copy uses an injected sink instead of the real clipboard. Existing PTY checks cover selected-project actions and repeated Watch interruption. Catalog presentation removal leaves generated template data unchanged.
 
@@ -1249,7 +1243,7 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | `src/ui.rs` | Option matching uses the full `key -` prefix, including its trailing space; marker icons are single scalars without variation selectors; and truncation preserves the key and maintenance badge within terminal width. Tallies wrap while retaining every item, and multi-select summaries list keys instead of repeating descriptions. |
 | `tests/live.rs` (14 ignored tests) | Real project scaffolding, prompt revisions, destination safety, Wally/submodule recovery, quality-gate failures, and Jest execution. Saved-setup replay covers Wally and Git submodules: exact composition, no repeated choices, generated files/tool pins, unchanged source setup, and cleanup. Saved-setup refusal covers missing/malformed records and Jest without Wally, before explicit reconfiguration or creation, while preserving machine config and fixtures. The Jest regression verifies project-local pins, all three generated starter specs passing, then one deliberately broken spec returning exit code 1 with matching terminal and JSON failure reports. It preserves the modified spec and removes its unique temporary project. See the release audit for commands, shared-machine effects, and dated execution evidence. |
 | `tests/upgrade.rs` (10 tests) | `rproj upgrade` against hand-built fixture projects without network. Existing merge, idempotence, ownership, and refusal cases remain covered; Jest additionally regenerates its test project and CI, restores owned config fields, preserves user options, and leaves production `default.project.json` untouched. |
-| `tests/hub.rs` (8 tests) | Bare `rproj` opens and exits without terminal damage; Catalog opens inside the hub and returns; unavailable project actions explain the missing prerequisite without dispatching; redirected execution remains plain text without escape sequences. |
+| `tests/hub.rs` (9 tests) | Bare `rproj` opens and exits without terminal damage; Catalog opens inside the hub and returns; unavailable project actions explain the missing prerequisite without dispatching; redirected execution remains plain text without escape sequences. |
 | `tests/info.rs` (3 tests) | `rproj info` end to end. The Catalog is driven through a pty: filter to a section, filter to an entry, land on its detail page, read the explanation, then Esc through every level and confirm exit 0. Redirected output remains flat and a named lookup prints one entry rather than the Catalog. |
 | `src/commands/configure.rs` (2 tests), `tests/configure.rs` (14 tests) | Typed prompt support, presence of unsupported TOML values, and rejection of semantically destructive multiline merges. Real binary/prompt/file checks cover redirected template refusal, no-op configuration (including handwritten CRLF/quoted TOML), custom/structured value preservation, explicit replacement, single-setting changes, early and late parse failure, unsafe-layout refusal, unknown-key guidance, picker discoverability, JSON merging, and remembered defaults. |
 | `src/commands/new.rs` (12 tests) | Workflow-compatible package and runner presentation, graph-derived files/tools, machine setup boundaries, summary parity, and exclusive destination creation after confirmation. The minimal-project property remains: choosing nothing yields exactly `src`, `default.project.json`, and the two housekeeping entries. |
@@ -1280,8 +1274,8 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 | Crate | Used for | Why (where inferable) |
 |---|---|---|
 | `clap` (derive) | CLI argument/subcommand parsing (`cli.rs`) | Standard, derive-based, minimal boilerplate for a small fixed command set. |
-| `inquire` | Interactive setup, package and settings prompts | Provides arrow-key prompts, filtering, and custom answer formatters for the existing short question flows. |
-| `ratatui` | Workspace hub, Catalog, and project-template Explorer | Supplies deterministic retained-mode rendering and a test backend. rproj shares terminal/layout/widget primitives but keeps each application's state machine explicit. |
+| `inquire` | Direct project-composition and settings prompts | Provides arrow-key prompts, filtering, and custom answer formatters for the existing short question flows. |
+| `ratatui` | Home, project/setup browsers, creation, Machine Setup, Catalog, and Template Explorer | Supplies deterministic retained-mode rendering and a test backend. rproj shares terminal/layout/widget primitives but keeps each application's state machine explicit. |
 | `rbx_reflection`, `rbx_reflection_database`, `rbx_types` | Roblox class, service, property, enum and value metadata | The bundled database makes searchable guided controls deterministic and avoids network or machine-local metadata overrides; Rojo validation remains authoritative. |
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
 | `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |

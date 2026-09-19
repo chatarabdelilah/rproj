@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
+use crate::steps::execution::{MessageKind, Reporter};
 use crate::steps::{github_get_text, probe};
 use crate::ui;
 
@@ -46,16 +47,7 @@ pub fn download_latest_plugin_zip(github_repo: &str) -> Result<PathBuf> {
     Ok(dest)
 }
 
-/// Installs the addon zip into Blender and enables it, run headlessly.
-/// Idempotent: the expected module name is read directly out of the zip's
-/// own top-level entry (via Python's stdlib `zipfile`, no extraction needed)
-/// rather than inferred by diffing Blender's addons folder before/after -
-/// that diffing approach only ever detects a change the first time the
-/// addon doesn't already exist on disk, so it silently stops finding
-/// anything the moment the addon has been installed once (including from
-/// before this idempotency check existed), which is exactly what caused
-/// `rproj setup` to look like it was reinstalling on every run.
-pub fn install_addon(zip_path: &Path) -> Result<()> {
+pub(crate) fn install_addon_with(zip_path: &Path, reporter: Option<&Reporter>) -> Result<()> {
     let zip_path_str = zip_path.to_string_lossy().replace('\\', "/");
     let script = format!(
         r#"
@@ -89,26 +81,29 @@ else:
     bpy.ops.wm.save_userpref()
 "#
     );
-    let stdout = run_headless_script(&script)?;
+    let stdout = run_headless_script_with(&script, reporter)?;
 
     if let Some(module) = stdout
         .lines()
         .find_map(|l| l.strip_prefix("RPROJ_ALREADY_INSTALLED:"))
     {
-        ui::ok(&format!("Blender add-on already installed ({module})"));
+        let text = format!("Blender add-on already installed ({module})");
+        if let Some(reporter) = reporter {
+            reporter.message(MessageKind::Already, &text);
+        } else {
+            ui::ok(&text);
+        }
     }
     Ok(())
 }
 
-/// Two setup steps need a UI and a browser sign-in, so they can't be
-/// scripted. Shown as indented detail under a warning rather than a
-/// top-level wall of text: it's guidance, not an outcome, and it reappears
-/// on every single run.
-pub fn print_account_link_instructions() {
-    ui::warn(
+pub(crate) fn account_link_instructions(reporter: &Reporter) {
+    reporter.message(
+        MessageKind::Manual,
         "Blender add-on needs two one-time manual steps (they need a UI, so can't be scripted)",
     );
-    ui::detail(
+    reporter.message(
+        MessageKind::Detail,
         "1. Blender > Edit > Preferences > Add-ons > find \"Roblox\", expand it\n\
          2. In a 3D viewport press N > \"Roblox\" tab > Install Dependencies, then restart\n\
          3. Follow the sign-in prompt to connect your account via Open Cloud\n\
@@ -150,12 +145,29 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
 /// printed above it. This guarantees whatever Blender wrote is visible.
 /// Returns the captured stdout so callers can parse `RPROJ_*:` markers.
 fn run_headless_script(script: &str) -> Result<String> {
+    run_headless_script_with(script, None)
+}
+
+fn run_headless_script_with(script: &str, reporter: Option<&Reporter>) -> Result<String> {
     crate::interrupt::check()?;
     let script_dir = tempfile::tempdir().context("failed to create Blender script directory")?;
     let script_path = script_dir.path().join("script.py");
     fs::write(&script_path, script)?;
 
     let blender_exe = locate_blender_exe()?;
+    if let Some(reporter) = reporter {
+        let output = reporter.capture(std::process::Command::new(&blender_exe).args([
+            "--background",
+            "--python",
+            &script_path.to_string_lossy(),
+        ]))?;
+        if !output.success {
+            bail!(
+                "Blender add-on installation failed; see output. Check the ZIP and Blender version (3.2+ required)."
+            );
+        }
+        return Ok(output.stdout);
+    }
     crate::interrupt::check()?;
     ui::command(
         &blender_exe.to_string_lossy(),

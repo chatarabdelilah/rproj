@@ -532,6 +532,16 @@ pub fn run() -> Result<()> {
                     }
                 );
                 let result = match outcome {
+                    HubOutcome::SetupMachine => {
+                        acknowledged = true;
+                        match super::machine_setup::open_in(&mut terminal) {
+                            Ok(completed) => {
+                                cancelled = !completed;
+                                Ok(())
+                            }
+                            Err(error) => Err(error),
+                        }
+                    }
                     HubOutcome::EditProjectTemplate => {
                         super::project_template::run_in(&mut terminal)
                     }

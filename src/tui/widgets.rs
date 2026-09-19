@@ -228,20 +228,41 @@ pub fn render_picker<T>(frame: &mut Frame<'_>, area: Rect, title: &str, state: &
 }
 
 pub fn render_confirm(frame: &mut Frame<'_>, area: Rect, state: &ConfirmState) {
-    let popup = centered(area, 72.min(area.width.saturating_sub(4)), 9);
+    render_confirmation(frame, area, state, "Enter/Y confirm   Esc/N cancel", 9);
+}
+
+pub fn render_confirm_default_no(frame: &mut Frame<'_>, area: Rect, state: &ConfirmState) {
+    render_confirmation(
+        frame,
+        area,
+        state,
+        "[No] Enter/Esc/N cancel   Y confirm",
+        16,
+    );
+}
+
+fn render_confirmation(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    state: &ConfirmState,
+    keys: &str,
+    height: u16,
+) {
+    let popup = centered(
+        area,
+        72.min(area.width.saturating_sub(4)),
+        height.min(area.height),
+    );
     frame.render_widget(Clear, popup);
     frame.render_widget(
-        Paragraph::new(format!(
-            "{}\n\nEnter/Y confirm   Esc/N cancel",
-            state.prompt
-        ))
-        .wrap(Wrap { trim: true })
-        .block(
-            Block::default()
-                .title(" Confirm ")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(WARNING)),
-        ),
+        Paragraph::new(format!("{keys}\n\n{}", state.prompt))
+            .wrap(Wrap { trim: true })
+            .block(
+                Block::default()
+                    .title(" Confirm ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(WARNING)),
+            ),
         popup,
     );
 }

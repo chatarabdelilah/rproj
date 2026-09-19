@@ -4,6 +4,6 @@ use notify_rust::Notification;
 /// a missing/broken notification backend shouldn't fail the whole command.
 pub fn summary(title: &str, body: &str) {
     if let Err(err) = Notification::new().summary(title).body(body).show() {
-        eprintln!("(notification failed: {err})");
+        crate::diagnostics::event("notification.failure", err.to_string());
     }
 }
