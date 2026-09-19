@@ -20,6 +20,10 @@ mod steps;
 mod tui;
 mod ui;
 
+#[cfg(test)]
+#[path = "../tests/common/mod.rs"]
+mod test_common;
+
 use std::io::IsTerminal;
 use std::process::ExitCode;
 

@@ -8,6 +8,7 @@ pub mod new;
 pub mod project_template;
 pub mod projects;
 pub mod provision;
+pub mod saved_setups;
 pub mod setup;
 pub mod test;
 pub mod upgrade;

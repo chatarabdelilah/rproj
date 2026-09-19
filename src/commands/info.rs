@@ -23,7 +23,6 @@ use crate::catalog::tool_settings;
 use crate::catalog::tool_usage;
 use crate::catalog::wally_packages;
 use crate::catalog_view;
-use crate::config::Setups;
 use anyhow::Result;
 
 pub fn run(key: Option<&str>) -> Result<()> {
@@ -115,12 +114,6 @@ fn list_all() -> Result<()> {
         println!("    {:<18} {}", tool.key, tool.display_name);
     }
 
-    let setups = Setups::list();
-    if !setups.is_empty() {
-        println!("\nSAVED SETUPS (rproj new <name> --like <setup>)");
-        print_saved_setups();
-    }
-
     println!("\nTOPICS");
     for topic in tool_usage::TOPICS {
         println!("    {:<18} {}", topic.key, first_sentence(topic.what));
@@ -128,12 +121,6 @@ fn list_all() -> Result<()> {
 
     println!("\nRun `rproj info <key>` for what it does, the commands to use it, and the gotchas.");
     Ok(())
-}
-
-fn print_saved_setups() {
-    for setup in Setups::list() {
-        println!("    {setup}");
-    }
 }
 
 /// Keeps the listing to one line per entry - the full text is what

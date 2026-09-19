@@ -7,6 +7,8 @@ use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub(crate) mod setups;
+
 /// Everything provisioning decided, machine-wide. `rproj new` reads this
 /// and re-asks only on a machine with nothing recorded, or with
 /// `--reconfigure`.
@@ -200,22 +202,17 @@ fn save_new_setup_at(setup: &SavedSetup, path: &Path) -> Result<()> {
 pub struct Setups;
 
 impl Setups {
-    fn dir() -> Result<PathBuf> {
+    pub(crate) fn dir() -> Result<PathBuf> {
         Ok(GlobalConfig::dirs()?.config_dir().join("setups"))
     }
 
     fn path_for(name: &str) -> Result<PathBuf> {
-        Ok(Self::dir()?.join(format!("{name}.toml")))
+        setups::setup_path(&Self::dir()?, name)
     }
 
     pub fn save(setup: &SavedSetup, name: &str) -> Result<PathBuf> {
         let path = Self::path_for(name)?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("failed to create {}", parent.display()))?;
-        }
-        fs::write(&path, toml::to_string_pretty(setup)?)
-            .with_context(|| format!("failed to write {}", path.display()))?;
+        setups::replace(&path, toml::to_string_pretty(setup)?.as_bytes())?;
         Ok(path)
     }
 

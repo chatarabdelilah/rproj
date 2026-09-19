@@ -160,6 +160,58 @@ fn saved_setups_preserve_concrete_choices_and_dropped_files() {
 }
 
 #[test]
+fn manager_open_cancel_and_review_preserve_recorded_choices() {
+    let graph = ProjectGraph {
+        mode: "like:original".into(),
+        packages: vec!["signal".into()],
+        dropped: vec!["future-file".into(), ".gitignore".into()],
+        ..Default::default()
+    };
+    let mut draft = Draft::edit_setup("saved", graph.clone());
+    assert_eq!(draft.step, Step::Review);
+    assert_eq!(graph_value(&draft), serde_json::to_value(&graph).unwrap());
+    assert!(
+        !draft
+            .picker
+            .items
+            .iter()
+            .any(|item| ["create", "name", "setup"].contains(&item.value.as_str()))
+    );
+    select(&mut draft, "strategy");
+    select(&mut draft, "none");
+    assert_eq!(draft.graph.mode, graph.mode);
+    assert_eq!(draft.graph.dropped, graph.dropped);
+    select(&mut draft, "packages");
+    key(&mut draft, KeyCode::Esc);
+    assert_eq!(draft.graph.mode, graph.mode);
+}
+
+#[test]
+fn manager_jest_repair_and_optional_files_keep_unknown_exclusions() {
+    let mut graph = ProjectGraph {
+        mode: "expert".into(),
+        dropped: vec!["future-file".into()],
+        ..Default::default()
+    };
+    graph.choose("test", Some("jest-roblox"));
+    let mut draft = Draft::edit_setup("saved", graph);
+    select(&mut draft, "strategy");
+    select(&mut draft, "none");
+    assert_eq!(draft.step, Step::RepairTesting);
+    select(&mut draft, "testez");
+    assert_eq!(draft.step, Step::Review);
+    assert_eq!(draft.graph.capabilities["test"], "testez");
+    select(&mut draft, "files");
+    key(&mut draft, KeyCode::Enter);
+    assert!(draft.graph.dropped.contains(&"future-file".into()));
+    assert_eq!(draft.graph.mode, "expert");
+    assert_eq!(
+        draft.key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL)),
+        Effect::Save
+    );
+}
+
+#[test]
 fn backing_out_of_an_unanswered_runner_cannot_skip_capability_review() {
     let mut draft = draft();
     select(&mut draft, "expert");

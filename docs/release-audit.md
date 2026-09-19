@@ -1,5 +1,17 @@
 # Release-Hardening Audit
 
+## T4: 0.16.0 Candidate (September 19, 2026)
+
+Branch: `codex/t4-saved-setups`. Existing setup management is implemented; publication, tag, and GitHub release remain pending.
+
+- Local ordinary locked suite: 351 passed, 19 ignored (370 discovered: 312 unit and 58 integration tests). A stale Catalog navigation index was corrected after inserting the new Home destination.
+- Storage checks cover byte preservation, unknown fields, unsupported choices, invalid Jest repair, conflicts, collisions, name restrictions, Windows junction rejection, locked replacement failure, duplication, deletion, and rename partial failure. Fixtures use temporary storage.
+- Manager checks cover saved baselines, default-No discard/deletion, failed saves retaining drafts, browser Back state, four terminal sizes, and repeated-save PTY restoration. Home PTY coverage verifies the manager borrows the same terminal. Creation controls retain provenance and unknown exclusions in setup mode.
+- Formatting and clippy passed. The saved-setup replay integration passed for Wally and Git submodules (one serial test, 22.45 seconds), including direct replacement semantics and source-byte preservation during replay. Unrelated live integrations are not rerun for this milestone.
+- Locked packaging passed at runtime commit `f85e14d`: 89 files, 1.1 MiB uncompressed, 284.6 KiB compressed; archive compilation passed. CodeRabbit CLI 0.7.6 completed the committed branch's base-main review with zero reported findings. A preliminary working-tree review also reported none; the committed review was necessary to include new source files after staging. Subsequent evidence-only edits do not change runtime or dependencies. [PR #24](https://github.com/chatarabdelilah/rproj/pull/24) records the reviewed commit, CI run links, and merged-main verification; both Windows toolchains and packaging must pass before owner publication.
+
+Limits: unsupported composition choices conservatively disable guided editing; file management remains available. Changed composition saves may drop comments/reformat TOML. External-writer checks are best effort, and rename is not a multi-file transaction. T5 remains Machine Setup; model import remains permanently dropped.
+
 ## T3: 0.15.0 Published (September 10, 2026)
 
 Owner publication is verified: crates.io's archive SHA256 is `2dc75bbd10e4e11180995ce267f2b5a7f96b8eb60802fe1adf4e10ce50424a45`; `.cargo_vcs_info.json` records clean commit `b1c1664273bea2fce9bb0f4b954f554cc96f9dfb`. The annotated `v0.15.0` tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.15.0) match that identity. Version 0.15.0 is not yanked.

@@ -23,28 +23,20 @@ pub enum CatalogExit {
 
 #[derive(Clone, Debug)]
 enum Node {
-    Group {
-        label: String,
-        children: Vec<Node>,
-    },
+    Group { label: String, children: Vec<Node> },
     Entry(CatalogEntry),
-    Page {
-        label: String,
-        detail: CatalogDetail,
-    },
 }
 
 impl Node {
     fn label(&self) -> &str {
         match self {
-            Self::Group { label, .. } | Self::Page { label, .. } => label,
+            Self::Group { label, .. } => label,
             Self::Entry(entry) => &entry.key,
         }
     }
     fn detail(&self) -> Option<CatalogDetail> {
         match self {
             Self::Entry(entry) => lookup(&entry.key),
-            Self::Page { detail, .. } => Some(detail.clone()),
             _ => None,
         }
     }
@@ -126,7 +118,6 @@ fn tree() -> Vec<Node> {
             CatalogSection::Entries { label, entries } => {
                 group(&label, entries.into_iter().map(Node::Entry).collect())
             }
-            CatalogSection::Page { label, detail } => Node::Page { label, detail },
         })
         .collect()
 }
@@ -367,7 +358,6 @@ impl CatalogApp {
                 let purpose = match node {
                     Node::Entry(entry) => crate::catalog_view::first_sentence(&entry.description),
                     Node::Group { .. } => "Open group",
-                    Node::Page { .. } => "Read topic",
                 };
                 let second = if self.location.query.is_empty() {
                     purpose.into()
@@ -515,7 +505,8 @@ mod tests {
     fn grouping_preserves_every_catalog_entry_and_root_search_finds_descendants() {
         let mut app = CatalogApp::new();
         for section in sections() {
-            if let CatalogSection::Entries { entries, .. } = section {
+            let CatalogSection::Entries { entries, .. } = section;
+            {
                 for entry in entries {
                     app.location.query = entry.key.clone();
                     assert!(

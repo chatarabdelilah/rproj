@@ -37,10 +37,12 @@ pub enum Effect {
     None,
     LoadSetup(String),
     Create,
+    Save,
     Cancel,
 }
 
 pub struct Draft {
+    pub setup_mode: bool,
     pub name: String,
     pub graph: ProjectGraph,
     pub step: Step,
@@ -77,6 +79,7 @@ impl Draft {
         extensions: Vec<String>,
     ) -> Self {
         let mut draft = Self {
+            setup_mode: false,
             name: name.into(),
             graph: ProjectGraph::default(),
             step: Step::Source,
@@ -98,6 +101,25 @@ impl Draft {
         };
         draft.open(Step::Source);
         draft
+    }
+
+    pub fn edit_setup(name: &str, graph: ProjectGraph) -> Self {
+        let mut draft = Self::new(name, vec![], vec![], vec![]);
+        draft.setup_mode = true;
+        draft.graph = graph;
+        draft.guided = false;
+        draft.capabilities_answered = true;
+        draft.capabilities_complete = true;
+        draft.open(Step::Review);
+        draft
+    }
+
+    fn invalidate(&mut self, node: Node) {
+        let dropped = self.graph.dropped.clone();
+        self.graph.invalidate(node);
+        if self.setup_mode {
+            self.graph.dropped = dropped;
+        }
     }
 
     pub fn title(&self) -> String {
@@ -217,6 +239,30 @@ impl Draft {
                     "Remove only the Testing capability",
                 ),
             ],
+            Step::Review if self.setup_mode => vec![
+                item(
+                    "save",
+                    "Save",
+                    "Save changes for future reuse; stay in the editor",
+                ),
+                item(
+                    "strategy",
+                    "Dependencies",
+                    "Changing dependencies clears packages; Testing may need repair",
+                ),
+                item("packages", "Packages", "Revise package selection"),
+                item(
+                    "capabilities",
+                    "Capabilities",
+                    "Revise capabilities and implementations",
+                ),
+                item(
+                    "files",
+                    "Optional files",
+                    "Revise known optional files; preserve other exclusions",
+                ),
+                item("back", "Back", "Return to saved setup actions"),
+            ],
             Step::Review => vec![
                 item(
                     "create",
@@ -302,13 +348,15 @@ impl Draft {
     }
 
     fn review(&mut self) {
-        new::apply_derived_packages(&mut self.graph);
+        if !self.setup_mode {
+            new::apply_derived_packages(&mut self.graph);
+        }
         self.revision = None;
         self.open(Step::Review);
     }
 
     fn packages(&mut self, from: usize) {
-        if from == 0 {
+        if from == 0 && !self.setup_mode {
             self.graph.mode = if self.graph.package_workflow == PackageWorkflow::None {
                 "none"
             } else if self.guided {
@@ -385,6 +433,14 @@ impl Draft {
     }
 
     pub fn key(&mut self, key: KeyEvent) -> Effect {
+        if self.setup_mode
+            && self.modal.is_none()
+            && self.step == Step::Review
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+            && key.code == KeyCode::Char('s')
+        {
+            return Effect::Save;
+        }
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             return Effect::Cancel;
         }
@@ -398,6 +454,7 @@ impl Draft {
             KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(8),
             KeyCode::Down if self.details_focus => self.scroll = self.scroll.saturating_add(1),
             KeyCode::Up if self.details_focus => self.scroll = self.scroll.saturating_sub(1),
+            KeyCode::Esc if self.setup_mode && self.step == Step::Review => return Effect::Cancel,
             KeyCode::Esc => self.back(),
             KeyCode::Char(' ') if self.multi() && !self.details_focus => {
                 if let Some(value) = self.picker.selected_value().cloned()
@@ -454,13 +511,15 @@ impl Draft {
             return Effect::None;
         }
         self.status.clear();
-        crate::diagnostics::event(
-            "creation.accept",
-            format!(
-                "step={:?}; choice={value}; checked={:?}",
-                self.step, self.checked
-            ),
-        );
+        if !self.setup_mode {
+            crate::diagnostics::event(
+                "creation.accept",
+                format!(
+                    "step={:?}; choice={value}; checked={:?}",
+                    self.step, self.checked
+                ),
+            );
+        }
         match self.step {
             Step::Source => {
                 if let Some(name) = value.strip_prefix("saved:") {
@@ -480,7 +539,8 @@ impl Draft {
                     _ => PackageWorkflow::Wally,
                 };
                 if workflow != self.graph.package_workflow {
-                    self.graph.invalidate(Node::Strategy);
+                    self.invalidate(Node::Strategy);
+                    self.status = "Dependency change cleared package choices. Review packages; incompatible Testing requires a decision.".into();
                 }
                 self.graph.package_workflow = workflow;
                 self.packages(0);
@@ -502,7 +562,7 @@ impl Draft {
                 }
                 let next: Vec<_> = packages.into_iter().collect();
                 if next != self.graph.packages {
-                    self.graph.invalidate(Node::Packages);
+                    self.invalidate(Node::Packages);
                 }
                 self.graph.packages = next;
                 if let Some(i) = category {
@@ -550,14 +610,14 @@ impl Draft {
                     }
                 }
                 if previous != self.graph.capabilities {
-                    self.graph.invalidate(Node::Capabilities);
+                    self.invalidate(Node::Capabilities);
                 }
                 self.capabilities_answered = true;
                 self.next_implementation();
             }
             Step::Implementation(key) => {
                 if self.graph.capabilities.get(key) != Some(&value) {
-                    self.graph.invalidate(Node::Capabilities);
+                    self.invalidate(Node::Capabilities);
                 }
                 self.graph.choose(key, Some(&value));
                 self.next_implementation();
@@ -574,6 +634,16 @@ impl Draft {
                 }
             }
             Step::Files => {
+                let preserved: Vec<_> = if self.setup_mode {
+                    self.graph
+                        .dropped
+                        .iter()
+                        .filter(|key| !self.picker.items.iter().any(|item| &item.value == *key))
+                        .cloned()
+                        .collect()
+                } else {
+                    vec![]
+                };
                 self.graph.dropped = self
                     .picker
                     .items
@@ -581,9 +651,12 @@ impl Draft {
                     .filter(|p| !self.checked.contains(&p.value))
                     .map(|p| p.value.clone())
                     .collect();
+                self.graph.dropped.extend(preserved);
                 self.review();
             }
             Step::Review => match value.as_str() {
+                "save" if self.setup_mode => return Effect::Save,
+                "back" if self.setup_mode => return Effect::Cancel,
                 "create" => {
                     self.modal = Some(Modal::Create(ConfirmState::new(format!(
                         "Create {} with the reviewed files?",
@@ -687,23 +760,5 @@ impl Draft {
 }
 
 pub fn validate_name(name: &str) -> Result<(), &'static str> {
-    if name.is_empty()
-        || name == "."
-        || name == ".."
-        || name.ends_with([' ', '.'])
-        || name
-            .chars()
-            .any(|c| c.is_control() || "<>:\"/\\|?*".contains(c))
-    {
-        return Err("Use a single folder name without reserved path characters.");
-    }
-    let stem = name.split('.').next().unwrap_or("").to_ascii_uppercase();
-    if ["CON", "PRN", "AUX", "NUL"].contains(&stem.as_str())
-        || (stem.len() == 4
-            && (stem.starts_with("COM") || stem.starts_with("LPT"))
-            && matches!(stem.as_bytes()[3], b'1'..=b'9'))
-    {
-        return Err("This name is reserved by Windows.");
-    }
-    Ok(())
+    crate::config::setups::validate_name(name)
 }

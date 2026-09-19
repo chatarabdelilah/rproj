@@ -21,7 +21,6 @@ fn detail_sections(sections: Vec<DetailSection>) -> String {
         .collect::<Vec<_>>()
         .join("\n\n")
 }
-use crate::config::Setups;
 
 #[derive(Clone, Debug)]
 pub struct CatalogEntry {
@@ -53,23 +52,19 @@ pub enum CatalogSection {
         label: String,
         entries: Vec<CatalogEntry>,
     },
-    Page {
-        label: String,
-        detail: CatalogDetail,
-    },
 }
 
 #[cfg(test)]
 impl CatalogSection {
     pub fn label(&self) -> &str {
         match self {
-            Self::Entries { label, .. } | Self::Page { label, .. } => label,
+            Self::Entries { label, .. } => label,
         }
     }
 }
 
 pub fn sections() -> Vec<CatalogSection> {
-    let mut sections = vec![
+    let sections = vec![
         CatalogSection::Entries {
             label: "Packages - libraries a project depends on".into(),
             entries: wally_packages::PACKAGES
@@ -141,20 +136,6 @@ pub fn sections() -> Vec<CatalogSection> {
                 .collect(),
         },
     ];
-    let setups = Setups::list();
-    if !setups.is_empty() {
-        sections.push(CatalogSection::Page {
-            label: "Saved setups - package compositions you saved".into(),
-            detail: CatalogDetail {
-                title: "Saved setups".into(),
-                body: setups
-                    .into_iter()
-                    .map(|setup| format!("  {setup}"))
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            },
-        });
-    }
     sections
 }
 
@@ -420,10 +401,15 @@ mod tests {
 
     #[test]
     fn every_entry_resolves_to_the_same_detail_model() {
-        assert!(!sections().iter().any(|section| matches!(section,
-            CatalogSection::Page { label, .. } if label.starts_with("Place template"))));
+        assert!(
+            !sections()
+                .iter()
+                .any(|section| section.label().starts_with("Place template")
+                    || section.label().starts_with("Saved setups"))
+        );
         for section in sections() {
-            if let CatalogSection::Entries { label, entries } = section {
+            let CatalogSection::Entries { label, entries } = section;
+            {
                 assert!(!entries.is_empty(), "{label} has no entries");
                 for entry in entries {
                     assert!(lookup(&entry.key).is_some(), "{} in {label}", entry.key);

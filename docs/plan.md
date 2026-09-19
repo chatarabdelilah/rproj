@@ -101,6 +101,8 @@ Home now leads to Projects, New Project, Edit Project Template, Machine Setup, a
 
 ## Next Milestones
 
+T4 is implemented for **0.16.0** in [PR #24](https://github.com/chatarabdelilah/rproj/pull/24). The bounded scope is management of existing setup documents, with preservation-aware guided editing and byte-preserving file operations. New setup creation remains part of New Project. Publication awaits successful release gates and the owner; do not treat this candidate as shipped. T5 is the next development milestone after release alignment.
+
 1. **T4 - Saved Setup manager:** dedicated Home destination to inspect, edit, rename, duplicate, and delete saved compositions using existing graph/creation controls. Confirm deletion, preserve unsupported configuration, and affect future reuse only. Remove saved-setup presentation from Catalog when this ships.
 2. **T5 - Ratatui Machine Setup:** migrate Inquire selection to shared TUI controls while retaining installers, explicit confirmation, cancellation, and recovery.
 3. **Separate backlog:** package additions, background Watch, and a bounded code audit. No project deletion, arbitrary folder browser, persistent project registry, new dependency, or configuration schema is added in T3. Model import remains permanently dropped.

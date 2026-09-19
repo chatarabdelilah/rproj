@@ -1,5 +1,5 @@
-mod model;
-mod render;
+pub(super) mod model;
+pub(super) mod render;
 #[cfg(test)]
 mod tests;
 
@@ -116,6 +116,7 @@ pub fn prepare(terminal: &mut tui::TerminalSession, name: &str) -> Result<Option
             };
             match effect {
                 Effect::None => {}
+                Effect::Save => anyhow::bail!("Setup save is unavailable in project creation"),
                 Effect::Cancel => break false,
                 Effect::LoadSetup(name) => match new::read_setup(&name) {
                     Ok((graph, warnings)) => draft.loaded(&name, graph, warnings),
