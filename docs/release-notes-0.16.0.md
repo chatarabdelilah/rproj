@@ -18,4 +18,4 @@ There is no standalone composition creation or raw editor. New setups are saved 
 
 ## Verification
 
-See the release audit for candidate evidence. Owner publication, annotated tag, and GitHub prerelease are not authorized until the release gates complete and the published archive is verified.
+351 ordinary tests passed; 19 prerequisite-dependent tests remain ignored. The applicable saved-setup replay test passed for Wally and Git submodules. Formatting, clippy, locked packaging, and local CodeRabbit review passed. Windows stable/Rust 1.89 and package CI remain pending; see the release audit for final evidence. The owner publishes after release preparation; the annotated tag and GitHub prerelease follow published-archive verification.
