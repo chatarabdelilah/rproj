@@ -18,4 +18,4 @@ There is no standalone composition creation or raw editor. New setups are saved 
 
 ## Verification
 
-351 ordinary tests passed; 19 prerequisite-dependent tests remain ignored. The applicable saved-setup replay test passed for Wally and Git submodules. Formatting, clippy, locked packaging, and local CodeRabbit review passed. Windows stable/Rust 1.89 and package CI remain pending; see the release audit for final evidence. The owner publishes after release preparation; the annotated tag and GitHub prerelease follow published-archive verification.
+351 ordinary tests passed; 19 prerequisite-dependent tests remain ignored. The applicable saved-setup replay test passed for Wally and Git submodules. Formatting, clippy, locked packaging, and local CodeRabbit review passed. Windows stable/Rust 1.89 and package CI are required; [PR #24](https://github.com/chatarabdelilah/rproj/pull/24) records the reviewed commit and main verification. The owner publishes after release preparation; the annotated tag and GitHub prerelease follow published-archive verification.
