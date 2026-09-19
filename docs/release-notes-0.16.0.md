@@ -1,6 +1,6 @@
 # rproj 0.16.0 - T4: Saved Setup Manager
 
-Alpha release candidate. Publication and release alignment are pending.
+Published as an alpha release. The verified crates.io archive identifies clean commit `d54a9a874d8f23f5a57ebd573b6f1cd806506000`; the annotated tag and GitHub prerelease use that exact commit.
 
 ## Changes
 
@@ -18,4 +18,4 @@ There is no standalone composition creation or raw editor. New setups are saved 
 
 ## Verification
 
-351 ordinary tests passed; 19 prerequisite-dependent tests remain ignored. The applicable saved-setup replay test passed for Wally and Git submodules. Formatting, clippy, locked packaging, and local CodeRabbit review passed. Windows stable/Rust 1.89 and package CI are required; [PR #24](https://github.com/chatarabdelilah/rproj/pull/24) records the reviewed commit and main verification. The owner publishes after release preparation; the annotated tag and GitHub prerelease follow published-archive verification.
+351 ordinary tests passed; 19 prerequisite-dependent tests remain ignored. The applicable saved-setup replay test passed for Wally and Git submodules. Formatting, clippy, locked packaging, local CodeRabbit review, and Windows stable/Rust 1.89/package CI passed. [PR #24](https://github.com/chatarabdelilah/rproj/pull/24) records the reviewed commit and main verification. Owner publication and archive/tag/release alignment are verified.

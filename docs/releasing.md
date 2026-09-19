@@ -2,13 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.15.0, T3: Projects Browser**, at `b1c1664273bea2fce9bb0f4b954f554cc96f9dfb`. Owner publication, crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.15.0) are aligned. [Release notes](release-notes-0.15.0.md) define its scope; [the audit](release-audit.md) and [PR #22](https://github.com/chatarabdelilah/rproj/pull/22) record checks and residual limits. No further Cargo publication is needed for documentation-only alignment.
+The published baseline is **v0.16.0, T4: Saved Setup Manager**, at `d54a9a874d8f23f5a57ebd573b6f1cd806506000`. Owner publication, crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) are aligned. [Release notes](release-notes-0.16.0.md) define its scope; [the audit](release-audit.md) and [PR #24](https://github.com/chatarabdelilah/rproj/pull/24) record checks and residual limits. No further Cargo publication is needed for documentation-only alignment.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-The active release candidate is **0.16.0, T4: Saved Setup Manager**, on `codex/t4-saved-setups`. The previous published baseline above remains authoritative until owner publication is verified. Use [the T4 release notes](release-notes-0.16.0.md) for the next alpha release; no tag is created during candidate preparation.
+The latest published release is **0.16.0, T4: Saved Setup Manager**, at `d54a9a874d8f23f5a57ebd573b6f1cd806506000`. Owner publication and the archive checksum are verified; the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) use that exact commit. See [the T4 release notes](release-notes-0.16.0.md). No additional Cargo publication is needed for documentation-only alignment.
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.

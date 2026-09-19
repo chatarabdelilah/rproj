@@ -2,7 +2,7 @@
 
 ## 1. System Overview
 
-### T4 Saved Setup Manager (0.16.0 Candidate)
+### T4 Saved Setup Manager (0.16.0)
 
 `commands::saved_setups` borrows Home's terminal and owns browser/action state, saved-document snapshots, and the save baseline. `creation::model::Draft::edit_setup` reuses composition controls but does not call preparation, replay normalization, or the confirmed project executor. Opening and returning to review do not derive packages or rewrite provenance. Dependency changes invalidate known package choices; existing exclusions remain until explicitly changed. Optional files use read-only machine selections where available.
 

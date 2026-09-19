@@ -1,8 +1,8 @@
 # Release-Hardening Audit
 
-## T4: 0.16.0 Candidate (September 19, 2026)
+## T4: 0.16.0 Published
 
-Branch: `codex/t4-saved-setups`. Existing setup management is implemented; publication, tag, and GitHub release remain pending.
+Owner publication is verified. Crates.io reports non-yanked `0.16.0`; its archive SHA256 is `8031eb010130589d0b9ab74233845aabc53557e9d799f54d372ad04ee0373c3d`, matching the registry checksum. `.cargo_vcs_info.json` identifies clean commit `d54a9a874d8f23f5a57ebd573b6f1cd806506000`. The annotated `v0.16.0` tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) use that commit. [Main CI](https://github.com/chatarabdelilah/rproj/actions/runs/35426957745) passed, and the fully merged implementation branch was deleted locally and remotely.
 
 - Local ordinary locked suite: 351 passed, 19 ignored (370 discovered: 312 unit and 58 integration tests). A stale Catalog navigation index was corrected after inserting the new Home destination.
 - Storage checks cover byte preservation, unknown fields, unsupported choices, invalid Jest repair, conflicts, collisions, name restrictions, Windows junction rejection, locked replacement failure, duplication, deletion, and rename partial failure. Fixtures use temporary storage.
