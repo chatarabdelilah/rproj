@@ -37,6 +37,7 @@ pub enum HubOutcome {
 enum Action {
     Projects,
     New,
+    SavedSetups,
     Template,
     Setup,
     Catalog,
@@ -52,6 +53,11 @@ const ACTIONS: &[(Action, &str, &str)] = &[
         Action::New,
         "New Project",
         "Scaffold a project under your configured RobloxProjects folder.",
+    ),
+    (
+        Action::SavedSetups,
+        "Saved Setups",
+        "Inspect and manage saved compositions for future projects.",
     ),
     (
         Action::Template,
@@ -137,6 +143,7 @@ enum Screen {
     Hub,
     Catalog(CatalogApp),
     Projects,
+    SavedSetups,
 }
 
 enum Modal {
@@ -145,6 +152,7 @@ enum Modal {
 }
 
 struct HubApp {
+    saved_setups: super::saved_setups::SavedSetupsApp,
     context: WorkspaceContext,
     projects: ProjectsApp,
     selected: usize,
@@ -159,6 +167,7 @@ impl HubApp {
     fn new(context: WorkspaceContext) -> Self {
         let (update, update_receiver) = update_check::background_status();
         Self {
+            saved_setups: super::saved_setups::SavedSetupsApp::new(),
             projects: ProjectsApp::new(context.cwd.clone()),
             context,
             selected: 0,
@@ -186,6 +195,14 @@ impl HubApp {
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> Option<HubOutcome> {
+        if matches!(self.screen, Screen::SavedSetups) {
+            if self.saved_setups.handle_key(key) {
+                self.screen = Screen::Hub;
+                self.context = WorkspaceContext::load(self.context.cwd.clone());
+                crate::diagnostics::event("screen", "Home");
+            }
+            return None;
+        }
         if matches!(self.screen, Screen::Projects) {
             return match self.projects.handle_key(key) {
                 Some(BrowserOutcome::Home) => {
@@ -283,6 +300,11 @@ impl HubApp {
                 None
             }
             Action::Template => Some(HubOutcome::EditProjectTemplate),
+            Action::SavedSetups => {
+                self.saved_setups.open();
+                self.screen = Screen::SavedSetups;
+                None
+            }
             Action::Setup => Some(HubOutcome::SetupMachine),
             Action::Catalog => {
                 self.screen = Screen::Catalog(CatalogApp::new());
@@ -292,7 +314,11 @@ impl HubApp {
         }
     }
 
-    fn render(&self, frame: &mut ratatui::Frame<'_>) {
+    fn render(&mut self, frame: &mut ratatui::Frame<'_>) {
+        if matches!(self.screen, Screen::SavedSetups) {
+            self.saved_setups.render(frame);
+            return;
+        }
         if matches!(self.screen, Screen::Projects) {
             self.projects.render(frame);
             return;
@@ -457,6 +483,12 @@ pub fn run() -> Result<()> {
                 Some(terminal.read_event()?)
             };
             if let Some(Event::Paste(text)) = &event
+                && matches!(app.screen, Screen::SavedSetups)
+                && !small
+            {
+                app.saved_setups.paste(text);
+            }
+            if let Some(Event::Paste(text)) = &event
                 && matches!(app.screen, Screen::Projects)
             {
                 app.projects.paste(text);
@@ -471,6 +503,8 @@ pub fn run() -> Result<()> {
             if let Some(Event::Key(key)) = event
                 && key.kind != crossterm::event::KeyEventKind::Release
                 && (!small
+                    || (matches!(app.screen, Screen::SavedSetups)
+                        && app.saved_setups.exit_confirmation_key(key))
                     || matches!(key.code, KeyCode::Esc | KeyCode::Char('?'))
                     || (key.modifiers.contains(KeyModifiers::CONTROL)
                         && key.code == KeyCode::Char('c')))
@@ -642,7 +676,7 @@ mod tests {
         assert!(matches!(app.modal, Some(Modal::ProjectName(ref input)) if input.error.is_some()));
     }
 
-    fn rendered(app: &HubApp, width: u16, height: u16) -> String {
+    fn rendered(app: &mut HubApp, width: u16, height: u16) -> String {
         let backend = TestBackend::new(width, height);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|frame| app.render(frame)).unwrap();
@@ -659,11 +693,11 @@ mod tests {
     fn wide_narrow_help_and_tiny_states_render() {
         let temp = TempDir::new().unwrap();
         let mut app = app_at(temp.path());
-        assert!(rendered(&app, 120, 30).contains("Tasks"));
-        assert!(rendered(&app, 80, 24).contains("Workspace"));
-        assert!(rendered(&app, 40, 10).contains("too small"));
+        assert!(rendered(&mut app, 120, 30).contains("Tasks"));
+        assert!(rendered(&mut app, 80, 24).contains("Workspace"));
+        assert!(rendered(&mut app, 40, 10).contains("too small"));
         app.modal = Some(Modal::Help);
-        assert!(rendered(&app, 120, 30).contains("Workspace hub"));
+        assert!(rendered(&mut app, 120, 30).contains("Workspace hub"));
     }
 
     #[test]
@@ -676,6 +710,7 @@ mod tests {
             [
                 "Projects",
                 "New Project",
+                "Saved Setups",
                 "Edit Project Template",
                 "Machine Setup",
                 "Catalog"

@@ -2,6 +2,16 @@
 
 ## 1. System Overview
 
+### T4 Saved Setup Manager (0.16.0 Candidate)
+
+`commands::saved_setups` borrows Home's terminal and owns browser/action state, saved-document snapshots, and the save baseline. `creation::model::Draft::edit_setup` reuses composition controls but does not call preparation, replay normalization, or the confirmed project executor. Opening and returning to review do not derive packages or rewrite provenance. Dependency changes invalidate known package choices; existing exclusions remain until explicitly changed. Optional files use read-only machine selections where available.
+
+`config::setups::Document` retains original bytes, a parsed TOML value, and an optional graph projection. Only changed graph fields are merged into the original value; unknown top-level data remains. Malformed documents and unsupported graph choices can be inspected and managed as files, but guided editing is disabled when consequences cannot be resolved safely. Changed saves can discard TOML comments and formatting; unchanged saves cannot. The stored schema and creation replay contract are unchanged.
+
+Named paths share validation with existing setup entrypoints: traversal, Windows device names, symbolic links/reparse paths, and manager destination collisions are refused. Writes stage beside the destination and sync before atomic replacement. Manager mutations compare source bytes against their loaded snapshot immediately before committing. Duplicate uses no-clobber persistence. Rename copies before removing the rechecked original; partial failure may leave both names and is reported. This is not a multi-file transaction and cannot eliminate every external-writer race. Delete requires a default-No UI confirmation and removes only the selected, unchanged source.
+
+Tests use injected storage and the shared PTY harness; manager behavior must not provision applications, validate templates, or scaffold projects. The Catalog's former Saved Setups page and unused page presentation variant are removed. New Project still loads its setup picker freshly on entry.
+
 `rproj` is a Rust command-line tool (crate name `rproj`, binary `rproj`) that takes a fresh Windows PC to a working Roblox game-development setup and scaffolds individual Roblox/Luau projects on top of it. It replaces manually installing and configuring Git, VS Code, Roblox Studio, the Roblox client, Blender, and the Rojo/Wally/Rokit/Selene/StyLua toolchain one at a time.
 
 Every choice `rproj` presents — which system app, which CLI tool, which Studio plugin, which VS Code extension, which Roblox package — is shown with a plain-language description and a maintenance-status badge, so a newcomer is guided toward a working, professional setup without needing to already know the ecosystem, while an experienced developer can move through the same prompts quickly by picking exactly what they want.
@@ -1207,7 +1217,7 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 ## 9. Testing Strategy
 
-349 tests are discovered by `cargo test`: 292 unit tests and 57 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 330 ordinary tests. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
+370 tests are discovered by `cargo test`: 312 unit tests and 58 integration tests. Nineteen prerequisite-dependent tests are ignored in the ordinary suite, leaving 351 ordinary tests. T4 adds preservation and persistence tests, guided-editing parity, responsive render checks, and manager/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
 
 T3 covers shallow discovery, canonical deduplication, Unicode filtering, junction exclusion, malformed/missing-root warnings, stale-worker results, Back preservation, creation handoff, responsive renders, and removed-target rejection. A child test process launched in B exercises Watch subprocess and Upgrade writes in A; Copy uses an injected sink instead of the real clipboard. Existing PTY checks cover selected-project actions and repeated Watch interruption. Catalog presentation removal leaves generated template data unchanged.
 

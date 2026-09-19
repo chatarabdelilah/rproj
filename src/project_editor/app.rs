@@ -1599,8 +1599,7 @@ fn render_too_small(frame: &mut ratatui::Frame<'_>, area: Rect) {
 }
 
 #[cfg(test)]
-#[path = "../../tests/common/mod.rs"]
-mod common;
+use crate::test_common as common;
 
 #[cfg(test)]
 mod tests {

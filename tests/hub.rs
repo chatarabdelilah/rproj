@@ -53,6 +53,39 @@ fn open_project(session: &mut Session, project: &TempProject) {
 }
 
 #[test]
+fn saved_setups_returns_home_without_a_terminal_handoff() {
+    let project = TempProject::new("home-saved-setups");
+    let logs = project.path().join("logs");
+    let mut session = Session::start_with_env(
+        project.path(),
+        &[],
+        &[
+            ("RPROJ_LOG_DIR", logs.to_str().unwrap()),
+            ("RPROJ_NO_LOG", "0"),
+        ],
+    );
+    session.wait_for("Tasks");
+    session.send(common::DOWN);
+    session.send(common::DOWN);
+    session.send(ENTER);
+    session.wait_for("F5 refresh");
+    session.send("\x03");
+    session.wait_for("Tasks");
+    session.send(ESC);
+    assert_eq!(session.finish().code, 0);
+    let path = std::fs::read_dir(logs)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let log = std::fs::read_to_string(path).unwrap();
+    assert_eq!(log.matches("[tui.enter]").count(), 1);
+    assert_eq!(log.matches("[tui.leave]").count(), 1);
+    assert!(!log.contains("[tui.suspend]"));
+}
+
+#[test]
 fn template_cancel_and_catalog_share_one_terminal_session() {
     let project = TempProject::new("home-template");
     let logs = project.path().join("logs");
@@ -65,6 +98,7 @@ fn template_cancel_and_catalog_share_one_terminal_session() {
         ],
     );
     session.wait_for("Tasks");
+    session.send(common::DOWN);
     session.send(common::DOWN);
     session.send(common::DOWN);
     session.send(ENTER);
@@ -96,7 +130,7 @@ fn cancelled_setup_returns_home_without_writing_configuration() {
     let project = TempProject::new("home-setup-cancel");
     let mut session = Session::start(project.path(), &[]);
     session.wait_for("Tasks");
-    for _ in 0..3 {
+    for _ in 0..4 {
         session.send(common::DOWN);
     }
     session.send(ENTER);
@@ -200,7 +234,7 @@ fn the_hub_opens_the_catalog_and_returns() {
     let project = TempProject::new("hub-catalog");
     let mut session = Session::start(project.path(), &[]);
     session.wait_for("Tasks");
-    for _ in 0..4 {
+    for _ in 0..5 {
         session.send(common::DOWN);
     }
     session.send(ENTER);

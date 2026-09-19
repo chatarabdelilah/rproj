@@ -10,7 +10,7 @@
 
 ## What rproj does
 
-Version 0.15 adds a Projects browser: choose a project before configuring, upgrading, watching, testing, or copying its source. Home remains machine-level; direct commands and project formats are unchanged. rproj remains alpha software.
+Version 0.16 adds a Saved Setup manager: inspect, edit, rename, duplicate, or delete existing saved compositions. Changes affect future reuse, never existing projects. Direct commands and project formats are unchanged. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
@@ -19,7 +19,19 @@ rproj connects two layers that are usually assembled by hand:
 
 It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
 
-Run `rproj` with no arguments in a terminal to open Home: Projects, New Project, Edit Project Template, Machine Setup, and Catalog. Internal screens share one terminal session. Commands use normal terminal output and return to their caller after acknowledgement. Direct commands remain the interface for scripts.
+Run `rproj` with no arguments in a terminal to open Home: Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, and Catalog. Internal screens share one terminal session. Commands use normal terminal output and return to their caller after acknowledgement. Direct commands remain the interface for scripts.
+
+## Saved Setups
+
+Open **Saved Setups** from Home. Type to filter names, use Enter to open actions, F5 to refresh, Tab to focus composition details, and arrows/Page Up/Page Down to scroll. Esc returns locally; Ctrl+C returns Home. Machine Setup is not required. New setups are still saved during New Project.
+
+**Edit** opens composition review with the existing dependency, package, capability, implementation, and optional-file controls. Ctrl+S at Review saves without closing. Back protects unsaved changes since the last successful save. Nothing is provisioned or scaffolded. Dependencies may invalidate package choices; incompatible Jest requires choosing TestEZ or disabling Testing.
+
+Storage remains `<rproj config>/setups/<name>.toml`. Opening, cancelling, and unchanged saves do not write. Changed composition saves preserve unknown TOML fields and untouched provenance/exclusions, but may reformat TOML and remove comments. Documents with malformed or unsupported composition data remain inspectable; guided editing is disabled when its consequences cannot be resolved safely.
+
+Rename and Duplicate preserve original bytes. Names must be safe single names; linked paths, reserved Windows names, and collisions are refused. Case-only renames require an intermediate distinct name. Delete names the setup and defaults to No. Existing projects are never affected.
+
+Detected external edits require leaving the editor and refreshing; there is no force-overwrite option. Failed saves retain the draft. Rename copies safely before removing the original: a removal failure can leave both files, which rproj reports. These operations do not promise a multi-file transaction or protection against every external-writer race.
 
 ## Ecosystems
 
@@ -98,7 +110,7 @@ The project screen offers Configure Tools, Upgrade Project, Watch Project, Test 
 
 ### Catalog
 
-Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and descendants. Project-template editing belongs to Home, not Catalog. Saved setups remain listed until their dedicated manager ships.
+Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and descendants. Project-template editing and Saved Setups belong to their own Home destinations, not Catalog.
 
 Enter opens a group or focuses its detail pane; Tab switches panes. Arrows, Page Up/Down, Home, and End navigate entries or scroll details. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally/submodule import differences; they are starting points, not complete production systems.
 

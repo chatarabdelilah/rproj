@@ -57,7 +57,9 @@ Testing stays optional. TestEZ remains the internal compatibility fallback for o
 
 ## Workspace Hub
 
-T3 (0.15.0) makes Home machine-level: Projects, New Project, Edit Project Template, Machine Setup, Catalog. Project selection is session-only. Home still reports machine setup, saved setups, global template state, and cached updates.
+T4 (0.16.0 candidate) adds Saved Setups after New Project on machine-level Home: Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, Catalog. Project selection is session-only. Home still reports machine setup, saved setups, global template state, and cached updates.
+
+Saved Setups browses existing documents without creating storage. Enter opens Edit, Rename, Duplicate, and Delete; F5 refreshes; typing filters names; Tab and navigation keys control scrollable details. Esc preserves local browser state; Ctrl+C returns Home. The composition editor starts at Review, uses creation controls, and replaces creation actions with Save and Back. Ctrl+S at Review updates the saved baseline without leaving; unsaved exit and deletion use default-No confirmations. Unsupported composition data is visible but not guided-editable when its effects cannot be resolved. Rename and Duplicate preserve bytes; errors retain drafts and never launch tools. Saved setups no longer appear in Catalog.
 
 Projects discovers only immediate, non-linked children of the configured projects root and the recognized launch directory. Missing roots and malformed projects have explanatory warnings; browsing never creates directories or invokes tools. Filtering matches names and paths. F5 refreshes on one read-only worker; stale results are discarded. Enter opens the selected project's actions; Back preserves the browser state.
 

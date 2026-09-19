@@ -8,6 +8,8 @@ The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merg
 
 ## Maintainer preparation
 
+The active release candidate is **0.16.0, T4: Saved Setup Manager**, on `codex/t4-saved-setups`. The previous published baseline above remains authoritative until owner publication is verified. Use [the T4 release notes](release-notes-0.16.0.md) for the next alpha release; no tag is created during candidate preparation.
+
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
 3. Run `cargo fmt --all --check`, `cargo test --locked`, and `cargo clippy --locked --all-targets -- -D warnings`.
