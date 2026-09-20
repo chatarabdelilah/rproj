@@ -4,9 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 
 use crate::catalog::{tool_catalog, tool_usage};
-use crate::commands::provision;
-use crate::config::GlobalConfig;
-use crate::steps::{asphalt, notify, toolchain, tungsten};
+use crate::steps::{asphalt, toolchain, tungsten};
 use crate::ui;
 
 /// `rproj setup` with no tool: machine-wide provisioning.
@@ -18,32 +16,8 @@ use crate::ui;
 pub fn run(tool: Option<&str>) -> Result<()> {
     match tool {
         Some(key) => setup_tool(key),
-        None => setup_machine(),
+        None => super::machine_setup::open(),
     }
-}
-
-fn setup_machine() -> Result<()> {
-    // One line, not the seven-line explanation this used to print.
-    //
-    // Everything that paragraph said is either already known (the user
-    // typed `setup`), visible in the pickers that follow (each option
-    // carries its own description and badge), or belongs on the welcome
-    // screen, which already describes what this command is for. Seven
-    // lines of preamble ahead of the first question is a wall between the
-    // user and the thing they asked for.
-    ui::detail("Nothing already installed is reinstalled. Safe to re-run any time.");
-
-    let mut config = GlobalConfig::load()?;
-    provision::run(&mut config)?;
-    crate::interrupt::check()?;
-    config.save()?;
-
-    notify::summary(
-        "rproj setup complete",
-        "Your machine is ready for Roblox development.",
-    );
-    println!("\nDone. Run `rproj new <name>` to scaffold your first project.");
-    Ok(())
 }
 
 /// Sets one tool up in the project the user is standing in.

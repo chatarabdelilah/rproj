@@ -4,6 +4,7 @@ use std::path::Path;
 use anyhow::{Result, bail};
 
 use crate::catalog::tool_catalog::{Detect, ToolEntry, ToolKind};
+use crate::steps::execution::{MessageKind, Reporter};
 use crate::steps::{capture, probe, run};
 use crate::ui;
 
@@ -60,19 +61,12 @@ fn exe_exists_in(base: &Path, subdir: &str, exe: &str) -> bool {
         .any(|e| e.path().join(exe).is_file())
 }
 
-pub fn install(entry: &ToolEntry) -> Result<()> {
-    match entry.kind {
-        ToolKind::SystemApp { winget_id, .. } => install_winget(winget_id),
-        _ => Ok(()),
-    }
-}
-
 /// Runs `winget install` with output captured (not just inherited) so a
 /// hash-mismatch failure - a known, ongoing upstream winget-pkgs issue for
 /// installers like Roblox's that self-update behind a static download URL,
 /// leaving the pinned manifest hash stale - can be called out with an
 /// actionable message instead of a bare exit-code error.
-fn install_winget(winget_id: &str) -> Result<()> {
+pub(crate) fn install_winget(winget_id: &str, reporter: Option<&Reporter>) -> Result<()> {
     let args = [
         "install",
         "--id",
@@ -81,7 +75,11 @@ fn install_winget(winget_id: &str) -> Result<()> {
         "--accept-source-agreements",
         "--accept-package-agreements",
     ];
-    let output = capture("winget", &args, None)?;
+    let output = if let Some(reporter) = reporter {
+        reporter.capture(std::process::Command::new("winget").args(args))?
+    } else {
+        capture("winget", &args, None)?
+    };
     if !output.success || ui::is_verbose() {
         ui::passthrough(&output.stdout, &output.stderr);
     }
@@ -106,25 +104,21 @@ pub const WINGET_HASH_HELP: &str = "A vendor updated their installer behind a st
      - Or install it directly (for Studio: https://www.roblox.com/create)\n\
      - Or, as admin, `winget settings --enable InstallerHashOverride` once, then retry";
 
-/// Ensures Rokit itself is present. Rokit isn't on winget - its own docs
-/// specify `cargo install rokit --locked` then `rokit self-install`.
-pub fn ensure_rokit() -> Result<()> {
+pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
     if probe("rokit", &["--version"]) {
-        ui::ok("rokit already installed");
+        if let Some(reporter) = reporter {
+            reporter.message(MessageKind::Already, "rokit already installed");
+        } else {
+            ui::ok("rokit already installed");
+        }
         return Ok(());
+    }
+    if let Some(reporter) = reporter {
+        reporter.run(std::process::Command::new("cargo").args(["install", "rokit", "--locked"]))?;
+        return reporter.run(std::process::Command::new("rokit").arg("self-install"));
     }
     run("cargo", &["install", "rokit", "--locked"])?;
     run("rokit", &["self-install"])
-}
-
-pub fn ensure_projects_folder(root: &Path) -> Result<()> {
-    if root.exists() {
-        ui::ok(&format!("{} already exists", root.display()));
-        return Ok(());
-    }
-    fs::create_dir_all(root)?;
-    ui::ok(&format!("created {}", root.display()));
-    Ok(())
 }
 
 #[cfg(test)]

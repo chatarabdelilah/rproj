@@ -4,6 +4,7 @@ pub mod copy;
 pub mod creation;
 pub mod hub;
 pub mod info;
+pub mod machine_setup;
 pub mod new;
 pub mod project_template;
 pub mod projects;

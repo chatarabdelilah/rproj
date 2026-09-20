@@ -12,13 +12,17 @@ Choices need plain-language explanations. Unavailable options should explain pre
 
 ## Interface Boundary
 
+T5 (0.17.0 candidate) keeps Machine Setup selection, sequential installation progress, and results inside Ratatui. It opens at review with editable categories and an explicit default-No Apply confirmation. Space toggles checklist choices, Enter accepts a category, and Esc abandons its edits. Filtering never changes checks. Unknown keys are read-only; parent-dependent selections remain remembered while inactive.
+
+The projects folder is read-only. Selections describe intent, not installation state. Deselecting never uninstalls software. Installer/UAC dialogs can appear separately. Stop confirmation waits for the active item, skips remaining work, and prevents configuration saving; it cannot roll back completed installations. Results offer Done or Back to Review for a confirmed rerun. Home borrows one terminal throughout.
+
 Ratatui is the selected interactive interface. There is no planned Tauri application or separate desktop frontend.
 
 The current interface is hybrid:
 
 - Bare `rproj` opens the Ratatui workspace hub in an interactive terminal.
 - Catalog browsing and global-template editing stay within full-screen interfaces.
-- Hub-driven New Project uses Ratatui for composition and review. Setup, direct `rproj new`, and tool configuration retain inquire prompts.
+- Hub-driven New Project uses Ratatui composition review. Machine Setup uses Ratatui selection and progress; direct `rproj new` composition and tool configuration retain Inquire prompts.
 - Home, Projects, Catalog, creation questions, and Template Explorer borrow one terminal session. There is no alternate-screen teardown between these internal views.
 - The hub suspends the terminal session before invoking existing command implementations, presents their result, and waits for Enter before returning to the selected project or Home. It keeps the selected action and refreshes workspace context.
 - Direct commands remain available for automation. Redirected welcome and Catalog output remain plain.

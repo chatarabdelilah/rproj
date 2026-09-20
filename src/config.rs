@@ -50,12 +50,26 @@ impl GlobalConfig {
 
     pub fn save(&self) -> Result<()> {
         let path = Self::path()?;
+        self.save_at(&path)
+    }
+
+    fn save_at(&self, path: &Path) -> Result<()> {
+        let text = toml::to_string_pretty(self)?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let text = toml::to_string_pretty(self)?;
-        fs::write(&path, text).with_context(|| format!("failed to write {}", path.display()))
+        let parent = path
+            .parent()
+            .context("machine configuration has no parent directory")?;
+        let mut pending = tempfile::NamedTempFile::new_in(parent)?;
+        pending.write_all(text.as_bytes())?;
+        pending.as_file().sync_all()?;
+        pending
+            .persist(path)
+            .map_err(|error| error.error)
+            .with_context(|| format!("failed to replace {}", path.display()))?;
+        Ok(())
     }
 
     pub fn projects_root(&self) -> Result<PathBuf> {
@@ -344,6 +358,40 @@ pub mod project_template {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn machine_configuration_save_replaces_complete_document() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("config.toml");
+        std::fs::write(&path, "last_checked = 'old'\n").unwrap();
+        let config = super::GlobalConfig {
+            last_checked: Some("new".into()),
+            ..Default::default()
+        };
+        config.save_at(&path).unwrap();
+        let read: super::GlobalConfig =
+            toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(read.last_checked.as_deref(), Some("new"));
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn machine_configuration_failed_replacement_preserves_source() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("config.toml");
+        let original = "last_checked = 'old'\n";
+        std::fs::write(&path, original).unwrap();
+        let held = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&path)
+            .unwrap();
+        assert!(super::GlobalConfig::default().save_at(&path).is_err());
+        drop(held);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+    }
     use super::*;
 
     #[test]

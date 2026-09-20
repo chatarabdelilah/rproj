@@ -8,6 +8,8 @@ The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merg
 
 ## Maintainer preparation
 
+The active release candidate is **0.17.0, T5: Ratatui Machine Setup**, on `codex/t5-machine-setup`. Publication remains owner-only and must wait for review and CI. The published baseline below remains authoritative until archive verification.
+
 The latest published release is **0.16.0, T4: Saved Setup Manager**, at `d54a9a874d8f23f5a57ebd573b6f1cd806506000`. Owner publication and the archive checksum are verified; the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) use that exact commit. See [the T4 release notes](release-notes-0.16.0.md). No additional Cargo publication is needed for documentation-only alignment.
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.

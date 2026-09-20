@@ -45,7 +45,6 @@ pub fn run(
             println!("Setting your machine up first - this only happens once.\n");
         }
         provision::run(&mut config)?;
-        config.save()?;
     } else {
         ui::ok(&format!("machine ready: {}", config.machine_summary()));
         ui::detail("rproj setup to re-check, or rproj new --reconfigure to change");

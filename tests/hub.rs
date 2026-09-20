@@ -134,11 +134,8 @@ fn cancelled_setup_returns_home_without_writing_configuration() {
         session.send(common::DOWN);
     }
     session.send(ENTER);
-    session.wait_for("System apps");
+    session.wait_for("System Apps");
     session.send(ESC);
-    session.wait_for("Cancelled.");
-    session.wait_for("Press Enter to return Home.");
-    session.send(ENTER);
     session.wait_for("Tasks");
     session.send(ESC);
     assert_eq!(session.finish().code, 0);

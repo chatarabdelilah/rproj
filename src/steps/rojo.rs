@@ -8,7 +8,7 @@ use serde_json::{Map, Value, json};
 
 use crate::catalog::place_template;
 use crate::config::PackageWorkflow;
-use crate::steps::{capture, run};
+use crate::steps::capture;
 use crate::ui;
 
 /// Writes `default.project.json` from scratch (rather than `rojo init` +
@@ -431,14 +431,6 @@ impl Drop for ValidationWorkspace {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.path);
     }
-}
-
-/// Installs/updates the Rojo Studio plugin via Rojo's own CLI command -
-/// no generic file-copy logic needed for this one. This targets Studio's
-/// plugin folder directly, not any particular project, so it only needs
-/// to run once from `rproj setup`, not per-project.
-pub fn install_studio_plugin() -> Result<()> {
-    run("rojo", &["plugin", "install"])
 }
 
 /// Generates `sourcemap.json` once.

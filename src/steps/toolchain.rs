@@ -9,6 +9,36 @@ use crate::config::PackageWorkflow;
 use crate::steps::{capture, run_in};
 use crate::ui::{self, Tally};
 
+pub(crate) fn add_global_tool_with(
+    source: &str,
+    reporter: &super::execution::Reporter,
+) -> Result<()> {
+    use super::execution::MessageKind;
+    use std::process::Command;
+    let _ = reporter.capture(Command::new("rokit").args(["trust", source]))?;
+    let output = reporter.capture(Command::new("rokit").args(["add", "--global", source]))?;
+    if output.success {
+        return Ok(());
+    }
+    let combined = output.combined();
+    if combined.contains("already exists") {
+        reporter.message(
+            MessageKind::Already,
+            "Tool already present in global Rokit manifest",
+        );
+        return Ok(());
+    }
+    if combined.contains("not been marked as trusted") {
+        anyhow::bail!("Source is not trusted; run `rokit trust {source}` and retry");
+    }
+    if combined.contains("403 Forbidden") || combined.to_lowercase().contains("rate limit") {
+        anyhow::bail!(
+            "GitHub API rate limit reached. Wait for reset or run `rokit authenticate github` to raise the limit"
+        );
+    }
+    anyhow::bail!("Rokit could not add the tool; see output");
+}
+
 /// Syncs installed tool binaries to match an existing rokit.toml - the
 /// idempotent operation for a project whose manifest already exists
 /// (freshly cloned from a teammate, or created by an earlier `rproj new`).
@@ -30,19 +60,6 @@ pub fn ensure_rokit_init(project_dir: &Path) -> Result<()> {
 /// from being attempted, or the project scaffold that follows.
 pub fn add_selected_tools(project_dir: &Path, selected: &[String]) -> Result<()> {
     add_all(Some(project_dir), selected, "rokit tools")
-}
-
-/// Installs every rokit tool key in `selected` into rokit's *global* manifest
-/// (`rokit add --global`, which lives at `~/.rokit/rokit.toml`) so each tool
-/// is resolvable from any directory, not just inside a project that has
-/// already run `rokit add` for it locally. This has to happen before
-/// anything tries to invoke one of these tools outside a project context -
-/// e.g. `rojo plugin install`, which otherwise fails with "Failed to find
-/// tool 'rojo' in any project manifest file" the first time, before any
-/// project's own rokit.toml exists yet. Per-project `add_selected_tools`
-/// still runs separately so each project also pins its own exact versions.
-pub fn add_global_tools(selected: &[String]) -> Result<()> {
-    add_all(None, selected, "rokit tools (global)")
 }
 
 fn add_all(project_dir: Option<&Path>, selected: &[String], noun: &str) -> Result<()> {
