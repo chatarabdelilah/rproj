@@ -53,6 +53,7 @@ const RESERVED_DYNAMIC_PATHS: &[&[&str]] = &[
     &["tree", "ReplicatedStorage", "modules"],
     &["tree", "ReplicatedStorage", "test"],
     &["tree", "ReplicatedStorage", "DevPackages"],
+    &["tree", "ReplicatedStorage", "devPackages"],
     &["tree", "ServerScriptService", "serverPackages"],
     &["tree", "ServerScriptService", "test"],
     &["tree", "StarterPlayer", "StarterPlayerScripts", "test"],

@@ -10,10 +10,11 @@
 //!
 //! Two rules keep this from being destructive:
 //!
-//! 1. **Only files rproj generates.** `stylua.toml`, `default.project.json`,
+//! 1. **Only files rproj generates.** `stylua.toml`,
 //!    `wally.toml`, `rokit.toml` and everything under `src/` are yours -
 //!    they're seeded once and then edited by hand, so upgrading them would
 //!    throw away real work.
+//!    The default Rojo document is preserved except for Jest's devPackages mount.
 //! 2. **`selene.toml` is merged, not replaced**, and only for the keys
 //!    whose correct value follows from the project's composition (`std`
 //!    from TestEZ, `mixed_table` from the UI library, `exclude` from the
@@ -88,7 +89,9 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
             ui::detail(rewrite.reason);
         }
         println!(
-            "\nNot touched: stylua.toml, default.project.json, wally.toml, rokit.toml, src/.\n\
+            "\nNot touched: stylua.toml, wally.toml, rokit.toml, src/.\n\
+             Jest projects add only the devPackages mount to default.project.json.\n\
+             Existing test imports must use ReplicatedStorage.devPackages.\n\
              Your own selene lint levels are kept; only std, mixed_table and exclude are set.\n"
         );
 
@@ -217,8 +220,16 @@ fn plan(
 
     if wants("jest.project.json") {
         let source = project_dir.join("default.project.json");
-        let production: serde_json::Value = serde_json::from_str(&fs::read_to_string(&source)?)
+        let mut production: serde_json::Value = serde_json::from_str(&fs::read_to_string(&source)?)
             .with_context(|| format!("failed to parse {}", source.display()))?;
+        jest::ensure_dev_mount(&mut production)?;
+        push(
+            &mut rewrites,
+            project_dir,
+            "default.project.json",
+            format!("{}\n", serde_json::to_string_pretty(&production)?),
+            "development packages for Jest type analysis",
+        )?;
         push(
             &mut rewrites,
             project_dir,

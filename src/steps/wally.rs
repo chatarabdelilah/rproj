@@ -151,7 +151,17 @@ fn ensure_sync_mounts(project_dir: &Path, project_file: &str) -> Result<()> {
     // at all when a mapped $path is missing, so recreating it here is what
     // keeps a no-dependency project working.
     fs::create_dir_all(project_dir.join(PACKAGES_DIR))?;
-    if project_file == crate::steps::jest::PROJECT_FILE {
+    let source = project_dir.join(project_file);
+    let mounts_dev = if source.is_file() {
+        let document: serde_json::Value = serde_json::from_str(&fs::read_to_string(source)?)?;
+        document
+            .pointer("/tree/ReplicatedStorage/devPackages/$path")
+            .and_then(serde_json::Value::as_str)
+            == Some(DEV_PACKAGES_DIR)
+    } else {
+        false
+    };
+    if project_file == crate::steps::jest::PROJECT_FILE || mounts_dev {
         fs::create_dir_all(project_dir.join(DEV_PACKAGES_DIR))?;
     }
     Ok(())
@@ -188,6 +198,18 @@ mod tests {
         let project = tempfile::tempdir().unwrap();
         ensure_sync_mounts(project.path(), crate::steps::jest::PROJECT_FILE).unwrap();
         assert!(project.path().join(PACKAGES_DIR).is_dir());
+        assert!(project.path().join(DEV_PACKAGES_DIR).is_dir());
+    }
+
+    #[test]
+    fn default_sync_recognizes_development_packages_without_jest_config() {
+        let project = tempfile::tempdir().unwrap();
+        fs::write(
+            project.path().join("default.project.json"),
+            r#"{"tree":{"ReplicatedStorage":{"devPackages":{"$path":"DevPackages"}}}}"#,
+        )
+        .unwrap();
+        ensure_sync_mounts(project.path(), "default.project.json").unwrap();
         assert!(project.path().join(DEV_PACKAGES_DIR).is_dir());
     }
 }

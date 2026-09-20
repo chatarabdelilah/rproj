@@ -120,7 +120,7 @@ pub fn find(key: &str) -> Option<Guide> {
             "tests/shared/example.spec.luau ModuleScript; Testing = Jest Roblox.",
             &["jest-globals"],
             "JestGlobals.describe(\"addition\", function()\n    JestGlobals.it(\"adds two numbers\", function()\n        JestGlobals.expect(2 + 3).toBe(5)\n    end)\nend",
-            "Wally only. Run rproj test; local execution needs Studio and the Jest runner plugin. DevPackages and tests exist only in jest.project.json, not the production project.",
+            "Wally only. Run rproj test; local execution needs Studio and the Jest runner plugin. devPackages is mounted in both project files for analysis; test trees exist only in jest.project.json. Cloud CI is opt-in with JEST_OPEN_CLOUD=true.",
         ),
         "janitor" => (
             "Collect connections and Instances for deterministic cleanup.",
@@ -213,7 +213,7 @@ pub fn import(package: &PackageSpec, submodules: bool) -> String {
         let (service, mount) = match package.realm {
             Realm::Shared => ("ReplicatedStorage", "packages"),
             Realm::Server => ("ServerScriptService", "serverPackages"),
-            Realm::Dev => ("ReplicatedStorage", "DevPackages"),
+            Realm::Dev => ("ReplicatedStorage", "devPackages"),
         };
         format!("game:GetService(\"{service}\").{mount}.{}", package.alias())
     };
@@ -256,7 +256,7 @@ mod tests {
         );
         assert!(
             import(wally_packages::find("jest-globals").unwrap(), false)
-                .contains("DevPackages.JestGlobals")
+                .contains("devPackages.JestGlobals")
         );
         assert!(import(wally_packages::find("charm").unwrap(), true).contains("modules.Charm"));
     }

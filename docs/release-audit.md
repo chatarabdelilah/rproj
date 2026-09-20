@@ -1,5 +1,26 @@
 # Release-Hardening Audit
 
+## Unreleased: generated project CI and ignore coverage
+
+Jest projects now expose `ReplicatedStorage.devPackages` in the ordinary
+sourcemap as well as the Jest project. Disk casing remains `DevPackages`.
+The test project omits Lighting and enables LoadStringEnabled. Generated CI
+opts into Open Cloud with `JEST_OPEN_CLOUD=true`; enabled cloud tests still fail
+on missing credentials. Ignore rules cover generated place files, place locks,
+coverage, and local environment files while preserving `.env.example`.
+See [the source review and migration notes](project-template-review.md).
+
+Local verification: 378 ordinary tests passed, 19 ignored; formatting and clippy
+with warnings denied passed. The isolated real-Wally/Rojo/Jest regression passed
+using the installed pinned Jest Roblox 0.3.24 executable, including ordinary
+sourcemap development-package resolution and eight Studio package examples.
+The initial attempt through the Rokit shim failed because the temporary fixture
+has no Jest tool manifest; direct use of the existing pinned binary resolved that
+fixture prerequisite without installing applications. Open Cloud execution and
+fresh Linux generated-project execution remain unverified. CodeRabbit review
+and reviewed-head/merged-main CI evidence are recorded in the change's PR.
+This is unreleased runtime work; version preparation belongs to a later release.
+
 ## T5: 0.17.0 Published
 
 Owner publication is verified. The non-yanked crates.io archive checksum is `c95a02febad76d5956b2446dbf492ea78ddb888d248e34a5a0737fa266ef13a2`; its Git identity, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.17.0) match clean commit `9ee8d5167175c7bacb58a61e9317b4fda5d443ea`. [Final reviewed-head CI](https://github.com/chatarabdelilah/rproj/actions/runs/35499542790) and [merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/35499712898) passed Windows stable, Rust 1.89, and packaging. Badge freshness was intentionally skipped. All three merged implementation/fix branches were deleted locally and remotely.
