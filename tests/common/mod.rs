@@ -205,6 +205,30 @@ impl Session {
         contents.trim_end().to_string()
     }
 
+    pub fn output_checkpoint(&self) -> usize {
+        self.raw.lock().unwrap().len()
+    }
+
+    pub fn wait_for_output_since(&self, checkpoint: usize, needle: &str) {
+        let deadline = Instant::now() + timeout();
+        loop {
+            let text = {
+                let raw = self.raw.lock().unwrap();
+                let mut parser = vt100::Parser::new(ROWS, COLS, 0);
+                parser.process(&raw[checkpoint..]);
+                parser.screen().contents()
+            };
+            if text.contains(needle) {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for new {needle:?} in:\n{text}"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
     pub fn send(&mut self, keys: &str) {
         self.writer
             .write_all(keys.as_bytes())

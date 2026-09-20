@@ -2,7 +2,9 @@
 
 ## T5: 0.17.0 Candidate
 
-Implementation is on `codex/t5-machine-setup`; not yet published or tagged.
+Implementation merged through [PR #26](https://github.com/chatarabdelilah/rproj/pull/26); not yet published or tagged.
+
+Merged-main CI exposed a repeated-Watch PTY synchronization race: retained output from the first run could satisfy the second run's completion check. The follow-up scopes these waits to a new output checkpoint; all nine hub tests, formatting, and clippy passed locally. This changes test synchronization only, not Watch runtime behavior. Final follow-up and merged-main checks remain publication gates.
 
 - Local locked ordinary suite: **375 passed, 19 ignored**, 394 discovered (334 unit and 60 integration tests). Fixture PTY coverage exercises review/category cancellation, default-No confirmation, success and Back/Exit, worker panic, fatal failure, save failure, and stop-after-active-child without configuration saving or a subsequent item. Home cancellation remains in one terminal session.
 - Real fixture subprocesses exercise concurrent stdout/stderr draining, Unicode/control-sequence handling, failed spawning, nonzero exits, and cooperative stopping. All roots/configuration writes are injected temporary fixtures; no applications are installed. Global-config replacement is staged, synced, and tested for preserving the old file when Windows denies replacement.
