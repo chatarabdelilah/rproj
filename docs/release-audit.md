@@ -2,6 +2,8 @@
 
 ## T5: 0.17.0 Candidate
 
+A subsequent stable-Windows CI run timed out in the Catalog diagnostic-log PTY test. That test now waits for its filter to render and uses the documented direct Catalog exit instead of an unsynchronized Enter/Esc sequence. All eight diagnostics tests and formatting passed locally; this is test-only and does not change Catalog navigation.
+
 Implementation merged through [PR #26](https://github.com/chatarabdelilah/rproj/pull/26); not yet published or tagged.
 
 Merged-main CI exposed a repeated-Watch PTY synchronization race: retained output from the first run could satisfy the second run's completion check. The follow-up scopes these waits to a new output checkpoint; all nine hub tests, formatting, and clippy passed locally. This changes test synchronization only, not Watch runtime behavior. Final follow-up and merged-main checks remain publication gates.

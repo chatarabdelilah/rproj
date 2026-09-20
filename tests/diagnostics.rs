@@ -110,10 +110,8 @@ fn tui_navigation_is_logged_without_recording_filter_keystrokes() {
     session.send(common::ENTER);
     session.wait_for("State management");
     session.send("opaque-filter-do-not-record");
-    session.send(common::ENTER);
-    session.send(common::ESC);
-    session.wait_for("Sections");
-    session.send(common::ESC);
+    session.wait_for("Filter: opaque-filter-do-not-record");
+    session.send("\x03");
     let result = session.finish();
     assert_eq!(result.code, 0, "{}", result.text);
     let text = log(root.path());
