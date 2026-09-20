@@ -309,7 +309,12 @@ fn jest_upgrade_regenerates_owned_files_and_preserves_user_options() {
             outcome.text
         );
     }
-    assert_eq!(project.read("default.project.json"), production);
+    let mut expected: serde_json::Value = serde_json::from_str(production).unwrap();
+    expected["tree"]["ReplicatedStorage"]["devPackages"] =
+        serde_json::json!({"$path": "DevPackages"});
+    let actual: serde_json::Value =
+        serde_json::from_str(&project.read("default.project.json")).unwrap();
+    assert_eq!(actual, expected);
 
     let test_project = project.read("jest.project.json");
     assert!(test_project.contains("DevPackages"), "{test_project}");

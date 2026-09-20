@@ -26,7 +26,7 @@ const PROJECTS: &[(&str, &str)] = &[
 
 fn starter_spec(area: &str) -> String {
     format!(
-        "--!strict\n\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\nlocal JestGlobals = require(ReplicatedStorage.DevPackages.JestGlobals)\nlocal describe = JestGlobals.describe\nlocal it = JestGlobals.it\nlocal expect = JestGlobals.expect\n\ndescribe(\"{area}\", function()\n\tit(\"runs\", function()\n\t\texpect(1 + 1).toBe(2)\n\tend)\nend)\n"
+        "--!strict\n\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\nlocal JestGlobals = require(ReplicatedStorage.devPackages.JestGlobals)\nlocal describe = JestGlobals.describe\nlocal it = JestGlobals.it\nlocal expect = JestGlobals.expect\n\ndescribe(\"{area}\", function()\n\tit(\"runs\", function()\n\t\texpect(1 + 1).toBe(2)\n\tend)\nend)\n"
     )
 }
 
@@ -51,17 +51,19 @@ pub fn ensure_test_tree(project_dir: &Path, examples: bool) -> Result<()> {
 
 pub fn project_document(production: &Value) -> Result<Value> {
     let mut project = production.clone();
+    ensure_dev_mount(&mut project)?;
     let tree = project
         .get_mut("tree")
         .and_then(Value::as_object_mut)
         .context("default.project.json `tree` must be an object")?;
 
-    insert_path(
-        child_object_mut(tree, "ReplicatedStorage")?,
-        "DevPackages",
-        "DevPackages",
-        "tree.ReplicatedStorage.DevPackages",
-    )?;
+    tree.remove("Lighting");
+    let server = child_object_mut(tree, "ServerScriptService")?;
+    let properties = server.entry("$properties").or_insert_with(|| json!({}));
+    properties
+        .as_object_mut()
+        .context("ServerScriptService properties must be an object")?
+        .insert("LoadStringEnabled".into(), json!(true));
     insert_path(
         child_object_mut(tree, "ReplicatedStorage")?,
         "test",
@@ -82,6 +84,22 @@ pub fn project_document(production: &Value) -> Result<Value> {
         "tree.StarterPlayer.StarterPlayerScripts.test",
     )?;
     Ok(project)
+}
+
+pub fn ensure_dev_mount(project: &mut Value) -> Result<()> {
+    let tree = project
+        .get_mut("tree")
+        .and_then(Value::as_object_mut)
+        .context("default.project.json `tree` must be an object")?;
+    let storage = child_object_mut(tree, "ReplicatedStorage")?;
+    if let Some(existing) = storage.get("devPackages") {
+        if existing != &json!({ "$path": "DevPackages" }) {
+            bail!("cannot create Jest mount `devPackages` because node already exists");
+        }
+    } else {
+        storage.insert("devPackages".into(), json!({ "$path": "DevPackages" }));
+    }
+    Ok(())
 }
 
 fn child_object_mut<'a>(
@@ -116,15 +134,21 @@ pub fn project_contents(production: &Value) -> Result<String> {
 
 pub fn refresh_project(project_dir: &Path) -> Result<()> {
     let source = project_dir.join("default.project.json");
-    let production: Value = serde_json::from_str(
+    let mut production: Value = serde_json::from_str(
         &fs::read_to_string(&source)
             .with_context(|| format!("failed to read {}", source.display()))?,
     )
     .with_context(|| format!("failed to parse {}", source.display()))?;
-    atomic_write(
-        &project_dir.join(PROJECT_FILE),
-        project_contents(&production)?.as_bytes(),
-    )?;
+    let original = production.clone();
+    ensure_dev_mount(&mut production)?;
+    let contents = project_contents(&production)?;
+    if production != original {
+        atomic_write(
+            &source,
+            format!("{}\n", serde_json::to_string_pretty(&production)?).as_bytes(),
+        )?;
+    }
+    atomic_write(&project_dir.join(PROJECT_FILE), contents.as_bytes())?;
     ui::ok("wrote jest.project.json");
     Ok(())
 }
@@ -145,7 +169,7 @@ pub fn merged_config(project_dir: &Path) -> Result<String> {
     root.insert("rojoProject".into(), json!(PROJECT_FILE));
     root.insert(
         "jestPath".into(),
-        json!("ReplicatedStorage/DevPackages/Jest"),
+        json!("ReplicatedStorage/devPackages/Jest"),
     );
     let test = root.entry("test").or_insert_with(|| json!({}));
     let test = test
@@ -230,8 +254,17 @@ mod tests {
         source["tree"]["Workspace"] = json!({ "$properties": { "StreamingEnabled": true } });
         let test = project_document(&source).unwrap();
         assert_eq!(test["tree"]["Workspace"], source["tree"]["Workspace"]);
+        assert!(test["tree"].get("Lighting").is_none());
         assert_eq!(
-            test["tree"]["ReplicatedStorage"]["DevPackages"]["$path"],
+            test["tree"]["ServerScriptService"]["$properties"]["LoadStringEnabled"],
+            true
+        );
+        assert_ne!(
+            source["tree"]["ServerScriptService"]["$properties"]["LoadStringEnabled"],
+            true
+        );
+        assert_eq!(
+            test["tree"]["ReplicatedStorage"]["devPackages"]["$path"],
             "DevPackages"
         );
         assert!(
@@ -244,13 +277,30 @@ mod tests {
     #[test]
     fn collisions_are_rejected() {
         let mut source = production();
-        source["tree"]["ReplicatedStorage"]["DevPackages"] = json!({});
+        source["tree"]["ReplicatedStorage"]["devPackages"] = json!({});
         assert!(
             project_document(&source)
                 .unwrap_err()
                 .to_string()
                 .contains("already exists")
         );
+    }
+
+    #[test]
+    fn refresh_adds_analysis_mount_and_is_repeatable() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("default.project.json");
+        fs::write(&source, serde_json::to_string(&production()).unwrap()).unwrap();
+        refresh_project(dir.path()).unwrap();
+        let first = fs::read(&source).unwrap();
+        let production: Value = serde_json::from_slice(&first).unwrap();
+        assert_eq!(
+            production["tree"]["ReplicatedStorage"]["devPackages"]["$path"],
+            "DevPackages"
+        );
+        refresh_project(dir.path()).unwrap();
+        assert_eq!(fs::read(&source).unwrap(), first);
+        assert!(starter_spec("shared").contains("ReplicatedStorage.devPackages.JestGlobals"));
     }
 
     #[test]
@@ -334,6 +384,11 @@ mod tests {
         refresh_project(dir.path()).unwrap();
         ensure_config(dir.path()).unwrap();
         wally::sync_for_project(dir.path(), PROJECT_FILE).unwrap();
+        // The ordinary quality gate replaces the Jest sourcemap with this one.
+        wally::sync(dir.path()).unwrap();
+        let sourcemap = fs::read_to_string(dir.path().join("sourcemap.json")).unwrap();
+        assert!(sourcemap.contains("devPackages"));
+        assert!(sourcemap.contains("JestGlobals"));
         run_in(
             "jest-roblox-cli",
             &[

@@ -299,7 +299,12 @@ pub fn ci_workflow(
             "\n      - name: Run tests\n        run: lute test\n".to_string()
         }
         Some(TestRunner::JestRoblox) => r#"
+      - name: Local Jest testing
+        if: ${{ vars.JEST_OPEN_CLOUD != 'true' }}
+        run: echo "Cloud tests disabled. Run rproj test locally, or set JEST_OPEN_CLOUD=true and configure Roblox credentials."
+
       - name: Check Jest Roblox credentials
+        if: ${{ vars.JEST_OPEN_CLOUD == 'true' }}
         env:
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
@@ -311,6 +316,7 @@ pub fn ci_workflow(
           fi
 
       - name: Run tests
+        if: ${{ vars.JEST_OPEN_CLOUD == 'true' }}
         env:
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
@@ -515,6 +521,12 @@ mod tests {
         assert!(ci.contains("exit 1"), "{ci}");
         assert!(ci.contains("--backend open-cloud"), "{ci}");
         assert!(ci.contains("--formatters github-actions"), "{ci}");
+        assert_eq!(
+            ci.matches("if: ${{ vars.JEST_OPEN_CLOUD == 'true' }}")
+                .count(),
+            2
+        );
+        assert!(ci.contains("vars.JEST_OPEN_CLOUD != 'true'"));
     }
 
     /// Packages/ is gitignored, so without an install step the gate's very

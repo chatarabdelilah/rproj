@@ -23,6 +23,15 @@ const ENTRIES: &[&str] = &[
     "ServerPackages/",
     "DevPackages/",
     "sourcemap.json",
+    // Generated place builds and test reports; model assets remain source.
+    "*.rbxl",
+    "*.rbxlx",
+    "*.rbxl.lock",
+    "*.rbxlx.lock",
+    "coverage/",
+    ".env",
+    ".env.*",
+    "!.env.example",
     // Local editor state. Note the tradeoff: rproj writes luau-lsp's
     // ignoreGlobs here for submodule projects, so a teammate cloning the
     // repo won't inherit them and will see the vendored modules/ folder
@@ -76,4 +85,58 @@ pub fn ensure_entries(project_dir: &Path) -> Result<()> {
     fs::write(&path, updated)?;
     ui::ok("updated .gitignore");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+
+    #[test]
+    fn generated_outputs_are_ignored_but_sources_and_lockfiles_are_trackable() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(
+            Command::new("git")
+                .arg("init")
+                .arg(dir.path())
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        fs::write(dir.path().join(".gitignore"), "custom-output/\n").unwrap();
+        ensure_entries(dir.path()).unwrap();
+        let first = fs::read(dir.path().join(".gitignore")).unwrap();
+        ensure_entries(dir.path()).unwrap();
+        assert_eq!(fs::read(dir.path().join(".gitignore")).unwrap(), first);
+        for (path, ignored) in [
+            ("Packages/example/init.luau", true),
+            ("ServerPackages/example/init.luau", true),
+            ("DevPackages/Jest.luau", true),
+            ("sourcemap.json", true),
+            ("game.rbxl", true),
+            ("game.rbxlx.lock", true),
+            ("coverage/report.json", true),
+            (".env.local", true),
+            ("custom-output/example", true),
+            (".env.example", false),
+            ("wally.lock", false),
+            ("rokit.toml", false),
+            ("assets/model.rbxm", false),
+            ("modules/example.luau", false),
+            (".lute/check.luau", false),
+            ("jest.config.json", false),
+        ] {
+            let output = Command::new("git")
+                .args(["check-ignore", "--no-index", "--quiet", path])
+                .current_dir(dir.path())
+                .output()
+                .unwrap();
+            assert_eq!(
+                output.status.code(),
+                Some(if ignored { 0 } else { 1 }),
+                "{path}: {output:?}"
+            );
+        }
+    }
 }
