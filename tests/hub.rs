@@ -155,11 +155,12 @@ fn foreground_watch_interrupt_and_failure_return_to_a_usable_home() {
         session.send(common::DOWN);
     }
     for _ in 0..2 {
+        let checkpoint = session.output_checkpoint();
         session.send(ENTER);
-        session.wait_for("fixture child running");
+        session.wait_for_output_since(checkpoint, "fixture child running");
         session.send("\x03");
-        session.wait_for("Stopped.");
-        session.wait_for("Press Enter to return the project.");
+        session.wait_for_output_since(checkpoint, "Stopped.");
+        session.wait_for_output_since(checkpoint, "Press Enter to return the project.");
         assert!(
             std::fs::File::open(project.path().join("active-child.lock")).is_ok(),
             "child must have exited"
