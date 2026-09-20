@@ -103,7 +103,7 @@ T3 introduced Projects, New Project, Edit Project Template, Machine Setup, and C
 
 T4 shipped as **0.16.0 alpha** in [PR #24](https://github.com/chatarabdelilah/rproj/pull/24). The published archive, annotated tag, and GitHub prerelease identify `d54a9a8`. Existing saved setups now have their own Home manager; changes affect future reuse. New setup creation remains part of New Project. T5 is the active development milestone.
 
-1. **T5 - Ratatui Machine Setup (0.17.0 candidate):** review-first selection, in-TUI progress/results, and cooperative stopping after the active item. Implementation and verification are in progress; not yet published.
+1. **T5 - Ratatui Machine Setup (0.17.0 candidate):** review-first selection, in-TUI progress/results, and cooperative stopping after the active item. Implementation, local review, and runtime CI are complete; awaiting release closeout and owner publication. [PR #26](https://github.com/chatarabdelilah/rproj/pull/26) records final-head and merged-main verification.
 2. **Separate backlog:** package additions, background Watch, and a bounded code audit. Model import remains permanently dropped.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
