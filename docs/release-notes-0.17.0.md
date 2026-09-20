@@ -1,6 +1,6 @@
 # rproj 0.17.0 - T5: Ratatui Machine Setup
 
-Alpha release candidate; not yet published.
+Alpha release. Published archive and annotated tag verified at `9ee8d5167175c7bacb58a61e9317b4fda5d443ea`.
 
 ## Changes
 
