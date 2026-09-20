@@ -20,7 +20,10 @@ fn main() {
             options.share_mode(0);
         }
         let _lock = options.open("active-child.lock").unwrap();
-        println!("fixture child running");
+        println!(
+            "fixture child running {}",
+            std::fs::read_to_string("hold-tool").unwrap()
+        );
         let started = std::time::Instant::now();
         while started.elapsed() < std::time::Duration::from_secs(90) {
             std::thread::sleep(std::time::Duration::from_millis(100));

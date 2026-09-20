@@ -154,10 +154,13 @@ fn foreground_watch_interrupt_and_failure_return_to_a_usable_home() {
     for _ in 0..2 {
         session.send(common::DOWN);
     }
-    for _ in 0..2 {
-        let checkpoint = session.output_checkpoint();
+    for attempt in 1..=2 {
+        let marker = format!("watch-attempt-{attempt}");
+        project.write("hold-tool", &marker);
         session.send(ENTER);
-        session.wait_for_output_since(checkpoint, "fixture child running");
+        session.wait_for(&format!("fixture child running {marker}"));
+        // ConPTY can repaint the previous acknowledgement when leaving the alternate screen.
+        let checkpoint = session.output_checkpoint();
         session.send("\x03");
         session.wait_for_output_since(checkpoint, "Stopped.");
         session.wait_for_output_since(checkpoint, "Press Enter to return the project.");

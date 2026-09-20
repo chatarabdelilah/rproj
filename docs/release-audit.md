@@ -2,9 +2,11 @@
 
 ## T5: 0.17.0 Candidate
 
+A subsequent stable-Windows CI run timed out in the Catalog diagnostic-log PTY test. That test now waits for its filter to render and uses the documented direct Catalog exit instead of an unsynchronized Enter/Esc sequence. All eight diagnostics tests and formatting passed locally; this is test-only and does not change Catalog navigation.
+
 Implementation merged through [PR #26](https://github.com/chatarabdelilah/rproj/pull/26); not yet published or tagged.
 
-Merged-main CI exposed a repeated-Watch PTY synchronization race: retained output from the first run could satisfy the second run's completion check. The follow-up scopes these waits to a new output checkpoint; all nine hub tests, formatting, and clippy passed locally. This changes test synchronization only, not Watch runtime behavior. Final follow-up and merged-main checks remain publication gates.
+Merged-main CI exposed a repeated-Watch PTY synchronization race. A checkpoint before launch was insufficient: ConPTY repainted the previous normal-screen acknowledgement when the next watcher left the alternate screen. The failed CI snapshot showed that watcher still running while the test expected Project actions. Each fixture launch now has a unique readiness marker, and completion waits start only after that marker is visible. Ten consecutive runs of all nine hub tests passed locally. This changes test synchronization only, not Watch runtime behavior. [PR #28](https://github.com/chatarabdelilah/rproj/pull/28) records the correction and final-head/main CI gates; publication remains owner-only after those checks pass.
 
 - Local locked ordinary suite: **375 passed, 19 ignored**, 394 discovered (334 unit and 60 integration tests). Fixture PTY coverage exercises review/category cancellation, default-No confirmation, success and Back/Exit, worker panic, fatal failure, save failure, and stop-after-active-child without configuration saving or a subsequent item. Home cancellation remains in one terminal session.
 - Real fixture subprocesses exercise concurrent stdout/stderr draining, Unicode/control-sequence handling, failed spawning, nonzero exits, and cooperative stopping. All roots/configuration writes are injected temporary fixtures; no applications are installed. Global-config replacement is staged, synced, and tested for preserving the old file when Windows denies replacement.
