@@ -93,7 +93,11 @@ pub fn ensure_dev_mount(project: &mut Value) -> Result<()> {
         .context("default.project.json `tree` must be an object")?;
     let storage = child_object_mut(tree, "ReplicatedStorage")?;
     if let Some(existing) = storage.get("devPackages") {
-        if existing != &json!({ "$path": "DevPackages" }) {
+        let compatible = existing.get("$path").and_then(Value::as_str) == Some("DevPackages")
+            && existing
+                .get("$className")
+                .is_none_or(|class| class.as_str() == Some("Folder"));
+        if !compatible {
             bail!("cannot create Jest mount `devPackages` because node already exists");
         }
     } else {
@@ -301,6 +305,46 @@ mod tests {
         refresh_project(dir.path()).unwrap();
         assert_eq!(fs::read(&source).unwrap(), first);
         assert!(starter_spec("shared").contains("ReplicatedStorage.devPackages.JestGlobals"));
+    }
+
+    #[test]
+    fn refresh_preserves_existing_folder_mount_with_metadata() {
+        let dir = TempDir::new().unwrap();
+        let mut original = production();
+        original["tree"]["ReplicatedStorage"]["devPackages"] = json!({
+            "$path": "DevPackages",
+            "$className": "Folder",
+            "$attributes": { "Custom": true }
+        });
+        let source = dir.path().join("default.project.json");
+        let bytes = serde_json::to_vec(&original).unwrap();
+        fs::write(&source, &bytes).unwrap();
+        for _ in 0..2 {
+            refresh_project(dir.path()).unwrap();
+            assert_eq!(fs::read(&source).unwrap(), bytes);
+            let test: Value =
+                serde_json::from_slice(&fs::read(dir.path().join(PROJECT_FILE)).unwrap()).unwrap();
+            assert_eq!(
+                test["tree"]["ReplicatedStorage"]["devPackages"],
+                original["tree"]["ReplicatedStorage"]["devPackages"]
+            );
+        }
+    }
+
+    #[test]
+    fn incompatible_dev_mounts_are_rejected_without_changes() {
+        for mount in [
+            json!({ "$path": "OtherPackages" }),
+            json!({ "$path": "DevPackages", "$className": "ModuleScript" }),
+            json!({ "$path": "DevPackages", "$className": null }),
+            json!("DevPackages"),
+        ] {
+            let mut source = production();
+            source["tree"]["ReplicatedStorage"]["devPackages"] = mount;
+            let original = source.clone();
+            assert!(ensure_dev_mount(&mut source).is_err());
+            assert_eq!(source, original);
+        }
     }
 
     #[test]
