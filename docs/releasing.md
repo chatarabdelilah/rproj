@@ -2,13 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.17.0, T5: Ratatui Machine Setup**, at `9ee8d5167175c7bacb58a61e9317b4fda5d443ea`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.17.0) are verified. See [release notes](release-notes-0.17.0.md), [audit evidence](release-audit.md), and [PR #28](https://github.com/chatarabdelilah/rproj/pull/28). No further Cargo publication is needed for documentation-only alignment.
+The published baseline is **v0.17.0, T5: Ratatui Machine Setup**, at `9ee8d5167175c7bacb58a61e9317b4fda5d443ea`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.17.0) are verified. See [release notes](release-notes-0.17.0.md), [audit evidence](release-audit.md), and [PR #28](https://github.com/chatarabdelilah/rproj/pull/28). The next candidate is 0.18.0; the published baseline remains 0.17.0 until owner publication is confirmed.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-There is no active unpublished release candidate. T5 shipped as 0.17.0; future release scope requires separate approval.
+The active unpublished candidate is **0.18.0**, covering the Jest execution choice, generated-project fixes, Catalog refinements, and Ratatui Configure Tools from PRs #30 and #31. See [candidate release notes](release-notes-0.18.0.md). Do not publish until the release PR and merged-main CI pass. T5 shipped as 0.17.0; future release scope requires separate approval.
 
 The latest published release is **0.17.0, T5: Ratatui Machine Setup**, at `9ee8d5167175c7bacb58a61e9317b4fda5d443ea`. The owner published from clean main after Windows stable, Rust 1.89, and packaging CI passed. Fresh-machine installation acceptance remains unverified.
 
