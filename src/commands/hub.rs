@@ -533,6 +533,13 @@ pub fn run() -> Result<()> {
                     }
                 );
                 let result = match outcome {
+                    HubOutcome::Project {
+                        path,
+                        action: ProjectAction::Configure,
+                    } => {
+                        acknowledged = true;
+                        super::configure::open_in(&mut terminal, &path)
+                    }
                     HubOutcome::SetupMachine => {
                         acknowledged = true;
                         match super::machine_setup::open_in(&mut terminal) {

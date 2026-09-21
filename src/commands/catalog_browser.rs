@@ -23,7 +23,11 @@ pub enum CatalogExit {
 
 #[derive(Clone, Debug)]
 enum Node {
-    Group { label: String, children: Vec<Node> },
+    Group {
+        label: String,
+        description: String,
+        children: Vec<Node>,
+    },
     Entry(CatalogEntry),
 }
 
@@ -54,8 +58,10 @@ impl Node {
 
 fn group(label: &str, mut children: Vec<Node>) -> Node {
     children.sort_by_cached_key(|node| node.label().to_lowercase());
+    let (label, description) = label.split_once(" - ").unwrap_or((label, ""));
     Node::Group {
         label: label.into(),
+        description: description.into(),
         children,
     }
 }
@@ -65,8 +71,8 @@ fn tree() -> Vec<Node> {
         .into_iter()
         .enumerate()
         .map(|(index, section)| match section {
-            CatalogSection::Entries { entries, .. } if index == 0 => group(
-                "Packages",
+            CatalogSection::Entries { label, entries } if index == 0 => group(
+                &label,
                 wally_packages::Category::ALL
                     .iter()
                     .map(|category| {
@@ -85,7 +91,7 @@ fn tree() -> Vec<Node> {
                     })
                     .collect(),
             ),
-            CatalogSection::Entries { entries, .. } if index == 1 => {
+            CatalogSection::Entries { label, entries } if index == 1 => {
                 let mut groups = std::collections::BTreeMap::<&str, Vec<Node>>::new();
                 for entry in entries {
                     let tool = tool_catalog::find(&entry.key).expect("catalog tool");
@@ -113,7 +119,16 @@ fn tree() -> Vec<Node> {
                     .map(|(name, nodes)| group(name, nodes))
                     .collect();
                 children.push(vscode);
-                group("Tools", children)
+                group(
+                    &format!(
+                        "Tools - {}",
+                        label
+                            .split_once(" - ")
+                            .map(|(_, detail)| detail)
+                            .unwrap_or("")
+                    ),
+                    children,
+                )
             }
             CatalogSection::Entries { label, entries } => {
                 group(&label, entries.into_iter().map(Node::Entry).collect())
@@ -127,7 +142,6 @@ struct Location {
     path: Vec<usize>,
     query: String,
     selected: usize,
-    detail_focus: bool,
     scroll: u16,
     offset: Cell<usize>,
 }
@@ -221,8 +235,6 @@ impl CatalogApp {
                 path,
                 ..Location::default()
             };
-        } else {
-            self.location.detail_focus = true;
         }
     }
     pub fn handle_key(&mut self, key: KeyEvent) -> Option<CatalogExit> {
@@ -241,60 +253,44 @@ impl CatalogApp {
         }
         match key.code {
             KeyCode::Esc => {
-                if self.location.detail_focus {
-                    self.location.detail_focus = false;
-                } else if let Some(location) = self.history.pop() {
+                if let Some(location) = self.history.pop() {
                     self.location = location;
                 } else {
                     return Some(CatalogExit::Back);
                 }
             }
-            KeyCode::Tab | KeyCode::BackTab => {
-                if self.detail().is_some() {
-                    self.location.detail_focus = !self.location.detail_focus;
-                }
-            }
             KeyCode::Enter => self.open(),
-            KeyCode::Up
-            | KeyCode::Down
-            | KeyCode::PageUp
-            | KeyCode::PageDown
-            | KeyCode::Home
-            | KeyCode::End => {
-                let up = matches!(key.code, KeyCode::Up | KeyCode::PageUp);
-                let amount = if matches!(key.code, KeyCode::PageUp | KeyCode::PageDown) {
-                    10
-                } else {
-                    1
-                };
-                if self.location.detail_focus {
-                    let limit = self.detail_limit.get();
-                    self.location.scroll = match key.code {
-                        KeyCode::Home => 0,
-                        KeyCode::End => limit,
-                        _ if up => self.location.scroll.min(limit).saturating_sub(amount),
-                        _ => self.location.scroll.saturating_add(amount).min(limit),
-                    };
-                } else {
-                    let end = self.visible().len().saturating_sub(1);
-                    self.location.selected = match key.code {
-                        KeyCode::Home => 0,
-                        KeyCode::End => end,
-                        _ if up => self.location.selected.saturating_sub(amount as usize),
-                        _ => (self.location.selected + amount as usize).min(end),
-                    };
-                    self.location.scroll = 0;
-                }
+            KeyCode::PageUp => self.location.scroll = self.location.scroll.saturating_sub(10),
+            KeyCode::PageDown => {
+                self.location.scroll = self
+                    .location
+                    .scroll
+                    .saturating_add(10)
+                    .min(self.detail_limit.get())
             }
-            KeyCode::Backspace if !self.location.detail_focus => {
+            KeyCode::Home | KeyCode::End if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.location.scroll = if key.code == KeyCode::Home {
+                    0
+                } else {
+                    self.detail_limit.get()
+                };
+            }
+            KeyCode::Up | KeyCode::Down | KeyCode::Home | KeyCode::End => {
+                let end = self.visible().len().saturating_sub(1);
+                self.location.selected = match key.code {
+                    KeyCode::Home => 0,
+                    KeyCode::End => end,
+                    KeyCode::Up => self.location.selected.saturating_sub(1),
+                    _ => (self.location.selected + 1).min(end),
+                };
+                self.location.scroll = 0;
+            }
+            KeyCode::Backspace => {
                 self.location.query.pop();
                 self.location.selected = 0;
                 self.location.scroll = 0;
             }
-            KeyCode::Char(ch)
-                if !self.location.detail_focus
-                    && !key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.location.query.push(ch);
                 self.location.selected = 0;
                 self.location.scroll = 0;
@@ -306,7 +302,7 @@ impl CatalogApp {
     pub fn render(&self, frame: &mut ratatui::Frame<'_>) {
         let area = frame.area();
         if self.help {
-            frame.render_widget(Paragraph::new("Catalog help\n\nType to filter this group and descendants.\nEnter opens a group or focuses details.\nTab changes focus. Arrows and Page Up/Down scroll.\nHome/End go to the first/last item or detail line.\nEsc returns to the previous view. Ctrl+C leaves Catalog.\n\n? or Esc closes Help.").wrap(Wrap { trim: false }).block(Block::bordered().title(" Help ").padding(Padding::uniform(1))), area);
+            frame.render_widget(Paragraph::new("Catalog help\n\nType to filter this group and descendants.\nEnter opens a group. Entries are read-only.\nArrows navigate. Page Up/Down scroll details.\nHome/End select items. Ctrl+Home/End scroll details.\nEsc returns to the previous view. Ctrl+C leaves Catalog.\n\n? or Esc closes Help.").wrap(Wrap { trim: false }).block(Block::bordered().title(" Help ").padding(Padding::uniform(1))), area);
             return;
         }
         if tui::is_too_small(area) {
@@ -344,7 +340,7 @@ impl CatalogApp {
             frame,
             outer[2],
             &format!("Filter: {}", self.location.query),
-            "Type to filter  Arrows navigate  Enter open  Tab focus  Esc back  ? help",
+            "Type filter  Arrows navigate  Enter group  PgUp/PgDn details  Esc back  ? help",
             false,
         );
     }
@@ -354,26 +350,10 @@ impl CatalogApp {
         let items = paths
             .iter()
             .map(|path| {
-                let node = self.node(path);
-                let purpose = match node {
-                    Node::Entry(entry) => crate::catalog_view::first_sentence(&entry.description),
-                    Node::Group { .. } => "Open group",
-                };
-                let second = if self.location.query.is_empty() {
-                    purpose.into()
-                } else {
-                    self.breadcrumb(&path[..path.len() - 1])
-                };
-                ListItem::new(vec![
-                    Line::from(Span::styled(
-                        truncate(node.label(), width),
-                        Style::default().add_modifier(Modifier::BOLD),
-                    )),
-                    Line::from(Span::styled(
-                        truncate(&second, width),
-                        Style::default().fg(MUTED),
-                    )),
-                ])
+                ListItem::new(Span::styled(
+                    truncate(self.node(path).label(), width),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ))
             })
             .collect::<Vec<_>>();
         let mut state = ListState::default()
@@ -393,13 +373,9 @@ impl CatalogApp {
                             " Entries "
                         })
                         .padding(Padding::horizontal(1))
-                        .border_style(Style::default().fg(if self.location.detail_focus {
-                            MUTED
-                        } else {
-                            ACCENT
-                        })),
+                        .border_style(Style::default().fg(ACCENT)),
                 )
-                .highlight_style(tui::selected_style(!self.location.detail_focus)),
+                .highlight_style(tui::selected_style(true)),
             area,
             &mut state,
         );
@@ -411,11 +387,19 @@ impl CatalogApp {
             body: self
                 .selected_path()
                 .map(|path| match self.node(&path) {
-                    Node::Group { children, .. } => children
-                        .iter()
-                        .map(|node| node.label())
-                        .collect::<Vec<_>>()
-                        .join("\n"),
+                    Node::Group {
+                        description,
+                        children,
+                        ..
+                    } => format!(
+                        "{}\n\n{}",
+                        description,
+                        children
+                            .iter()
+                            .map(|node| node.label())
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    ),
                     _ => String::new(),
                 })
                 .unwrap_or_else(|| "No matches.".into()),
@@ -446,11 +430,7 @@ impl CatalogApp {
                     Block::bordered()
                         .title(format!(" {} ", detail.title))
                         .padding(Padding::uniform(1))
-                        .border_style(Style::default().fg(if self.location.detail_focus {
-                            ACCENT
-                        } else {
-                            MUTED
-                        })),
+                        .border_style(Style::default().fg(MUTED)),
                 ),
             area,
         );
@@ -498,6 +478,26 @@ pub fn run() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rows_use_names_and_enter_on_an_entry_does_not_change_navigation() {
+        let mut app = CatalogApp::new();
+        assert!(app.roots.iter().all(|node| !node.label().contains(" - ")));
+        let capabilities = app
+            .roots
+            .iter()
+            .find(|node| node.label() == "Capabilities")
+            .unwrap();
+        assert!(
+            matches!(capabilities, Node::Group { description, .. } if description.contains("what a project"))
+        );
+        app.location.query = "promise".into();
+        let before = app.location.clone();
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(app.location, before);
+        press(&mut app, KeyCode::Tab);
+        assert_eq!(app.location, before);
+    }
     fn press(app: &mut CatalogApp, code: KeyCode) {
         app.handle_key(KeyEvent::new(code, KeyModifiers::NONE));
     }
@@ -532,10 +532,10 @@ mod tests {
         app.detail_limit.set(20);
         press(&mut app, KeyCode::Enter);
         press(&mut app, KeyCode::PageDown);
-        assert!(app.location.detail_focus);
+        // Scrolling does not move focus away from the list.
         assert_eq!(app.location.scroll, 10);
         press(&mut app, KeyCode::Esc);
-        assert!(!app.location.detail_focus);
+
         assert_eq!(app.location.query, "promise");
     }
     #[test]
@@ -582,14 +582,14 @@ mod tests {
             ratatui::Terminal::new(ratatui::backend::TestBackend::new(80, 24)).unwrap();
         terminal.draw(|frame| app.render(frame)).unwrap();
         press(&mut app, KeyCode::Enter);
-        press(&mut app, KeyCode::End);
+        app.handle_key(KeyEvent::new(KeyCode::End, KeyModifiers::CONTROL));
         let end = app.location.scroll;
         assert!(end > 0);
-        press(&mut app, KeyCode::Up);
-        assert_eq!(app.location.scroll, end - 1);
+        press(&mut app, KeyCode::PageUp);
+        assert_eq!(app.location.scroll, end.saturating_sub(10));
         press(&mut app, KeyCode::Esc);
-        assert!(!app.location.detail_focus);
+
         press(&mut app, KeyCode::Tab);
-        assert_eq!(app.location.scroll, end - 1);
+        assert_eq!(app.location.scroll, end.saturating_sub(10));
     }
 }

@@ -193,7 +193,12 @@ fn plan(
                 &mut rewrites,
                 project_dir,
                 ".github/workflows/ci.yml",
-                ci_workflow(workflow, has_server_packages, runner),
+                ci_workflow(
+                    workflow,
+                    has_server_packages,
+                    runner,
+                    project.jest_backend(),
+                ),
                 "the generated CI workflow",
             )?;
         }
@@ -243,7 +248,7 @@ fn plan(
             &mut rewrites,
             project_dir,
             jest::CONFIG_FILE,
-            jest::merged_config(project_dir)?,
+            jest::merged_config(project_dir, project.jest_backend())?,
             "Jest runner paths managed by rproj; other options are kept",
         )?;
     }

@@ -185,6 +185,7 @@ pub(super) fn execute_confirmed(
                 package_workflow,
                 project_tools: &project_tools,
                 test_runner,
+                jest_backend: graph.jest_backend(),
                 chosen_artifacts: &chosen_artifacts,
                 project_template,
             },
@@ -226,7 +227,9 @@ pub(super) fn execute_confirmed(
             ));
         }
 
-        if test_runner == Some(TestRunner::JestRoblox) {
+        if test_runner == Some(TestRunner::JestRoblox)
+            && graph.jest_backend() == crate::graph::JestBackend::Studio
+        {
             crate::interrupt::check()?;
             if !config
                 .selected_studio_plugins
@@ -567,8 +570,9 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
             continue;
         }
 
-        let implementation = if capability.needs_an_implementation_prompt(workflow) {
+        let mut implementation = if capability.needs_an_implementation_prompt(workflow) {
             let mut implementations = capability.implementations_for(workflow);
+            implementations.retain(|implementation| implementation.key != "jest-roblox-open-cloud");
             implementations.sort_by_key(|implementation| implementation.display);
             let options: Vec<String> = implementations
                 .iter()
@@ -584,6 +588,19 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
                 .first()
                 .map(|implementation| implementation.key.to_string())
         };
+        if implementation.as_deref() == Some("jest-roblox") {
+            let backend = Select::new(
+                "Jest execution:",
+                vec![
+                    "Local Studio (test before pushing; no CI tests)",
+                    "Open Cloud (tests locally and in CI; Roblox credentials required)",
+                ],
+            )
+            .prompt()?;
+            if backend.starts_with("Open Cloud") {
+                implementation = Some("jest-roblox-open-cloud".into());
+            }
+        }
         chosen.push((capability.key.to_string(), implementation));
     }
     Ok(chosen)
@@ -811,6 +828,12 @@ pub(super) fn summary_lines(
             does.join(", ")
         }
     ));
+    if graph.test_runner() == Some(TestRunner::JestRoblox) {
+        lines.push(format!("  {:<14}{}", "Jest execution", match graph.jest_backend() {
+            crate::graph::JestBackend::Studio => "Local Studio; test before pushing. CI has no test step.",
+            crate::graph::JestBackend::OpenCloud => "Open Cloud; CI runs tests. Configure the Roblox API key, universe ID and dedicated test place ID.",
+        }));
+    }
 
     let artifact_keys: Vec<&str> = planned.iter().map(|entry| entry.key).collect();
     let configurable: Vec<_> = tool_settings::CONFIGURABLE_TOOLS
@@ -1034,6 +1057,7 @@ struct ScaffoldOptions<'a> {
     package_workflow: PackageWorkflow,
     project_tools: &'a [String],
     test_runner: Option<TestRunner>,
+    jest_backend: crate::graph::JestBackend,
     chosen_artifacts: &'a [String],
     project_template: Option<&'a serde_json::Value>,
 }
@@ -1044,6 +1068,7 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
         package_workflow,
         project_tools,
         test_runner,
+        jest_backend,
         chosen_artifacts,
         project_template,
     } = options;
@@ -1112,7 +1137,7 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
         jest::refresh_project(project_dir)?;
     }
     if writes("jest.config.json") {
-        jest::ensure_config(project_dir)?;
+        jest::ensure_config(project_dir, jest_backend)?;
     }
 
     // default.project.json maps a $path (packages/ or modules/) that has to
@@ -1215,6 +1240,7 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
                 package_workflow,
                 has_server_packages,
                 test_runner,
+                jest_backend,
             )?;
         }
         quality::lute_setup(project_dir)?;

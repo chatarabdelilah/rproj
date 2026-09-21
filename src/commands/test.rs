@@ -66,14 +66,14 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
             run_runner(program, &args, project_dir)
         }
         TestRunner::JestRoblox => {
-            if uses_studio_cli(arguments) {
+            if uses_studio_cli(arguments, project.jest_backend()) {
                 ensure_jest_runtime()?;
             }
             if !project_dir.join("wally.toml").exists() {
                 bail!("Jest Roblox project is missing wally.toml; run `rproj upgrade`");
             }
             jest::refresh_project(project_dir)?;
-            jest::ensure_config(project_dir)?;
+            jest::ensure_config(project_dir, project.jest_backend())?;
             wally::sync_for_project(project_dir, jest::PROJECT_FILE)?;
             let (program, args) = invocation(runner, arguments);
             run_runner(program, &args, project_dir)
@@ -81,7 +81,7 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
     }
 }
 
-fn uses_studio_cli(arguments: &[String]) -> bool {
+fn uses_studio_cli(arguments: &[String], backend: crate::graph::JestBackend) -> bool {
     for (index, argument) in arguments.iter().enumerate() {
         if argument == "--backend" {
             return arguments
@@ -92,7 +92,7 @@ fn uses_studio_cli(arguments: &[String]) -> bool {
             return backend == "studio-cli";
         }
     }
-    true
+    backend == crate::graph::JestBackend::Studio
 }
 
 fn ensure_jest_runtime() -> Result<()> {
@@ -212,9 +212,19 @@ mod tests {
 
     #[test]
     fn only_studio_cli_runs_require_the_local_studio_preflight() {
-        assert!(uses_studio_cli(&[]));
-        assert!(uses_studio_cli(&["--backend=studio-cli".into()]));
-        assert!(!uses_studio_cli(&["--backend".into(), "open-cloud".into()]));
-        assert!(!uses_studio_cli(&["--backend=workspace".into()]));
+        assert!(!uses_studio_cli(&[], crate::graph::JestBackend::OpenCloud));
+        assert!(uses_studio_cli(&[], crate::graph::JestBackend::Studio));
+        assert!(uses_studio_cli(
+            &["--backend=studio-cli".into()],
+            crate::graph::JestBackend::OpenCloud
+        ));
+        assert!(!uses_studio_cli(
+            &["--backend".into(), "open-cloud".into()],
+            crate::graph::JestBackend::Studio
+        ));
+        assert!(!uses_studio_cli(
+            &["--backend=workspace".into()],
+            crate::graph::JestBackend::Studio
+        ));
     }
 }

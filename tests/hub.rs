@@ -53,6 +53,60 @@ fn open_project(session: &mut Session, project: &TempProject) {
 }
 
 #[test]
+fn project_configure_saves_and_returns_without_a_terminal_handoff() {
+    let project = TempProject::new("home-configure-tools");
+    project.write("default.project.json", "{}");
+    project.write("stylua.toml", "column_width = 91\ncustom = 'preserve'\n");
+    let logs = project.path().join("logs");
+    let mut session = Session::start_with_env(
+        project.path(),
+        &[],
+        &[
+            ("RPROJ_LOG_DIR", logs.to_str().unwrap()),
+            ("RPROJ_NO_LOG", "0"),
+        ],
+    );
+    session.wait_for("Tasks");
+    open_project(&mut session, &project);
+    session.send(ENTER);
+    session.wait_for("Search:");
+    session.send("stylua");
+    session.send(ENTER);
+    session.wait_for("column_width = 91");
+    session.send(common::DOWN); // syntax is first, column_width second
+    session.send(ENTER);
+    session.wait_for("Enter accepts");
+    session.send("\x08\x08100");
+    session.send(ENTER);
+    session.send("\x13"); // Ctrl+S
+    session.wait_for("Save these changes?");
+    session.send("y");
+    session.wait_for("Saved");
+    session.send(ESC);
+    session.wait_for("Search:");
+    session.send(ESC);
+    session.wait_for("Project actions");
+    session.send("\x03");
+    session.wait_for("Tasks");
+    session.send(ESC);
+    let result = session.finish();
+    assert_eq!(result.code, 0, "{}", result.text);
+    let settings: toml::Value = toml::from_str(&project.read("stylua.toml")).unwrap();
+    assert_eq!(settings["column_width"].as_integer(), Some(100));
+    assert_eq!(settings["custom"].as_str(), Some("preserve"));
+    let path = std::fs::read_dir(logs)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let log = std::fs::read_to_string(path).unwrap();
+    assert_eq!(log.matches("[tui.enter]").count(), 1);
+    assert_eq!(log.matches("[tui.leave]").count(), 1);
+    assert!(!log.contains("[tui.suspend]"));
+}
+
+#[test]
 fn saved_setups_returns_home_without_a_terminal_handoff() {
     let project = TempProject::new("home-saved-setups");
     let logs = project.path().join("logs");

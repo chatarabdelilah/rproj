@@ -19,6 +19,7 @@ pub enum Step {
     Packages(Option<usize>),
     Capabilities,
     Implementation(&'static str),
+    JestBackend,
     RepairTesting,
     Review,
     Files,
@@ -130,6 +131,7 @@ impl Draft {
             Step::Packages(None) => "Packages".into(),
             Step::Capabilities => "Capabilities".into(),
             Step::Implementation(key) => format!("{key} implementation"),
+            Step::JestBackend => "Jest execution".into(),
             Step::RepairTesting => "Testing needs a decision".into(),
             Step::Review => "Review".into(),
             Step::Files => "Optional files".into(),
@@ -221,12 +223,25 @@ impl Draft {
                 let mut implementations = capabilities::find(key)
                     .unwrap()
                     .implementations_for(self.graph.package_workflow);
+                implementations.retain(|i| i.key != "jest-roblox-open-cloud");
                 implementations.sort_by_key(|i| i.display);
                 implementations
                     .iter()
                     .map(|i| item(i.key, i.display, key))
                     .collect()
             }
+            Step::JestBackend => vec![
+                item(
+                    "jest-roblox",
+                    "Local Studio",
+                    "Run tests locally before pushing. CI runs quality checks without tests.",
+                ),
+                item(
+                    "jest-roblox-open-cloud",
+                    "Open Cloud",
+                    "Run tests through Open Cloud locally and in CI. Requires a Roblox API key, universe ID, and dedicated test place ID.",
+                ),
+            ],
             Step::RepairTesting => vec![
                 item(
                     "testez",
@@ -317,6 +332,12 @@ impl Draft {
                 PackageWorkflow::GitSubmodules => "git",
                 PackageWorkflow::None => "none",
             }),
+            Step::Implementation("test")
+                if self.graph.test_runner() == Some(crate::graph::TestRunner::JestRoblox) =>
+            {
+                Some("jest-roblox")
+            }
+            Step::JestBackend => self.graph.capabilities.get("test").map(String::as_str),
             Step::Implementation(key) => self.graph.capabilities.get(key).map(String::as_str),
             Step::Packages(Some(i)) if !Category::ALL[i].allows_multiple() => self
                 .picker
@@ -500,6 +521,7 @@ impl Draft {
             }
             Step::Packages(_) | Step::RepairTesting => self.open(Step::Strategy),
             Step::Capabilities => self.open(Step::Strategy),
+            Step::JestBackend => self.open(Step::Implementation("test")),
             Step::Implementation(_) => self.open(Step::Capabilities),
             Step::Files => self.review(),
         }
@@ -619,7 +641,15 @@ impl Draft {
                 if self.graph.capabilities.get(key) != Some(&value) {
                     self.invalidate(Node::Capabilities);
                 }
-                self.graph.choose(key, Some(&value));
+                if key == "test" && value == "jest-roblox" {
+                    self.open(Step::JestBackend);
+                } else {
+                    self.graph.choose(key, Some(&value));
+                    self.next_implementation();
+                }
+            }
+            Step::JestBackend => {
+                self.graph.choose("test", Some(&value));
                 self.next_implementation();
             }
             Step::RepairTesting => {

@@ -326,6 +326,21 @@ fn jest_upgrade_regenerates_owned_files_and_preserves_user_options() {
     assert!(config.contains(r#""verbose": true"#), "{config}");
 
     let ci = project.read(".github/workflows/ci.yml");
-    assert!(ci.contains("ROBLOX_OPEN_CLOUD_API_KEY"), "{ci}");
+    assert!(!ci.contains("ROBLOX_OPEN_CLOUD_API_KEY"), "{ci}");
+    assert!(!ci.contains("Run tests"), "{ci}");
+    let record = project.read("rproj.toml").replace(
+        "test = \"jest-roblox\"",
+        "test = \"jest-roblox-open-cloud\"",
+    );
+    project.write("rproj.toml", &record);
+    let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    let ci = project.read(".github/workflows/ci.yml");
     assert!(ci.contains("jest-roblox-cli --backend open-cloud"), "{ci}");
+    assert!(!ci.contains("JEST_OPEN_CLOUD"), "{ci}");
+    assert!(
+        project
+            .read("jest.config.json")
+            .contains(r#""backend": "open-cloud""#)
+    );
 }

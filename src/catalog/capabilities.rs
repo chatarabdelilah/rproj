@@ -156,6 +156,19 @@ pub const CAPABILITIES: &[Capability] = &[
                 ],
                 workflows: &[PackageWorkflow::Wally],
             },
+            Implementation {
+                key: "jest-roblox-open-cloud",
+                display: "Jest Roblox (Open Cloud)",
+                tools: &["jest-roblox"],
+                packages: &["jest", "jest-globals"],
+                artifacts: &[
+                    "tests",
+                    "test-examples",
+                    "jest.project.json",
+                    "jest.config.json",
+                ],
+                workflows: &[PackageWorkflow::Wally],
+            },
         ],
         requires: &[],
         default_selected: false,
@@ -385,7 +398,7 @@ mod tests {
     #[test]
     fn jest_is_only_available_with_wally() {
         let testing = find("test").unwrap();
-        assert_eq!(testing.implementations_for(PackageWorkflow::Wally).len(), 2);
+        assert_eq!(testing.implementations_for(PackageWorkflow::Wally).len(), 3);
         for workflow in [PackageWorkflow::GitSubmodules, PackageWorkflow::None] {
             let implementations = testing.implementations_for(workflow);
             assert_eq!(implementations.len(), 1);

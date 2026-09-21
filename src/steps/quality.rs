@@ -87,6 +87,7 @@ pub fn ensure_ci_workflow(
     workflow: PackageWorkflow,
     has_server_packages: bool,
     runner: Option<TestRunner>,
+    backend: crate::graph::JestBackend,
 ) -> Result<()> {
     let path = project_dir.join(".github").join("workflows").join("ci.yml");
     if path.exists() {
@@ -94,8 +95,11 @@ pub fn ensure_ci_workflow(
         return Ok(());
     }
     fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
-    fs::write(&path, ci_workflow(workflow, has_server_packages, runner))
-        .with_context(|| format!("failed to write {}", path.display()))?;
+    fs::write(
+        &path,
+        ci_workflow(workflow, has_server_packages, runner, backend),
+    )
+    .with_context(|| format!("failed to write {}", path.display()))?;
     ui::ok("wrote .github/workflows/ci.yml");
     Ok(())
 }

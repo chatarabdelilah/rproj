@@ -989,7 +989,7 @@ A project action reloads its context immediately before dispatch. Path-aware
 command entrypoints pass that directory through file operations and subprocess
 working directories; direct CLI wrappers still resolve the exact current directory.
 No process-wide working-directory mutation or persistent selection is introduced.
-Project Configure Tools excludes the standalone global-template picker option.
+Project Configure Tools excludes the standalone global-template picker option and runs in the existing Ratatui session. Its editor reuses the settings catalog and checked merge functions, stages explicit changes, preserves unsupported and unrelated values, refuses external file changes, and replaces the chosen settings file only after confirmation. The replacement has atomic visibility to readers; this is not a guarantee of crash durability. Direct CLI configure keeps its prompt interface.
 Malformed records remain discoverable with warnings. Commands retain authoritative
 validation, runner behavior, and existing tool pins.
 New Project preflight runs in a scoped worker; cancellation prevents the next
@@ -1307,3 +1307,7 @@ No code-level migrations are pending for the tool itself. The following are outs
 **Projects scaffolded by an earlier version of `rproj` need a one-time manual migration**, because the git-submodule layout changed shape (§8.2). There is no automated upgrade path; a project created before this change has capitalised `Modules/`, per-package `Modules.<key>.src` entries in its root project file, and no link files. Either re-scaffold it, or by hand: rename `Modules/` → `modules/`, move each submodule to `modules/submodules/<dir>` (updating `.gitmodules` paths), add `modules/submodules/default.project.json`, replace the root project's `Modules` block with `"modules": { "$path": "modules" }`, and add the `modules/<ModuleName>.luau` link files.
 
 Runtime instructions the tool itself prints to the user (e.g. Blender's one-time "Install Dependencies" + Roblox-account-link step) are per-installation manual steps handled by `rproj`'s own output, not repository migration tasks, and are not tracked here.
+
+### Jest execution choice
+
+Jest implementation selection is followed by a Local Studio/Open Cloud picker. The project graph records `test = "jest-roblox"` for local execution or `test = "jest-roblox-open-cloud"` for cloud execution. Both derive the same runner, packages, and artifacts. The graph drives `jest.config.json`, CI generation, upgrade, saved setup replay/editing, and local Studio prerequisite checks. Cloud creation does not provision the Studio runner plugin. Local CI has no test step; cloud CI checks credentials and runs tests without an extra repository switch. Existing Jest records resolve to Local Studio.

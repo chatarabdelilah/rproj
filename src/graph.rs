@@ -16,6 +16,22 @@ pub enum TestRunner {
     JestRoblox,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum JestBackend {
+    #[default]
+    Studio,
+    OpenCloud,
+}
+
+impl JestBackend {
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Studio => "studio-cli",
+            Self::OpenCloud => "open-cloud",
+        }
+    }
+}
+
 /// One editable decision. Ordered as they are asked, which is also the
 /// order they constrain each other in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,11 +163,23 @@ impl ProjectGraph {
             None => return None,
         };
         Some(match key.as_str() {
-            "jest-roblox" => TestRunner::JestRoblox,
+            "jest-roblox" | "jest-roblox-open-cloud" => TestRunner::JestRoblox,
             // TestEZ is deliberately the compatibility fallback for stale
             // implementation keys and manifests from before implementations.
             _ => TestRunner::TestEz,
         })
+    }
+
+    pub fn jest_backend(&self) -> JestBackend {
+        if self
+            .capabilities
+            .get("test")
+            .is_some_and(|key| key == "jest-roblox-open-cloud")
+        {
+            JestBackend::OpenCloud
+        } else {
+            JestBackend::Studio
+        }
     }
 
     pub fn testing_is_compatible(&self) -> bool {
