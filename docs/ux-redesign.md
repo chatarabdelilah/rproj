@@ -71,9 +71,9 @@ Wide terminals show actions and details side by side; narrow terminals switch fo
 
 The Catalog excludes Place Template, which belongs to the dedicated Explorer. It groups Packages by category and Tools by installation type. VS Code contains Extensions and Themes & Icons. Groups sort alphabetically; search covers the current group and descendants. Existing package examples, metadata, and named lookups remain available.
 
-Enter opens a group or focuses details. Tab changes panes; arrows/Page Up/Page Down/Home/End navigate or scroll. Esc unwinds detail focus and the navigation stack, restoring selection/filter/scroll. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
+Rows contain names only. Group descriptions and entry explanations live in the details pane. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select rows; Page Up/Down and Ctrl+Home/End scroll details without changing focus. Esc unwinds the group navigation stack. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
 
-Configure Tools, Upgrade, Watch, Test, and Copy Source live on the project screen, with unavailable reasons. Each action revalidates its selected directory, runs outside the alternate screen, and returns to the same project after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Watch remains foreground-only and awaits the active child before returning.
+Configure Tools, Upgrade, Watch, Test, and Copy Source live on the project screen, with unavailable reasons. Each action revalidates its selected directory. Configure Tools borrows the current Ratatui session and reviews saves/discards. Other actions run outside the alternate screen and return after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Watch remains foreground-only and awaits the active child before returning.
 
 ## Template Explorer
 
@@ -115,3 +115,5 @@ The hub creation flow uses the existing graph:
 Require generated-output parity for unchanged choices, saved-setup parity, Unicode/responsive tests, cancellation coverage, and unchanged direct command behavior.
 
 Additional project types, a Studio plugin, embedded quality tools, and a desktop GUI are not release prerequisites. The roadmap records their scope decisions.
+
+Jest selection has a second execution picker: Local Studio (no CI tests) or Open Cloud (cloud tests in CI). The concrete choice survives saved setup replay, editing, project records, upgrade, and test dispatch. Cloud setup instructions appear in the generated workflow; only local creation provisions the Studio runner plugin.

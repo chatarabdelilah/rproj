@@ -286,6 +286,7 @@ pub fn ci_workflow(
     workflow: PackageWorkflow,
     has_server_packages: bool,
     runner: Option<TestRunner>,
+    backend: crate::graph::JestBackend,
 ) -> String {
     let install = match workflow {
         PackageWorkflow::Wally => wally_ci_steps(has_server_packages, runner),
@@ -298,13 +299,14 @@ pub fn ci_workflow(
         Some(TestRunner::TestEz) => {
             "\n      - name: Run tests\n        run: lute test\n".to_string()
         }
+        Some(TestRunner::JestRoblox) if backend == crate::graph::JestBackend::Studio => String::new(),
         Some(TestRunner::JestRoblox) => r#"
-      - name: Local Jest testing
-        if: ${{ vars.JEST_OPEN_CLOUD != 'true' }}
-        run: echo "Cloud tests disabled. Run rproj test locally, or set JEST_OPEN_CLOUD=true and configure Roblox credentials."
-
+      # In repository Settings > Secrets and variables > Actions, set secret
+      # ROBLOX_OPEN_CLOUD_API_KEY and variables ROBLOX_UNIVERSE_ID/ROBLOX_PLACE_ID.
+      # Use a dedicated test place: the runner uploads its test build there.
+      # Key scopes: universe-places:write, universe.place.luau-execution-session:write,
+      # memory-store.sorted-map:read and memory-store.sorted-map:write.
       - name: Check Jest Roblox credentials
-        if: ${{ vars.JEST_OPEN_CLOUD == 'true' }}
         env:
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
@@ -316,7 +318,6 @@ pub fn ci_workflow(
           fi
 
       - name: Run tests
-        if: ${{ vars.JEST_OPEN_CLOUD == 'true' }}
         env:
           ROBLOX_OPEN_CLOUD_API_KEY: ${{ secrets.ROBLOX_OPEN_CLOUD_API_KEY }}
           ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
@@ -358,6 +359,30 @@ jobs:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_jest_ci_has_no_test_steps_or_cloud_configuration() {
+        let ci = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::JestRoblox),
+            crate::graph::JestBackend::Studio,
+        );
+        assert!(ci.contains("lute run check"));
+        assert!(ci.contains("jest.project.json"));
+        assert!(!ci.contains("Run tests"));
+        assert!(!ci.contains("ROBLOX_OPEN_CLOUD"));
+        assert!(!ci.contains("JEST_OPEN_CLOUD"));
+        let cloud = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::JestRoblox),
+            crate::graph::JestBackend::OpenCloud,
+        );
+        assert!(cloud.contains("Run tests"));
+        assert!(cloud.contains("exit 1"));
+        assert!(!cloud.contains("JEST_OPEN_CLOUD"));
+    }
 
     fn tools(keys: &[&str]) -> Vec<String> {
         keys.iter().map(|k| (*k).to_string()).collect()
@@ -495,7 +520,12 @@ mod tests {
     #[test]
     fn ci_workflow_runs_the_gate_and_tolerates_no_tests() {
         for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            let ci = ci_workflow(workflow, false, Some(TestRunner::TestEz));
+            let ci = ci_workflow(
+                workflow,
+                false,
+                Some(TestRunner::TestEz),
+                crate::graph::JestBackend::OpenCloud,
+            );
             assert!(ci.contains("lute run check"));
             assert!(ci.contains("lute test"));
             assert!(!ci.contains("lute run tests"));
@@ -505,14 +535,24 @@ mod tests {
 
     #[test]
     fn ci_omits_tests_when_testing_is_disabled() {
-        let ci = ci_workflow(PackageWorkflow::None, false, None);
+        let ci = ci_workflow(
+            PackageWorkflow::None,
+            false,
+            None,
+            crate::graph::JestBackend::OpenCloud,
+        );
         assert!(ci.contains("lute run check"));
         assert!(!ci.contains("Run tests"), "{ci}");
     }
 
     #[test]
     fn jest_ci_uses_dev_packages_and_fails_when_credentials_are_missing() {
-        let ci = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::JestRoblox));
+        let ci = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::JestRoblox),
+            crate::graph::JestBackend::OpenCloud,
+        );
         assert!(ci.contains("jest.project.json"), "{ci}");
         assert!(ci.contains("Packages DevPackages"), "{ci}");
         assert!(ci.contains("ROBLOX_OPEN_CLOUD_API_KEY"), "{ci}");
@@ -521,12 +561,6 @@ mod tests {
         assert!(ci.contains("exit 1"), "{ci}");
         assert!(ci.contains("--backend open-cloud"), "{ci}");
         assert!(ci.contains("--formatters github-actions"), "{ci}");
-        assert_eq!(
-            ci.matches("if: ${{ vars.JEST_OPEN_CLOUD == 'true' }}")
-                .count(),
-            2
-        );
-        assert!(ci.contains("vars.JEST_OPEN_CLOUD != 'true'"));
     }
 
     /// Packages/ is gitignored, so without an install step the gate's very
@@ -534,7 +568,12 @@ mod tests {
     /// doesn't exist - fails, and every Wally project's CI is red.
     #[test]
     fn wally_ci_installs_packages_and_restores_their_types() {
-        let ci = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz));
+        let ci = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::TestEz),
+            crate::graph::JestBackend::OpenCloud,
+        );
         assert!(ci.contains("wally install"), "{ci}");
         assert!(ci.contains("mkdir -p Packages"), "{ci}");
         assert!(ci.contains("wally-package-types"), "{ci}");
@@ -551,6 +590,7 @@ mod tests {
             PackageWorkflow::GitSubmodules,
             false,
             Some(TestRunner::TestEz),
+            crate::graph::JestBackend::OpenCloud,
         );
         assert!(!submodules.contains("wally"), "{submodules}");
     }
@@ -560,7 +600,12 @@ mod tests {
     /// silently goes back to using the broken one.
     #[test]
     fn wally_ci_builds_the_fixed_wally_package_types() {
-        let ci = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz));
+        let ci = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::TestEz),
+            crate::graph::JestBackend::OpenCloud,
+        );
 
         // A branch or tag would make CI non-reproducible, and a short sha
         // is ambiguous.
@@ -597,13 +642,23 @@ mod tests {
     /// was selected - so the argument list has to track the manifest.
     #[test]
     fn ci_retypes_server_packages_only_when_there_are_any() {
-        let with = ci_workflow(PackageWorkflow::Wally, true, Some(TestRunner::TestEz));
+        let with = ci_workflow(
+            PackageWorkflow::Wally,
+            true,
+            Some(TestRunner::TestEz),
+            crate::graph::JestBackend::OpenCloud,
+        );
         assert!(
             with.contains("sourcemap.json Packages ServerPackages"),
             "{with}"
         );
 
-        let without = ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz));
+        let without = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::TestEz),
+            crate::graph::JestBackend::OpenCloud,
+        );
         assert!(without.contains("sourcemap.json Packages\n"), "{without}");
         assert!(!without.contains("ServerPackages"), "{without}");
     }
@@ -614,8 +669,13 @@ mod tests {
     fn vendored_paths_use_wallys_real_capitalisation() {
         assert!(ANALYZE_BODY.contains("**/Packages/**"), "{ANALYZE_BODY}");
         assert!(
-            ci_workflow(PackageWorkflow::Wally, false, Some(TestRunner::TestEz))
-                .contains("sourcemap.json Packages")
+            ci_workflow(
+                PackageWorkflow::Wally,
+                false,
+                Some(TestRunner::TestEz),
+                crate::graph::JestBackend::OpenCloud
+            )
+            .contains("sourcemap.json Packages")
         );
     }
 }

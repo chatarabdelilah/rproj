@@ -61,7 +61,7 @@ Automated **saved-setup replay** now verifies both Wally and Git submodules: sav
 | Template Explorer | Editing, validation, reset, repair, cancellation, and terminal restoration preserve the last valid template. |
 | Daily use | Dependency recovery in Watch, correct runner dispatch, and documented Copy/Catalog behavior. |
 | Upgrade/configure | Review and cancellation work; managed fields update without damaging source or unrelated configuration. |
-| Checks/CI | Clean fixtures pass; deliberate lint/format/type/test failures fail. Explicitly enabled Open Cloud tests fail clearly when credentials are missing; otherwise CI reports cloud tests disabled. Record live Studio/Open Cloud evidence separately. |
+| Checks/CI | Clean fixtures pass; deliberate lint/format/type/test failures fail. Open Cloud projects fail clearly when credentials are missing; Local Studio projects omit CI tests. Record live Studio/Open Cloud evidence separately. |
 | TUI/CLI | Wide, narrow, and small-terminal behavior, Unicode input, Ctrl+C, and plain redirected output. |
 
 ### 3. Fix And Document

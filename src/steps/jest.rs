@@ -153,7 +153,7 @@ pub fn refresh_project(project_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn merged_config(project_dir: &Path) -> Result<String> {
+pub fn merged_config(project_dir: &Path, backend: crate::graph::JestBackend) -> Result<String> {
     let path = project_dir.join(CONFIG_FILE);
     let mut root = if path.exists() {
         let value: Value = serde_json::from_str(&fs::read_to_string(&path)?)
@@ -165,7 +165,7 @@ pub fn merged_config(project_dir: &Path) -> Result<String> {
     } else {
         Map::new()
     };
-    root.insert("backend".into(), json!("studio-cli"));
+    root.insert("backend".into(), json!(backend.key()));
     root.insert("rojoProject".into(), json!(PROJECT_FILE));
     root.insert(
         "jestPath".into(),
@@ -193,10 +193,10 @@ pub fn merged_config(project_dir: &Path) -> Result<String> {
     ))
 }
 
-pub fn ensure_config(project_dir: &Path) -> Result<()> {
+pub fn ensure_config(project_dir: &Path, backend: crate::graph::JestBackend) -> Result<()> {
     atomic_write(
         &project_dir.join(CONFIG_FILE),
-        merged_config(project_dir)?.as_bytes(),
+        merged_config(project_dir, backend)?.as_bytes(),
     )?;
     ui::ok("wrote jest.config.json");
     Ok(())
@@ -311,7 +311,10 @@ mod tests {
             r#"{"timeout":123,"test":{"verbose":true}}"#,
         )
         .unwrap();
-        let merged: Value = serde_json::from_str(&merged_config(dir.path()).unwrap()).unwrap();
+        let merged: Value = serde_json::from_str(
+            &merged_config(dir.path(), crate::graph::JestBackend::Studio).unwrap(),
+        )
+        .unwrap();
         assert_eq!(merged["timeout"], 123);
         assert_eq!(merged["test"]["verbose"], true);
         assert_eq!(merged["backend"], "studio-cli");
@@ -328,7 +331,10 @@ mod tests {
     #[test]
     fn generated_config_uses_inline_projects_for_luau_test_trees() {
         let dir = TempDir::new().unwrap();
-        let config: Value = serde_json::from_str(&merged_config(dir.path()).unwrap()).unwrap();
+        let config: Value = serde_json::from_str(
+            &merged_config(dir.path(), crate::graph::JestBackend::Studio).unwrap(),
+        )
+        .unwrap();
         let projects = config["test"]["projects"].as_array().unwrap();
 
         assert_eq!(projects.len(), PROJECTS.len());
@@ -382,7 +388,7 @@ mod tests {
         }
         fs::write(dir.path().join("tests/shared/catalog.spec.luau"), spec).unwrap();
         refresh_project(dir.path()).unwrap();
-        ensure_config(dir.path()).unwrap();
+        ensure_config(dir.path(), crate::graph::JestBackend::Studio).unwrap();
         wally::sync_for_project(dir.path(), PROJECT_FILE).unwrap();
         // The ordinary quality gate replaces the Jest sourcemap with this one.
         wally::sync(dir.path()).unwrap();

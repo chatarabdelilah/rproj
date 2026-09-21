@@ -23,7 +23,7 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
 
     // The section stays open across lookups, so this is one keystroke per
     // entry rather than a round trip through the section menu.
-    session.wait_for("Type to filter");
+    session.wait_for("Type filter");
     session.send("wally.toml");
     session.wait_for("wally.toml");
     session.send(ENTER);
@@ -36,9 +36,7 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
     assert!(screen.contains("wally.toml"), "{screen}");
     assert!(screen.contains("Wally manifest"), "{screen}");
 
-    // Escape backs out through detail, entries, and sections.
-    session.send(ESC);
-    session.wait_for("Generated files");
+    // Entries never acquire focus; Escape returns directly to sections.
     session.send(ESC);
     session.wait_for("Sections");
     session.send(ESC);

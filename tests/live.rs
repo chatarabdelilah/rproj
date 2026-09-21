@@ -708,6 +708,8 @@ fn jest_starter_specs_pass_and_report_failure() {
     session.send("jest-roblox");
     session.wait_for("jest-roblox - ");
     session.send(ENTER);
+    session.wait_for("Jest execution:");
+    session.send(ENTER); // Local Studio
     session.wait_for("Create it?");
     session.send(ENTER);
     session.wait_for("is ready");

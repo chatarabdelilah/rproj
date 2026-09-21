@@ -18,6 +18,9 @@ use crate::catalog::tool_settings::{
 use crate::steps::vscode;
 use crate::ui;
 
+mod editor;
+pub(super) use editor::open_in;
+
 pub fn run(key: Option<&str>) -> Result<()> {
     if key == Some("project") {
         return super::project_template::run();

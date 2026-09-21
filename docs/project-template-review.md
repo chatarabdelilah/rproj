@@ -10,13 +10,12 @@ Development libraries consequently also appear in builds of the default project.
 Existing user tests must change uppercase `DevPackages` imports after upgrade;
 rproj does not rewrite user source.
 
-Generated CI performs quality checks without cloud credentials. To run cloud
-tests, explicitly set repository variable `JEST_OPEN_CLOUD=true`, then configure
-the key, universe, and dedicated test place described in the README. Both the
-credential check and test invocation use the same condition. A missing credential
-then fails the job. Exiting successfully from a separate credential step cannot
-skip a later test step. Local `rproj test` uses Studio; an explicit
-`--backend open-cloud` argument selects cloud execution.
+Jest selection now asks for Local Studio or Open Cloud. Local projects generate CI
+quality checks without test steps; cloud projects include credential validation
+and cloud tests directly. The chosen backend is saved with the composition and
+used by `rproj test`. Cloud users configure the key, universe, and dedicated test
+place described in the README. The earlier repository-variable switch was
+superseded by this project choice. Missing cloud credentials fail the job.
 
 The ignore audit adds generated place builds, Studio place locks, coverage, and
 local environment files, with an exception for `.env.example`. It retains the

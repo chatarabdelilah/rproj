@@ -1,11 +1,30 @@
 # Release-Hardening Audit
 
+## Unreleased: Jest execution selection and Ratatui refinements
+
+The Jest picker now asks for Local Studio or Open Cloud. The choice is retained
+in project records and saved setups, drives runner configuration, and determines
+whether generated CI contains cloud tests. Local creation alone provisions the
+Studio runner plugin. This supersedes PR #30's repository-variable switch.
+
+Catalog rows contain names only; group explanations appear in Overview and
+entry explanations remain in Details. Enter opens groups, never focuses an
+entry; Page Up/Down and Ctrl+Home/End scroll details without a focus change.
+Projects > Configure Tools stays in the shared Ratatui terminal, reviews changes,
+preserves unrelated/unsupported settings, protects cancellation, checks external
+edits, and atomically saves the selected tool's configuration. Direct CLI configure
+retains its prompt interface.
+
+Local verification: 388 ordinary tests passed, 19 prerequisite-dependent tests ignored; formatting and clippy passed. The PTY regression saves a tool setting and returns to the project with one terminal enter/leave and no suspension. Unit coverage checks settings preservation, cancellation, external edits, malformed files, JSON merging, four terminal sizes, Jest backend persistence, and both generated CI variants. Reviewed-head/main CI are recorded in the implementing PR. Open
+Cloud execution is not claimed without credentials; no applications are installed
+by ordinary tests. This remains unreleased runtime work.
+
 ## Unreleased: generated project CI and ignore coverage
 
 Jest projects now expose `ReplicatedStorage.devPackages` in the ordinary
 sourcemap as well as the Jest project. Disk casing remains `DevPackages`.
-The test project omits Lighting and enables LoadStringEnabled. Generated CI
-opts into Open Cloud with `JEST_OPEN_CLOUD=true`; enabled cloud tests still fail
+The test project omits Lighting and enables LoadStringEnabled. PR #30 initially generated CI that
+opted into Open Cloud with `JEST_OPEN_CLOUD=true` (superseded above); enabled cloud tests still failed
 on missing credentials. Ignore rules cover generated place files, place locks,
 coverage, and local environment files while preserving `.env.example`.
 See [the source review and migration notes](project-template-review.md).

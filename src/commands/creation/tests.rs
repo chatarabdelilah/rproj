@@ -6,6 +6,34 @@ use ratatui::{Terminal, backend::TestBackend};
 fn draft() -> Draft {
     Draft::new("Example", vec!["saved".into()], vec![], vec![])
 }
+
+#[test]
+fn jest_execution_choice_is_explicit_and_saved_with_the_composition() {
+    for backend in ["jest-roblox", "jest-roblox-open-cloud"] {
+        let mut draft = draft();
+        select(&mut draft, "expert");
+        select(&mut draft, "wally");
+        key(&mut draft, KeyCode::Enter);
+        draft.checked = ["test".into()].into();
+        key(&mut draft, KeyCode::Enter);
+        select(&mut draft, "jest-roblox");
+        assert_eq!(draft.step, Step::JestBackend);
+        select(&mut draft, backend);
+        assert_eq!(draft.step, Step::Review);
+        assert_eq!(draft.graph.capabilities["test"], backend);
+        let saved = toml::to_string(&draft.graph).unwrap();
+        let restored: ProjectGraph = toml::from_str(&saved).unwrap();
+        assert_eq!(restored.jest_backend(), draft.graph.jest_backend());
+        let mut editor = Draft::edit_setup("example", restored);
+        select(&mut editor, "capabilities");
+        key(&mut editor, KeyCode::Enter);
+        select(&mut editor, "jest-roblox");
+        assert_eq!(
+            editor.picker.selected_value().map(String::as_str),
+            Some(backend)
+        );
+    }
+}
 fn key(draft: &mut Draft, code: KeyCode) -> Effect {
     draft.key(KeyEvent::new(code, KeyModifiers::NONE))
 }
@@ -123,6 +151,8 @@ fn testing_implementations_are_sorted_and_explicit_with_broad_testez_fallback() 
                 vec!["Jest Roblox", "TestEZ"]
             );
             select(&mut draft, "jest-roblox");
+            assert_eq!(draft.step, Step::JestBackend);
+            select(&mut draft, "jest-roblox");
             assert_eq!(draft.graph.capabilities["test"], "jest-roblox");
         } else {
             assert_eq!(draft.graph.capabilities["test"], "testez");
@@ -233,6 +263,7 @@ fn backing_out_of_an_unanswered_runner_cannot_skip_capability_review() {
     key(&mut draft, KeyCode::Enter);
     draft.checked = ["test".into(), "asset-pipeline".into()].into();
     key(&mut draft, KeyCode::Enter);
+    select(&mut draft, "jest-roblox");
     select(&mut draft, "jest-roblox");
     assert_eq!(draft.step, Step::Implementation("asset-pipeline"));
     key(&mut draft, KeyCode::Esc);
