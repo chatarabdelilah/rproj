@@ -124,7 +124,7 @@ The project screen offers Configure Tools, Upgrade Project, Watch Project, Test 
 
 Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and descendants. Project-template editing and Saved Setups belong to their own Home destinations, not Catalog.
 
-Enter opens a group or focuses its detail pane; Tab switches panes. Arrows, Page Up/Down, Home, and End navigate entries or scroll details. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally/submodule import differences; they are starting points, not complete production systems.
+Rows show names only; explanations appear in Overview or Details. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select entries; Page Up/Down and Ctrl+Home/End scroll details without changing focus. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally/submodule import differences; they are starting points, not complete production systems.
 
 ### New Project in the hub
 
@@ -191,8 +191,6 @@ To migrate an existing project, run `rproj upgrade`, then change your own test i
 The execution choice is saved in project records and saved setups: `[capabilities] test = "jest-roblox"` means Local Studio; `test = "jest-roblox-open-cloud"` means Open Cloud. Existing records keep local execution. To change an existing project, update that choice and run `rproj upgrade`; use a CLI `--backend` argument for a one-run override. Cloud runs also need the Roblox credentials available in the invoking environment.
 
 `jest.config.json` is merge-managed: rproj owns `backend`, `rojoProject`, `jestPath`, and `test.projects`, while preserving other valid JSON fields for filters, coverage, snapshots, and runner options. `jest.project.json` is fully generated from the current production project and is refreshed by `rproj test`, `rproj watch`, and `rproj upgrade`.
-
-Catalog rows show names only. Select a row to read its explanation; Enter opens groups. Page Up/Down and Ctrl+Home/End scroll details without moving focus.
 
 ## Project template
 

@@ -989,7 +989,7 @@ A project action reloads its context immediately before dispatch. Path-aware
 command entrypoints pass that directory through file operations and subprocess
 working directories; direct CLI wrappers still resolve the exact current directory.
 No process-wide working-directory mutation or persistent selection is introduced.
-Project Configure Tools excludes the standalone global-template picker option and runs in the existing Ratatui session. Its editor reuses the settings catalog and checked merge functions, stages explicit changes, preserves unsupported and unrelated values, refuses external file changes, and atomically replaces the chosen settings file only after confirmation. Direct CLI configure keeps its prompt interface.
+Project Configure Tools excludes the standalone global-template picker option and runs in the existing Ratatui session. Its editor reuses the settings catalog and checked merge functions, stages explicit changes, preserves unsupported and unrelated values, refuses external file changes, and replaces the chosen settings file only after confirmation. The replacement has atomic visibility to readers; this is not a guarantee of crash durability. Direct CLI configure keeps its prompt interface.
 Malformed records remain discoverable with warnings. Commands retain authoritative
 validation, runner behavior, and existing tool pins.
 New Project preflight runs in a scoped worker; cancellation prevents the next

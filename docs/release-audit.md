@@ -15,7 +15,7 @@ preserves unrelated/unsupported settings, protects cancellation, checks external
 edits, and atomically saves the selected tool's configuration. Direct CLI configure
 retains its prompt interface.
 
-Local verification: 388 ordinary tests passed, 19 prerequisite-dependent tests ignored; formatting and clippy passed. The PTY regression saves a tool setting and returns to the project with one terminal enter/leave and no suspension. Unit coverage checks settings preservation, cancellation, external edits, malformed files, JSON merging, four terminal sizes, Jest backend persistence, and both generated CI variants. Reviewed-head/main CI are recorded in the implementing PR. Open
+Local verification: 388 ordinary tests passed, 19 prerequisite-dependent tests ignored; formatting and clippy passed. The PTY regression saves a tool setting and returns to the project with one terminal enter/leave and no suspension. Unit coverage checks settings preservation, cancellation, external edits, malformed files, JSON merging, four terminal sizes, Jest backend persistence, and both generated CI variants. The isolated installed Jest Roblox 0.3.24/Studio regression also passed eight package examples after real Wally installation and Rojo sourcemap regeneration. CodeRabbit reported one documentation clarification about atomic visibility versus crash durability; it was corrected. Reviewed-head/main CI are recorded in the implementing PR. Open
 Cloud execution is not claimed without credentials; no applications are installed
 by ordinary tests. This remains unreleased runtime work.
 
