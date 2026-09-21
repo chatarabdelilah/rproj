@@ -1,5 +1,7 @@
 # rproj — Architecture
 
+Release candidate: **0.18.0**. Published baseline: **0.17.0**. Candidate scope and verification are recorded in [the release audit](release-audit.md).
+
 ## 1. System Overview
 
 ### T4 Saved Setup Manager (0.16.0)

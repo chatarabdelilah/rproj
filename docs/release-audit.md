@@ -1,5 +1,21 @@
 # Release-Hardening Audit
 
+## 0.18.0 release candidate — publication pending
+
+Scope is the merged work from [PR #30](https://github.com/chatarabdelilah/rproj/pull/30)
+and [PR #31](https://github.com/chatarabdelilah/rproj/pull/31), plus aligned manifest
+versions and current release documentation. No dependencies or runtime behavior
+change during version preparation. The published baseline remains 0.17.0.
+
+[Release notes](release-notes-0.18.0.md) include the DevPackages import migration,
+Local Studio/Open Cloud selection, credentials, and verification limits. The owner
+alone runs `cargo publish --locked`; no tag or GitHub release is created before
+crates.io publication and archive Git identity are verified.
+
+Candidate verification results and reviewed-head/main CI are recorded in the
+release PR. Live Open Cloud, fresh Linux generated-project execution, and fresh
+Windows provisioning remain unverified; ignored tests are not counted as passes.
+
 ## Unreleased: Jest execution selection and Ratatui refinements
 
 The Jest picker now asks for Local Studio or Open Cloud. The choice is retained

@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 9, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated September 21, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.16.0, public alpha**: Saved Setups joins Projects, persistent Home, Template Explorer, and Catalog. Its crates.io archive, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.16.0) agree on `d54a9a8`. Public availability does not mean every integration or configuration contract is ready for a stable release.
+The published baseline is **v0.17.0, public alpha**, with Ratatui Machine Setup. The next candidate is **0.18.0**: Jest execution selection, generated-project fixes, Catalog refinement, and Ratatui Configure Tools are merged; release preparation is in progress. Publication remains an owner action after release gates pass. See [candidate notes](release-notes-0.18.0.md) and [audit evidence](release-audit.md).
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
