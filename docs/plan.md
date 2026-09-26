@@ -41,6 +41,13 @@ Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. rproj wi
 
 ## Release Hardening Baseline
 
+The [duplication audit](duplication-audit.md) identifies shared creation
+execution and the remaining Inquire/Ratatui selection-policy and configuration
+save overlap. The recommended next consolidation is pure creation choices
+and validation, preserving direct commands and each interface's interaction.
+Fresh optional choices now start unchecked; Scribe Studio is an optional
+manual plugin entry and confirmed global Rokit adds use `--force`.
+
 No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
 
 Automated **saved-setup replay** now verifies both Wally and Git submodules: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. Refusal checks now cover missing/malformed setups and Jest without Wally, including explicit `--reconfigure`, with no project creation or fixture/config mutation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.

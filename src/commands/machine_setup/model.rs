@@ -83,32 +83,12 @@ pub struct Selection {
 
 impl Selection {
     pub fn load(config: &GlobalConfig) -> anyhow::Result<Self> {
-        let defaults = |values: &[String], categories: &[Category]| {
-            let mut keys: BTreeSet<_> = values.iter().cloned().collect();
-            if !config.machine_configured() {
-                keys.extend(
-                    tool_catalog::all_setup_entries()
-                        .filter(|entry| {
-                            entry.default_selected
-                                && categories.iter().any(|category| category.contains(entry))
-                        })
-                        .map(|entry| entry.key.to_owned()),
-                );
-            }
-            keys
-        };
         Ok(Self {
             root: config.projects_root()?,
-            apps: defaults(&config.selected_system_apps, &[Category::Apps]),
-            tools: defaults(&config.selected_rokit_tools, &[Category::Tools]),
-            plugins: defaults(
-                &config.selected_studio_plugins,
-                &[Category::Plugins, Category::Blender],
-            ),
-            extensions: defaults(
-                &config.selected_vscode_extensions,
-                &[Category::Extensions, Category::Themes],
-            ),
+            apps: config.selected_system_apps.iter().cloned().collect(),
+            tools: config.selected_rokit_tools.iter().cloned().collect(),
+            plugins: config.selected_studio_plugins.iter().cloned().collect(),
+            extensions: config.selected_vscode_extensions.iter().cloned().collect(),
         })
     }
 
@@ -170,16 +150,24 @@ mod tests {
     }
 
     #[test]
-    fn defaults_only_before_first_completed_attempt() {
+    fn fresh_setup_starts_empty_and_saved_choices_are_preserved() {
         let mut config = config();
         let first = Selection::load(&config).unwrap();
-        assert!(!first.apps.is_empty());
+        assert!(first.apps.is_empty());
+        assert!(first.tools.is_empty());
+        assert!(first.plugins.is_empty());
+        assert!(first.extensions.is_empty());
+        config.selected_system_apps = vec!["studio".into()];
+        config.selected_rokit_tools = vec!["rojo".into()];
+        config.selected_studio_plugins = vec!["rojo-plugin".into()];
+        config.selected_vscode_extensions = vec!["luau-lsp".into()];
+        let saved = Selection::load(&config).unwrap();
+        assert_eq!(saved.apps, BTreeSet::from(["studio".into()]));
+        assert_eq!(saved.tools, BTreeSet::from(["rojo".into()]));
+        assert_eq!(saved.plugins, BTreeSet::from(["rojo-plugin".into()]));
+        assert_eq!(saved.extensions, BTreeSet::from(["luau-lsp".into()]));
         config.last_checked = Some("1".into());
-        let recorded = Selection::load(&config).unwrap();
-        assert!(recorded.apps.is_empty());
-        assert!(recorded.tools.is_empty());
-        assert!(recorded.plugins.is_empty());
-        assert!(recorded.extensions.is_empty());
+        assert_eq!(Selection::load(&config).unwrap(), saved);
     }
 
     #[test]

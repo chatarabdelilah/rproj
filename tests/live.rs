@@ -51,11 +51,6 @@ fn hub_minimal_review(session: &mut Session) {
     session.send("None");
     session.send(ENTER);
     session.wait_for("Capabilities");
-    for capability in ["lint", "format", "typecheck", "gate", "editor"] {
-        session.send(capability);
-        session.send(" ");
-        session.send(&"\x7f".repeat(capability.len()));
-    }
     session.send(ENTER);
     session.wait_for("Review");
 }
@@ -211,11 +206,9 @@ impl LiveProject {
         }
         session.send(ENTER);
 
-        // One capability prompt where there used to be two pickers (tools,
-        // then files). Enter accepts the defaults, which is what every
-        // assertion below assumes: lint, format, typecheck, gate, editor.
+        // Select the gate's capabilities explicitly; fresh pickers start empty.
         session.wait_for("What should this project do?");
-        for key in ["ci"]
+        for key in ["lint", "format", "typecheck", "gate", "editor", "ci"]
             .into_iter()
             .chain(packages.contains(&"testez").then_some("test"))
         {
@@ -916,8 +909,8 @@ fn confirmation_and_cancellation_preserve_a_concurrently_created_directory() {
     }
 }
 
-/// **The redesign, end to end.** Pick a package, accept the capability
-/// defaults, and the summary must *explain* every file rather than offering
+/// **The redesign, end to end.** Pick a package and capabilities,
+/// and the summary must *explain* every file rather than offering
 /// it as a checkbox.
 ///
 /// Stops at the summary with `ESC` instead of completing, so this needs no
@@ -945,7 +938,13 @@ fn the_summary_explains_every_file_instead_of_offering_it_as_a_choice() {
     session.send(ENTER);
 
     session.wait_for("What should this project do?");
-    session.send(ENTER); // accept the defaults
+    for key in ["lint", "format", "typecheck", "gate", "editor"] {
+        session.send(key);
+        session.wait_for(&format!("{key} - "));
+        session.send(" ");
+        session.send(&"\x7f".repeat(key.len()));
+    }
+    session.send(ENTER);
 
     session.wait_for("Create it?");
     let screen = session.text();

@@ -1,5 +1,20 @@
 # Release-Hardening Audit
 
+## Unreleased: explicit choices, Scribe Studio, and Rokit setup trust
+
+Fresh Machine Setup and New Project optional selections start unchecked;
+saved choices are preserved. Removed catalog selection-default fields and
+redundant initial-selection state. Scribe Studio uses the existing manual
+Studio-plugin flow. Confirmed machine tool installation uses
+`rokit add --global --force`, including for pinned sources; project-local pins
+keep their existing behavior. A setup rerun reinstalls selected global tools.
+
+The [duplication audit](duplication-audit.md) records measured baseline size,
+shared execution already present, remaining duplicated policy/persistence,
+and the recommended bounded consolidation. It is not a claim of a completed
+Inquire migration. Tests, review, and CI evidence are recorded in the PR.
+No live machine provisioning or Scribe playtest was performed.
+
 ## 0.18.0 release candidate — publication pending
 
 Scope is the merged work from [PR #30](https://github.com/chatarabdelilah/rproj/pull/30)

@@ -217,7 +217,6 @@ struct ToolEntry {
     maintenance: Maintenance,
     kind: ToolKind,
     family: &'static str,        // groups counterparts across mechanisms, e.g. "Rojo" = CLI + Studio plugin + VS Code ext
-    default_selected: bool,
     docs_url: &'static str,
 }
 
@@ -259,7 +258,6 @@ struct Capability {
     outcome: &'static str,      // "Catch bugs and risky patterns before they ship"
     implementations: &'static [Implementation],  // ordered; [0] is the default
     requires: &'static [&'static str],           // other capability keys
-    default_selected: bool,
 }
 
 // Artifacts (§8.9) — every file `rproj new` can write.
@@ -999,59 +997,62 @@ validation step and joins the worker before returning Home. It never creates the
 project directory. Interrupted external work similarly stops at execution
 boundaries; no generic process supervisor or background Watch is introduced.
 
+Optional machine items and new-project capabilities start unchecked. Saved selections are restored exactly; catalog entries no longer carry a `default_selected` field. Machine Setup uses `rokit add --global --force` after confirmation, so first-use trust does not require terminal input. This reinstalls selected global tools, without changing project pins.
+
 **System apps** (`SYSTEM_APPS`, all family `"System apps"`):
 
-| key | winget_id | maintenance | default_selected |
-|---|---|---|---|
-| git | Git.Git | Active | true |
-| vscode | Microsoft.VisualStudioCode | Active | true |
-| studio | Roblox.RobloxStudio | Active | true |
-| roblox | Roblox.Roblox | Active | true |
-| blender | BlenderFoundation.Blender | Active | false |
-| figma | Figma.Figma | Active | false |
+| key | winget_id | maintenance |
+|---|---|---|
+| git | Git.Git | Active |
+| vscode | Microsoft.VisualStudioCode | Active |
+| studio | Roblox.RobloxStudio | Active |
+| roblox | Roblox.Roblox | Active |
+| blender | BlenderFoundation.Blender | Active |
+| figma | Figma.Figma | Active |
 
 **Rokit tools** (`ROKIT_TOOLS`):
 
-| key | rokit_source | family | maintenance | default_selected |
-|---|---|---|---|---|
-| rojo | rojo | Rojo | Active | true |
-| wally | wally | Wally | Active | true |
-| wally-package-types | wally-package-types | Wally | Active | true |
-| selene | selene | Selene | Active | true |
-| stylua | JohnnyMorganz/StyLua | StyLua | Active | true |
-| lute | luau-lang/lute | Lute | Active | true |
-| asphalt | jacktabscode/asphalt | Asset pipeline | Active | false |
-| tungsten | pwnwrkz/tungsten | Asset pipeline | Active | false |
+| key | rokit_source | family | maintenance |
+|---|---|---|---|
+| rojo | rojo | Rojo | Active |
+| wally | wally | Wally | Active |
+| wally-package-types | wally-package-types | Wally | Active |
+| selene | selene | Selene | Active |
+| stylua | JohnnyMorganz/StyLua | StyLua | Active |
+| lute | luau-lang/lute | Lute | Active |
+| asphalt | jacktabscode/asphalt | Asset pipeline | Active |
+| tungsten | pwnwrkz/tungsten | Asset pipeline | Active |
 
 **Plugins** (`PLUGINS`):
 
-| key | kind | github_repo | asset_suffix | family | default_selected | contextual? |
-|---|---|---|---|---|---|---|
-| rojo-plugin | StudioPluginViaCli | rojo-rbx/rojo | (n/a — via `rojo plugin install`) | Rojo | true | no |
-| hoarcekat | StudioPlugin | Kampfkarren/hoarcekat | .rbxm | Testing & extras | false | no |
-| luau-lsp-plugin | StudioPlugin | JohnnyMorganz/luau-lsp | .rbxm | Luau Language Server | true | no |
-| ui-labs | StudioPlugin | PepeElToro41/ui-labs | .rbxm | Testing & extras | false | no |
-| resurface | StudioPluginManual | cxmeel/resurface-plugin | (n/a — marketplace only, no releases *or* tags upstream) | Testing & extras | false | no |
-| blender-plugin | BlenderAddon | Roblox/roblox-blender-plugin | (`.zip`) | Blender | true | **yes** — hidden unless "blender" is among the selected system apps |
+| key | kind | github_repo | asset_suffix | family | contextual? |
+|---|---|---|---|---|---|
+| rojo-plugin | StudioPluginViaCli | rojo-rbx/rojo | (n/a — via `rojo plugin install`) | Rojo | no |
+| hoarcekat | StudioPlugin | Kampfkarren/hoarcekat | .rbxm | Testing & extras | no |
+| luau-lsp-plugin | StudioPlugin | JohnnyMorganz/luau-lsp | .rbxm | Luau Language Server | no |
+| ui-labs | StudioPlugin | PepeElToro41/ui-labs | .rbxm | Testing & extras | no |
+| scribe-studio | StudioPluginManual | ericplane/Scribe | (n/a — Creator Store asset 113609038046646) | Testing & extras | no |
+| resurface | StudioPluginManual | cxmeel/resurface-plugin | (n/a — marketplace only, no releases *or* tags upstream) | Testing & extras | no |
+| blender-plugin | BlenderAddon | Roblox/roblox-blender-plugin | (`.zip`) | Blender | **yes** — hidden unless "blender" is among the selected system apps |
 
 `ui-labs` is the actively developed successor to Hoarcekat and both are offered, since Hoarcekat is what existing projects have.
 
 **VS Code extensions & themes** (`VSCODE_EXTENSIONS`):
 
-| key | extension_id | family | maintenance | default_selected |
-|---|---|---|---|---|
-| luau-lsp | JohnnyMorganz.luau-lsp | Luau Language Server | Active | true |
-| vscode-rojo | evaera.vscode-rojo | Rojo | CommunityStable (unmaintained since 2022, still functions) | true |
-| selene-vscode | Kampfkarren.selene-vscode | Selene | Active | true |
-| stylua-vscode | JohnnyMorganz.stylua | StyLua | Active | true |
-| roblox-ui | filiptibell.roblox-ui | Rojo | Active | true |
-| testez-companion | tacheometrist.testez-companion | Testing & extras | CommunityStable | false |
-| github-actions | github.vscode-github-actions | Testing & extras | Active | true |
-| theme-one-dark | akamud.vscode-theme-onedark | Themes | Active | false |
-| theme-monospace | keksiqc.idx-monospace-theme | Themes | Active | false |
-| theme-horizon | alexandernanberg.horizon-theme-vscode | Themes | Active | false |
-| theme-catppuccin | Catppuccin.catppuccin-vsc | Themes | Active | false |
-| theme-catppuccin-icons | Catppuccin.catppuccin-vsc-icons | Themes | Active | false |
+| key | extension_id | family | maintenance |
+|---|---|---|---|
+| luau-lsp | JohnnyMorganz.luau-lsp | Luau Language Server | Active |
+| vscode-rojo | evaera.vscode-rojo | Rojo | CommunityStable (unmaintained since 2022, still functions) |
+| selene-vscode | Kampfkarren.selene-vscode | Selene | Active |
+| stylua-vscode | JohnnyMorganz.stylua | StyLua | Active |
+| roblox-ui | filiptibell.roblox-ui | Rojo | Active |
+| testez-companion | tacheometrist.testez-companion | Testing & extras | CommunityStable |
+| github-actions | github.vscode-github-actions | Testing & extras | Active |
+| theme-one-dark | akamud.vscode-theme-onedark | Themes | Active |
+| theme-monospace | keksiqc.idx-monospace-theme | Themes | Active |
+| theme-horizon | alexandernanberg.horizon-theme-vscode | Themes | Active |
+| theme-catppuccin | Catppuccin.catppuccin-vsc | Themes | Active |
+| theme-catppuccin-icons | Catppuccin.catppuccin-vsc-icons | Themes | Active |
 
 `testez-companion` is listed here rather than under plugins because rproj installs the *extension*; it talks to a Studio-side plugin the user installs separately. It is also the requirement gating the `testez-companion.toml` artifact (§8.9) — that file is read by this extension and nothing else.
 

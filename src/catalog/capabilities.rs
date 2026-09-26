@@ -38,7 +38,6 @@ pub struct Capability {
     /// Other capability keys that must also be on. A capability whose
     /// requirement is off is not offered at all.
     pub requires: &'static [&'static str],
-    pub default_selected: bool,
 }
 
 fn chosen_has(chosen: &[String], key: &str) -> bool {
@@ -85,7 +84,6 @@ pub const CAPABILITIES: &[Capability] = &[
             workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
-        default_selected: true,
     },
     Capability {
         key: "format",
@@ -103,7 +101,6 @@ pub const CAPABILITIES: &[Capability] = &[
             workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
-        default_selected: true,
     },
     Capability {
         key: "typecheck",
@@ -120,7 +117,6 @@ pub const CAPABILITIES: &[Capability] = &[
             workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
-        default_selected: true,
     },
     Capability {
         key: "test",
@@ -171,7 +167,6 @@ pub const CAPABILITIES: &[Capability] = &[
             },
         ],
         requires: &[],
-        default_selected: false,
     },
     Capability {
         key: "gate",
@@ -185,7 +180,6 @@ pub const CAPABILITIES: &[Capability] = &[
             workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
-        default_selected: true,
     },
     Capability {
         key: "ci",
@@ -204,7 +198,6 @@ pub const CAPABILITIES: &[Capability] = &[
         // Not merely "better with": the workflow's entire body is the gate
         // script. Without it the first command of every CI run is missing.
         requires: &["gate"],
-        default_selected: false,
     },
     Capability {
         key: "editor",
@@ -219,7 +212,6 @@ pub const CAPABILITIES: &[Capability] = &[
             workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
-        default_selected: true,
     },
     Capability {
         key: "asset-pipeline",
@@ -243,7 +235,6 @@ pub const CAPABILITIES: &[Capability] = &[
             },
         ],
         requires: &[],
-        default_selected: false,
     },
     Capability {
         key: "assets-3d",
@@ -257,7 +248,6 @@ pub const CAPABILITIES: &[Capability] = &[
             workflows: PackageWorkflow::ALL,
         }],
         requires: &[],
-        default_selected: false,
     },
 ];
 
@@ -514,18 +504,5 @@ mod tests {
     fn an_unknown_implementation_falls_back_to_the_default() {
         let selected = vec![("lint".to_string(), Some("clippy".to_string()))];
         assert_eq!(derive(&selected).tools, ["selene"]);
-    }
-
-    /// The defaults are what a user gets by pressing enter, so the ones
-    /// deliberately off must stay off. `test` is here because neither
-    /// runner is rproj's choice to make.
-    #[test]
-    fn the_deliberately_off_capabilities_are_off() {
-        for key in ["test", "ci", "asset-pipeline", "assets-3d"] {
-            assert!(
-                !find(key).expect(key).default_selected,
-                "{key} must not be pre-checked"
-            );
-        }
     }
 }

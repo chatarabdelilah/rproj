@@ -247,15 +247,7 @@ pub fn lookup(key: &str) -> Option<CatalogDetail> {
         if !capability.requires.is_empty() {
             let _ = write!(body, "\nneeds:    {}", capability.requires.join(", "));
         }
-        let _ = write!(
-            body,
-            "\ndefault:  {}",
-            if capability.default_selected {
-                "on"
-            } else {
-                "off"
-            }
-        );
+        body.push_str("\ndefault:  off (selected explicitly)");
         for implementation in capability.implementations {
             let _ = write!(
                 body,

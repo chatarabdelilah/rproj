@@ -87,14 +87,9 @@ fn list_all() -> Result<()> {
     println!("\nCAPABILITIES (what `rproj new` asks about)");
     for capability in capabilities::CAPABILITIES {
         println!(
-            "    {:<12} {:<18} {}",
+            "    {:<12} {:<18} off by default",
             capability.key,
             capability.default_implementation().display,
-            if capability.default_selected {
-                "on by default"
-            } else {
-                "off by default"
-            }
         );
     }
 
