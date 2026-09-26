@@ -23,11 +23,15 @@ Run `rproj` with no arguments in a terminal to open Home: Projects, New Project,
 
 ## Machine Setup
 
-Open **Machine Setup** from Home, or run `rproj setup` in a terminal. Start at the review screen and edit System Apps, CLI Tools, Studio Plugins, Blender Add-ons, or VS Code Extensions and Themes & Icons. Type to filter; Space toggles; Enter accepts the category; Esc abandons its edits. Recorded empty selections stay empty. Unrecognized saved entries remain visible and preserved, but are not installed.
+Open **Machine Setup** from Home, or run `rproj setup` in a terminal. Start at the review screen and edit System Apps, CLI Tools, Studio Plugins, Blender Add-ons, or VS Code Extensions and Themes & Icons. Type to filter; Space toggles; Enter accepts the category; Esc abandons its edits. Optional items start unchecked; saved choices, including empty selections, are preserved. Unrecognized saved entries remain visible and preserved, but are not installed.
 
 **Apply Setup** asks for explicit confirmation; Enter defaults to No, and Y confirms. The review displays the projects folder (read-only) and Rokit's foundational role. Selections describe intent, not verified installation state. Deselecting an application never uninstalls it. Blender and VS Code dependent choices remain remembered but inactive when their parent application is deselected.
 
 Installations run sequentially with per-item outcomes and scrollable output. Tab changes focus; arrows, Page Up/Down, Home and End navigate or scroll. End resumes following output. Native installer/UAC dialogs can still appear. Marketplace plugins and account linking require the displayed manual steps.
+
+Confirmed CLI-tool selections use `rokit add --global --force` to handle first-use trust without an interactive child prompt. This reinstalls the selected tool and replaces its global pin with the catalog source; project-local pins are unchanged. Scribe Studio is an optional Studio Plugins entry with a Creator Store install link and usage guidance. rproj reports it as a manual step and does not claim to detect its installation.
+
+New Project also starts with no optional packages or capabilities selected. Choosing a capability may add its required tools or packages; saved setups retain their recorded choices. Mandatory Rojo files and the reviewed housekeeping files remain part of the generated project.
 
 Esc/Ctrl+C during installation asks to **stop after the current item**. rproj waits for that item; it does not force-kill installers or roll back completed work. Cancelled or fatal runs do not save machine selections. A completed attempt saves selections even when individual installations need repair, and clearly reports warnings instead of claiming everything is ready. Back returns to review for a confirmed rerun.
 

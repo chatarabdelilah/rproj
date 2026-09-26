@@ -8,6 +8,32 @@ fn draft() -> Draft {
 }
 
 #[test]
+fn fresh_project_choices_are_empty_and_revision_keeps_explicit_choices() {
+    for mode in ["guided", "expert"] {
+        for strategy in ["wally", "git", "none"] {
+            let mut draft = draft();
+            select(&mut draft, mode);
+            select(&mut draft, strategy);
+            while matches!(draft.step, Step::Packages(_)) {
+                assert!(draft.checked.is_empty());
+                key(&mut draft, KeyCode::Enter);
+            }
+            assert_eq!(draft.step, Step::Capabilities);
+            assert!(draft.checked.is_empty());
+            key(&mut draft, KeyCode::Enter);
+            assert_eq!(draft.step, Step::Review);
+            assert!(draft.graph.packages.is_empty());
+            assert!(draft.graph.capabilities.is_empty());
+            select(&mut draft, "capabilities");
+            draft.checked.insert("lint".into());
+            key(&mut draft, KeyCode::Enter);
+            select(&mut draft, "capabilities");
+            assert_eq!(draft.checked, ["lint".into()].into());
+        }
+    }
+}
+
+#[test]
 fn jest_execution_choice_is_explicit_and_saved_with_the_composition() {
     for backend in ["jest-roblox", "jest-roblox-open-cloud"] {
         let mut draft = draft();

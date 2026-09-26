@@ -29,6 +29,25 @@ pub struct Usage {
 
 pub const USAGE: &[Usage] = &[
     Usage {
+        key: "scribe-studio",
+        what: "Inspect Scribe sessions, data changes, and diagnostics in a Roblox Studio dock.",
+        when: "When a game uses Scribe and you want to inspect its data during a Studio playtest.",
+        commands: &[
+            (
+                "https://create.roblox.com/store/asset/113609038046646/Scribe-Studio",
+                "Install Scribe Studio from the Creator Store, then open it from Studio's Plugins tab.",
+            ),
+            (
+                "StudioHook = true",
+                "Enable the hook in your game's Scribe options, then press Play or Run.",
+            ),
+        ],
+        notes: &[
+            "Selecting this plugin records a manual install step. rproj cannot detect its installation and does not add the Scribe library to your project.",
+            "The plugin starts read-only; writes require its per-session Enable writes setting. Production profile editing affects real player data.",
+        ],
+    },
+    Usage {
         key: "rojo",
         what: "Syncs code from files on disk into Roblox Studio, so you can use a real editor and real version control instead of writing scripts inside Studio.",
         when: "Constantly - it's the backbone of the whole workflow. Leave `rojo serve` running while you work.",

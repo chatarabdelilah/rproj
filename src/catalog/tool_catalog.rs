@@ -114,8 +114,6 @@ pub struct ToolEntry {
     /// plugin, and its VS Code extension - shown together in `rproj info`
     /// instead of split across separate system/rokit/plugin/extension lists.
     pub family: &'static str,
-    /// Pre-checked in the `rproj setup` picker.
-    pub default_selected: bool,
     pub docs_url: &'static str,
 }
 
@@ -144,7 +142,6 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
             detect: Detect::Winget,
         },
         family: "System apps",
-        default_selected: true,
         docs_url: "https://git-scm.com/",
     },
     ToolEntry {
@@ -156,7 +153,6 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
             detect: Detect::Winget,
         },
         family: "System apps",
-        default_selected: true,
         docs_url: "https://code.visualstudio.com/",
     },
     ToolEntry {
@@ -173,7 +169,6 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
             },
         },
         family: "System apps",
-        default_selected: true,
         docs_url: "https://create.roblox.com/",
     },
     ToolEntry {
@@ -185,7 +180,6 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
             detect: Detect::Winget,
         },
         family: "System apps",
-        default_selected: true,
         docs_url: "https://www.roblox.com/",
     },
     ToolEntry {
@@ -197,7 +191,6 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
             detect: Detect::Winget,
         },
         family: "System apps",
-        default_selected: false,
         docs_url: "https://www.blender.org/",
     },
     ToolEntry {
@@ -209,7 +202,6 @@ pub const SYSTEM_APPS: &[ToolEntry] = &[
             detect: Detect::Winget,
         },
         family: "System apps",
-        default_selected: false,
         docs_url: "https://www.figma.com/",
     },
 ];
@@ -223,7 +215,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "rojo",
         },
         family: "Rojo",
-        default_selected: true,
         docs_url: "https://rojo.space/",
     },
     ToolEntry {
@@ -234,7 +225,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "wally",
         },
         family: "Wally",
-        default_selected: true,
         docs_url: "https://wally.run/",
     },
     ToolEntry {
@@ -245,7 +235,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "wally-package-types",
         },
         family: "Wally",
-        default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/wally-package-types",
     },
     ToolEntry {
@@ -256,7 +245,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "selene",
         },
         family: "Selene",
-        default_selected: true,
         docs_url: "https://kampfkarren.github.io/selene/",
     },
     ToolEntry {
@@ -267,7 +255,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "JohnnyMorganz/StyLua",
         },
         family: "StyLua",
-        default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/StyLua",
     },
     ToolEntry {
@@ -278,7 +265,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "luau-lang/lute",
         },
         family: "Lute",
-        default_selected: true,
         docs_url: "https://lute.luau.org/",
     },
     ToolEntry {
@@ -289,7 +275,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "JohnnyMorganz/luau-lsp",
         },
         family: "Luau Language Server",
-        default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
     },
     ToolEntry {
@@ -300,7 +285,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "christopher-buss/jest-roblox-cli",
         },
         family: "Testing & extras",
-        default_selected: false,
         docs_url: "https://github.com/christopher-buss/jest-roblox-cli",
     },
     ToolEntry {
@@ -311,7 +295,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "jacktabscode/asphalt",
         },
         family: "Asset pipeline",
-        default_selected: false,
         docs_url: "https://github.com/jackTabsCode/asphalt",
     },
     ToolEntry {
@@ -322,7 +305,6 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
             rokit_source: "pwnwrkz/tungsten",
         },
         family: "Asset pipeline",
-        default_selected: false,
         docs_url: "https://pwnwrkz.github.io/tungsten-docs/",
     },
 ];
@@ -333,6 +315,17 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
 /// Roblox Studio specifically - the Blender add-on installs into Blender.
 pub const PLUGINS: &[ToolEntry] = &[
     ToolEntry {
+        key: "scribe-studio",
+        description: "Scribe Studio - inspect Scribe player data and diagnostics during Studio playtests",
+        maintenance: Maintenance::Active,
+        kind: ToolKind::StudioPluginManual {
+            github_repo: "ericplane/Scribe",
+            install_url: "https://create.roblox.com/store/asset/113609038046646/Scribe-Studio",
+        },
+        family: "Testing & extras",
+        docs_url: "https://scribe.ericplane.dev/studio-plugin/",
+    },
+    ToolEntry {
         key: "jest-roblox-plugin",
         description: "Studio runner required by jest-roblox's hidden local Studio backend",
         maintenance: Maintenance::Active,
@@ -341,7 +334,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             asset_suffix: "JestRobloxRunner.rbxm",
         },
         family: "Testing & extras",
-        default_selected: false,
         docs_url: "https://github.com/christopher-buss/jest-roblox-cli",
     },
     ToolEntry {
@@ -352,7 +344,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             github_repo: "rojo-rbx/rojo",
         },
         family: "Rojo",
-        default_selected: true,
         docs_url: "https://rojo.space/",
     },
     ToolEntry {
@@ -364,7 +355,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             asset_suffix: ".rbxm",
         },
         family: "Testing & extras",
-        default_selected: false,
         docs_url: "https://github.com/Kampfkarren/hoarcekat",
     },
     ToolEntry {
@@ -376,7 +366,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             asset_suffix: ".rbxm",
         },
         family: "Luau Language Server",
-        default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md",
     },
     ToolEntry {
@@ -388,7 +377,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             asset_suffix: ".rbxm",
         },
         family: "Testing & extras",
-        default_selected: false,
         docs_url: "https://pepeeltoro41.github.io/ui-labs/",
     },
     ToolEntry {
@@ -403,7 +391,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             install_url: "https://create.roblox.com/store/asset/5070921519",
         },
         family: "Testing & extras",
-        default_selected: false,
         docs_url: "https://github.com/cxmeel/resurface-plugin",
     },
     ToolEntry {
@@ -414,7 +401,6 @@ pub const PLUGINS: &[ToolEntry] = &[
             github_repo: "Roblox/roblox-blender-plugin",
         },
         family: "Blender",
-        default_selected: true,
         docs_url: "https://create.roblox.com/docs/art/modeling/roblox-blender-plugin",
     },
 ];
@@ -428,7 +414,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "JohnnyMorganz.luau-lsp",
         },
         family: "Luau Language Server",
-        default_selected: true,
         docs_url: "https://github.com/JohnnyMorganz/luau-lsp",
     },
     ToolEntry {
@@ -439,7 +424,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "evaera.vscode-rojo",
         },
         family: "Rojo",
-        default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=evaera.vscode-rojo",
     },
     ToolEntry {
@@ -450,7 +434,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "Kampfkarren.selene-vscode",
         },
         family: "Selene",
-        default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=Kampfkarren.selene-vscode",
     },
     ToolEntry {
@@ -461,7 +444,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "JohnnyMorganz.stylua",
         },
         family: "StyLua",
-        default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.stylua",
     },
     ToolEntry {
@@ -472,7 +454,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "filiptibell.roblox-ui",
         },
         family: "Rojo",
-        default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=filiptibell.roblox-ui",
     },
     ToolEntry {
@@ -483,7 +464,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "tacheometrist.testez-companion",
         },
         family: "Testing & extras",
-        default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=tacheometrist.testez-companion",
     },
     ToolEntry {
@@ -494,7 +474,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "github.vscode-github-actions",
         },
         family: "Testing & extras",
-        default_selected: true,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=github.vscode-github-actions",
     },
     ToolEntry {
@@ -505,7 +484,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "akamud.vscode-theme-onedark",
         },
         family: "Themes",
-        default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=akamud.vscode-theme-onedark",
     },
     ToolEntry {
@@ -516,7 +494,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "keksiqc.idx-monospace-theme",
         },
         family: "Themes",
-        default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=keksiqc.idx-monospace-theme",
     },
     ToolEntry {
@@ -527,7 +504,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "alexandernanberg.horizon-theme-vscode",
         },
         family: "Themes",
-        default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=alexandernanberg.horizon-theme-vscode",
     },
     ToolEntry {
@@ -538,7 +514,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "Catppuccin.catppuccin-vsc",
         },
         family: "Themes",
-        default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc",
     },
     ToolEntry {
@@ -549,7 +524,6 @@ pub const VSCODE_EXTENSIONS: &[ToolEntry] = &[
             extension_id: "Catppuccin.catppuccin-vsc-icons",
         },
         family: "Themes",
-        default_selected: false,
         docs_url: "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc-icons",
     },
 ];

@@ -15,8 +15,10 @@ pub(crate) fn add_global_tool_with(
 ) -> Result<()> {
     use super::execution::MessageKind;
     use std::process::Command;
-    let _ = reporter.capture(Command::new("rokit").args(["trust", source]))?;
-    let output = reporter.capture(Command::new("rokit").args(["add", "--global", source]))?;
+    // Setup has already confirmed the selected sources. `add --force` handles
+    // first-use trust even for versioned specs, which `trust` does not accept.
+    let output =
+        reporter.capture(Command::new("rokit").args(["add", "--global", "--force", source]))?;
     if output.success {
         return Ok(());
     }

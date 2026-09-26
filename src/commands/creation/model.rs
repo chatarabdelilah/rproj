@@ -58,7 +58,6 @@ pub struct Draft {
     pub extensions: Vec<String>,
     setups: Vec<String>,
     guided: bool,
-    capabilities_answered: bool,
     capabilities_complete: bool,
     revision: Option<ProjectGraph>,
     pending_implementations: Vec<&'static str>,
@@ -95,7 +94,6 @@ impl Draft {
             extensions,
             setups,
             guided: true,
-            capabilities_answered: false,
             capabilities_complete: false,
             revision: None,
             pending_implementations: vec![],
@@ -109,7 +107,6 @@ impl Draft {
         draft.setup_mode = true;
         draft.graph = graph;
         draft.guided = false;
-        draft.capabilities_answered = true;
         draft.capabilities_complete = true;
         draft.open(Step::Review);
         draft
@@ -205,15 +202,7 @@ impl Draft {
                 items
             }
             Step::Capabilities => {
-                self.checked = if self.capabilities_answered {
-                    self.graph.capability_keys().into_iter().collect()
-                } else {
-                    capabilities::CAPABILITIES
-                        .iter()
-                        .filter(|c| c.default_selected)
-                        .map(|c| c.key.into())
-                        .collect()
-                };
+                self.checked = self.graph.capability_keys().into_iter().collect();
                 capabilities::CAPABILITIES
                     .iter()
                     .map(|c| item(c.key, c.key, c.outcome))
@@ -362,7 +351,6 @@ impl Draft {
         graph.mode = format!("like:{name}");
         self.guided = false;
         self.graph = graph;
-        self.capabilities_answered = true;
         self.capabilities_complete = true;
         self.review();
         self.status = warnings.join("\n");
@@ -549,7 +537,6 @@ impl Draft {
                 }
                 self.guided = value == "guided";
                 self.graph = ProjectGraph::default();
-                self.capabilities_answered = false;
                 self.capabilities_complete = false;
                 self.graph.mode = value;
                 self.open(Step::Strategy);
@@ -634,7 +621,6 @@ impl Draft {
                 if previous != self.graph.capabilities {
                     self.invalidate(Node::Capabilities);
                 }
-                self.capabilities_answered = true;
                 self.next_implementation();
             }
             Step::Implementation(key) => {

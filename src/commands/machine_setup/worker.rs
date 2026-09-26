@@ -321,6 +321,25 @@ mod tests {
     }
 
     #[test]
+    fn scribe_is_an_explicit_manual_plugin_step() {
+        let mut selected = selection();
+        let item = Item::Plugin("scribe-studio".into());
+        assert!(!plan(&selected).contains(&item));
+        selected.plugins.insert("scribe-studio".into());
+        assert!(plan(&selected).contains(&item));
+        let messages = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured = messages.clone();
+        let reporter = Reporter(Arc::new(move |kind, text| {
+            captured.lock().unwrap().push((kind, text.to_owned()));
+        }));
+        execute(&item, &selected, &reporter).unwrap();
+        let messages = messages.lock().unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].0, MessageKind::Manual);
+        assert!(messages[0].1.contains("113609038046646/Scribe-Studio"));
+    }
+
+    #[test]
     fn fixture_worker_finishes_without_machine_operations() {
         let worker = Worker::spawn(selection(), |_, _, _| Ok(()));
         loop {

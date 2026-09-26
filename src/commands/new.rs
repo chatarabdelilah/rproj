@@ -535,15 +535,7 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
             ui::option_line(c.key, c.outcome, badge)
         })
         .collect();
-    let defaults: Vec<usize> = offerable
-        .iter()
-        .enumerate()
-        .filter(|(_, c)| c.default_selected)
-        .map(|(i, _)| i)
-        .collect();
-
     let picked = MultiSelect::new("What should this project do?", options)
-        .with_default(&defaults)
         .with_help_message(ui::MULTISELECT_HELP)
         .with_formatter(&ui::compact_multi_answer)
         .prompt()?;
