@@ -44,6 +44,7 @@ pub enum Effect {
 
 pub struct Draft {
     pub setup_mode: bool,
+    pub project_mode: bool,
     pub name: String,
     pub graph: ProjectGraph,
     pub step: Step,
@@ -61,6 +62,8 @@ pub struct Draft {
     capabilities_complete: bool,
     revision: Option<ProjectGraph>,
     pending_implementations: Vec<&'static str>,
+    fixed_packages: BTreeSet<String>,
+    fixed_capabilities: BTreeSet<String>,
 }
 
 fn item(key: &str, label: &str, detail: &str) -> PickerItem<String> {
@@ -80,6 +83,7 @@ impl Draft {
     ) -> Self {
         let mut draft = Self {
             setup_mode: false,
+            project_mode: false,
             name: name.into(),
             graph: ProjectGraph::default(),
             step: Step::Source,
@@ -93,12 +97,15 @@ impl Draft {
             apps,
             extensions,
             setups,
-            guided: true,
-            capabilities_complete: false,
+            guided: false,
+            capabilities_complete: true,
             revision: None,
             pending_implementations: vec![],
+            fixed_packages: BTreeSet::new(),
+            fixed_capabilities: BTreeSet::new(),
         };
-        draft.open(Step::Source);
+        draft.graph.mode = "expert".into();
+        draft.review();
         draft
     }
 
@@ -110,6 +117,27 @@ impl Draft {
         draft.capabilities_complete = true;
         draft.open(Step::Review);
         draft
+    }
+
+    pub fn edit_project(
+        name: &str,
+        graph: ProjectGraph,
+        apps: Vec<String>,
+        extensions: Vec<String>,
+    ) -> Self {
+        let mut draft = Self::new(name, vec![], apps, extensions);
+        draft.project_mode = true;
+        draft.fixed_packages = graph.package_set();
+        draft.fixed_capabilities = graph.capability_keys().into_iter().collect();
+        draft.graph = graph;
+        draft.guided = false;
+        draft.capabilities_complete = true;
+        draft.open(Step::Review);
+        draft
+    }
+
+    pub(crate) fn editing(&self) -> bool {
+        self.setup_mode || self.project_mode
     }
 
     fn invalidate(&mut self, node: Node) {
@@ -243,6 +271,20 @@ impl Draft {
                     "Remove only the Testing capability",
                 ),
             ],
+            Step::Review if self.project_mode => vec![
+                item(
+                    "save",
+                    "Save changes",
+                    "Add the reviewed packages and capabilities to this project",
+                ),
+                item("packages", "Packages", "Add packages to this project"),
+                item(
+                    "capabilities",
+                    "Capabilities",
+                    "Add capabilities or choose a testing implementation",
+                ),
+                item("back", "Back", "Return to project actions"),
+            ],
             Step::Review if self.setup_mode => vec![
                 item(
                     "save",
@@ -272,6 +314,11 @@ impl Draft {
                     "create",
                     "Create",
                     "Create exactly this reviewed composition",
+                ),
+                item(
+                    "source",
+                    "Start point",
+                    "Choose Guided, Expert, or a saved setup",
                 ),
                 item(
                     "strategy",
@@ -442,7 +489,7 @@ impl Draft {
     }
 
     pub fn key(&mut self, key: KeyEvent) -> Effect {
-        if self.setup_mode
+        if self.editing()
             && self.modal.is_none()
             && self.step == Step::Review
             && key.modifiers.contains(KeyModifiers::CONTROL)
@@ -463,13 +510,23 @@ impl Draft {
             KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(8),
             KeyCode::Down if self.details_focus => self.scroll = self.scroll.saturating_add(1),
             KeyCode::Up if self.details_focus => self.scroll = self.scroll.saturating_sub(1),
-            KeyCode::Esc if self.setup_mode && self.step == Step::Review => return Effect::Cancel,
+            KeyCode::Esc if self.editing() && self.step == Step::Review => return Effect::Cancel,
             KeyCode::Esc => self.back(),
             KeyCode::Char(' ') if self.multi() && !self.details_focus => {
-                if let Some(value) = self.picker.selected_value().cloned()
-                    && !self.checked.remove(&value)
-                {
-                    self.checked.insert(value);
+                if let Some(value) = self.picker.selected_value().cloned() {
+                    let fixed = self.project_mode
+                        && match self.step {
+                            Step::Packages(_) => self.fixed_packages.contains(&value),
+                            Step::Capabilities => self.fixed_capabilities.contains(&value),
+                            _ => false,
+                        };
+                    if fixed {
+                        self.status =
+                            "Existing project choices stay selected; this screen adds choices."
+                                .into();
+                    } else if !self.checked.remove(&value) {
+                        self.checked.insert(value);
+                    }
                 }
             }
             KeyCode::Enter if !self.details_focus => return self.accept(),
@@ -555,6 +612,18 @@ impl Draft {
                 self.packages(0);
             }
             Step::Packages(category) => {
+                if self.project_mode
+                    && !self.multi()
+                    && !value.is_empty()
+                    && self.picker.items.iter().any(|item| {
+                        item.value != value && self.fixed_packages.contains(&item.value)
+                    })
+                {
+                    self.status =
+                        "This project already has a package in this category; existing choices are preserved."
+                            .into();
+                    return Effect::None;
+                }
                 let mut packages = self.graph.package_set();
                 for p in &self.picker.items {
                     packages.remove(&p.value);
@@ -568,6 +637,9 @@ impl Draft {
                     );
                 } else if !value.is_empty() {
                     packages.insert(value);
+                }
+                if self.project_mode {
+                    packages.extend(self.fixed_packages.iter().cloned());
                 }
                 let next: Vec<_> = packages.into_iter().collect();
                 if next != self.graph.packages {
@@ -606,6 +678,9 @@ impl Draft {
                     .iter()
                     .filter(|c| self.checked.contains(c.key))
                 {
+                    if self.project_mode && self.fixed_capabilities.contains(capability.key) {
+                        continue;
+                    }
                     if capability.needs_an_implementation_prompt(self.graph.package_workflow) {
                         if !self.graph.capabilities.contains_key(capability.key) {
                             self.graph.choose(capability.key, None);
@@ -671,8 +746,8 @@ impl Draft {
                 self.review();
             }
             Step::Review => match value.as_str() {
-                "save" if self.setup_mode => return Effect::Save,
-                "back" if self.setup_mode => return Effect::Cancel,
+                "save" if self.editing() => return Effect::Save,
+                "back" if self.editing() => return Effect::Cancel,
                 "create" => {
                     self.modal = Some(Modal::Create(ConfirmState::new(format!(
                         "Create {} with the reviewed files?",
@@ -694,6 +769,10 @@ impl Draft {
                         "packages" => self.packages(0),
                         _ => self.open(Step::Capabilities),
                     }
+                }
+                "source" => {
+                    self.revision = Some(self.graph.clone());
+                    self.open(Step::Source);
                 }
                 _ => {}
             },

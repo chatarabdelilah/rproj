@@ -60,7 +60,7 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
             if project.package_workflow == PackageWorkflow::Wally
                 && project_dir.join("wally.toml").exists()
             {
-                wally::sync(project_dir)?;
+                wally::sync_for_test(project_dir, "default.project.json", &project.packages)?;
             }
             let (program, args) = invocation(runner, arguments);
             run_runner(program, &args, project_dir)
@@ -74,7 +74,7 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
             }
             jest::refresh_project(project_dir)?;
             jest::ensure_config(project_dir, project.jest_backend())?;
-            wally::sync_for_project(project_dir, jest::PROJECT_FILE)?;
+            wally::sync_for_test(project_dir, jest::PROJECT_FILE, &project.packages)?;
             let (program, args) = invocation(runner, arguments);
             run_runner(program, &args, project_dir)
         }

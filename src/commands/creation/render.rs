@@ -31,6 +31,8 @@ pub fn draw(frame: &mut Frame<'_>, draft: &Draft, destination: &str) {
                 env!("CARGO_PKG_VERSION"),
                 if draft.setup_mode {
                     "Edit Saved Setup"
+                } else if draft.project_mode {
+                    "Edit Project"
                 } else {
                     "New Project"
                 },
@@ -90,7 +92,11 @@ pub fn draw(frame: &mut Frame<'_>, draft: &Draft, destination: &str) {
             .map(|p| p.detail.as_str())
             .unwrap_or("");
         let plan = draft.graph.plan(&draft.apps, &draft.extensions);
-        let mut details = if draft.setup_mode {
+        let mut details = if draft.project_mode {
+            format!(
+                "{selected}\n\nProject: {destination}\nExisting choices are preserved; save applies additions to this project. Stop an active Watch before saving package additions. rproj.toml may be reformatted.\n"
+            )
+        } else if draft.setup_mode {
             format!(
                 "{selected}\n\nSaved setup: {}\nFuture reuse only; existing projects are unchanged.\n",
                 draft.name
@@ -126,7 +132,7 @@ pub fn draw(frame: &mut Frame<'_>, draft: &Draft, destination: &str) {
             frame,
             rows[2],
             &draft.status,
-            if draft.setup_mode && !draft.multi() {
+            if draft.editing() && !draft.multi() {
                 "Enter select Ctrl+S save review Tab focus Esc back ? help"
             } else if draft.multi() {
                 "Space toggle  Enter continue  Tab focus  PgUp/Dn details  Esc back  ? help"
@@ -153,7 +159,9 @@ pub fn draw(frame: &mut Frame<'_>, draft: &Draft, destination: &str) {
         Some(Modal::Help) => {
             let popup = tui::centered(area, 76, 16);
             frame.render_widget(Clear, popup);
-            frame.render_widget(Paragraph::new(if draft.setup_mode {
+            frame.render_widget(Paragraph::new(if draft.project_mode {
+                "Edit Project\n\nArrows navigate; type to filter. Space adds choices; Enter accepts a step. Existing package and capability choices stay selected.\nTab switches details; arrows or Page Up/Down scroll.\n\nReview offers Save changes, Packages, and Capabilities. Ctrl+S saves from Review.\nEsc returns to project actions. Ctrl+C cancels.\n\nSaving updates rproj-managed package entries, generated configuration, tool pins, and test wiring.\nEsc or ? closes Help."
+            } else if draft.setup_mode {
                 "Edit Saved Setup\n\nArrows navigate; type to filter. Space toggles choices; Enter accepts a step.\nTab switches details; arrows or Page Up/Down scroll.\n\nReview offers Save and composition revisions. Ctrl+S saves from Review without closing.\nEsc cancels a revision or returns to setup actions. Ctrl+C requests Home. Unsaved changes require confirmation.\n\nExisting projects are never modified. Changed saves may reformat TOML and remove comments.\nEsc or ? closes Help."
             } else { "New Project\n\nArrows navigate; type to filter. Space toggles multiple choices.\nEnter accepts the current step. Tab switches to details; arrows or Page Up/Down scroll.\n\nReview can revise answers, omit optional files, rename, and save a new setup. Required files cannot be removed.\n\nEsc goes back or cancels a revision. Ctrl+C exits without creating anything. Only confirmed Create writes a project.\n\nEsc or ? closes Help." })
                 .wrap(Wrap { trim: true }).block(Block::default().borders(Borders::ALL).title(" Help ")), popup);

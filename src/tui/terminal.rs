@@ -14,6 +14,7 @@ use ratatui::backend::CrosstermBackend;
 pub struct TerminalSession {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
     active: bool,
+    mouse_capture: bool,
 }
 
 static ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -56,6 +57,7 @@ impl TerminalSession {
         Ok(Self {
             terminal,
             active: true,
+            mouse_capture: false,
         })
     }
 
@@ -64,7 +66,26 @@ impl TerminalSession {
         Ok(())
     }
 
+    pub fn set_mouse_capture(&mut self, enabled: bool) -> Result<()> {
+        if self.mouse_capture == enabled {
+            return Ok(());
+        }
+        if enabled {
+            execute!(self.terminal.backend_mut(), event::EnableMouseCapture)
+                .context(TerminalFailure)?;
+        } else {
+            execute!(self.terminal.backend_mut(), event::DisableMouseCapture)
+                .context(TerminalFailure)?;
+        }
+        self.mouse_capture = enabled;
+        Ok(())
+    }
+
     pub fn suspend(&mut self) -> Result<()> {
+        if self.mouse_capture {
+            execute!(self.terminal.backend_mut(), event::DisableMouseCapture)
+                .context(TerminalFailure)?;
+        }
         disable_raw_mode().context(TerminalFailure)?;
         execute!(
             self.terminal.backend_mut(),
@@ -89,6 +110,10 @@ impl TerminalSession {
             event::EnableBracketedPaste
         )
         .context(TerminalFailure)?;
+        if self.mouse_capture {
+            execute!(self.terminal.backend_mut(), event::EnableMouseCapture)
+                .context(TerminalFailure)?;
+        }
         self.terminal.clear().context(TerminalFailure)?;
         ACTIVE.store(true, Ordering::Relaxed);
         crate::diagnostics::event("tui.resume", "Home");
@@ -118,6 +143,9 @@ impl Drop for TerminalSession {
         }
         crate::diagnostics::event("tui.leave", "restoring terminal");
         // This guard is the single owner of terminal mode, including during unwind.
+        if self.mouse_capture {
+            let _ = execute!(self.terminal.backend_mut(), event::DisableMouseCapture);
+        }
         let _ = disable_raw_mode();
         let _ = execute!(
             self.terminal.backend_mut(),

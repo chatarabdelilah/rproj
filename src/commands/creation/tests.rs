@@ -4,7 +4,27 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{Terminal, backend::TestBackend};
 
 fn draft() -> Draft {
-    Draft::new("Example", vec!["saved".into()], vec![], vec![])
+    let mut draft = Draft::new("Example", vec!["saved".into()], vec![], vec![]);
+    select(&mut draft, "source");
+    draft
+}
+
+#[test]
+fn new_project_starts_on_review_and_keeps_start_point_choices_available() {
+    let mut draft = Draft::new("Example", vec!["saved".into()], vec![], vec![]);
+    assert_eq!(draft.step, Step::Review);
+    assert!(draft.picker.items.iter().any(|item| item.value == "source"));
+    select(&mut draft, "source");
+    assert_eq!(draft.step, Step::Source);
+    assert!(draft.picker.items.iter().any(|item| item.value == "guided"));
+    assert!(draft.picker.items.iter().any(|item| item.value == "expert"));
+    assert!(
+        draft
+            .picker
+            .items
+            .iter()
+            .any(|item| item.value == "saved:saved")
+    );
 }
 
 #[test]
@@ -277,27 +297,52 @@ fn backing_out_of_an_unanswered_runner_cannot_skip_capability_review() {
     key(&mut draft, KeyCode::Enter);
     assert_eq!(draft.step, Step::Implementation("test"));
     key(&mut draft, KeyCode::Esc);
-    assert!(draft.checked.contains("test"));
-    key(&mut draft, KeyCode::Esc);
-    select(&mut draft, "none");
-    assert_eq!(draft.step, Step::Capabilities);
-    assert!(draft.checked.contains("test"));
+    assert_eq!(draft.step, Step::Review);
+    assert!(draft.graph.test_runner().is_none());
+}
 
-    let mut draft = super::model::Draft::new("Example", vec![], vec![], vec![]);
-    select(&mut draft, "expert");
-    select(&mut draft, "wally");
+#[test]
+fn project_editor_adds_choices_without_removing_existing_ones() {
+    let mut graph = ProjectGraph {
+        mode: "expert".into(),
+        packages: vec!["janitor".into()],
+        ..Default::default()
+    };
+    graph.choose("lint", Some("selene"));
+    let mut draft = Draft::edit_project("Example", graph, vec![], vec![]);
+    assert!(draft.project_mode);
+    assert_eq!(draft.step, Step::Review);
+    assert!(
+        !draft
+            .picker
+            .items
+            .iter()
+            .any(|item| item.value == "strategy")
+    );
+
+    select(&mut draft, "packages");
+    draft.picker.selected = draft
+        .picker
+        .items
+        .iter()
+        .position(|item| item.value == "janitor")
+        .unwrap();
+    key(&mut draft, KeyCode::Char(' '));
+    assert!(draft.checked.contains("janitor"));
+    draft.checked.insert("promise".into());
     key(&mut draft, KeyCode::Enter);
-    draft.checked = ["test".into(), "asset-pipeline".into()].into();
-    key(&mut draft, KeyCode::Enter);
-    select(&mut draft, "jest-roblox");
-    select(&mut draft, "jest-roblox");
-    assert_eq!(draft.step, Step::Implementation("asset-pipeline"));
-    key(&mut draft, KeyCode::Esc);
-    key(&mut draft, KeyCode::Esc);
-    select(&mut draft, "none");
-    assert_eq!(draft.step, Step::RepairTesting);
-    select(&mut draft, "testez");
-    assert_eq!(draft.step, Step::Capabilities);
+    assert!(draft.graph.packages.contains(&"janitor".into()));
+    assert!(draft.graph.packages.contains(&"promise".into()));
+
+    select(&mut draft, "capabilities");
+    draft.picker.selected = draft
+        .picker
+        .items
+        .iter()
+        .position(|item| item.value == "lint")
+        .unwrap();
+    key(&mut draft, KeyCode::Char(' '));
+    assert!(draft.checked.contains("lint"));
 }
 
 #[test]

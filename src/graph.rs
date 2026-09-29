@@ -221,10 +221,9 @@ impl ProjectGraph {
     }
 
     /// The files this project gets, each with the reason it gets them.
-    pub fn plan(&self, apps: &[String], extensions: &[String]) -> Vec<Planned> {
+    pub fn plan(&self, apps: &[String], _extensions: &[String]) -> Vec<Planned> {
         let environment = Environment {
             apps,
-            extensions,
             strategy: self.strategy(),
         };
         artifacts::plan(

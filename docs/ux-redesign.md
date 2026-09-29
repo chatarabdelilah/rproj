@@ -22,7 +22,7 @@ The current interface is hybrid:
 
 - Bare `rproj` opens the Ratatui workspace hub in an interactive terminal.
 - Catalog browsing and global-template editing stay within full-screen interfaces.
-- Hub-driven New Project uses Ratatui composition review. Machine Setup uses Ratatui selection and progress; direct `rproj new` composition and tool configuration retain Inquire prompts.
+- Hub-driven New Project starts at Ratatui composition Review, with Start point available for Guided, Expert, and saved setups. Machine Setup uses Ratatui selection and progress; direct `rproj new` composition and tool configuration retain Inquire prompts.
 - Home, Projects, Catalog, creation questions, and Template Explorer borrow one terminal session. There is no alternate-screen teardown between these internal views.
 - The hub suspends the terminal session before invoking existing command implementations, presents their result, and waits for Enter before returning to the selected project or Home. It keeps the selected action and refreshes workspace context.
 - Direct commands remain available for automation. Redirected welcome and Catalog output remain plain.
@@ -71,9 +71,9 @@ Wide terminals show actions and details side by side; narrow terminals switch fo
 
 The Catalog excludes Place Template, which belongs to the dedicated Explorer. It groups Packages by category and Tools by installation type. VS Code contains Extensions and Themes & Icons. Groups sort alphabetically; search covers the current group and descendants. Existing package examples, metadata, and named lookups remain available.
 
-Rows contain names only. Group descriptions and entry explanations live in the details pane. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select rows; Page Up/Down and Ctrl+Home/End scroll details without changing focus. Esc unwinds the group navigation stack. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
+Rows contain names only. Group descriptions and entry explanations live in the details pane. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select rows; Page Up/Down, Ctrl+Home/End, and the mouse wheel scroll details without changing focus. Esc unwinds the group navigation stack. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
 
-Configure Tools, Upgrade, Watch, Test, and Copy Source live on the project screen, with unavailable reasons. Each action revalidates its selected directory. Configure Tools borrows the current Ratatui session and reviews saves/discards. Other actions run outside the alternate screen and return after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Watch remains foreground-only and awaits the active child before returning.
+Edit Packages & Capabilities, Configure Tools, Upgrade, Watch, Test, and Copy Source live on the project screen, with unavailable reasons. The composition editor adds choices while preserving existing ones and applies generated wiring only after Save. Each action revalidates its selected directory. Configure Tools borrows the current Ratatui session and reviews saves/discards. Other actions run outside the alternate screen and return after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Watch remains foreground-only and awaits the active child before returning.
 
 ## Template Explorer
 
