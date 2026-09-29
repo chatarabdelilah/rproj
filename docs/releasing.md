@@ -2,15 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.18.0**, at `ba1319b5ec0a681ffac0d773ae0fb893b21c0692`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.18.0) are verified. See [release notes](release-notes-0.18.0.md), [audit evidence](release-audit.md), and [PR #32](https://github.com/chatarabdelilah/rproj/pull/32). The next candidate is 0.18.1.
+The published baseline is **v0.18.1**, at `9d136812d5d33d358b67a36e503db47466fc0760`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.18.1) are verified. See [release notes](release-notes-0.18.1.md), [audit evidence](release-audit.md), and [PR #36](https://github.com/chatarabdelilah/rproj/pull/36). No later release candidate is prepared.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-The active unpublished candidate is **0.18.1**, covering the post-0.18.0 fixes and workflows from PRs #33, #34, and #35. See [candidate release notes](release-notes-0.18.1.md). Do not publish until the release PR and merged-main CI pass.
-
-The latest published release is **0.18.0**, at `ba1319b5ec0a681ffac0d773ae0fb893b21c0692`. Crates.io published it on September 21, 2026 with checksum `0882efd53f10ade38d6b46515a699b77ca972769383903c25a1f0e33ed27df23`; the annotated tag and GitHub prerelease were aligned on September 29, 2026. Fresh-machine installation acceptance remains unverified.
+No unpublished release candidate is active. The latest published release is **0.18.1**, at `9d136812d5d33d358b67a36e503db47466fc0760`. Crates.io published it on September 29, 2026 with checksum `e2080b8fef645191fdb7e6c0df5c33b11530a0678080a5efdac067bab285c7d3`; the archive Git identity, annotated tag, and GitHub prerelease match that commit. Fresh-machine installation acceptance remains unverified.
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
