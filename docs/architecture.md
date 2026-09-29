@@ -1,6 +1,6 @@
 # rproj — Architecture
 
-Release candidate: **0.18.0**. Published baseline: **0.17.0**. Candidate scope and verification are recorded in [the release audit](release-audit.md).
+Release candidate: **0.18.1**. Published baseline: **0.18.0**. Candidate scope and verification are recorded in [the release audit](release-audit.md).
 
 ## 1. System Overview
 

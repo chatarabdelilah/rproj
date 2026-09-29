@@ -1,6 +1,6 @@
 # rproj 0.18.0 — Jest execution choice and project UI refinements
 
-Alpha release candidate. Not published yet.
+Published September 21, 2026.
 
 ## Changes
 
@@ -13,20 +13,7 @@ Alpha release candidate. Not published yet.
   project files. The Jest project omits Lighting and enables `LoadStringEnabled`.
 - Catalog rows show names only; descriptions remain in Overview/Details. Enter
   opens groups without focusing read-only entries. Page Up/Down and Ctrl+Home/End
-  scroll details without changing focus; the mouse wheel now scrolls details too.
-- New Project opens on Review, where packages, capabilities, files, naming, and
-  the final Create action are visible immediately. Start point still opens Guided,
-  Expert, and saved-setup choices.
-- Projects now offers Edit Packages & Capabilities for recorded projects. It adds
-  choices without removing existing ones, preserves unrelated Wally dependencies
-  and comments, regenerates managed files and test wiring, and refuses an external
-  `rproj.toml` edit made while the editor was open.
-- `rproj test` reuses an already complete Wally package tree instead of running a
-  destructive `wally install` while Watch may be observing it. Missing selected
-  aliases still trigger normal dependency recovery.
-- TestEZ always includes `testez-companion.toml`, so installing the extension later
-  needs no repair step. Generated Rojo trees explicitly class StarterPlayer and
-  StarterPlayerScripts.
+  scroll details without changing focus.
 - Projects > Configure Tools stays in Ratatui. Explicit changes are reviewed before
   saving; unedited settings and unrelated values are preserved. Cancellation and
   external edits are protected. Direct CLI configure retains its prompt interface.
@@ -42,9 +29,8 @@ does not rewrite user source. Development libraries now also appear in builds
 of the default project.
 
 Existing `[capabilities] test = "jest-roblox"` records retain Local Studio.
-Existing projects can add Testing from Projects > Edit Packages & Capabilities.
-Stop an active Watch before saving package additions. To select cloud execution
-manually, use `test = "jest-roblox-open-cloud"` and run `rproj upgrade`. The previous unreleased
+To select cloud execution for an existing project, use
+`test = "jest-roblox-open-cloud"` and run `rproj upgrade`. The previous unreleased
 `JEST_OPEN_CLOUD` repository-variable switch is superseded by this project choice.
 Explicit CLI `--backend` arguments still override an individual test invocation.
 
@@ -57,12 +43,10 @@ need the same credentials in the environment. Missing cloud credentials fail CI.
 
 ## Verification and limits
 
-The current implementation passed 404 ordinary tests, formatting, and clippy.
-The installed real Rojo validated every built-in template variant. Earlier release
-candidate work passed CodeRabbit review and Windows stable/Rust 1.89/package CI on
-both reviewed and merged heads, and the real pinned Jest Roblox 0.3.24/Studio
-regression passed eight package examples. Current review and CI evidence is
-recorded in `docs/release-audit.md` and the implementing PR.
+The implementation passed 388 ordinary tests, formatting, clippy, CodeRabbit
+review, and Windows stable/Rust 1.89/package CI on both reviewed and merged heads.
+The real pinned Jest Roblox 0.3.24/Studio regression passed eight package examples.
+Release-candidate verification is recorded in `docs/release-audit.md` and its PR.
 
 Nineteen prerequisite-dependent tests remain ignored in ordinary runs. Live Open
 Cloud, fresh Linux generated-project execution, and fresh Windows provisioning

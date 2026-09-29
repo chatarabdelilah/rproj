@@ -1,5 +1,24 @@
 # Release-Hardening Audit
 
+## 0.18.1 release candidate — publication pending
+
+Scope is the post-0.18.0 work from [PR #33](https://github.com/chatarabdelilah/rproj/pull/33),
+[PR #34](https://github.com/chatarabdelilah/rproj/pull/34), and
+[PR #35](https://github.com/chatarabdelilah/rproj/pull/35): compatible existing
+Jest mounts, explicit setup choices, Scribe Studio, forced trusted global Rokit
+adds, additive project composition, Catalog mouse scrolling, TestEZ companion
+configuration, explicit StarterPlayer classes, and reliable Test/Watch Wally
+synchronization. No dependency was added.
+
+[Release notes](release-notes-0.18.1.md) record user-visible behavior and limits.
+The owner alone runs `cargo publish --locked`; no 0.18.1 tag or GitHub release is
+created before crates.io publication and archive Git identity are verified.
+Local candidate gates on September 29, 2026 passed 404 ordinary tests with 19
+prerequisite-dependent tests ignored, formatting, clippy with warnings denied,
+and locked dirty-tree package verification (96 files, 1.2 MiB uncompressed,
+310.2 KiB compressed). Final clean-commit packaging and reviewed-head/main CI
+are recorded in the release PR.
+
 ## Unreleased: project composition maintenance and reliable test/watch coexistence
 
 New Project starts at Review and retains Start point access to Guided, Expert,
@@ -41,21 +60,26 @@ and the recommended bounded consolidation. It is not a claim of a completed
 Inquire migration. Tests, review, and CI evidence are recorded in the PR.
 No live machine provisioning or Scribe playtest was performed.
 
-## 0.18.0 release candidate — publication pending
+## 0.18.0 published
 
 Scope is the merged work from [PR #30](https://github.com/chatarabdelilah/rproj/pull/30)
 and [PR #31](https://github.com/chatarabdelilah/rproj/pull/31), plus aligned manifest
-versions and current release documentation. No dependencies or runtime behavior
-change during version preparation. The published baseline remains 0.17.0.
+versions and release documentation. No dependency or runtime behavior changed
+during version preparation.
 
 [Release notes](release-notes-0.18.0.md) include the DevPackages import migration,
 Local Studio/Open Cloud selection, credentials, and verification limits. The owner
-alone runs `cargo publish --locked`; no tag or GitHub release is created before
-crates.io publication and archive Git identity are verified.
+published from clean commit `ba1319b5ec0a681ffac0d773ae0fb893b21c0692` on
+September 21, 2026. The non-yanked crates.io archive checksum is
+`0882efd53f10ade38d6b46515a699b77ca972769383903c25a1f0e33ed27df23`;
+its embedded Git identity, annotated tag, and
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.18.0)
+match that commit.
 
-Candidate verification results and reviewed-head/main CI are recorded in the
-release PR. Live Open Cloud, fresh Linux generated-project execution, and fresh
-Windows provisioning remain unverified; ignored tests are not counted as passes.
+Candidate verification results and reviewed-head/main CI are recorded in
+[PR #32](https://github.com/chatarabdelilah/rproj/pull/32). Live Open Cloud,
+fresh Linux generated-project execution, and fresh Windows provisioning remain
+unverified; ignored tests are not counted as passes.
 
 ## Unreleased: Jest execution selection and Ratatui refinements
 
