@@ -1,6 +1,6 @@
 # rproj 0.18.1 — Project composition and reliable local testing
 
-Alpha release candidate. Not published yet.
+Published September 29, 2026.
 
 ## Changes
 

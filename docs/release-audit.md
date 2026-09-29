@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-## 0.18.1 release candidate — publication pending
+## 0.18.1 published
 
 Scope is the post-0.18.0 work from [PR #33](https://github.com/chatarabdelilah/rproj/pull/33),
 [PR #34](https://github.com/chatarabdelilah/rproj/pull/34), and
@@ -11,15 +11,24 @@ configuration, explicit StarterPlayer classes, and reliable Test/Watch Wally
 synchronization. No dependency was added.
 
 [Release notes](release-notes-0.18.1.md) record user-visible behavior and limits.
-The owner alone runs `cargo publish --locked`; no 0.18.1 tag or GitHub release is
-created before crates.io publication and archive Git identity are verified.
-Local candidate gates on September 29, 2026 passed 404 ordinary tests with 19
-prerequisite-dependent tests ignored, formatting, clippy with warnings denied,
-and locked dirty-tree package verification (96 files, 1.2 MiB uncompressed,
-310.2 KiB compressed). Final clean-commit packaging and reviewed-head/main CI
-are recorded in the release PR.
+The owner published from clean commit
+`9d136812d5d33d358b67a36e503db47466fc0760` on September 29, 2026. The
+non-yanked crates.io archive checksum is
+`e2080b8fef645191fdb7e6c0df5c33b11530a0678080a5efdac067bab285c7d3`;
+its embedded Git identity, annotated tag, and
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.18.1)
+match that commit.
 
-## Unreleased: project composition maintenance and reliable test/watch coexistence
+Local candidate gates passed 404 ordinary tests with 19 prerequisite-dependent
+tests ignored, formatting, clippy with warnings denied, and locked packaging
+(96 files, 1.2 MiB uncompressed, 310.1 KiB compressed). The final clean package
+also embedded `9d136812d5d33d358b67a36e503db47466fc0760`. Reviewed-head CI run
+`36590433561` and merged-main CI run `36590794320` passed Windows stable,
+Rust 1.89, and package jobs. Evidence is recorded in
+[PR #36](https://github.com/chatarabdelilah/rproj/pull/36). Fresh Windows
+provisioning and a Scribe Studio playtest remain unverified.
+
+## 0.18.1: project composition maintenance and reliable test/watch coexistence
 
 New Project starts at Review and retains Start point access to Guided, Expert,
 and saved setups. Projects can add packages and capabilities through a Ratatui
@@ -45,7 +54,7 @@ variant. CodeRabbit identified ten applicable recovery, manifest-preservation,
 and freshness findings; all were corrected, and the final complete-diff review
 reported zero findings. CI evidence belongs to the implementing PR.
 
-## Unreleased: explicit choices, Scribe Studio, and Rokit setup trust
+## 0.18.1: explicit choices, Scribe Studio, and Rokit setup trust
 
 Fresh Machine Setup and New Project optional selections start unchecked;
 saved choices are preserved. Removed catalog selection-default fields and
@@ -81,7 +90,7 @@ Candidate verification results and reviewed-head/main CI are recorded in
 fresh Linux generated-project execution, and fresh Windows provisioning remain
 unverified; ignored tests are not counted as passes.
 
-## Unreleased: Jest execution selection and Ratatui refinements
+## 0.18.0: Jest execution selection and Ratatui refinements
 
 The Jest picker now asks for Local Studio or Open Cloud. The choice is retained
 in project records and saved setups, drives runner configuration, and determines
@@ -98,9 +107,9 @@ retains its prompt interface.
 
 Local verification: 388 ordinary tests passed, 19 prerequisite-dependent tests ignored; formatting and clippy passed. The PTY regression saves a tool setting and returns to the project with one terminal enter/leave and no suspension. Unit coverage checks settings preservation, cancellation, external edits, malformed files, JSON merging, four terminal sizes, Jest backend persistence, and both generated CI variants. The isolated installed Jest Roblox 0.3.24/Studio regression also passed eight package examples after real Wally installation and Rojo sourcemap regeneration. CodeRabbit reported one documentation clarification about atomic visibility versus crash durability; it was corrected. Reviewed-head/main CI are recorded in the implementing PR. Open
 Cloud execution is not claimed without credentials; no applications are installed
-by ordinary tests. This remains unreleased runtime work.
+by ordinary tests.
 
-## Unreleased: generated project CI and ignore coverage
+## 0.18.0: generated project CI and ignore coverage
 
 Jest projects now expose `ReplicatedStorage.devPackages` in the ordinary
 sourcemap as well as the Jest project. Disk casing remains `DevPackages`.
@@ -119,7 +128,6 @@ has no Jest tool manifest; direct use of the existing pinned binary resolved tha
 fixture prerequisite without installing applications. Open Cloud execution and
 fresh Linux generated-project execution remain unverified. CodeRabbit review
 and reviewed-head/merged-main CI evidence are recorded in the change's PR.
-This is unreleased runtime work; version preparation belongs to a later release.
 
 ## T5: 0.17.0 Published
 

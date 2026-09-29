@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.18.0, public alpha**, with Jest execution selection, generated-project fixes, Catalog refinements, and Ratatui Configure Tools. The next candidate is **0.18.1**: compatible existing Jest mounts, explicit optional setup choices, Scribe Studio, trusted Rokit installation, additive project composition, Catalog mouse scrolling, and reliable Test/Watch coexistence. Publication remains an owner action after release gates pass. See [candidate notes](release-notes-0.18.1.md) and [audit evidence](release-audit.md).
+The published baseline is **v0.18.1, public alpha**, with compatible existing Jest mounts, explicit optional setup choices, Scribe Studio, trusted Rokit installation, additive project composition, Catalog mouse scrolling, and reliable Test/Watch coexistence. No later package candidate is prepared or approved. See [release notes](release-notes-0.18.1.md) and [audit evidence](release-audit.md).
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
