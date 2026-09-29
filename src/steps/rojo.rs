@@ -106,7 +106,13 @@ pub fn builtin_project_template() -> Value {
     );
     tree.insert(
         "StarterPlayer".to_string(),
-        json!({ "StarterPlayerScripts": { "client": { "$path": "src/client" } } }),
+        json!({
+            "$className": "StarterPlayer",
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "client": { "$path": "src/client" }
+            }
+        }),
     );
     for (name, node) in place_template::render() {
         tree.insert(name, node);
@@ -125,6 +131,49 @@ pub fn project_document(
     validate_template_structure(&project)?;
     project["name"] = json!(project_name);
 
+    apply_dynamic_mounts(
+        &mut project,
+        package_workflow,
+        testez_selected,
+        has_server_packages,
+    )?;
+    Ok(project)
+}
+
+pub fn ensure_project_mounts(
+    project_dir: &Path,
+    package_workflow: PackageWorkflow,
+    testez_selected: bool,
+    has_server_packages: bool,
+) -> Result<()> {
+    let path = project_dir.join("default.project.json");
+    let mut project: Value = serde_json::from_str(&fs::read_to_string(&path)?)
+        .with_context(|| format!("failed to parse {}", path.display()))?;
+    let before = project.clone();
+    apply_dynamic_mounts(
+        &mut project,
+        package_workflow,
+        testez_selected,
+        has_server_packages,
+    )?;
+    if project == before {
+        ui::ok("default.project.json already has selected mounts");
+    } else {
+        fs::write(
+            &path,
+            format!("{}\n", serde_json::to_string_pretty(&project)?),
+        )?;
+        ui::ok("updated default.project.json mounts");
+    }
+    Ok(())
+}
+
+fn apply_dynamic_mounts(
+    project: &mut Value,
+    package_workflow: PackageWorkflow,
+    testez_selected: bool,
+    has_server_packages: bool,
+) -> Result<()> {
     let tree = project["tree"]
         .as_object_mut()
         .context("project template `tree` must be an object")?;
@@ -154,11 +203,13 @@ pub fn project_document(
     }
 
     let starter_player = child_object_mut(tree, "StarterPlayer")?;
+    starter_player.insert("$className".into(), json!("StarterPlayer"));
     let client_scripts = child_object_mut(starter_player, "StarterPlayerScripts")?;
+    client_scripts.insert("$className".into(), json!("StarterPlayerScripts"));
     if testez_selected {
         client_scripts.insert("test".into(), json!({ "$path": "tests/client" }));
     }
-    Ok(project)
+    Ok(())
 }
 
 pub fn validate_template_structure(template: &Value) -> Result<()> {
@@ -504,6 +555,14 @@ mod tests {
 
         assert_eq!(project["name"], "MyGame");
         assert_eq!(project["tree"]["$className"], "DataModel");
+        assert_eq!(
+            project["tree"]["StarterPlayer"]["$className"],
+            "StarterPlayer"
+        );
+        assert_eq!(
+            project["tree"]["StarterPlayer"]["StarterPlayerScripts"]["$className"],
+            "StarterPlayerScripts"
+        );
         assert_eq!(
             project["tree"]["ReplicatedStorage"]["shared"]["$path"],
             "src/shared"

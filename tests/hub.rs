@@ -68,6 +68,7 @@ fn project_configure_saves_and_returns_without_a_terminal_handoff() {
     );
     session.wait_for("Tasks");
     open_project(&mut session, &project);
+    session.send(common::DOWN);
     session.send(ENTER);
     session.wait_for("Search:");
     session.send("stylua");
@@ -205,7 +206,7 @@ fn foreground_watch_interrupt_and_failure_return_to_a_usable_home() {
     let mut session = Session::start_with_env(project.path(), &[], &[("PATH", &path)]);
     session.wait_for("Tasks");
     open_project(&mut session, &project);
-    for _ in 0..2 {
+    for _ in 0..3 {
         session.send(common::DOWN);
     }
     for attempt in 1..=2 {
@@ -252,7 +253,7 @@ fn interrupted_tool_restore_never_starts_the_test_runner() {
     let mut session = Session::start_with_env(project.path(), &[], &[("PATH", &path)]);
     session.wait_for("Tasks");
     open_project(&mut session, &project);
-    for _ in 0..3 {
+    for _ in 0..4 {
         session.send(common::DOWN);
     }
     session.send(ENTER);
@@ -307,6 +308,7 @@ fn a_disabled_action_explains_itself_without_launching() {
     let mut session = Session::start(project.path(), &[]);
     session.wait_for("Tasks");
     open_project(&mut session, &project);
+    session.send(common::DOWN);
     session.send(common::DOWN);
     session.send(ENTER);
     session.wait_for("requires a valid rproj.toml");

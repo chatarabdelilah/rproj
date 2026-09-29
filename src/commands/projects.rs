@@ -10,12 +10,13 @@ use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 
-use crate::config::project_file;
+use crate::config::{PackageWorkflow, project_file};
 use crate::graph::{ProjectGraph, TestRunner};
 use crate::tui::{self, ACCENT, InputState, selected_style, wrap_lines};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProjectAction {
+    Composition,
     Configure,
     Upgrade,
     Watch,
@@ -24,7 +25,8 @@ pub enum ProjectAction {
 }
 
 impl ProjectAction {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
+        Self::Composition,
         Self::Configure,
         Self::Upgrade,
         Self::Watch,
@@ -34,6 +36,7 @@ impl ProjectAction {
 
     pub fn label(self) -> &'static str {
         match self {
+            Self::Composition => "Edit Packages & Capabilities",
             Self::Configure => "Configure Tools",
             Self::Upgrade => "Upgrade Project",
             Self::Watch => "Watch Project",
@@ -50,6 +53,9 @@ impl ProjectAction {
         }
         crate::diagnostics::event("project.action", format!("{self:?}: {}", path.display()));
         match self {
+            Self::Composition => {
+                bail!("Edit Packages & Capabilities is available in the workspace hub")
+            }
             Self::Configure => super::configure::run_tools_in(path),
             Self::Upgrade => super::upgrade::run_in(path, false),
             Self::Watch => super::watch::run_in(path),
@@ -118,7 +124,11 @@ impl ProjectContext {
         if action == ProjectAction::Configure {
             return Ok(());
         }
-        if matches!(action, ProjectAction::Upgrade | ProjectAction::Watch) && !self.has_rojo {
+        if matches!(
+            action,
+            ProjectAction::Composition | ProjectAction::Upgrade | ProjectAction::Watch
+        ) && !self.has_rojo
+        {
             return Err(format!("{} requires default.project.json.", action.label()));
         }
         if let Some(warning) = &self.warning {
@@ -126,10 +136,22 @@ impl ProjectContext {
                 "Repair rproj.toml before running this action.\n{warning}"
             ));
         }
-        if matches!(action, ProjectAction::Upgrade | ProjectAction::Test) && self.graph.is_none() {
+        if matches!(
+            action,
+            ProjectAction::Composition | ProjectAction::Upgrade | ProjectAction::Test
+        ) && self.graph.is_none()
+        {
             return Err(format!("{} requires a valid rproj.toml.", action.label()));
         }
         if let Some(graph) = &self.graph {
+            if action == ProjectAction::Composition
+                && graph.package_workflow == PackageWorkflow::Wally
+                && !self.has_wally
+            {
+                return Err(
+                    "Edit Packages & Capabilities requires this Wally project's wally.toml.".into(),
+                );
+            }
             if !graph.testing_is_compatible() {
                 return Err(
                     "Jest Roblox requires the Wally dependency workflow; repair rproj.toml.".into(),
@@ -822,7 +844,7 @@ mod tests {
         fs::create_dir(a.join("src")).unwrap();
         let mut app = ready(root.path(), &b);
         key(&mut app, KeyCode::Enter);
-        app.action = 4;
+        app.action = 5;
         let Some(BrowserOutcome::Run { path, action }) = key(&mut app, KeyCode::Enter) else {
             panic!("expected project action")
         };
@@ -984,7 +1006,7 @@ mod tests {
             app.help = false;
         }
         key(&mut app, KeyCode::Enter);
-        app.action = 1;
+        app.action = 2;
         assert!(key(&mut app, KeyCode::Enter).is_none());
         assert!(app.status.contains("rproj.toml"));
         let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();

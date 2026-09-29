@@ -1,5 +1,31 @@
 # Release-Hardening Audit
 
+## Unreleased: project composition maintenance and reliable test/watch coexistence
+
+New Project starts at Review and retains Start point access to Guided, Expert,
+and saved setups. Projects can add packages and capabilities through a Ratatui
+editor for valid `rproj.toml` projects. Existing choices remain selected;
+dependency-workflow changes and removals stay outside this bounded editor.
+Wally updates preserve unrelated entries and comments, generated configuration,
+test mounts, test folders, tool pins, and sourcemaps are refreshed, and an
+external `rproj.toml` edit blocks saving.
+
+Test execution reuses a complete selected Wally package tree, avoiding the
+directory-replacement window that crashed a concurrent Rojo sourcemap watcher.
+Missing aliases still run the existing Wally recovery path. TestEZ companion
+configuration is always generated with TestEZ. Catalog details accept mouse-wheel
+scrolling while keyboard scrolling remains available. Generated StarterPlayer
+and StarterPlayerScripts nodes carry explicit class names.
+
+The project editor is additive: stop an active Watch before applying package
+additions. It may reformat `rproj.toml`; Wally entries outside rproj's catalog are
+left untouched. On September 29, 2026, the locked ordinary suite passed 404 tests
+with 19 prerequisite-dependent tests ignored. Formatting and clippy with warnings
+denied passed, and the installed real Rojo validated every built-in template
+variant. CodeRabbit identified ten applicable recovery, manifest-preservation,
+and freshness findings; all were corrected, and the final complete-diff review
+reported zero findings. CI evidence belongs to the implementing PR.
+
 ## Unreleased: explicit choices, Scribe Studio, and Rokit setup trust
 
 Fresh Machine Setup and New Project optional selections start unchecked;

@@ -6,6 +6,7 @@ pub mod hub;
 pub mod info;
 pub mod machine_setup;
 pub mod new;
+pub mod project_composition;
 pub mod project_template;
 pub mod projects;
 pub mod provision;

@@ -299,6 +299,23 @@ impl CatalogApp {
         }
         None
     }
+    pub fn handle_mouse(&mut self, mouse: crossterm::event::MouseEvent) {
+        use crossterm::event::MouseEventKind;
+        let amount = 3;
+        match mouse.kind {
+            MouseEventKind::ScrollUp => {
+                self.location.scroll = self.location.scroll.saturating_sub(amount)
+            }
+            MouseEventKind::ScrollDown => {
+                self.location.scroll = self
+                    .location
+                    .scroll
+                    .saturating_add(amount)
+                    .min(self.detail_limit.get())
+            }
+            _ => {}
+        }
+    }
     pub fn render(&self, frame: &mut ratatui::Frame<'_>) {
         let area = frame.area();
         if self.help {
@@ -463,14 +480,18 @@ pub fn run() -> Result<()> {
         anyhow::bail!("Catalog requires an interactive terminal");
     }
     let mut terminal = TerminalSession::enter()?;
+    terminal.set_mouse_capture(true)?;
     let mut app = CatalogApp::new();
     loop {
         terminal.draw(|frame| app.render(frame))?;
-        if let Event::Key(key) = terminal.read_event()?
-            && key.kind != crossterm::event::KeyEventKind::Release
-            && app.handle_key(key).is_some()
-        {
-            return Ok(());
+        match terminal.read_event()? {
+            Event::Key(key) if key.kind != crossterm::event::KeyEventKind::Release => {
+                if app.handle_key(key).is_some() {
+                    return Ok(());
+                }
+            }
+            Event::Mouse(mouse) => app.handle_mouse(mouse),
+            _ => {}
         }
     }
 }
@@ -591,5 +612,25 @@ mod tests {
 
         press(&mut app, KeyCode::Tab);
         assert_eq!(app.location.scroll, end.saturating_sub(10));
+    }
+
+    #[test]
+    fn mouse_wheel_scrolls_the_selected_details() {
+        let mut app = CatalogApp::new();
+        app.detail_limit.set(20);
+        app.handle_mouse(crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::ScrollDown,
+            column: 0,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.location.scroll, 3);
+        app.handle_mouse(crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::ScrollUp,
+            column: 0,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.location.scroll, 0);
     }
 }

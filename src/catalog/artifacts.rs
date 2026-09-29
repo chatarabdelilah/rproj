@@ -8,8 +8,6 @@ pub enum Requirement {
     Capability(&'static str),
     /// A machine-wide system app key, e.g. `blender`.
     App(&'static str),
-    /// A VS Code extension key, e.g. `testez-companion`.
-    Extension(&'static str),
     /// The chosen dependency strategy.
     Strategy(Strategy),
 }
@@ -36,7 +34,6 @@ impl Requirement {
         match self {
             Requirement::Capability(key) => format!("the {key} capability"),
             Requirement::App(key) => format!("the {key} app"),
-            Requirement::Extension(key) => format!("the {key} VS Code extension"),
             Requirement::Strategy(Strategy::Wally) => "Wally".to_string(),
             Requirement::Strategy(Strategy::GitSubmodules) => "git submodules".to_string(),
             Requirement::Strategy(Strategy::None) => "no dependency manager".to_string(),
@@ -250,12 +247,12 @@ pub const ARTIFACTS: &[Artifact] = &[
     },
     Artifact {
         key: "testez-companion.toml",
-        // Gated on the extension that reads it. It used to be written for
-        // everyone who picked TestEZ, so the usual outcome was a config file
-        // for an extension the user had never installed.
+        // Keep this with TestEZ itself. The file is harmless before the
+        // extension is installed and makes adding TestEZ Companion later work
+        // without another rproj upgrade.
         description: "Lets the TestEZ Companion extension find your specs",
         category: ArtifactCategory::Testing,
-        also_requires: &[Requirement::Extension("testez-companion")],
+        also_requires: &[],
         housekeeping: false,
         mandatory: false,
     },
@@ -333,12 +330,11 @@ pub fn find(key: &str) -> Option<&'static Artifact> {
 /// forgotten here.
 pub fn every_machine_requirement() -> (Vec<String>, Vec<String>) {
     let mut apps = Vec::new();
-    let mut extensions = Vec::new();
+    let extensions = Vec::new();
     for artifact in ARTIFACTS {
         for requirement in artifact.also_requires {
             match requirement {
                 Requirement::App(key) => apps.push((*key).to_string()),
-                Requirement::Extension(key) => extensions.push((*key).to_string()),
                 Requirement::Capability(_) | Requirement::Strategy(_) => {}
             }
         }
@@ -351,7 +347,6 @@ pub fn every_machine_requirement() -> (Vec<String>, Vec<String>) {
 #[derive(Debug, Clone, Copy)]
 pub struct Environment<'a> {
     pub apps: &'a [String],
-    pub extensions: &'a [String],
     pub strategy: Strategy,
 }
 
@@ -360,7 +355,6 @@ impl<'a> Environment<'a> {
         match requirement {
             Requirement::Capability(key) => capabilities.iter().any(|c| c == key),
             Requirement::App(key) => self.apps.iter().any(|a| a == key),
-            Requirement::Extension(key) => self.extensions.iter().any(|e| e == key),
             Requirement::Strategy(strategy) => self.strategy == *strategy,
         }
     }
@@ -527,10 +521,9 @@ mod tests {
         apps: &[&str],
         extensions: &[&str],
     ) -> Vec<Planned> {
-        let (apps, extensions) = (owned(apps), owned(extensions));
+        let (apps, _extensions) = (owned(apps), owned(extensions));
         let environment = Environment {
             apps: &apps,
-            extensions: &extensions,
             strategy,
         };
         let selected: Vec<(String, Option<String>)> = capabilities_chosen
@@ -648,10 +641,9 @@ mod tests {
     /// absolute minimum is still available.
     #[test]
     fn dropping_the_housekeeping_leaves_only_the_mandatory_two() {
-        let (apps, extensions, strategy) = env(Strategy::None);
+        let (apps, _extensions, strategy) = env(Strategy::None);
         let environment = Environment {
             apps: &apps,
-            extensions: &extensions,
             strategy,
         };
         let planned = plan(
@@ -731,12 +723,10 @@ mod tests {
         assert!(keys_of(&without).contains(&"tests"));
     }
 
-    /// A config file for an extension the user never installed is a file
-    /// nothing reads.
     #[test]
-    fn the_companion_config_needs_the_companion_extension() {
+    fn testez_always_writes_the_companion_config() {
         let without = plan_from(&["test"], Strategy::Wally, &[], &[]);
-        assert!(!keys_of(&without).contains(&"testez-companion.toml"));
+        assert!(keys_of(&without).contains(&"testez-companion.toml"));
 
         let with = plan_from(&["test"], Strategy::Wally, &[], &["testez-companion"]);
         assert!(keys_of(&with).contains(&"testez-companion.toml"));
@@ -798,10 +788,9 @@ mod tests {
                     let planned = plan_from(&chosen, strategy, &apps, &["testez-companion"]);
                     let keys = keys_of(&planned);
                     let chosen_owned = owned(&chosen);
-                    let (apps_owned, ext) = (owned(&apps), owned(&["testez-companion"]));
+                    let apps_owned = owned(&apps);
                     let environment = Environment {
                         apps: &apps_owned,
-                        extensions: &ext,
                         strategy,
                     };
                     for entry in &planned {

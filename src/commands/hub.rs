@@ -470,6 +470,7 @@ pub fn run() -> Result<()> {
     {
         let mut terminal = TerminalSession::enter()?;
         loop {
+            terminal.set_mouse_capture(matches!(app.screen, Screen::Catalog(_)))?;
             app.refresh_update();
             app.projects.poll();
             let mut small = false;
@@ -499,6 +500,12 @@ pub fn run() -> Result<()> {
                 for ch in text.chars().filter(|ch| !ch.is_control()) {
                     input.handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
                 }
+            }
+            if let Some(Event::Mouse(mouse)) = &event
+                && let Screen::Catalog(catalog) = &mut app.screen
+            {
+                catalog.handle_mouse(*mouse);
+                continue;
             }
             if let Some(Event::Key(key)) = event
                 && key.kind != crossterm::event::KeyEventKind::Release
@@ -533,6 +540,24 @@ pub fn run() -> Result<()> {
                     }
                 );
                 let result = match outcome {
+                    HubOutcome::Project {
+                        path,
+                        action: ProjectAction::Composition,
+                    } => match super::creation::edit_project_in(&mut terminal, &path) {
+                        Ok(Some(edit)) => {
+                            terminal.suspend()?;
+                            let result = super::project_composition::apply(&path, edit);
+                            acknowledge(&result, false, true)?;
+                            acknowledged = true;
+                            terminal.resume()?;
+                            result
+                        }
+                        Ok(None) => {
+                            cancelled = true;
+                            Ok(())
+                        }
+                        Err(error) => Err(error),
+                    },
                     HubOutcome::Project {
                         path,
                         action: ProjectAction::Configure,
@@ -602,7 +627,7 @@ pub fn run() -> Result<()> {
                     acknowledge(&result, false, false)?;
                     terminal.resume()?;
                 }
-                app.status = action_status(&result, cancelled, watch).into();
+                app.status = action_status(&result, cancelled, watch, project_action).into();
                 if machine_setup && cancelled {
                     app.status =
                         "Machine setup cancelled. Completed installations, if any, remain.".into();
@@ -623,10 +648,11 @@ pub fn run() -> Result<()> {
     Ok(())
 }
 
-fn action_status(result: &Result<()>, cancelled: bool, watch: bool) -> &'static str {
+fn action_status(result: &Result<()>, cancelled: bool, watch: bool, project: bool) -> &'static str {
     match result {
         Err(error) if crate::interrupt::is_cancelled(error) => "Cancelled.",
         Err(_) => "Failed. Details recorded in the diagnostic log.",
+        Ok(()) if cancelled && project => "Cancelled. No project changes were made.",
         Ok(()) if cancelled => "Cancelled. Nothing created.",
         Ok(()) if watch => "Stopped.",
         Ok(()) => "Completed.",
