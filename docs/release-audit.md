@@ -2,8 +2,8 @@
 
 ## Unreleased: upgrade confirmation conflicts
 
-Upgrade now retains the exact snapshots used for planning and merging. All
-generated targets and inputs, including the composition record and production
+Upgrade now retains the exact snapshots used for planning and merging. Recorded
+rewrite targets and inputs, including the composition record and production
 Rojo document, are checked after confirmation and before the first write. File
 edit/create/delete conflicts refuse the reviewed plan without writes. Non-missing
 read errors also fail safely. Cancellation preserves every fixture file and
@@ -14,6 +14,8 @@ prerequisite-dependent tests ignored, formatting, and clippy with warnings denie
 The stale-save regression failed before the fix and passed afterward. All 15
 upgrade terminal regressions pass without network or tool provisioning.
 Conflict detection is optimistic; later writes are not a multi-file transaction.
+The separate `.gitignore`, `.luaurc`, and `tests/.luaurc` merge helpers read
+current files after the planned writes; their targets are not snapshotted.
 No version bump or publication is prepared. Review and CI evidence belong to
 the implementing PR.
 

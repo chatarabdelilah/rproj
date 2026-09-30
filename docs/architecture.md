@@ -678,7 +678,7 @@ Every `ensure_*` step in the scaffold skips a file that already exists. That is 
 
 `upgrade` re-derives the generated files from `rproj.toml`'s recorded package list and workflow, shows what would change, and writes only after confirmation (`--yes` skips the prompt). Two rules keep it from being destructive:
 
-The plan retains one content snapshot per generated target and input, including
+The plan retains one content snapshot per recorded rewrite target and input, including
 `rproj.toml` and `default.project.json`. Merges use those same snapshots. After
 confirmation, every snapshot is checked before the first write; an external
 edit, file creation, or deletion refuses the entire reviewed plan and asks the
@@ -686,6 +686,8 @@ user to rerun. Other read errors also stop the upgrade rather than treating the
 file as missing. Declining or canceling confirmation writes nothing. This is
 optimistic conflict detection, not a cross-process lock or a transaction across
 the later file writes; a write failure can still leave earlier files updated.
+The later `.gitignore`, `.luaurc`, and `tests/.luaurc` merge helpers read current
+files separately and are not part of this reviewed-plan conflict check.
 
 - **Only files rproj generates.** `stylua.toml`, `default.project.json`, `wally.toml`, `rokit.toml` and everything under `src/` are seeded once and then edited by hand, so rewriting them would throw away real work. A test asserts they survive.
 - **`selene.toml` is merged, not replaced**, and only for the keys whose correct value *follows from the project's composition*: `std` from TestEZ, `mixed_table` from the UI library, `exclude` from the package workflow. Lint levels the user chose are theirs. This reuses `tool_settings::merge_toml` by passing it a **subset** of the catalog's settings — it only rewrites lines whose key and section match something in that subset, so everything else in the file is untouched by construction.
