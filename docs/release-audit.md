@@ -1,5 +1,24 @@
 # Release-Hardening Audit
 
+## Unreleased: upgrade confirmation conflicts
+
+Upgrade now retains the exact snapshots used for planning and merging. Recorded
+rewrite targets and inputs, including the composition record and production
+Rojo document, are checked after confirmation and before the first write. File
+edit/create/delete conflicts refuse the reviewed plan without writes. Non-missing
+read errors also fail safely. Cancellation preserves every fixture file and
+directory; accepted upgrades retain custom settings and user-owned files.
+
+September 30 local verification passed 426 ordinary Windows tests, with 19
+prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
+The stale-save regression failed before the fix and passed afterward. All 15
+upgrade terminal regressions pass without network or tool provisioning.
+Conflict detection is optimistic; later writes are not a multi-file transaction.
+The separate `.gitignore`, `.luaurc`, and `tests/.luaurc` merge helpers read
+current files after the planned writes; their targets are not snapshotted.
+No version bump or publication is prepared. Review and CI evidence belong to
+the implementing PR.
+
 ## Unreleased: shared configuration saving
 
 CLI configuration and Ratatui now share one `EditSession`: a single loaded
@@ -19,11 +38,15 @@ locked destinations retain the original file and pending changes. Replacement
 preserves Windows DACL entries and inheritance protection; the safe wrapper
 adds one Windows-only dependency without introducing unsafe repository code.
 A Unix-mode preservation regression was added but not exercised locally.
-No machine
-provisioning or Studio/Open Cloud run was needed or performed.
+No machine provisioning or Studio/Open Cloud run was needed or performed.
 
 No version bump or publication is prepared. Review and CI evidence belong to
 the implementing PR.
+
+[PR #40](https://github.com/chatarabdelilah/rproj/pull/40) merged at `efe6615`.
+Final local CodeRabbit review reported zero findings on `096b004`; reviewed-head
+CI `36751976197` and merged-main CI `36760836260` passed. Completed branches
+were removed.
 
 ## Unreleased: shared creation choices and validation
 

@@ -24,18 +24,19 @@
 //! Nothing is written until the list of changes has been shown and
 //! confirmed.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io::ErrorKind;
+use std::path::Path;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use inquire::Confirm;
 use serde_json::json;
 
 use crate::catalog::quality_checks::{ci_workflow, render_check};
 use crate::catalog::tool_settings::{self, SettingKind, SettingSpec};
 use crate::catalog::wally_packages;
-use crate::config::{PackageWorkflow, project_file};
+use crate::config::PackageWorkflow;
 use crate::graph::{ProjectGraph, TestRunner};
 use crate::steps::{gitignore, jest, quality, testez, vscode};
 use crate::ui;
@@ -48,13 +49,53 @@ struct Rewrite {
     creating: bool,
 }
 
+#[derive(Default)]
+struct UpgradePlan {
+    rewrites: Vec<Rewrite>,
+    originals: BTreeMap<String, Option<String>>,
+}
+
+impl UpgradePlan {
+    fn read(&mut self, project_dir: &Path, relative: &str) -> Result<Option<String>> {
+        if let Some(original) = self.originals.get(relative) {
+            return Ok(original.clone());
+        }
+        let original = read_optional(&project_dir.join(relative))?;
+        self.originals.insert(relative.to_owned(), original.clone());
+        Ok(original)
+    }
+
+    fn verify(&self, project_dir: &Path) -> Result<()> {
+        // Check every target and input before the first write, so a conflict in
+        // a later file cannot leave the earlier files upgraded.
+        for (relative, original) in &self.originals {
+            let path = project_dir.join(relative);
+            ensure!(
+                read_optional(&path)? == *original,
+                "{} changed while upgrade was being reviewed. Nothing written; re-run `rproj upgrade` to review the current files.",
+                path.display()
+            );
+        }
+        Ok(())
+    }
+}
+
+fn read_optional(path: &Path) -> Result<Option<String>> {
+    match fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
+    }
+}
+
 pub fn run(assume_yes: bool) -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
     run_in(&project_dir, assume_yes)
 }
 
 pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
-    if !project_dir.join("default.project.json").exists() {
+    let mut upgrade = UpgradePlan::default();
+    if upgrade.read(project_dir, "default.project.json")?.is_none() {
         bail!(
             "no default.project.json here - `rproj upgrade` updates an existing project, \
              run it from inside one"
@@ -62,12 +103,18 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
     }
     // The package list is what decides most of these files, and guessing it
     // from what's on disk would be guessing.
-    let Some(project) = project_file::load_from(project_dir)? else {
+    let Some(record) = upgrade.read(project_dir, "rproj.toml")? else {
         bail!(
             "no rproj.toml here - `rproj upgrade` needs the package list it records to know \
              what this project's config should say. Projects scaffolded by `rproj new` have one"
         );
     };
+    let project: ProjectGraph = toml::from_str(&record).with_context(|| {
+        format!(
+            "failed to parse {}",
+            project_dir.join("rproj.toml").display()
+        )
+    })?;
 
     let packages: BTreeSet<String> = project.packages.iter().cloned().collect();
     let workflow = project.package_workflow;
@@ -77,13 +124,15 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
             "Jest Roblox requires the Wally dependency workflow; repair rproj.toml before upgrading"
         );
     }
-    let rewrites = plan(project_dir, &project, &packages, workflow, runner)?;
+    let upgrade = plan(project_dir, &project, &packages, workflow, runner, upgrade)?;
+    let rewrites = &upgrade.rewrites;
 
     if rewrites.is_empty() {
+        upgrade.verify(project_dir)?;
         ui::ok("already up to date - every generated file matches this version of rproj");
     } else {
         println!("\nThese generated files would change:\n");
-        for rewrite in &rewrites {
+        for rewrite in rewrites {
             let verb = if rewrite.creating { "create" } else { "update" };
             println!("  {verb} {}", rewrite.relative);
             ui::detail(rewrite.reason);
@@ -109,8 +158,9 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
             return Ok(());
         }
 
+        upgrade.verify(project_dir)?;
         ui::section(&format!("Upgrading {}", project_dir.display()));
-        for rewrite in &rewrites {
+        for rewrite in rewrites {
             let path = project_dir.join(&rewrite.relative);
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)?;
@@ -137,9 +187,8 @@ fn plan(
     packages: &BTreeSet<String>,
     workflow: PackageWorkflow,
     runner: Option<TestRunner>,
-) -> Result<Vec<Rewrite>> {
-    let mut rewrites = Vec::new();
-
+    mut upgrade: UpgradePlan,
+) -> Result<UpgradePlan> {
     // **Upgrade re-derives from the graph.** Every rewrite below is gated on
     // the project's own plan, so an upgrade cannot restore a file this
     // project never wanted: a project that declined CI does not silently
@@ -150,11 +199,11 @@ fn plan(
     let wants = |key: &str| planned.iter().any(|p| p.key == key);
 
     let testez_selected = runner == Some(TestRunner::TestEz);
-    if wants("selene.toml")
-        && let Some(contents) = selene_config(project_dir, packages, workflow, testez_selected)?
-    {
+    if wants("selene.toml") {
+        let original = upgrade.read(project_dir, "selene.toml")?;
+        let contents = selene_config(original.as_deref(), packages, workflow, testez_selected)?;
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             "selene.toml",
             contents,
@@ -163,9 +212,16 @@ fn plan(
     }
 
     if wants(".vscode/settings.json") {
-        let settings = vscode::merged_settings(project_dir, &vscode::project_settings(workflow))?;
+        let original = upgrade.read(project_dir, ".vscode/settings.json")?;
+        let settings = vscode::merge_settings_values(
+            vscode::parse_settings(
+                &project_dir.join(".vscode/settings.json"),
+                original.as_deref().unwrap_or(""),
+            )?,
+            &vscode::project_settings(workflow),
+        )?;
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             ".vscode/settings.json",
             settings,
@@ -179,7 +235,7 @@ fn plan(
         && let Some(contents) = render_check(&project.tools(), wants("tests"))
     {
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             ".lute/check.luau",
             contents,
@@ -190,7 +246,7 @@ fn plan(
             let has_server_packages =
                 workflow == PackageWorkflow::Wally && wally_packages::has_server_realm(packages);
             push(
-                &mut rewrites,
+                &mut upgrade,
                 project_dir,
                 ".github/workflows/ci.yml",
                 ci_workflow(
@@ -206,7 +262,7 @@ fn plan(
 
     if wants("testez.yml") {
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             "testez.yml",
             testez::TESTEZ_STD.to_string(),
@@ -215,7 +271,7 @@ fn plan(
     }
     if wants("testez-companion.toml") {
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             "testez-companion.toml",
             testez::companion_config(),
@@ -225,18 +281,21 @@ fn plan(
 
     if wants("jest.project.json") {
         let source = project_dir.join("default.project.json");
-        let mut production: serde_json::Value = serde_json::from_str(&fs::read_to_string(&source)?)
+        let original = upgrade
+            .read(project_dir, "default.project.json")?
+            .context("default.project.json is missing")?;
+        let mut production: serde_json::Value = serde_json::from_str(&original)
             .with_context(|| format!("failed to parse {}", source.display()))?;
         jest::ensure_dev_mount(&mut production)?;
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             "default.project.json",
             format!("{}\n", serde_json::to_string_pretty(&production)?),
             "development packages for Jest type analysis",
         )?;
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             jest::PROJECT_FILE,
             jest::project_contents(&production)?,
@@ -244,37 +303,38 @@ fn plan(
         )?;
     }
     if wants("jest.config.json") {
+        let original = upgrade.read(project_dir, jest::CONFIG_FILE)?;
         push(
-            &mut rewrites,
+            &mut upgrade,
             project_dir,
             jest::CONFIG_FILE,
-            jest::merged_config(project_dir, project.jest_backend())?,
+            jest::merged_config_text(
+                &project_dir.join(jest::CONFIG_FILE),
+                original.as_deref(),
+                project.jest_backend(),
+            )?,
             "Jest runner paths managed by rproj; other options are kept",
         )?;
     }
 
-    Ok(rewrites)
+    Ok(upgrade)
 }
 
-/// `selene.toml` with only the composition-derived keys updated, or `None`
-/// if it already says the right things.
+/// `selene.toml` with only the composition-derived keys updated.
 fn selene_config(
-    project_dir: &Path,
+    existing: Option<&str>,
     packages: &BTreeSet<String>,
     workflow: PackageWorkflow,
     testez_selected: bool,
-) -> Result<Option<String>> {
-    let path = project_dir.join("selene.toml");
-    let Ok(existing) = fs::read_to_string(&path) else {
+) -> Result<String> {
+    let Some(existing) = existing else {
         // No selene.toml at all: fall through to the full scaffolded file.
-        return Ok(
-            tool_settings::default_toml("selene", &overrides(packages, testez_selected)).map(
-                |config| {
-                    let exclude = vendored_exclude(workflow);
-                    tool_settings::insert_top_level(&config, &exclude)
-                },
-            ),
-        );
+        return tool_settings::default_toml("selene", &overrides(packages, testez_selected))
+            .map(|config| {
+                let exclude = vendored_exclude(workflow);
+                tool_settings::insert_top_level(&config, &exclude)
+            })
+            .context("selene missing from the catalog");
     };
 
     let tool = tool_settings::find("selene").context("selene missing from the catalog")?;
@@ -288,11 +348,11 @@ fn selene_config(
         })
         .collect();
 
-    let mut updated = tool_settings::merge_toml(&existing, &managed);
+    let mut updated = tool_settings::merge_toml(existing, &managed);
     let required = vendored_excludes(workflow);
     if !required.is_empty() {
-        let parsed: toml::Value = toml::from_str(&existing)
-            .with_context(|| format!("failed to parse {}", path.display()))?;
+        let parsed: toml::Value =
+            toml::from_str(existing).context("failed to parse selene.toml")?;
         let mut excludes: Vec<String> = parsed
             .get("exclude")
             .map(|value| {
@@ -323,7 +383,7 @@ fn selene_config(
         };
         updated = tool_settings::merge_toml(&updated, &[(&exclude, json!(excludes))]);
     }
-    Ok((updated != existing).then_some(updated))
+    Ok(updated)
 }
 
 fn overrides(
@@ -365,18 +425,17 @@ fn vendored_exclude(workflow: PackageWorkflow) -> String {
 
 /// Adds a rewrite only when the file's contents would actually change.
 fn push(
-    rewrites: &mut Vec<Rewrite>,
+    upgrade: &mut UpgradePlan,
     project_dir: &Path,
     relative: &str,
     contents: String,
     reason: &'static str,
 ) -> Result<()> {
-    let path: PathBuf = project_dir.join(relative);
-    let current = fs::read_to_string(&path).ok();
+    let current = upgrade.read(project_dir, relative)?;
     if current.as_deref() == Some(contents.as_str()) {
         return Ok(());
     }
-    rewrites.push(Rewrite {
+    upgrade.rewrites.push(Rewrite {
         relative: relative.to_string(),
         contents,
         reason,
