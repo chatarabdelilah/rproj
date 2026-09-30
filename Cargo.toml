@@ -44,3 +44,6 @@ portable-pty = "0.8.1"
 # `cargo test` and solid when run alone. Assertions run against the
 # rendered screen instead, where a line break is a line break.
 vt100 = "0.15.2"
+
+[target."cfg(windows)".dependencies]
+windows-permissions = "0.2.4"

@@ -53,7 +53,7 @@ Catalog and Ratatui parity tests were added before replacing the callers.
 They cover Wally/submodules/none, each capability and implementation, both Jest
 backends, and saved unknown values. A terminal regression exercises the direct
 prompts for both Jest backends, TestEZ-only workflows, and missing gate refusal.
-The next consolidation is the configuration persistence boundary below.
+The configuration persistence boundary is also consolidated below.
 
 Both interfaces already reuse `ProjectGraph`, `offerable_package`,
 `add_companions`, `apply_derived_packages`, `prepare_project`, and
@@ -61,20 +61,20 @@ Both interfaces already reuse `ProjectGraph`, `offerable_package`,
 independent implementations. Moving these helpers to new files alone would
 not reduce duplication.
 
-### 2. Configure shares merging but has two persistence paths
+### 2. Configure now shares its edit session and persistence
 
-[`configure::configure_tool/write_toml`](../src/commands/configure.rs) reads
-values, prompts, and writes a checked merge. The
-[`Ratatui Editor::save`](../src/commands/configure/editor.rs) also tracks a
-baseline, rejects external edits, and replaces the file through a temporary
-file. Both already reuse `current_values`, `checked_toml_merge`, and the
-VS Code settings merger.
+**September 30 consolidation:** [`EditSession`](../src/commands/configure/session.rs)
+owns the tool, one loaded snapshot, current values, pending changes, checked
+merge, and save. Direct prompts and Ratatui delegate to it. The JSON parser and
+value merger are shared with VS Code scaffolding/upgrade, but configuration
+merges use the loaded snapshot rather than rereading the file during merging.
 
-A future shared configuration edit session should own the baseline, typed
-changes, merge, and save. Both interfaces can then use the same preservation
-and external-edit rules. Keep unknown settings, unsupported values, no-op
-byte preservation, and cancellation tests. Do not replace the stronger editor
-path with the simpler direct writer merely to delete code.
+Both interfaces reject external content changes, including file creation and
+deletion. Saving stages and syncs a temporary file beside the destination,
+rechecks the baseline, then replaces it. Failed saves retain the baseline and
+pending changes. No-op saves preserve exact bytes; cancellation writes nothing.
+Conflict detection is optimistic, not a lock on arbitrary external writers.
+The stronger Ratatui behavior now also protects direct CLI configuration.
 
 ### 3. Machine Setup is already one UI and worker
 

@@ -167,7 +167,7 @@ fn toml_broken_while_prompting_is_not_written_over() {
     session.enter_through(&SELENE_PROMPTS[4..]);
     let outcome = session.finish();
     assert_eq!(outcome.code, 1, "{}", outcome.text);
-    outcome.assert_contains("was not changed");
+    outcome.assert_contains("changed outside this editor");
     assert_eq!(project.read("selene.toml"), broken);
 }
 
@@ -326,4 +326,71 @@ fn a_second_run_proposes_what_you_chose_the_first_time() {
         written.contains(r#""editor.formatOnSave": false"#),
         "reverted:\n{written}"
     );
+}
+
+#[test]
+fn valid_toml_edits_during_prompts_are_not_overwritten() {
+    let project = TempProject::new("selene-external-valid");
+    project.write("selene.toml", SCAFFOLDED_SELENE);
+    let mut session = Session::start(project.path(), &["configure", "selene"]);
+    session.enter_through(&SELENE_PROMPTS[..3]);
+    session.wait_for_prompt("rules.shadowing");
+    session.send(&format!("{DOWN}{ENTER}"));
+    session.wait_for_prompt(SELENE_PROMPTS[4]);
+    let external = SCAFFOLDED_SELENE.replace("shadowing = \"warn\"", "shadowing = \"deny\"");
+    project.write("selene.toml", &external);
+    session.enter_through(&SELENE_PROMPTS[4..]);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 1, "{}", outcome.text);
+    outcome.assert_contains("changed outside this editor");
+    assert_eq!(project.read("selene.toml"), external);
+}
+
+#[test]
+fn json_external_edits_creation_and_deletion_are_refused() {
+    for mode in ["replace", "create", "delete"] {
+        let project = TempProject::new(&format!("json-external-{mode}"));
+        let relative = ".vscode/settings.json";
+        if mode != "create" {
+            project.write(
+                relative,
+                r#"{"editor.formatOnSave":false,"stylua.searchParentDirectories":false}"#,
+            );
+        }
+        let mut session = Session::start(project.path(), &["configure", "stylua-vscode"]);
+        session.wait_for_prompt(VSCODE_STYLUA_PROMPTS[0]);
+        session.send(&format!("y{ENTER}"));
+        session.wait_for_prompt(VSCODE_STYLUA_PROMPTS[1]);
+        let external = r#"{"editor.formatOnSave":false,"custom":"external edit"}"#;
+        if mode == "delete" {
+            std::fs::remove_file(project.path().join(relative)).unwrap();
+        } else {
+            project.write(relative, external);
+        }
+        session.send(ENTER);
+        let outcome = session.finish();
+        assert_eq!(outcome.code, 1, "{}", outcome.text);
+        outcome.assert_contains("changed outside this editor");
+        if mode == "delete" {
+            assert!(!project.path().join(relative).exists());
+        } else {
+            assert_eq!(project.read(relative), external);
+        }
+    }
+}
+
+#[test]
+fn cancelling_direct_configuration_discards_pending_changes() {
+    let project = TempProject::new("configure-cancel-pending");
+    project.write("selene.toml", SCAFFOLDED_SELENE);
+    let mut session = Session::start(project.path(), &["configure", "selene"]);
+    session.enter_through(&SELENE_PROMPTS[..3]);
+    session.wait_for_prompt("rules.shadowing");
+    session.send(&format!("{DOWN}{ENTER}"));
+    session.wait_for_prompt(SELENE_PROMPTS[4]);
+    session.send(common::ESC);
+    let outcome = session.finish();
+    assert_ne!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(project.read("selene.toml"), SCAFFOLDED_SELENE);
+    assert_eq!(std::fs::read_dir(project.path()).unwrap().count(), 1);
 }

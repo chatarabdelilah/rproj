@@ -5,7 +5,6 @@
 //! render a `SettingSpec` and how to write the two `ConfigTarget` kinds,
 //! and nothing about any specific tool or setting.
 
-use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
@@ -15,11 +14,13 @@ use serde_json::{Value, json};
 use crate::catalog::tool_settings::{
     self, CONFIGURABLE_TOOLS, ConfigTarget, ConfigurableTool, SettingKind, SettingSpec,
 };
-use crate::steps::vscode;
 use crate::ui;
 
 mod editor;
+mod permissions;
+mod session;
 pub(super) use editor::open_in;
+use session::EditSession;
 
 pub fn run(key: Option<&str>) -> Result<()> {
     if key == Some("project") {
@@ -55,7 +56,7 @@ pub(super) fn run_tools_in(project_dir: &Path) -> Result<()> {
     configure_tool(project_dir, tool)
 }
 
-fn configure_tool(project_dir: &Path, tool: &ConfigurableTool) -> Result<()> {
+fn configure_tool(project_dir: &Path, tool: &'static ConfigurableTool) -> Result<()> {
     println!(
         "\n{} - {}\n{}\n",
         tool.display_name, tool.summary, tool.docs_url
@@ -65,66 +66,18 @@ fn configure_tool(project_dir: &Path, tool: &ConfigurableTool) -> Result<()> {
         target_description(&tool.target)
     );
 
-    let current = current_values(project_dir, tool)?;
-
-    let mut answers: Vec<(&SettingSpec, Value)> = Vec::new();
-    for (setting, current) in tool.settings.iter().zip(current) {
-        if let Some(value) = ask(setting, current.as_ref())?
-            && current.as_ref() != Some(&value)
-        {
-            answers.push((setting, value));
+    let mut session = EditSession::load(project_dir, tool)?;
+    for (index, setting) in tool.settings.iter().enumerate() {
+        if let Some(value) = ask(setting, session.current[index].as_ref())? {
+            session.set(index, value);
         }
     }
-
-    if answers.is_empty() {
+    if session.save()? {
+        ui::ok(&format!("wrote {}", target_description(&tool.target)));
+    } else {
         ui::ok("no settings changed");
-        return Ok(());
-    }
-
-    match &tool.target {
-        ConfigTarget::ProjectToml { filename } => write_toml(project_dir, filename, &answers)?,
-        ConfigTarget::VsCodeSettings => write_vscode_settings(project_dir, &answers)?,
     }
     Ok(())
-}
-
-/// What each setting is set to right now, one entry per `tool.settings`.
-fn current_values(project_dir: &Path, tool: &ConfigurableTool) -> Result<Vec<Option<Value>>> {
-    match &tool.target {
-        ConfigTarget::ProjectToml { filename } => {
-            let path = project_dir.join(filename);
-            let existing = read_if_present(&path)?;
-            // A config the tool itself can't read is a problem worth
-            // surfacing now: every prompt default would otherwise be a
-            // catalog value silently disagreeing with the file.
-            if !existing.trim().is_empty() {
-                toml::from_str::<toml::Table>(&existing).with_context(|| {
-                    format!(
-                        "could not parse {} - fix or delete it, then re-run",
-                        path.display()
-                    )
-                })?;
-            }
-            Ok(tool_settings::current_toml_values(tool, &existing))
-        }
-        ConfigTarget::VsCodeSettings => {
-            let settings = vscode::read_settings(project_dir)?;
-            Ok(tool
-                .settings
-                .iter()
-                .map(|s| settings.get(s.key).cloned())
-                .collect())
-        }
-    }
-}
-
-fn read_if_present(path: &Path) -> Result<String> {
-    match path.exists() {
-        true => {
-            fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))
-        }
-        false => Ok(String::new()),
-    }
 }
 
 fn pick_target() -> Result<Option<&'static ConfigurableTool>> {
@@ -232,20 +185,6 @@ fn can_prompt(kind: &SettingKind, value: &Value) -> bool {
     }
 }
 
-/// Applies the answers to the tool's TOML file, merging rather than
-/// replacing (see `tool_settings::merge_toml`). Replacing deleted every key
-/// the catalog doesn't describe - `selene.toml`'s scaffolded `exclude`
-/// among them.
-fn write_toml(project_dir: &Path, filename: &str, answers: &[(&SettingSpec, Value)]) -> Result<()> {
-    let path = project_dir.join(filename);
-    let existing = read_if_present(&path)?;
-    let merged = checked_toml_merge(&existing, answers)
-        .with_context(|| format!("{} was not changed", path.display()))?;
-    fs::write(&path, merged).with_context(|| format!("failed to write {}", path.display()))?;
-    ui::ok(&format!("wrote {filename}"));
-    Ok(())
-}
-
 fn checked_toml_merge(existing: &str, answers: &[(&SettingSpec, Value)]) -> Result<String> {
     let mut expected = toml::from_str::<toml::Table>(existing)
         .context("could not parse current TOML; fix it and re-run configure")?;
@@ -269,13 +208,6 @@ fn checked_toml_merge(existing: &str, answers: &[(&SettingSpec, Value)]) -> Resu
         "cannot safely edit this TOML layout without changing other values; edit the file manually"
     );
     Ok(merged)
-}
-
-/// Applies the answers to `.vscode/settings.json`, merging rather than
-/// replacing (see `steps::vscode::merge_settings`).
-fn write_vscode_settings(project_dir: &Path, answers: &[(&SettingSpec, Value)]) -> Result<()> {
-    let entries: Vec<(&str, Value)> = answers.iter().map(|(s, v)| (s.key, v.clone())).collect();
-    vscode::merge_settings(project_dir, &entries)
 }
 
 #[cfg(test)]

@@ -1,5 +1,30 @@
 # Release-Hardening Audit
 
+## Unreleased: shared configuration saving
+
+CLI configuration and Ratatui now share one `EditSession`: a single loaded
+snapshot, current values, pending changes, checked merging, and staged file
+replacement. Direct CLI saves now reject external edits (including valid
+TOML/JSON, file creation, and deletion). No-op bytes, unknown/unsupported values,
+and cancellation remain protected. Failed saves retain pending changes and the
+original baseline for retry. Conflict detection is optimistic; this is not a
+cross-process lock or a guarantee of crash durability.
+
+September 30 local verification passed 421 ordinary tests on Windows, with 19
+prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
+New coverage includes both formats' no-op/reverted changes, external file
+creation/deletion/replacement, failed replacement cleanup and retry, invalid
+merges, missing projects, and real CLI cancellation/conflicts. Read-only and
+locked destinations retain the original file and pending changes. Replacement
+preserves Windows DACL entries and inheritance protection; the safe wrapper
+adds one Windows-only dependency without introducing unsafe repository code.
+A Unix-mode preservation regression was added but not exercised locally.
+No machine
+provisioning or Studio/Open Cloud run was needed or performed.
+
+No version bump or publication is prepared. Review and CI evidence belong to
+the implementing PR.
+
 ## Unreleased: shared creation choices and validation
 
 Direct CLI and Ratatui creation now use the capability catalog's shared rules
@@ -17,6 +42,10 @@ September 30 local verification passed 410 ordinary tests, with 19
 prerequisite-dependent tests deliberately ignored, plus formatting and clippy
 with warnings denied. Live Studio/Open Cloud and fresh-machine provisioning
 were not rerun for this refactor.
+
+[PR #39](https://github.com/chatarabdelilah/rproj/pull/39) merged at `fa8e6be`.
+Local CodeRabbit review reported zero findings; reviewed-head CI `36668710496`
+and merged-main CI `36668894684` passed. Completed branches were removed.
 
 ## Unreleased: UI Labs package
 

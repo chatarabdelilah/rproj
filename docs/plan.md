@@ -41,11 +41,12 @@ Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. rproj wi
 
 ## Release Hardening Baseline
 
-The [duplication audit](duplication-audit.md) records shared creation execution
-and shared capability choices/validation for Inquire and Ratatui. Each interface
-retains its interaction and error recovery. The next bounded consolidation is
-configuration persistence, preserving unknown values, no-op bytes, cancellation,
-and protection against external edits.
+The [duplication audit](duplication-audit.md) records shared creation execution,
+capability choices/validation, and configuration edit sessions for Inquire and
+Ratatui. Each interface retains its interaction and error recovery. Configuration
+saving preserves unknown values and no-op bytes, supports cancellation, and
+rejects external edits. Continue the existing-workflow verification below;
+smaller remaining duplication is documented rather than a new rewrite milestone.
 Fresh optional choices now start unchecked; Scribe Studio is an optional
 manual plugin entry and confirmed global Rokit adds use `--force`.
 

@@ -84,10 +84,14 @@ pub fn read_settings(project_dir: &Path) -> Result<serde_json::Map<String, Value
         return Ok(serde_json::Map::new());
     }
     let text = fs::read_to_string(&path)?;
+    parse_settings(&path, &text)
+}
+
+pub(crate) fn parse_settings(path: &Path, text: &str) -> Result<serde_json::Map<String, Value>> {
     if text.trim().is_empty() {
         return Ok(serde_json::Map::new());
     }
-    match serde_json::from_str::<Value>(&text) {
+    match serde_json::from_str::<Value>(text) {
         Ok(Value::Object(map)) => Ok(map),
         Ok(_) => bail!("{} exists but isn't a JSON object", path.display()),
         // VS Code tolerates comments and trailing commas here; serde_json
@@ -122,7 +126,13 @@ pub fn merge_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<(
 /// `rproj upgrade` needs this to tell whether a file would actually change
 /// before offering to rewrite it - "up to date" has to mean something.
 pub fn merged_settings(project_dir: &Path, entries: &[(&str, Value)]) -> Result<String> {
-    let mut settings = read_settings(project_dir)?;
+    merge_settings_values(read_settings(project_dir)?, entries)
+}
+
+pub(crate) fn merge_settings_values(
+    mut settings: serde_json::Map<String, Value>,
+    entries: &[(&str, Value)],
+) -> Result<String> {
     for (key, value) in entries {
         settings.insert((*key).to_string(), value.clone());
     }
