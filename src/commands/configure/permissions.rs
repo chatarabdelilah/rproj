@@ -149,7 +149,18 @@ mod tests {
             }
             let before = dacl(&path);
             change_width(root.path()).save().unwrap();
-            assert_eq!(dacl(&path), before);
+            let after = dacl(&path);
+            let before = before.to_string_lossy();
+            let after = after.to_string_lossy();
+            let (before_flags, before_entries) = before.split_at(before.find('(').unwrap());
+            let (after_flags, after_entries) = after.split_at(after.find('(').unwrap());
+            assert_eq!(after_entries, before_entries);
+            // Windows may record that automatic inheritance has run when setting
+            // the DACL. Only that bookkeeping flag may differ, not protection.
+            assert_eq!(
+                after_flags.replace("AI", ""),
+                before_flags.replace("AI", "")
+            );
             assert!(fs::read_to_string(&path).unwrap().contains("100"));
         }
     }
