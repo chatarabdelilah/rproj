@@ -16,11 +16,8 @@ enum Modal {
 
 struct Editor {
     project: std::path::PathBuf,
-    tool: Option<&'static ConfigurableTool>,
+    session: Option<EditSession>,
     tools: PickerState<usize>,
-    current: Vec<Option<Value>>,
-    changes: Vec<Option<Value>>,
-    baseline: Option<String>,
     selected: usize,
     modal: Option<Modal>,
     status: String,
@@ -31,7 +28,7 @@ impl Editor {
     fn new(project: &Path) -> Self {
         Self {
             project: project.to_owned(),
-            tool: None,
+            session: None,
             tools: PickerState::new(
                 CONFIGURABLE_TOOLS
                     .iter()
@@ -43,9 +40,6 @@ impl Editor {
                     })
                     .collect(),
             ),
-            current: vec![],
-            changes: vec![],
-            baseline: None,
             selected: 0,
             modal: None,
             status: String::new(),
@@ -53,24 +47,15 @@ impl Editor {
         }
     }
 
-    fn path(&self) -> std::path::PathBuf {
-        self.project
-            .join(target_description(&self.tool.unwrap().target))
+    fn session(&self) -> &EditSession {
+        self.session.as_ref().expect("tool is open")
     }
 
     fn load(&mut self, index: usize) -> Result<()> {
-        let tool = &CONFIGURABLE_TOOLS[index];
-        let current = current_values(&self.project, tool)?;
-        let path = self.project.join(target_description(&tool.target));
-        let baseline = if path.exists() {
-            Some(fs::read_to_string(path)?)
-        } else {
-            None
-        };
-        self.changes = vec![None; current.len()];
-        self.current = current;
-        self.baseline = baseline;
-        self.tool = Some(tool);
+        self.session = Some(EditSession::load(
+            &self.project,
+            &CONFIGURABLE_TOOLS[index],
+        )?);
         self.selected = 0;
         self.scroll = 0;
         self.status.clear();
@@ -78,17 +63,15 @@ impl Editor {
     }
 
     fn dirty(&self) -> bool {
-        self.changes.iter().any(Option::is_some)
+        self.session.as_ref().is_some_and(EditSession::dirty)
     }
 
     fn value(&self, index: usize) -> Option<&Value> {
-        self.changes[index]
-            .as_ref()
-            .or(self.current[index].as_ref())
+        self.session().value(index)
     }
 
     fn edit(&mut self) {
-        let setting = &self.tool.unwrap().settings[self.selected];
+        let setting = &self.session().tool.settings[self.selected];
         let current = self.value(self.selected);
         self.modal = Some(match &setting.kind {
             SettingKind::Integer { default } => Modal::Integer(InputState::new(
@@ -136,62 +119,16 @@ impl Editor {
     }
 
     fn set(&mut self, value: Value) {
-        self.changes[self.selected] =
-            (self.current[self.selected].as_ref() != Some(&value)).then_some(value);
+        self.session.as_mut().unwrap().set(self.selected, value);
     }
 
     fn save(&mut self) -> Result<()> {
-        ensure!(
-            self.project.is_dir(),
-            "The project directory no longer exists."
-        );
-        let tool = self.tool.context("No tool selected")?;
-        let path = self.path();
-        let latest = if path.exists() {
-            Some(fs::read_to_string(&path)?)
+        let session = self.session.as_mut().context("No tool selected")?;
+        self.status = if session.save()? {
+            format!("Saved {}", session.path().display())
         } else {
-            None
+            "No settings changed.".into()
         };
-        ensure!(
-            latest == self.baseline,
-            "The file changed outside this editor. Go back and reopen it before saving."
-        );
-        let answers: Vec<_> = tool
-            .settings
-            .iter()
-            .zip(&self.changes)
-            .filter_map(|(setting, value)| value.clone().map(|value| (setting, value)))
-            .collect();
-        if answers.is_empty() {
-            self.status = "No settings changed.".into();
-            return Ok(());
-        }
-        let merged = match tool.target {
-            ConfigTarget::ProjectToml { .. } => {
-                checked_toml_merge(latest.as_deref().unwrap_or(""), &answers)?
-            }
-            ConfigTarget::VsCodeSettings => vscode::merged_settings(
-                &self.project,
-                &answers
-                    .iter()
-                    .map(|(setting, value)| (setting.key, value.clone()))
-                    .collect::<Vec<_>>(),
-            )?,
-        };
-        let parent = path.parent().context("Settings file has no parent")?;
-        fs::create_dir_all(parent)?;
-        let mut pending = tempfile::NamedTempFile::new_in(parent)?;
-        use std::io::Write;
-        pending.write_all(merged.as_bytes())?;
-        pending.as_file().sync_all()?;
-        pending.persist(&path).map_err(|error| error.error)?;
-        for (current, change) in self.current.iter_mut().zip(&mut self.changes) {
-            if let Some(value) = change.take() {
-                *current = Some(value);
-            }
-        }
-        self.baseline = Some(merged);
-        self.status = format!("Saved {}", path.display());
         Ok(())
     }
 
@@ -218,8 +155,7 @@ impl Editor {
                     }
                 }
                 Modal::Discard if matches!(key.code, KeyCode::Char('y') | KeyCode::Char('Y')) => {
-                    self.tool = None;
-                    self.changes.clear();
+                    self.session = None;
                     self.status = "Changes discarded.".into();
                 }
                 Modal::Choice(picker) if key.code == KeyCode::Enter => {
@@ -258,14 +194,14 @@ impl Editor {
         {
             if self.dirty() {
                 self.modal = Some(Modal::Discard);
-            } else if self.tool.is_some() {
-                self.tool = None;
+            } else if self.session.is_some() {
+                self.session = None;
             } else {
                 return true;
             }
             return false;
         }
-        if self.tool.is_none() {
+        if self.session.is_none() {
             if key.code == KeyCode::Enter {
                 if let Some(index) = self.tools.selected_value().copied()
                     && let Err(error) = self.load(index)
@@ -276,7 +212,7 @@ impl Editor {
                 self.tools.handle_key(key);
             }
         } else {
-            let end = self.current.len();
+            let end = self.session().current.len();
             match key.code {
                 KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(8),
                 KeyCode::PageDown => self.scroll = self.scroll.saturating_add(8),
@@ -296,18 +232,20 @@ impl Editor {
     }
 
     fn review(&self) -> String {
-        let Some(tool) = self.tool else {
+        let Some(session) = &self.session else {
             return String::new();
         };
-        tool.settings
+        session
+            .tool
+            .settings
             .iter()
             .enumerate()
             .filter_map(|(index, setting)| {
-                self.changes[index].as_ref().map(|value| {
+                self.session().changes[index].as_ref().map(|value| {
                     format!(
                         "{}: {} -> {}",
                         setting.display_key(),
-                        self.current[index]
+                        self.session().current[index]
                             .as_ref()
                             .map(Value::to_string)
                             .unwrap_or_else(|| "unset".into()),
@@ -339,7 +277,8 @@ impl Editor {
             rows[0],
         );
         let panes = tui::responsive_panes(rows[1], 42);
-        if let Some(tool) = self.tool {
+        if let Some(session) = &self.session {
+            let tool = session.tool;
             let mut items: Vec<_> = tool
                 .settings
                 .iter()
@@ -347,7 +286,7 @@ impl Editor {
                 .map(|(index, setting)| {
                     ListItem::new(format!(
                         "{}{} = {}",
-                        if self.changes[index].is_some() {
+                        if self.session().changes[index].is_some() {
                             "* "
                         } else {
                             ""
@@ -423,7 +362,7 @@ impl Editor {
                 area,
                 &ConfirmState::new(format!(
                     "Save these changes? ({} settings)",
-                    self.changes.iter().flatten().count()
+                    self.session().changes.iter().flatten().count()
                 )),
             ),
             Some(Modal::Discard) => tui::render_confirm_default_no(
@@ -461,6 +400,7 @@ pub(crate) fn open_in(terminal: &mut TerminalSession, project: &Path) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::TempDir;
 
     fn stylua(dir: &TempDir, contents: &str) -> Editor {
@@ -479,8 +419,8 @@ mod tests {
 
     fn setting(editor: &mut Editor, key: &str) {
         editor.selected = editor
+            .session()
             .tool
-            .unwrap()
             .settings
             .iter()
             .position(|setting| setting.key == key)
@@ -542,7 +482,7 @@ mod tests {
         press(&mut editor, KeyCode::Esc);
         press(&mut editor, KeyCode::Char('y'));
         assert!(!editor.dirty());
-        assert!(editor.tool.is_none());
+        assert!(editor.session.is_none());
     }
 
     #[test]
@@ -602,7 +542,7 @@ mod tests {
                 )
                 .is_err()
         );
-        assert!(editor.tool.is_none());
+        assert!(editor.session.is_none());
     }
 
     #[test]
@@ -619,7 +559,7 @@ mod tests {
             editor.modal = Some(Modal::Save);
             terminal.draw(|frame| editor.draw(frame)).unwrap();
             editor.modal = None;
-            editor.tool = None;
+            editor.session = None;
             terminal.draw(|frame| editor.draw(frame)).unwrap();
         }
     }
