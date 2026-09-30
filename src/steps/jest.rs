@@ -159,8 +159,21 @@ pub fn refresh_project(project_dir: &Path) -> Result<()> {
 
 pub fn merged_config(project_dir: &Path, backend: crate::graph::JestBackend) -> Result<String> {
     let path = project_dir.join(CONFIG_FILE);
-    let mut root = if path.exists() {
-        let value: Value = serde_json::from_str(&fs::read_to_string(&path)?)
+    let text = if path.exists() {
+        Some(fs::read_to_string(&path)?)
+    } else {
+        None
+    };
+    merged_config_text(&path, text.as_deref(), backend)
+}
+
+pub(crate) fn merged_config_text(
+    path: &Path,
+    text: Option<&str>,
+    backend: crate::graph::JestBackend,
+) -> Result<String> {
+    let mut root = if let Some(text) = text {
+        let value: Value = serde_json::from_str(text)
             .with_context(|| format!("failed to parse {}", path.display()))?;
         value
             .as_object()

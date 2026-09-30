@@ -8,7 +8,150 @@
 
 mod common;
 
-use common::{Session, TempProject};
+use common::{ENTER, Session, TempProject};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
+
+fn snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
+    fn visit(root: &Path, directory: &Path, files: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            let relative = path.strip_prefix(root).unwrap().to_owned();
+            if path.is_dir() {
+                files.insert(relative, None);
+                visit(root, &path, files);
+            } else {
+                files.insert(relative, Some(fs::read(path).unwrap()));
+            }
+        }
+    }
+    let mut files = BTreeMap::new();
+    visit(root, root, &mut files);
+    files
+}
+
+#[test]
+fn edits_during_upgrade_confirmation_are_refused_before_any_write() {
+    for mode in ["edit", "create", "delete"] {
+        let project = fixture(&format!("upgrade-conflict-{mode}"), "\"vide\"");
+        let original_selene = "std = \"roblox\"\n[rules]\nmixed_table = \"warn\"\n";
+        project.write("selene.toml", original_selene);
+        if mode != "create" {
+            project.write(".vscode/settings.json", "{\"editor.rulers\":[100]}\n");
+        }
+        let mut session = Session::start(project.path(), &["upgrade"]);
+        session.wait_for("Apply these changes?");
+        let external = "{\"editor.rulers\":[80],\"custom\":{\"keep\":true}}\n";
+        if mode == "delete" {
+            fs::remove_file(project.path().join(".vscode/settings.json")).unwrap();
+        } else {
+            project.write(".vscode/settings.json", external);
+        }
+        let before = snapshot(project.path());
+        session.send(ENTER);
+        let outcome = session.finish();
+        assert_eq!(outcome.code, 1, "{}", outcome.text);
+        outcome.assert_contains("changed while upgrade was being reviewed");
+        assert_eq!(snapshot(project.path()), before);
+        assert_eq!(project.read("selene.toml"), original_selene);
+        assert!(!project.exists(".gitignore"));
+        assert!(!project.exists(".luaurc"));
+    }
+}
+
+#[test]
+fn changed_upgrade_inputs_are_refused_even_when_they_are_not_rewritten() {
+    for relative in ["rproj.toml", "default.project.json"] {
+        let project = fixture("upgrade-input-conflict", "\"vide\"");
+        let mut session = Session::start(project.path(), &["upgrade"]);
+        session.wait_for("Apply these changes?");
+        project.write(relative, &format!("{}\n", project.read(relative)));
+        let before = snapshot(project.path());
+        session.send(ENTER);
+        let outcome = session.finish();
+        assert_eq!(outcome.code, 1, "{}", outcome.text);
+        outcome.assert_contains("changed while upgrade was being reviewed");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn rejecting_or_cancelling_upgrade_keeps_every_file_and_directory_unchanged() {
+    for answer in ["n\r", common::ESC] {
+        let project = fixture("upgrade-cancel", "\"vide\", \"testez\"");
+        project.write(
+            "selene.toml",
+            "std='roblox'\n[rules]\nunused_variable='allow'\n",
+        );
+        project.write(".vscode/settings.json", "{\"editor.rulers\":[100]}\n");
+        project.write("src/custom.luau", "return 'keep'\n");
+        let before = snapshot(project.path());
+        let mut session = Session::start(project.path(), &["upgrade"]);
+        session.wait_for("Apply these changes?");
+        session.send(answer);
+        let outcome = session.finish();
+        if answer == "n\r" {
+            assert_eq!(outcome.code, 0, "{}", outcome.text);
+            outcome.assert_contains("nothing written");
+        }
+        outcome.assert_lacks("wrote ");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn confirmed_upgrade_preserves_custom_settings_and_user_owned_files() {
+    let project = fixture("upgrade-confirm", "\"vide\", \"testez\"");
+    project.write(
+        "selene.toml",
+        "# custom lint\nstd='roblox'\n[rules]\nunused_variable='allow'\nmixed_table='warn'\n",
+    );
+    project.write(
+        ".vscode/settings.json",
+        "{\"editor.rulers\":[100],\"custom\":{\"items\":[1,2]}}\n",
+    );
+    for relative in ["stylua.toml", "wally.toml", "rokit.toml", "src/custom.luau"] {
+        project.write(relative, "user owned\r\n");
+    }
+    let record = project.read("rproj.toml");
+    let production = project.read("default.project.json");
+    let mut session = Session::start(project.path(), &["upgrade"]);
+    session.wait_for("Apply these changes?");
+    session.send(ENTER);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    let selene: toml::Value = toml::from_str(&project.read("selene.toml")).unwrap();
+    assert_eq!(selene["std"].as_str(), Some("roblox+testez"));
+    assert_eq!(selene["rules"]["mixed_table"].as_str(), Some("allow"));
+    assert_eq!(selene["rules"]["unused_variable"].as_str(), Some("allow"));
+    assert!(project.read("selene.toml").contains("# custom lint"));
+    let settings: serde_json::Value =
+        serde_json::from_str(&project.read(".vscode/settings.json")).unwrap();
+    assert_eq!(settings["editor.rulers"], serde_json::json!([100]));
+    assert_eq!(settings["custom"], serde_json::json!({"items":[1,2]}));
+    assert_eq!(project.read("rproj.toml"), record);
+    assert_eq!(project.read("default.project.json"), production);
+    for relative in ["stylua.toml", "wally.toml", "rokit.toml", "src/custom.luau"] {
+        assert_eq!(project.read(relative), "user owned\r\n");
+    }
+    assert!(project.exists(".gitignore"));
+    assert!(project.exists(".luaurc"));
+    assert!(project.exists("tests/.luaurc"));
+}
+
+#[test]
+fn an_unreadable_target_is_not_treated_as_a_missing_file() {
+    let project = fixture("upgrade-read-error", "\"vide\"");
+    fs::create_dir_all(project.path().join(".vscode/settings.json")).unwrap();
+    let before = snapshot(project.path());
+    let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+    assert_eq!(outcome.code, 1, "{}", outcome.text);
+    outcome.assert_contains("failed to read");
+    assert_eq!(snapshot(project.path()), before);
+}
 
 /// The minimum that makes a directory an rproj project: the file `upgrade`
 /// uses to recognise one, and the manifest it reads the composition from.
