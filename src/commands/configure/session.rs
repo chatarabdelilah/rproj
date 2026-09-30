@@ -119,6 +119,9 @@ impl EditSession {
         let parent = self.path.parent().context("Settings file has no parent")?;
         fs::create_dir_all(parent)?;
         let mut pending = tempfile::NamedTempFile::new_in(parent)?;
+        if self.baseline.is_some() {
+            super::permissions::preserve(&self.path, &pending)?;
+        }
         pending.write_all(merged.as_bytes())?;
         pending.as_file().sync_all()?;
         // Catch edits made during merging/writing too. This is optimistic conflict
@@ -271,6 +274,39 @@ mod tests {
         assert!(session.dirty());
         assert_eq!(fs::read_to_string(&path).unwrap(), original);
         assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn locked_destination_keeps_source_and_draft_then_allows_retry() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("stylua.toml");
+        let original = "column_width=91\n";
+        fs::write(&path, original).unwrap();
+        let mut session =
+            EditSession::load(root.path(), tool_settings::find("stylua").unwrap()).unwrap();
+        let index = setting(&session, "column_width");
+        session.set(index, json!(100));
+        // Permit reads and writes, but hold back FILE_SHARE_DELETE so rename fails.
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(3)
+            .open(&path)
+            .unwrap();
+        assert!(
+            session
+                .save()
+                .unwrap_err()
+                .to_string()
+                .contains("failed to save")
+        );
+        assert_eq!(fs::read_to_string(&path).unwrap(), original);
+        assert!(session.dirty());
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
+        drop(held);
+        assert!(session.save().unwrap());
+        assert!(fs::read_to_string(&path).unwrap().contains("100"));
     }
 
     #[test]

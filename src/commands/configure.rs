@@ -17,6 +17,7 @@ use crate::catalog::tool_settings::{
 use crate::ui;
 
 mod editor;
+mod permissions;
 mod session;
 pub(super) use editor::open_in;
 use session::EditSession;

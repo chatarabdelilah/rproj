@@ -10,11 +10,16 @@ and cancellation remain protected. Failed saves retain pending changes and the
 original baseline for retry. Conflict detection is optimistic; this is not a
 cross-process lock or a guarantee of crash durability.
 
-September 30 local verification passed 418 ordinary tests, with 19
+September 30 local verification passed 421 ordinary tests on Windows, with 19
 prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
 New coverage includes both formats' no-op/reverted changes, external file
 creation/deletion/replacement, failed replacement cleanup and retry, invalid
-merges, missing projects, and real CLI cancellation/conflicts. No machine
+merges, missing projects, and real CLI cancellation/conflicts. Read-only and
+locked destinations retain the original file and pending changes. Replacement
+preserves Windows DACL entries and inheritance protection; the safe wrapper
+adds one Windows-only dependency without introducing unsafe repository code.
+A Unix-mode preservation regression was added but not exercised locally.
+No machine
 provisioning or Studio/Open Cloud run was needed or performed.
 
 No version bump or publication is prepared. Review and CI evidence belong to

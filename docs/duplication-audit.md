@@ -53,7 +53,7 @@ Catalog and Ratatui parity tests were added before replacing the callers.
 They cover Wally/submodules/none, each capability and implementation, both Jest
 backends, and saved unknown values. A terminal regression exercises the direct
 prompts for both Jest backends, TestEZ-only workflows, and missing gate refusal.
-The next consolidation is the configuration persistence boundary below.
+The configuration persistence boundary is also consolidated below.
 
 Both interfaces already reuse `ProjectGraph`, `offerable_package`,
 `add_companions`, `apply_derived_packages`, `prepare_project`, and
