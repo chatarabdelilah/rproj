@@ -201,6 +201,24 @@ pub fn companions_for(key: &str, has: impl Fn(&str) -> bool) -> Vec<&'static str
 }
 
 pub const PACKAGES: &[PackageSpec] = &[
+    // UI Labs supplements UI frameworks, so offer it as an additive utility.
+    PackageSpec {
+        key: "uiLabs",
+        source: "pepeeltoro41/ui-labs@2.4.2",
+        realm: Realm::Shared,
+        git_repo: "https://github.com/PepeElToro41/ui-labs-utils",
+        module_name: "UILabs",
+        submodule: Some(Submodule {
+            dir: "ui-labs",
+            path: "src",
+        }),
+        requires: &[],
+        description: "Story helpers and controls for the UI Labs Studio preview plugin",
+        maintenance: Maintenance::Active,
+        category: Category::Utility,
+        docs_url: "https://ui-labs.luau.page/",
+        primary_choice: true,
+    },
     // --- UI ---
     PackageSpec {
         key: "react",

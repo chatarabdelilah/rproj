@@ -1,5 +1,25 @@
 # Release-Hardening Audit
 
+## Unreleased: UI Labs package
+
+The optional `uiLabs` utility uses `pepeeltoro41/ui-labs@2.4.2` and can be
+selected alongside any UI framework. Catalog details include a controls example
+and explain that the Studio plugin is installed separately. Git submodules use
+the utility repository's `src` module, not the plugin repository.
+
+The Wally index confirms version 2.4.2 is shared with no dependencies. Upstream
+tag `v2.4.2` supplies the source layout and control API; its checked-in
+`wally.toml` still says 2.4.1, so the registry is the version authority.
+Sources: [registry](https://github.com/UpliftGames/wally-index/blob/main/pepeeltoro41/ui-labs),
+[utility source](https://github.com/PepeElToro41/ui-labs-utils/tree/v2.4.2).
+Studio story execution remains unverified. This addition is not yet published.
+
+September 30 local verification passed: 404 ordinary tests (19 deliberately
+ignored), formatting, clippy with warnings denied, locked packaging with
+`--allow-dirty` for the reviewed source, and `cargo run --locked -- info uiLabs`.
+The ordinary catalog checks cover guide imports, unique keys, dependency closure,
+and package selection. No Studio plugin installation or story playtest was run.
+
 ## 0.18.1 published
 
 Scope is the post-0.18.0 work from [PR #33](https://github.com/chatarabdelilah/rproj/pull/33),
