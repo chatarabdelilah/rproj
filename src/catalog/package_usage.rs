@@ -10,6 +10,13 @@ pub struct Guide {
 
 pub fn find(key: &str) -> Option<Guide> {
     let (when, context, imports, example, caveats): (_, _, &[&str], _, _) = match key {
+        "uiLabs" => (
+            "Define interactive controls for UI component previews.",
+            "Shared ModuleScript returning controls for a UI Labs story.",
+            &["uiLabs"],
+            "return {\n    Text = UILabs.String(\"Ready\"),\n    Enabled = UILabs.Boolean(true),\n    Count = UILabs.Number(0, 0, 10, 1),\n}",
+            "The package provides story helpers, not the Studio plugin. Install UI Labs separately and use these controls in a story; select your UI framework separately.",
+        ),
         "react" => (
             "Describe reusable UI components with props and hooks.",
             "Client ModuleScript; return a component for your ReactRoblox root.",
