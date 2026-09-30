@@ -208,6 +208,91 @@ fn testing_implementations_are_sorted_and_explicit_with_broad_testez_fallback() 
 }
 
 #[test]
+fn creation_screens_match_shared_choices_and_graph_results() {
+    use crate::catalog::capabilities;
+
+    for workflow in PackageWorkflow::ALL {
+        for capability in capabilities::CAPABILITIES {
+            for implementation in capability.implementation_choices(*workflow) {
+                let selections = if capability.needs_jest_backend(implementation.key) {
+                    vec!["jest-roblox", "jest-roblox-open-cloud"]
+                } else {
+                    vec![implementation.key]
+                };
+                for selected in selections {
+                    let mut draft = Draft::new("Example", vec![], vec![], vec![]);
+                    draft.graph.package_workflow = *workflow;
+                    select(&mut draft, "capabilities");
+                    draft.checked.insert(capability.key.into());
+                    draft
+                        .checked
+                        .extend(capability.requires.iter().map(|key| (*key).into()));
+                    key(&mut draft, KeyCode::Enter);
+                    if capability.needs_an_implementation_prompt(*workflow) {
+                        assert_eq!(draft.step, Step::Implementation(capability.key));
+                        assert_eq!(
+                            draft
+                                .picker
+                                .items
+                                .iter()
+                                .map(|item| item.value.as_str())
+                                .collect::<Vec<_>>(),
+                            capability
+                                .implementation_choices(*workflow)
+                                .iter()
+                                .map(|i| i.key)
+                                .collect::<Vec<_>>()
+                        );
+                        select(&mut draft, implementation.key);
+                    }
+                    if capability.needs_jest_backend(implementation.key) {
+                        assert_eq!(draft.step, Step::JestBackend);
+                        select(&mut draft, selected);
+                    }
+                    assert_eq!(draft.step, Step::Review);
+                    let mut expected = ProjectGraph {
+                        package_workflow: *workflow,
+                        ..Default::default()
+                    };
+                    for required in capability.requires {
+                        expected.choose(required, None);
+                    }
+                    expected.choose(capability.key, Some(selected));
+                    super::super::new::apply_derived_packages(&mut expected);
+                    assert_eq!(draft.graph.capabilities, expected.capabilities);
+                    assert_eq!(draft.graph.packages, expected.packages);
+                    assert_eq!(draft.graph.derived(), expected.derived());
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn saved_unknown_choices_survive_inspection_and_unrelated_choices_are_preserved() {
+    let mut graph = ProjectGraph::default();
+    graph
+        .capabilities
+        .insert("future-capability".into(), "future-tool".into());
+    graph
+        .capabilities
+        .insert("test".into(), "future-runner".into());
+    let mut editor = Draft::edit_setup("example", graph.clone());
+    select(&mut editor, "capabilities");
+    assert_eq!(editor.graph.capabilities, graph.capabilities);
+    key(&mut editor, KeyCode::Esc);
+    assert_eq!(editor.graph.capabilities, graph.capabilities);
+    select(&mut editor, "capabilities");
+    key(&mut editor, KeyCode::Enter);
+    select(&mut editor, "testez");
+    assert_eq!(editor.graph.capabilities["test"], "testez");
+    assert_eq!(
+        editor.graph.capabilities["future-capability"],
+        "future-tool"
+    );
+}
+
+#[test]
 fn saved_setups_preserve_concrete_choices_and_dropped_files() {
     for workflow in [
         PackageWorkflow::Wally,

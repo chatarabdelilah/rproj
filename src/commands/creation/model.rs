@@ -237,11 +237,9 @@ impl Draft {
                     .collect()
             }
             Step::Implementation(key) => {
-                let mut implementations = capabilities::find(key)
+                let implementations = capabilities::find(key)
                     .unwrap()
-                    .implementations_for(self.graph.package_workflow);
-                implementations.retain(|i| i.key != "jest-roblox-open-cloud");
-                implementations.sort_by_key(|i| i.display);
+                    .implementation_choices(self.graph.package_workflow);
                 implementations
                     .iter()
                     .map(|i| item(i.key, i.display, key))
@@ -655,10 +653,9 @@ impl Draft {
             Step::Capabilities => {
                 for capability in capabilities::CAPABILITIES {
                     if self.checked.contains(capability.key)
-                        && capability
-                            .requires
-                            .iter()
-                            .any(|key| !self.checked.contains(*key))
+                        && !capability
+                            .missing_requirements(|key| self.checked.contains(key))
+                            .is_empty()
                     {
                         self.status = format!(
                             "{} requires {}. Select its prerequisite or disable it.",
@@ -687,7 +684,7 @@ impl Draft {
                         }
                         self.pending_implementations.push(capability.key);
                     } else if let Some(implementation) = capability
-                        .implementations_for(self.graph.package_workflow)
+                        .implementation_choices(self.graph.package_workflow)
                         .first()
                     {
                         self.graph.choose(capability.key, Some(implementation.key));
@@ -702,7 +699,9 @@ impl Draft {
                 if self.graph.capabilities.get(key) != Some(&value) {
                     self.invalidate(Node::Capabilities);
                 }
-                if key == "test" && value == "jest-roblox" {
+                if capabilities::find(key)
+                    .is_some_and(|capability| capability.needs_jest_backend(&value))
+                {
                     self.open(Step::JestBackend);
                 } else {
                     self.graph.choose(key, Some(&value));

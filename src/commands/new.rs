@@ -548,11 +548,9 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
         // A capability whose requirement was not chosen contributes nothing
         // (see `capabilities::derive`), so say so rather than letting the
         // user believe they enabled it.
-        let keys: Vec<String> = chosen.iter().map(|(k, _)| k.clone()).collect();
         if !capability
-            .requires
-            .iter()
-            .all(|r| keys.iter().any(|k| k == r))
+            .missing_requirements(|key| chosen.iter().any(|(chosen, _)| chosen == key))
+            .is_empty()
         {
             ui::skip(&format!(
                 "{} needs {} - skipping it",
@@ -563,9 +561,7 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
         }
 
         let mut implementation = if capability.needs_an_implementation_prompt(workflow) {
-            let mut implementations = capability.implementations_for(workflow);
-            implementations.retain(|implementation| implementation.key != "jest-roblox-open-cloud");
-            implementations.sort_by_key(|implementation| implementation.display);
+            let implementations = capability.implementation_choices(workflow);
             let options: Vec<String> = implementations
                 .iter()
                 .map(|i| ui::option_line(i.key, i.display, capability.key))
@@ -576,11 +572,14 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
             Some(ui::option_key(&picked).to_string())
         } else {
             capability
-                .implementations_for(workflow)
+                .implementation_choices(workflow)
                 .first()
                 .map(|implementation| implementation.key.to_string())
         };
-        if implementation.as_deref() == Some("jest-roblox") {
+        if implementation
+            .as_deref()
+            .is_some_and(|key| capability.needs_jest_backend(key))
+        {
             let backend = Select::new(
                 "Jest execution:",
                 vec![
@@ -1355,6 +1354,86 @@ pub(super) fn read_setup(name: &str) -> Result<(ProjectGraph, Vec<String>)> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn capability_prompt_driver() {
+        let Ok(workflow) = std::env::var("RPROJ_CAPABILITY_PROMPT_WORKFLOW") else {
+            return;
+        };
+        let workflow = serde_json::from_str(&format!("\"{workflow}\"")).unwrap();
+        let choices = super::pick_capabilities(workflow).unwrap();
+        let mut graph = ProjectGraph::default();
+        for (key, implementation) in choices {
+            graph.choose(&key, implementation.as_deref());
+        }
+        println!(
+            "CHOICES {}",
+            serde_json::to_string(&graph.capabilities).unwrap()
+        );
+    }
+
+    #[test]
+    fn direct_capability_prompts_keep_runner_choices_and_skip_missing_requirements() {
+        use crate::test_common::{DOWN, ENTER, Session};
+
+        for (workflow, capability, backend, expected) in [
+            ("wally", "test", "local", "jest-roblox"),
+            ("wally", "test", "cloud", "jest-roblox-open-cloud"),
+            ("git-submodules", "test", "", "testez"),
+            ("none", "test", "", "testez"),
+            ("wally", "ci", "", ""),
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let mut session = Session::start_program(
+                &std::env::current_exe().unwrap(),
+                root.path(),
+                &[
+                    "commands::new::tests::capability_prompt_driver",
+                    "--exact",
+                    "--nocapture",
+                ],
+                &[("RPROJ_CAPABILITY_PROMPT_WORKFLOW", workflow)],
+            );
+            session.wait_for("What should this project do?");
+            let index = capabilities::CAPABILITIES
+                .iter()
+                .position(|c| c.key == capability)
+                .unwrap();
+            for _ in 0..index {
+                session.send(DOWN);
+            }
+            session.send(" ");
+            session.send(ENTER);
+            if !backend.is_empty() {
+                session.wait_for("test:");
+                session.send(ENTER);
+                session.wait_for("Jest execution:");
+                if backend == "cloud" {
+                    session.send(DOWN);
+                }
+                session.send(ENTER);
+            }
+            let result = session.finish();
+            assert_eq!(result.code, 0, "{}", result.text);
+            if capability == "ci" {
+                assert!(
+                    result.text.contains("ci needs gate - skipping it"),
+                    "{}",
+                    result.text
+                );
+                assert!(result.text.contains("CHOICES {}"), "{}", result.text);
+            } else {
+                assert!(
+                    result
+                        .text
+                        .contains(&format!("CHOICES {{\"test\":\"{expected}\"}}")),
+                    "{}",
+                    result.text
+                );
+            }
+            assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        }
+    }
+
     #[test]
     fn creating_a_project_never_reuses_an_existing_directory() {
         let root = tempfile::tempdir().unwrap();

@@ -42,11 +42,18 @@ runner picker, sort choices, and route Jest to its backend choice. They also
 handle missing requirements differently: direct prompts skip an unsupported
 selection with a message; the Ratatui draft asks for correction.
 
-**Next bounded refactor:** share the pure list-building and validation results
-in the capability/graph layer. Keep each interface's rendering and navigation.
-Add parity tests for Wally versus submodules/none, Jest backend choices,
-requirements, and saved unknown values before changing the callers. Do not
-silently change the skip-versus-correction interaction during extraction.
+**September 30 consolidation:** `Capability::implementation_choices` now owns
+workflow filtering, runner sorting, and the separate Open Cloud choice;
+`missing_requirements` and `needs_jest_backend` supply shared validation and
+backend routing. Both callers use these rules. Compatibility defaults remain
+independent of picker ordering. Direct prompts still skip unmet requirements;
+Ratatui still asks for correction before changing the graph.
+
+Catalog and Ratatui parity tests were added before replacing the callers.
+They cover Wally/submodules/none, each capability and implementation, both Jest
+backends, and saved unknown values. A terminal regression exercises the direct
+prompts for both Jest backends, TestEZ-only workflows, and missing gate refusal.
+The next consolidation is the configuration persistence boundary below.
 
 Both interfaces already reuse `ProjectGraph`, `offerable_package`,
 `add_companions`, `apply_derived_packages`, `prepare_project`, and

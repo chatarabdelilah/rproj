@@ -64,7 +64,31 @@ impl Capability {
     }
 
     pub fn needs_an_implementation_prompt(&self, workflow: PackageWorkflow) -> bool {
-        self.implementations_for(workflow).len() > 1
+        self.implementation_choices(workflow).len() > 1
+    }
+
+    /// Picker order is independent of the catalog's compatibility default.
+    /// Open Cloud is chosen after the Jest runner, not as a second runner.
+    pub fn implementation_choices(
+        &self,
+        workflow: PackageWorkflow,
+    ) -> Vec<&'static Implementation> {
+        let mut choices = self.implementations_for(workflow);
+        choices.retain(|implementation| implementation.key != "jest-roblox-open-cloud");
+        choices.sort_by_key(|implementation| implementation.display);
+        choices
+    }
+
+    pub fn missing_requirements(&self, has: impl Fn(&str) -> bool) -> Vec<&'static str> {
+        self.requires
+            .iter()
+            .copied()
+            .filter(|key| !has(key))
+            .collect()
+    }
+
+    pub fn needs_jest_backend(&self, implementation: &str) -> bool {
+        self.key == "test" && implementation == "jest-roblox"
     }
 }
 
@@ -264,7 +288,10 @@ pub fn find(key: &str) -> Option<&'static Capability> {
 pub fn offerable(chosen: &[String]) -> Vec<&'static Capability> {
     CAPABILITIES
         .iter()
-        .filter(|c| c.requires.iter().all(|r| chosen_has(chosen, r)))
+        .filter(|c| {
+            c.missing_requirements(|key| chosen_has(chosen, key))
+                .is_empty()
+        })
         .collect()
 }
 
@@ -394,6 +421,67 @@ mod tests {
             assert_eq!(implementations.len(), 1);
             assert_eq!(implementations[0].key, "testez");
         }
+    }
+
+    #[test]
+    fn creation_choices_keep_runner_order_separate_from_legacy_defaults() {
+        let testing = find("test").unwrap();
+        for workflow in PackageWorkflow::ALL {
+            let choices = testing.implementation_choices(*workflow);
+            let keys: Vec<_> = choices.iter().map(|choice| choice.key).collect();
+            if *workflow == PackageWorkflow::Wally {
+                assert_eq!(keys, ["jest-roblox", "testez"]);
+                assert!(testing.needs_an_implementation_prompt(*workflow));
+            } else {
+                assert_eq!(keys, ["testez"]);
+                assert!(!testing.needs_an_implementation_prompt(*workflow));
+            }
+            let assets = find("asset-pipeline").unwrap();
+            assert_eq!(
+                assets
+                    .implementation_choices(*workflow)
+                    .iter()
+                    .map(|i| i.key)
+                    .collect::<Vec<_>>(),
+                ["asphalt", "tungsten"]
+            );
+            assert!(assets.needs_an_implementation_prompt(*workflow));
+        }
+        assert_eq!(testing.default_implementation().key, "testez");
+        assert_eq!(
+            derive(&[("test".into(), Some("future-runner".into()))]),
+            derive(&[("test".into(), Some("testez".into()))])
+        );
+        assert_eq!(
+            derive(&[("future-capability".into(), None)]),
+            Derived::default()
+        );
+        assert!(testing.needs_jest_backend("jest-roblox"));
+        for key in ["testez", "jest-roblox-open-cloud", "future-runner"] {
+            assert!(!testing.needs_jest_backend(key));
+        }
+        assert!(!find("lint").unwrap().needs_jest_backend("jest-roblox"));
+    }
+
+    #[test]
+    fn creation_requirements_match_derived_capabilities_without_changing_selections() {
+        let ci = find("ci").unwrap();
+        for keys in [vec![], vec!["ci"], vec!["ci", "future-capability"]] {
+            assert_eq!(ci.missing_requirements(|key| keys.contains(&key)), ["gate"]);
+            assert!(derive(&chosen(&keys)).artifacts.is_empty());
+        }
+        let keys = ["gate", "ci", "future-capability"];
+        assert!(
+            ci.missing_requirements(|key| keys.contains(&key))
+                .is_empty()
+        );
+        assert!(!derive(&chosen(&keys)).artifacts.is_empty());
+        assert!(
+            find("lint")
+                .unwrap()
+                .missing_requirements(|_| false)
+                .is_empty()
+        );
     }
 
     #[test]
