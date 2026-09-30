@@ -1,5 +1,23 @@
 # Release-Hardening Audit
 
+## Unreleased: shared creation choices and validation
+
+Direct CLI and Ratatui creation now use the capability catalog's shared rules
+for workflow-compatible implementation choices, ordering, prerequisites, and
+Jest backend routing. Picker ordering does not change legacy TestEZ defaults.
+Direct prompts retain skip-with-explanation behavior; Ratatui retains correction
+before graph mutation. Unknown saved values retain their existing behavior.
+
+New catalog and screen tests cover all workflows, implementations, both Jest
+backends, missing prerequisites, and unknown saved values. A real terminal test
+exercises direct prompts without provisioning tools or creating project files.
+This is a behavior-preserving refactor; no version bump or publication is prepared.
+
+September 30 local verification passed 410 ordinary tests, with 19
+prerequisite-dependent tests deliberately ignored, plus formatting and clippy
+with warnings denied. Live Studio/Open Cloud and fresh-machine provisioning
+were not rerun for this refactor.
+
 ## Unreleased: UI Labs package
 
 The optional `uiLabs` utility uses `pepeeltoro41/ui-labs@2.4.2` and can be
@@ -13,6 +31,11 @@ tag `v2.4.2` supplies the source layout and control API; its checked-in
 Sources: [registry](https://github.com/UpliftGames/wally-index/blob/main/pepeeltoro41/ui-labs),
 [utility source](https://github.com/PepeElToro41/ui-labs-utils/tree/v2.4.2).
 Studio story execution remains unverified. This addition is not yet published.
+
+[PR #38](https://github.com/chatarabdelilah/rproj/pull/38) merged at `eb09aef`.
+Local CodeRabbit review reported zero findings. Reviewed-head CI `36667964166`
+and merged-main CI `36668163520` passed Windows stable, Rust 1.89, and packaging.
+The completed feature branches were removed.
 
 September 30 local verification passed: 404 ordinary tests (19 deliberately
 ignored), formatting, clippy with warnings denied, locked packaging with

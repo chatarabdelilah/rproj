@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 29, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated September 30, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -41,10 +41,11 @@ Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. rproj wi
 
 ## Release Hardening Baseline
 
-The [duplication audit](duplication-audit.md) identifies shared creation
-execution and the remaining Inquire/Ratatui selection-policy and configuration
-save overlap. The recommended next consolidation is pure creation choices
-and validation, preserving direct commands and each interface's interaction.
+The [duplication audit](duplication-audit.md) records shared creation execution
+and shared capability choices/validation for Inquire and Ratatui. Each interface
+retains its interaction and error recovery. The next bounded consolidation is
+configuration persistence, preserving unknown values, no-op bytes, cancellation,
+and protection against external edits.
 Fresh optional choices now start unchecked; Scribe Studio is an optional
 manual plugin entry and confirmed global Rokit adds use `--force`.
 
