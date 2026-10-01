@@ -48,6 +48,8 @@ saving preserves unknown values and no-op bytes, supports cancellation, and
 rejects external edits. Upgrade also retains its planned rewrite/input snapshots
 and refuses external changes before writing. Planned replacements are staged
 together, preserve permissions, and report recovery instructions on failure.
+Jest's test/watch refreshes also use the shared save helper, preserving existing
+backups and failed targets while allowing retries after file restrictions clear.
 Continue the existing-workflow verification below;
 smaller remaining duplication is documented rather than a new rewrite milestone.
 Fresh optional choices now start unchecked; Scribe Studio is an optional

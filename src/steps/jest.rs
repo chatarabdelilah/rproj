@@ -220,32 +220,16 @@ pub fn ensure_config(project_dir: &Path, backend: crate::graph::JestBackend) -> 
 }
 
 fn atomic_write(path: &Path, contents: &[u8]) -> Result<()> {
-    let parent = path.parent().context("output path has no parent")?;
-    let mut pending = tempfile::NamedTempFile::new_in(parent)?;
-    use std::io::Write;
-    pending.write_all(contents)?;
-    pending.flush()?;
-    if !path.exists() {
-        return pending
-            .persist(path)
-            .map(|_| ())
-            .map_err(|error| error.error.into());
-    }
-
-    let backup = path.with_extension("rproj-old");
-    let _ = fs::remove_file(&backup);
-    fs::rename(path, &backup)
-        .with_context(|| format!("failed to prepare replacement for {}", path.display()))?;
-    match pending.persist(path) {
-        Ok(_) => {
-            let _ = fs::remove_file(backup);
-            Ok(())
-        }
-        Err(error) => {
-            let _ = fs::rename(&backup, path);
-            Err(error.error.into())
-        }
-    }
+    let existing = path
+        .try_exists()
+        .with_context(|| format!("failed to inspect {}", path.display()))?;
+    let pending = crate::file_replace::stage(path, contents, existing)
+        .with_context(|| format!("failed to prepare {}", path.display()))?;
+    pending
+        .persist(path)
+        .map(|_| ())
+        .map_err(|error| error.error)
+        .with_context(|| format!("failed to save {}; fix the error and retry", path.display()))
 }
 
 #[cfg(test)]
@@ -301,6 +285,119 @@ mod tests {
                 .to_string()
                 .contains("already exists")
         );
+    }
+
+    #[test]
+    fn refresh_and_config_saves_preserve_existing_backups() {
+        let dir = TempDir::new().unwrap();
+        let source = dir.path().join("default.project.json");
+        fs::write(&source, serde_json::to_vec(&production()).unwrap()).unwrap();
+        fs::write(dir.path().join(PROJECT_FILE), "old project").unwrap();
+        fs::write(dir.path().join(CONFIG_FILE), r#"{"custom":true}"#).unwrap();
+        for name in ["default.project.json", PROJECT_FILE, CONFIG_FILE] {
+            fs::write(dir.path().join(name).with_extension("rproj-old"), name).unwrap();
+        }
+
+        refresh_project(dir.path()).unwrap();
+        ensure_config(dir.path(), crate::graph::JestBackend::Studio).unwrap();
+
+        for name in ["default.project.json", PROJECT_FILE, CONFIG_FILE] {
+            assert_eq!(
+                fs::read_to_string(dir.path().join(name).with_extension("rproj-old")).unwrap(),
+                name
+            );
+        }
+        let config: Value =
+            serde_json::from_slice(&fs::read(dir.path().join(CONFIG_FILE)).unwrap()).unwrap();
+        assert_eq!(config["custom"], true);
+        assert_eq!(config["backend"], "studio-cli");
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 6);
+    }
+
+    fn save_fixture(dir: &Path) {
+        fs::write(
+            dir.join("default.project.json"),
+            serde_json::to_vec(&production()).unwrap(),
+        )
+        .unwrap();
+        refresh_project(dir).unwrap();
+        fs::write(dir.join(CONFIG_FILE), r#"{"custom":true}"#).unwrap();
+    }
+
+    fn save_target(dir: &Path, name: &str) -> Result<()> {
+        if name == CONFIG_FILE {
+            ensure_config(dir, crate::graph::JestBackend::Studio)
+        } else {
+            refresh_project(dir)
+        }
+    }
+
+    #[test]
+    fn read_only_targets_keep_contents_and_backups_and_allow_retry() {
+        for name in ["default.project.json", PROJECT_FILE, CONFIG_FILE] {
+            let dir = TempDir::new().unwrap();
+            save_fixture(dir.path());
+            let target = dir.path().join(name);
+            if name == "default.project.json" {
+                // Force the production mount repair to write this target.
+                fs::write(&target, serde_json::to_vec(&production()).unwrap()).unwrap();
+            }
+            let original = fs::read(&target).unwrap();
+            let backup = target.with_extension("rproj-old");
+            fs::write(&backup, "user backup").unwrap();
+            let permissions = fs::metadata(&target).unwrap().permissions();
+            let mut read_only = permissions.clone();
+            read_only.set_readonly(true);
+            fs::set_permissions(&target, read_only).unwrap();
+
+            let result = save_target(dir.path(), name);
+            fs::set_permissions(&target, permissions).unwrap();
+            let error = format!("{:#}", result.unwrap_err());
+            assert!(error.contains("read-only"), "{error}");
+            assert_eq!(fs::read(&target).unwrap(), original);
+            assert_eq!(fs::read_to_string(&backup).unwrap(), "user backup");
+            assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 4);
+
+            save_target(dir.path(), name).unwrap();
+            assert_eq!(fs::read_to_string(&backup).unwrap(), "user backup");
+            assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 4);
+        }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn locked_targets_keep_contents_and_backups_and_allow_retry() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        for name in ["default.project.json", PROJECT_FILE, CONFIG_FILE] {
+            let dir = TempDir::new().unwrap();
+            save_fixture(dir.path());
+            let target = dir.path().join(name);
+            if name == "default.project.json" {
+                fs::write(&target, serde_json::to_vec(&production()).unwrap()).unwrap();
+            }
+            let original = fs::read(&target).unwrap();
+            let backup = target.with_extension("rproj-old");
+            fs::write(&backup, "user backup").unwrap();
+            // Share reads/writes while denying replacement or removal.
+            let lock = fs::OpenOptions::new()
+                .read(true)
+                .share_mode(3)
+                .open(&target)
+                .unwrap();
+
+            let error = format!("{:#}", save_target(dir.path(), name).unwrap_err());
+            assert!(error.contains("failed to save"), "{error}");
+            assert!(error.contains("retry"), "{error}");
+            assert_eq!(fs::read(&target).unwrap(), original);
+            assert_eq!(fs::read_to_string(&backup).unwrap(), "user backup");
+            assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 4);
+
+            drop(lock);
+            save_target(dir.path(), name).unwrap();
+            assert_eq!(fs::read_to_string(&backup).unwrap(), "user backup");
+            assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 4);
+        }
     }
 
     #[test]
