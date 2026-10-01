@@ -60,20 +60,13 @@ fn preserve_dacl(source: &Path, destination: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::catalog::tool_settings;
-    use crate::commands::configure::session::EditSession;
-    use serde_json::json;
 
-    fn change_width(root: &Path) -> EditSession {
-        let mut session = EditSession::load(root, tool_settings::find("stylua").unwrap()).unwrap();
-        let index = session
-            .tool
-            .settings
-            .iter()
-            .position(|s| s.key == "column_width")
-            .unwrap();
-        session.set(index, json!(100));
-        session
+    fn change_width(root: &Path) -> Result<()> {
+        let path = root.join("stylua.toml");
+        crate::file_replace::stage(&path, b"column_width=100\n", true)?
+            .persist(path)
+            .map_err(|error| error.error)?;
+        Ok(())
     }
 
     #[test]
@@ -85,11 +78,9 @@ mod tests {
         let mut readonly = original.clone();
         readonly.set_readonly(true);
         fs::set_permissions(&path, readonly).unwrap();
-        let mut session = change_width(root.path());
-        let result = session.save();
+        let result = change_width(root.path());
         fs::set_permissions(&path, original).unwrap();
         assert!(result.unwrap_err().to_string().contains("read-only"));
-        assert!(session.dirty());
         assert_eq!(fs::read_to_string(&path).unwrap(), "column_width=91\n");
         assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
     }
@@ -102,7 +93,7 @@ mod tests {
         let path = root.path().join("stylua.toml");
         fs::write(&path, "column_width=91\n").unwrap();
         fs::set_permissions(&path, fs::Permissions::from_mode(0o640)).unwrap();
-        change_width(root.path()).save().unwrap();
+        change_width(root.path()).unwrap();
         assert_eq!(
             fs::metadata(path).unwrap().permissions().mode() & 0o777,
             0o640
@@ -148,7 +139,7 @@ mod tests {
                 .unwrap();
             }
             let before = dacl(&path);
-            change_width(root.path()).save().unwrap();
+            change_width(root.path()).unwrap();
             let after = dacl(&path);
             let before = before.to_string_lossy();
             let after = after.to_string_lossy();

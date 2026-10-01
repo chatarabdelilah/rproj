@@ -153,6 +153,70 @@ fn an_unreadable_target_is_not_treated_as_a_missing_file() {
     assert_eq!(snapshot(project.path()), before);
 }
 
+#[test]
+fn a_later_read_only_target_does_not_leave_earlier_files_upgraded() {
+    let project = fixture("upgrade-readonly", "\"vide\"");
+    project.write("selene.toml", "std='roblox'\n[rules]\nmixed_table='warn'\n");
+    project.write(".vscode/settings.json", "{\"editor.rulers\":[100]}\n");
+    let before = snapshot(project.path());
+    let path = project.path().join(".vscode/settings.json");
+    let original = fs::metadata(&path).unwrap().permissions();
+    let mut readonly = original.clone();
+    readonly.set_readonly(true);
+    let mut session = Session::start(project.path(), &["upgrade"]);
+    session.wait_for("Apply these changes?");
+    fs::set_permissions(&path, readonly).unwrap();
+    session.send(ENTER);
+    let outcome = session.finish();
+    fs::set_permissions(&path, original).unwrap();
+    assert_eq!(outcome.code, 1, "{}", outcome.text);
+    assert_eq!(snapshot(project.path()), before);
+    outcome.assert_lacks("wrote ");
+}
+
+#[cfg(windows)]
+#[test]
+fn locked_replacement_preserves_its_target_reports_progress_and_allows_retry() {
+    use std::os::windows::fs::OpenOptionsExt;
+    for (relative, saved) in [("selene.toml", 0), (".vscode/settings.json", 1)] {
+        let project = fixture("upgrade-locked", "\"vide\"");
+        project.write("selene.toml", "std='roblox'\n[rules]\nmixed_table='warn'\n");
+        project.write(".vscode/settings.json", "{\"editor.rulers\":[100]}\n");
+        let mut before = snapshot(project.path());
+        let path = project.path().join(relative);
+        // Reads/writes are shared, but Windows must deny file replacement.
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(3)
+            .open(&path)
+            .unwrap();
+        let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        drop(held);
+        assert_eq!(outcome.code, 1, "{}", outcome.text);
+        outcome.assert_contains("failed to save");
+        outcome.assert_contains(&format!("{saved} earlier upgrade files"));
+        outcome.assert_contains("re-run `rproj upgrade`");
+        let mut after = snapshot(project.path());
+        if saved == 1 {
+            assert_ne!(
+                after.get(Path::new("selene.toml")),
+                before.get(Path::new("selene.toml"))
+            );
+            after.remove(Path::new("selene.toml"));
+            before.remove(Path::new("selene.toml"));
+        }
+        assert_eq!(
+            after, before,
+            "failed target, later files and temporary cleanup"
+        );
+        let retry = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        assert_eq!(retry.code, 0, "{}", retry.text);
+        let settings: serde_json::Value =
+            serde_json::from_str(&project.read(".vscode/settings.json")).unwrap();
+        assert_eq!(settings["editor.rulers"], serde_json::json!([100]));
+    }
+}
+
 /// The minimum that makes a directory an rproj project: the file `upgrade`
 /// uses to recognise one, and the manifest it reads the composition from.
 fn fixture(label: &str, packages: &str) -> TempProject {

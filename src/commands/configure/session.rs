@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{ErrorKind, Write};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
@@ -116,14 +116,8 @@ impl EditSession {
                     .collect::<Vec<_>>(),
             )?,
         };
-        let parent = self.path.parent().context("Settings file has no parent")?;
-        fs::create_dir_all(parent)?;
-        let mut pending = tempfile::NamedTempFile::new_in(parent)?;
-        if self.baseline.is_some() {
-            super::permissions::preserve(&self.path, &pending)?;
-        }
-        pending.write_all(merged.as_bytes())?;
-        pending.as_file().sync_all()?;
+        let pending =
+            crate::file_replace::stage(&self.path, merged.as_bytes(), self.baseline.is_some())?;
         // Catch edits made during merging/writing too. This is optimistic conflict
         // detection; arbitrary external writers do not participate in a file lock.
         self.ensure_current()?;
@@ -151,6 +145,27 @@ fn read_snapshot(path: &Path) -> Result<Option<String>> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_read_only_destination_keeps_pending_changes_for_retry() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("stylua.toml");
+        fs::write(&path, "column_width=91\n").unwrap();
+        let mut session =
+            EditSession::load(root.path(), tool_settings::find("stylua").unwrap()).unwrap();
+        let index = setting(&session, "column_width");
+        session.set(index, json!(100));
+        let original = fs::metadata(&path).unwrap().permissions();
+        let mut readonly = original.clone();
+        readonly.set_readonly(true);
+        fs::set_permissions(&path, readonly).unwrap();
+        let result = session.save();
+        fs::set_permissions(&path, original).unwrap();
+        assert!(result.unwrap_err().to_string().contains("read-only"));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "column_width=91\n");
+        assert!(session.dirty());
+        assert!(session.save().unwrap());
+    }
 
     fn setting(session: &EditSession, key: &str) -> usize {
         session

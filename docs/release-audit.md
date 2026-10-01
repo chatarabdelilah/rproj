@@ -1,5 +1,28 @@
 # Release-Hardening Audit
 
+## Unreleased: staged upgrade replacements
+
+Upgrade prepares and syncs every planned replacement before replacing any
+target, using the shared staging/permission helper also used by Configure.
+Preparation failure preserves target contents; newly created parent directories
+may remain. The whole snapshot set is rechecked after staging. A failed
+replacement preserves its target, cleans up temporary files, reports the number
+of earlier targets saved, and asks the user to rerun after fixing the cause.
+Earlier successful replacements are not rolled back. The separate additive
+metadata merges remain outside this replacement boundary.
+
+October 1 local verification passed 430 ordinary Windows tests, with 19
+prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
+The later read-only failure regression failed before the fix and passed after.
+Actual Windows lock failures cover the first and second targets, cleanup,
+progress reporting, and successful reruns. An injected partial staging write
+preserves the original; Configure's read-only failure retains pending changes.
+Existing Windows DACL regressions pass after moving the permission helper.
+The Unix mode regression remains unexecuted locally.
+
+No dependency or version change; no provisioning or Studio/Open Cloud run.
+Review and CI evidence belong to the implementing PR.
+
 ## Unreleased: upgrade confirmation conflicts
 
 Upgrade now retains the exact snapshots used for planning and merging. Recorded
@@ -18,6 +41,11 @@ The separate `.gitignore`, `.luaurc`, and `tests/.luaurc` merge helpers read
 current files after the planned writes; their targets are not snapshotted.
 No version bump or publication is prepared. Review and CI evidence belong to
 the implementing PR.
+
+[PR #41](https://github.com/chatarabdelilah/rproj/pull/41) merged at `d720134`.
+CodeRabbit reported no runtime findings; its documentation clarification was
+corrected and directly inspected. Reviewed-head CI `36763458103` and merged-main
+CI `36763842366` passed. Completed branches were removed.
 
 ## Unreleased: shared configuration saving
 

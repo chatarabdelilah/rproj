@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated September 30, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 1, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -46,7 +46,9 @@ capability choices/validation, and configuration edit sessions for Inquire and
 Ratatui. Each interface retains its interaction and error recovery. Configuration
 saving preserves unknown values and no-op bytes, supports cancellation, and
 rejects external edits. Upgrade also retains its planned rewrite/input snapshots
-and refuses external changes before writing. Continue the existing-workflow verification below;
+and refuses external changes before writing. Planned replacements are staged
+together, preserve permissions, and report recovery instructions on failure.
+Continue the existing-workflow verification below;
 smaller remaining duplication is documented rather than a new rewrite milestone.
 Fresh optional choices now start unchecked; Scribe Studio is an optional
 manual plugin entry and confirmed global Rokit adds use `--force`.

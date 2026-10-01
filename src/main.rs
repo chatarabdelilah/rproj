@@ -13,6 +13,7 @@ mod cli;
 mod commands;
 mod config;
 mod diagnostics;
+mod file_replace;
 mod graph;
 mod interrupt;
 mod project_editor;
