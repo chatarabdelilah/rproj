@@ -1,5 +1,25 @@
 # Release-Hardening Audit
 
+## Unreleased: safe Jest refresh saves
+
+Jest's production mount repair, generated test project, and merged runner config
+now use the shared staging/permission helper. Replacement no longer removes or
+uses existing `.rproj-old` files. Read-only and symbolic-link targets are refused;
+failed replacement keeps its target intact and cleans up the temporary sibling.
+Writes remain sequential, so an earlier successful production repair can remain
+when a later target fails. There is no external-writer lock or crash guarantee.
+
+The backup regression failed against the old writer and passed after the fix.
+Focused Windows tests cover backup preservation and all three output targets'
+read-only refusal and locked replacement failure, cleanup, and successful retry.
+Shared permission regressions cover Windows DACL preservation; Unix mode and
+Windows symlink execution retain the limitations recorded below. No dependency
+or version change, machine provisioning, or live Studio/Open Cloud run.
+
+October 1 local verification passed 433 ordinary Windows tests, with 20
+prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
+Review and CI evidence belong to the implementing PR.
+
 ## Unreleased: staged upgrade replacements
 
 Upgrade prepares and syncs every planned replacement before replacing any
@@ -28,6 +48,11 @@ ignored on Windows by default and ordinary on Unix; no machine setting changed.
 
 No dependency or version change; no provisioning or Studio/Open Cloud run.
 Review and CI evidence belong to the implementing PR.
+
+[PR #42](https://github.com/chatarabdelilah/rproj/pull/42) merged at `1e87f39`.
+Final CodeRabbit review reported zero findings on `5c4405e`; reviewed-head CI
+`36803293173` and merged-main CI `36803533721` passed. Completed branches were
+removed.
 
 ## Unreleased: upgrade confirmation conflicts
 
