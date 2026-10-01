@@ -78,6 +78,36 @@ impl UpgradePlan {
         }
         Ok(())
     }
+
+    fn apply(&self, project_dir: &Path) -> Result<()> {
+        self.verify(project_dir)?;
+        let staged: Vec<_> = self
+            .rewrites
+            .iter()
+            .map(|rewrite| {
+                let path = project_dir.join(&rewrite.relative);
+                let existing = self.originals[&rewrite.relative].is_some();
+                crate::file_replace::stage(&path, rewrite.contents.as_bytes(), existing)
+                    .with_context(|| {
+                        format!(
+                            "failed to prepare {}. No upgrade targets replaced.",
+                            path.display()
+                        )
+                    })
+            })
+            .collect::<Result<_>>()?;
+        // Staging can take time. Recheck the whole plan before any replacement.
+        self.verify(project_dir)?;
+        ui::section(&format!("Upgrading {}", project_dir.display()));
+        for (saved, (rewrite, pending)) in self.rewrites.iter().zip(staged).enumerate() {
+            let path = project_dir.join(&rewrite.relative);
+            pending.persist(&path).map_err(|error| error.error).with_context(|| {
+                format!("failed to save {}; {saved} earlier upgrade files were updated. Fix the error and re-run `rproj upgrade`.", path.display())
+            })?;
+            ui::ok(&format!("wrote {}", rewrite.relative));
+        }
+        Ok(())
+    }
 }
 
 fn read_optional(path: &Path) -> Result<Option<String>> {
@@ -158,17 +188,7 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
             return Ok(());
         }
 
-        upgrade.verify(project_dir)?;
-        ui::section(&format!("Upgrading {}", project_dir.display()));
-        for rewrite in rewrites {
-            let path = project_dir.join(&rewrite.relative);
-            if let Some(parent) = path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::write(&path, &rewrite.contents)
-                .with_context(|| format!("failed to write {}", path.display()))?;
-            ui::ok(&format!("wrote {}", rewrite.relative));
-        }
+        upgrade.apply(project_dir)?;
     }
 
     // These merge rather than replace and are no-ops when nothing is
