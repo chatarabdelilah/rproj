@@ -11,7 +11,7 @@ of earlier targets saved, and asks the user to rerun after fixing the cause.
 Earlier successful replacements are not rolled back. The separate additive
 metadata merges remain outside this replacement boundary.
 
-October 1 local verification passed 430 ordinary Windows tests, with 19
+October 1 local verification passed 430 ordinary Windows tests, with 20
 prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
 The later read-only failure regression failed before the fix and passed after.
 Actual Windows lock failures cover the first and second targets, cleanup,
@@ -19,6 +19,12 @@ progress reporting, and successful reruns. An injected partial staging write
 preserves the original; Configure's read-only failure retains pending changes.
 Existing Windows DACL regressions pass after moving the permission helper.
 The Unix mode regression remains unexecuted locally.
+
+CodeRabbit identified symbolic-link replacement as a behavior regression;
+preparation now refuses linked targets without replacing the link or shared
+configuration. The explicitly invoked Windows symlink regression was blocked
+at fixture creation by OS error 1314 (missing privilege), not passed. It is
+ignored on Windows by default and ordinary on Unix; no machine setting changed.
 
 No dependency or version change; no provisioning or Studio/Open Cloud run.
 Review and CI evidence belong to the implementing PR.

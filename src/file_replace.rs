@@ -1,6 +1,10 @@
-use std::{fs, io::Write, path::Path};
+use std::{
+    fs,
+    io::{ErrorKind, Write},
+    path::Path,
+};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 
 mod permissions;
 
@@ -10,6 +14,17 @@ pub(crate) fn stage(
     contents: &[u8],
     existing: bool,
 ) -> Result<tempfile::NamedTempFile> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => ensure!(
+            !metadata.file_type().is_symlink(),
+            "{} is a symbolic link. Use a regular project file or edit its linked configuration directly.",
+            path.display()
+        ),
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error).with_context(|| format!("failed to inspect {}", path.display()));
+        }
+    }
     stage_with(path, existing, |pending| {
         pending.write_all(contents)?;
         pending.as_file().sync_all()?;
@@ -35,6 +50,35 @@ fn stage_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(any(unix, windows))]
+    #[cfg_attr(
+        windows,
+        ignore = "requires Windows symlink privilege or Developer Mode"
+    )]
+    #[test]
+    fn symbolic_link_targets_keep_the_link_and_shared_configuration() {
+        let root = tempfile::tempdir().unwrap();
+        let shared = root.path().join("shared.toml");
+        let target = root.path().join("selene.toml");
+        let original = b"std='roblox'\n";
+        fs::write(&shared, original).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&shared, &target).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&shared, &target).unwrap();
+        let error = stage(&target, b"std='changed'\n", true).unwrap_err();
+        assert!(error.to_string().contains("symbolic link"));
+        assert!(
+            fs::symlink_metadata(&target)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(fs::read(&shared).unwrap(), original);
+        assert_eq!(fs::read(&target).unwrap(), original);
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(), 2);
+    }
 
     #[test]
     fn a_partial_staging_write_keeps_the_destination_and_cleans_up() {

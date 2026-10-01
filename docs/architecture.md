@@ -695,6 +695,9 @@ protection are preserved through the same `file_replace::stage` helper used by
 tool configuration. A failed replacement keeps that target intact and reports
 how many earlier files were saved, with a rerun instruction. Successful earlier
 replacements are not rolled back; this is not a crash-durability guarantee.
+Symbolic-link targets are refused during preparation with instructions to use
+a regular project file or edit the linked configuration directly. The link and
+shared file are not replaced.
 The later `.gitignore`, `.luaurc`, and `tests/.luaurc` merge helpers read current
 files separately and are not part of this reviewed-plan conflict check.
 
