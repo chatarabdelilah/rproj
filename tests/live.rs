@@ -40,6 +40,9 @@ fn hub_creation(name: &str) -> Session {
     session.wait_for("Project folder name");
     session.send(name);
     session.send(ENTER);
+    session.wait_for("Review");
+    session.send("Start point");
+    session.send(ENTER);
     session.wait_for("Composition");
     session
 }
@@ -281,7 +284,11 @@ impl LiveProject {
 
     /// Runs the project's own quality gate and returns its exit code.
     fn gate(&self) -> i32 {
-        run(&self.path, "lute", &["run", "check"]).0
+        let (code, output) = run(&self.path, "lute", &["run", "check"]);
+        if code != 0 {
+            eprintln!("Quality gate failed (exit {code}):\n{output}");
+        }
+        code
     }
 }
 
@@ -367,7 +374,7 @@ fn run(dir: &Path, tool: &str, args: &[&str]) -> (i32, String) {
 
 /// Invalid saved setups must fail before even explicit machine reconfiguration.
 /// Send no input: a regression reaching an installer prompt times out instead
-/// of approving it. All fixtures live in uniquely owned temporary directories.
+/// of approving it. Every setup fixture has an exclusively reserved filename.
 #[test]
 #[ignore = "uses real machine config/setup paths and optional Rojo template validation; run serially"]
 fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
@@ -377,20 +384,18 @@ fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
     let machine_before = std::fs::read(&config_path).expect("read machine config");
     let setups = dirs.config_dir().join("setups");
     std::fs::create_dir_all(&setups).expect("create setup directory");
-    let fixtures = tempfile::Builder::new()
-        .prefix("rproj-refusal-")
-        .tempdir_in(&setups)
-        .expect("create unique setup fixtures");
     let scratch = tempfile::Builder::new()
         .prefix("rproj-refusal-")
         .tempdir_in(&root)
         .expect("create unique project scratch directory");
-    let setup_prefix = fixtures.path().file_name().unwrap().to_str().unwrap();
     let project_prefix = scratch.path().file_name().unwrap().to_str().unwrap();
-    // Nested setup names keep every missing/file fixture under one exclusively
-    // owned parent. Existing user setup names are neither replaced nor removed.
-    let output_name = format!("{setup_prefix}/output");
-    let output_path = fixtures.path().join("output.toml");
+    let output_path = tempfile::Builder::new()
+        .prefix("rproj-refusal-output-")
+        .suffix(".toml")
+        .tempfile_in(&setups)
+        .expect("reserve output setup sentinel")
+        .into_temp_path();
+    let output_name = output_path.file_stem().unwrap().to_str().unwrap();
     let sentinel = b"preserve this existing setup byte-for-byte\n";
     std::fs::write(&output_path, sentinel).unwrap();
 
@@ -411,10 +416,17 @@ fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
             "selects Jest Roblox without Wally",
         ),
     ] {
-        let setup_name = format!("{setup_prefix}/{label}");
-        let setup_path = fixtures.path().join(format!("{label}.toml"));
+        let setup_path = tempfile::Builder::new()
+            .prefix(&format!("rproj-refusal-{label}-"))
+            .suffix(".toml")
+            .tempfile_in(&setups)
+            .expect("reserve input setup fixture")
+            .into_temp_path();
+        let setup_name = setup_path.file_stem().unwrap().to_str().unwrap();
         if let Some(text) = &contents {
             std::fs::write(&setup_path, text).expect("write owned setup fixture");
+        } else {
+            std::fs::remove_file(&setup_path).expect("remove reserved missing setup");
         }
         let project_name = format!("{project_prefix}/{label}/project");
         let outcome = Session::start(
@@ -423,10 +435,10 @@ fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
                 "new",
                 &project_name,
                 "--like",
-                &setup_name,
+                setup_name,
                 "--reconfigure",
                 "--save-setup",
-                &output_name,
+                output_name,
             ],
         )
         .finish();
@@ -452,18 +464,27 @@ fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
         );
         assert_eq!(std::fs::read(&config_path).unwrap(), machine_before);
         assert_eq!(std::fs::read(&output_path).unwrap(), sentinel);
+        let fixture_path = setup_path.to_path_buf();
         match contents {
-            Some(text) => assert_eq!(std::fs::read_to_string(&setup_path).unwrap(), text),
+            Some(text) => {
+                assert_eq!(std::fs::read_to_string(&setup_path).unwrap(), text);
+                setup_path
+                    .close()
+                    .expect("remove owned input setup fixture");
+            }
             None => assert!(!setup_path.exists(), "missing setup was created"),
         }
+        assert!(!fixture_path.exists());
     }
-    let fixture_path = fixtures.path().to_path_buf();
+    let output_path_check = output_path.to_path_buf();
     let scratch_path = scratch.path().to_path_buf();
-    fixtures.close().expect("remove owned setup fixtures");
+    output_path
+        .close()
+        .expect("remove owned output setup sentinel");
     scratch
         .close()
         .expect("remove empty project scratch directory");
-    assert!(!fixture_path.exists());
+    assert!(!output_path_check.exists());
     assert!(!scratch_path.exists());
 }
 
@@ -665,6 +686,31 @@ fn saved_setup_replays_workflow_packages_capabilities_and_dropped_files() {
 #[test]
 #[ignore = "requires provisioned Rokit/Wally, Studio with JestRobloxRunner, network; run serially"]
 fn jest_starter_specs_pass_and_report_failure() {
+    fn package_snapshot(project: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+        fn collect(
+            root: &Path,
+            path: &Path,
+            files: &mut std::collections::BTreeMap<PathBuf, Vec<u8>>,
+        ) {
+            for entry in std::fs::read_dir(path).unwrap() {
+                let entry = entry.unwrap();
+                if entry.file_type().unwrap().is_dir() {
+                    collect(root, &entry.path(), files);
+                } else {
+                    files.insert(
+                        entry.path().strip_prefix(root).unwrap().to_path_buf(),
+                        std::fs::read(entry.path()).unwrap(),
+                    );
+                }
+            }
+        }
+        let mut files = std::collections::BTreeMap::new();
+        for folder in ["Packages", "DevPackages"] {
+            collect(project, &project.join(folder), &mut files);
+        }
+        files
+    }
+
     let root = projects_root();
     let plugin = PathBuf::from(std::env::var_os("LOCALAPPDATA").expect("LOCALAPPDATA"))
         .join("Roblox/Plugins/JestRobloxRunner.rbxm");
@@ -725,6 +771,7 @@ fn jest_starter_specs_pass_and_report_failure() {
         );
     }
 
+    let packages_before = package_snapshot(&project);
     let passing = Session::start(
         &project,
         &[
@@ -738,6 +785,7 @@ fn jest_starter_specs_pass_and_report_failure() {
     )
     .finish();
     assert_eq!(passing.code, 0, "{}", passing.text);
+    assert_eq!(package_snapshot(&project), packages_before);
     let report = |name: &str| -> serde_json::Value {
         let text = std::fs::read_to_string(project.join(name)).expect("Jest result report");
         serde_json::from_str(&text).expect("valid Jest result JSON")
@@ -778,6 +826,7 @@ fn jest_starter_specs_pass_and_report_failure() {
     )
     .finish();
     assert_eq!(failing.code, 1, "{}", failing.text);
+    assert_eq!(package_snapshot(&project), packages_before);
     failing.assert_contains("rproj deliberate failure");
     failing.assert_contains("987654");
     failing.assert_contains("reported test failures (exit code 1)");
