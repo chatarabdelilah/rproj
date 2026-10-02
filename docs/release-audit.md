@@ -1,5 +1,45 @@
 # Release-Hardening Audit
 
+## October 2: combined live verification and negative-gate diagnostics
+
+After the GitHub API quota reset, clean main `144c35a` (PR #44) passed
+`cargo test --locked --test live -- --ignored --test-threads=1 --nocapture`:
+**14 passed, zero failed, zero ignored**, in 138.22 seconds, with
+`RPROJ_TEST_TIMEOUT=180`. This closes the previous combined-run gap for project
+creation, cancellation/revision, saved setup replay/refusal, Wally/submodule
+builds and checks, dependency recovery in Watch, and local Jest pass/fail.
+Jest's three starter specs passed; its deliberate failure returned 1 with
+two passing/one failing test and preserved the installed package files.
+
+The captured negative-gate output exposed a fixture weakness despite that green
+run: all three added defects followed the starter module's terminal `return`,
+so syntax errors caused the failures instead of the intended diagnostics.
+The fixture now inserts defects before `return`, preserving the strict-mode
+header, requires each intended diagnostic (`TypeError:`, Selene's
+`undefined_variable`, and StyLua's diff), and rejects syntax/parse errors.
+It still requires a nonzero gate exit and a green gate after each restoration.
+The undefined global may also fail type analysis; this is not a claim that
+exactly one tool rejects each defect.
+
+Adding diagnostic assertions first reproduced the old fixture's failure in
+9.99 seconds. After correcting placement, the focused live test
+`the_generated_gate_rejects_bad_code_one_step_at_a_time` passed in 17.08 seconds.
+The full 14-test result above belongs to main `144c35a`; the focused result
+verifies the only changed live test. No production behavior changed.
+
+Local ordinary verification passed: `cargo test --locked --quiet` ran 434
+passing tests with 20 prerequisite-dependent tests ignored. Formatting,
+clippy with warnings denied, and `git diff --check` passed. Review and final-head
+CI evidence belong to the implementing PR.
+
+All temporary project/setup fixtures were removed after these runs. Machine
+configuration stayed byte-identical; the existing project list and shared Jest
+Studio plugin hash were unchanged. Existing tools, Studio and caches were used;
+no machine applications, authentication or user projects were changed. Headroom
+was used for authorized source compression; diagnostic logs stayed local.
+Open Cloud, fresh-machine provisioning, and Windows symlink-privilege execution
+remain separate gaps. No version bump, publication, tag or release is prepared.
+
 ## October 2: live workflow audit and repeated test preparation
 
 The audit began on clean main `79f2dab` (PR #43), with merged-main CI
@@ -48,10 +88,16 @@ regression covers both complete typed and bare links without mutating them.
 Final CodeRabbit review on `9ddd80e` reported only a stale architecture test
 total; it was corrected and the documentation-only diff was inspected directly.
 
-The combined rerun after rate-limit reset remains pending. Open Cloud,
+The combined rerun after rate-limit reset is recorded above. Open Cloud,
 fresh-machine provisioning, and Windows symlink-privilege evidence remain outside
 this audit. No version bump, publication, tag, or release is prepared. Review,
 package, and CI evidence belong to the implementing PR.
+
+[PR #44](https://github.com/chatarabdelilah/rproj/pull/44) merged at `144c35a`.
+Final CodeRabbit review covered runtime/tests on `9ddd80e`; the final head
+`f46575c` corrected only documentation. Final-head CI `36991045623` and
+merged-main CI `36991461179` passed. Locked packaging passed and completed
+branches were removed.
 
 ## Unreleased: safe Jest refresh saves
 

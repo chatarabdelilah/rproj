@@ -64,8 +64,12 @@ names, and reproduced a test-preparation defect: retyping an already processed
 Wally tree could fail before the Jest runner. Testing now preserves a complete
 package tree while regenerating its sourcemap; missing packages still take the
 install/retype path. Focused live Jest pass/fail and setup-refusal checks passed.
-The combined live suite remains incomplete after GitHub API rate-limit exhaustion;
-rerun it before claiming full current-workflow evidence. See the dated audit.
+After the GitHub API quota reset, all 14 live tests passed together on main
+`144c35a`. Their captured output also exposed malformed negative-gate fixtures:
+defects after a terminal return produced syntax errors. The corrected fixture
+passed separately, now requiring actual type/lint/format diagnostics and rejecting
+parse errors. See the dated audit for exact revisions and results; Open Cloud
+and fresh-machine provisioning remain separate gaps.
 
 ### 1. Establish The Baseline
 
