@@ -45,6 +45,8 @@ The package-preserving test behavior is retained deliberately: runtime execution
 does not require exported types, and type restoration belongs to the full
 scaffolding/Watch sync. This boundary is documented and the ordinary CLI
 regression covers both complete typed and bare links without mutating them.
+Final CodeRabbit review on `9ddd80e` reported only a stale architecture test
+total; it was corrected and the documentation-only diff was inspected directly.
 
 The combined rerun after rate-limit reset remains pending. Open Cloud,
 fresh-machine provisioning, and Windows symlink-privilege evidence remain outside
