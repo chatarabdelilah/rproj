@@ -1234,28 +1234,47 @@ fn the_generated_gate_rejects_bad_code_one_step_at_a_time() {
         .join("shared")
         .join("hello.spec.luau");
     let original = std::fs::read_to_string(&spec).expect("starter spec");
+    let (header, body) = original
+        .split_once("return function()")
+        .expect("starter spec returns its test function");
 
-    // Each of these is a well-formed Luau file that exactly one gate step
-    // objects to - a syntax error would fail every step at once and prove
-    // only that something ran.
-    let breakages: &[(&str, &str)] = &[
+    // Check the intended diagnostic as well as the exit code: a syntax error
+    // would fail every step at once and prove only that something ran.
+    let breakages: &[(&str, &str, &str)] = &[
         (
             "luau-lsp: a string where a number is declared",
-            "\nlocal wrong: number = \"not a number\"\nprint(wrong)\n",
+            "local wrong: number = \"not a number\"\nprint(wrong)\n\n",
+            "TypeError:",
         ),
         (
             "selene: an undefined global",
-            "\nprint(someUndefinedGlobalName)\n",
+            "print(someUndefinedGlobalName)\n\n",
+            "error[undefined_variable]",
         ),
         (
             "stylua: space indentation where the config says tabs",
-            "\nlocal function f()\n    return 1\nend\nprint(f())\n",
+            "local function f()\n    return 1\nend\nprint(f())\n\n",
+            "Diff in",
         ),
     ];
 
-    for (what, addition) in breakages {
-        std::fs::write(&spec, format!("{original}{addition}")).expect("break the spec");
-        assert_ne!(project.gate(), 0, "the gate accepted bad code ({what})");
+    for (what, addition, diagnostic) in breakages {
+        // Luau requires return to be the block's final statement. Keep the
+        // strict-mode header first and insert each defect before the return.
+        std::fs::write(&spec, format!("{header}{addition}return function(){body}"))
+            .expect("break the spec");
+        let (code, output) = run(project.path(), "lute", &["run", "check"]);
+        assert_ne!(code, 0, "the gate accepted bad code ({what}):\n{output}");
+        assert!(
+            output.contains(diagnostic),
+            "missing intended diagnostic ({what}):\n{output}"
+        );
+        for syntax_error in ["SyntaxError:", "error[parse_error]", "error parsing:"] {
+            assert!(
+                !output.contains(syntax_error),
+                "invalid syntax masked the intended failure ({what}):\n{output}"
+            );
+        }
         std::fs::write(&spec, &original).expect("restore the spec");
         assert_eq!(
             project.gate(),
