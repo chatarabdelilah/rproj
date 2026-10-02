@@ -261,6 +261,8 @@ pub fn sync_for_project(project_dir: &Path, project_file: &str) -> Result<()> {
 /// can crash the watcher during the replacement window.
 /// Retyping can also reject its own previously rewritten links, so reuse their
 /// types and regenerate only the sourcemap when all dependencies are present.
+/// Complete bare links from a manual install remain bare; type restoration is
+/// handled by scaffolding/Watch, not required for runtime test execution.
 pub fn sync_for_test(project_dir: &Path, project_file: &str, selected: &[String]) -> Result<()> {
     if packages_ready(project_dir, selected) {
         ui::ok("Wally packages already installed");

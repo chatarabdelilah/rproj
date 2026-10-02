@@ -57,7 +57,7 @@ fn testing_reuses_complete_packages_and_recovers_missing_packages() {
             "roblox/jest@3.20.1",
         ),
     ] {
-        for ready in [true, false] {
+        for (ready, retyped) in [(true, true), (true, false), (false, true)] {
             let project = tempfile::tempdir().unwrap();
             fs::write(
                 project.path().join("rproj.toml"),
@@ -79,9 +79,13 @@ fn testing_reuses_complete_packages_and_recovers_missing_packages() {
             )).unwrap();
             let package = project.path().join(folder);
             fs::create_dir_all(package.join("_Index")).unwrap();
-            let typed = "local REQUIRED_MODULE = require(script.Parent._Index.Library)\nexport type Example = REQUIRED_MODULE.Example\nreturn REQUIRED_MODULE\n";
+            let original = if retyped {
+                "local REQUIRED_MODULE = require(script.Parent._Index.Library)\nexport type Example = REQUIRED_MODULE.Example\nreturn REQUIRED_MODULE\n"
+            } else {
+                "return require(script.Parent._Index.Library)\n"
+            };
             let link = package.join(format!("{alias}.lua"));
-            fs::write(&link, typed).unwrap();
+            fs::write(&link, original).unwrap();
             if !ready {
                 fs::remove_dir(package.join("_Index")).unwrap();
             }
@@ -96,11 +100,11 @@ fn testing_reuses_complete_packages_and_recovers_missing_packages() {
                     .unwrap();
                 assert!(
                     output.status.success(),
-                    "{runner}, ready={ready}: {}{}",
+                    "{runner}, ready={ready}, retyped={retyped}: {}{}",
                     String::from_utf8_lossy(&output.stdout),
                     String::from_utf8_lossy(&output.stderr)
                 );
-                assert_eq!(fs::read_to_string(&link).unwrap(), typed);
+                assert_eq!(fs::read_to_string(&link).unwrap(), original);
                 assert!(project.path().join("sourcemap.json").is_file());
             }
             let calls = fs::read_to_string(project.path().join("tool-calls.txt")).unwrap();

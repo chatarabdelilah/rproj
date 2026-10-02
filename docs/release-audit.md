@@ -36,9 +36,15 @@ Live runs used `RPROJ_TEST_TIMEOUT=180` and serial execution. All owned project
 and setup fixtures were removed, including the stopped run's fixtures; machine
 configuration stayed byte-identical. Normal Jest scaffolding refreshed the
 existing shared Studio runner plugin, changing its hash. Rokit/Wally caches and
-trust state are shared. No machine applications were provisioned, authentication
-was changed, or existing user project/setup was replaced. The live gate helper
+trust state are shared. No machine applications were provisioned. Authentication
+and existing user projects/setups were unchanged. The live gate helper
 now prints captured tool output on failure rather than only an exit code.
+
+CodeRabbit raised the case of complete bare links after a manual `wally install`.
+The package-preserving test behavior is retained deliberately: runtime execution
+does not require exported types, and type restoration belongs to the full
+scaffolding/Watch sync. This boundary is documented and the ordinary CLI
+regression covers both complete typed and bare links without mutating them.
 
 The combined rerun after rate-limit reset remains pending. Open Cloud,
 fresh-machine provisioning, and Windows symlink-privilege evidence remain outside
