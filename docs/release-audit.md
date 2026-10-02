@@ -1,5 +1,50 @@
 # Release-Hardening Audit
 
+## October 2: live workflow audit and repeated test preparation
+
+The audit began on clean main `79f2dab` (PR #43), with merged-main CI
+`36821611764` passing and no open PRs. This is unreleased source verification,
+not a new package candidate. Installed prerequisites were Rokit 1.2.0, Rojo
+7.7.0, Wally 0.3.2, Git 2.52.0.windows.1, Studio, and its Jest runner plugin.
+Local Rust/Cargo were 1.94.0; Jest CLI 0.4.1 was available in tool storage.
+
+The first serial live run was stopped after a Home test timed out: its helper
+still expected Composition immediately after naming a project. The helper now
+waits for Review and explicitly selects Start point. All three affected Home
+tests passed in 19.98 seconds. A subsequent full run completed with 12 passing
+and two failing tests in 101.90 seconds:
+
+- The setup-refusal fixture used nested setup names, now forbidden by the
+  existing single-name contract. It now reserves unique input/output filenames
+  directly in the setup directory and retains byte-preservation/cleanup checks.
+- The live Jest test failed before runner startup because `sync_for_test`
+  reprocessed links already rewritten by `wally-package-types`. Complete Wally
+  trees now reuse their existing links and types, regenerating only the sourcemap.
+  Missing/stale dependencies retain the full install/sourcemap/retype path.
+
+Focused verification after those fixes:
+
+| Check | October 2 result |
+| --- | --- |
+| `cargo test --locked --test live invalid_saved_setups_refuse_before_reconfiguration_or_creation -- --ignored --exact --test-threads=1 --nocapture` | Passed all four refusal cases in 8.55 seconds. |
+| `cargo test --locked --test live jest_starter_specs_pass_and_report_failure -- --ignored --exact --test-threads=1 --nocapture` | Passed in 26.99 seconds: three starter specs succeeded, then the deliberate failure returned 1 with two passing/one failing test. Both runs preserved every installed package file byte-for-byte. |
+| Ordinary fixture CLI regression | Failed before the runtime fix; passed afterward. TestEZ and Jest each test complete-tree reuse twice, plus missing-package recovery followed by reuse. Fixture executables record ordering without network/provisioning. |
+| `cargo test --locked --test live -- --ignored --test-threads=1 --nocapture` | Final combined attempt completed with nine passing/five failing tests in 79.31 seconds. GitHub rate-limit exhaustion prevented required Jest and saved-replay tool pins. Wally/submodule clean-gate and gate-failure checks also failed in this run; a complete rerun remains required. This is not a passing live suite. |
+| Local ordinary gates | 434 ordinary Windows tests passed; 20 prerequisite-dependent tests ignored. Formatting and clippy with warnings denied passed. |
+
+Live runs used `RPROJ_TEST_TIMEOUT=180` and serial execution. All owned project
+and setup fixtures were removed, including the stopped run's fixtures; machine
+configuration stayed byte-identical. Normal Jest scaffolding refreshed the
+existing shared Studio runner plugin, changing its hash. Rokit/Wally caches and
+trust state are shared. No machine applications were provisioned, authentication
+was changed, or existing user project/setup was replaced. The live gate helper
+now prints captured tool output on failure rather than only an exit code.
+
+The combined rerun after rate-limit reset remains pending. Open Cloud,
+fresh-machine provisioning, and Windows symlink-privilege evidence remain outside
+this audit. No version bump, publication, tag, or release is prepared. Review,
+package, and CI evidence belong to the implementing PR.
+
 ## Unreleased: safe Jest refresh saves
 
 Jest's production mount repair, generated test project, and merged runner config
@@ -19,6 +64,10 @@ or version change, machine provisioning, or live Studio/Open Cloud run.
 October 1 local verification passed 433 ordinary Windows tests, with 20
 prerequisite-dependent tests ignored, formatting, and clippy with warnings denied.
 Review and CI evidence belong to the implementing PR.
+
+[PR #43](https://github.com/chatarabdelilah/rproj/pull/43) merged at `79f2dab`.
+CodeRabbit reported zero findings on `e847165`; reviewed-head CI `36821401624`
+and merged-main CI `36821611764` passed. Completed branches were removed.
 
 ## Unreleased: staged upgrade replacements
 

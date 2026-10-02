@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 1, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 2, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -58,6 +58,14 @@ manual plugin entry and confirmed global Rokit adds use `--force`.
 No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
 
 Automated **saved-setup replay** now verifies both Wally and Git submodules: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. Refusal checks now cover missing/malformed setups and Jest without Wally, including explicit `--reconfigure`, with no project creation or fixture/config mutation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.
+
+The October 2 live audit corrected stale Home navigation and saved-setup fixture
+names, and reproduced a test-preparation defect: retyping an already processed
+Wally tree could fail before the Jest runner. Testing now preserves a complete
+package tree while regenerating its sourcemap; missing packages still take the
+install/retype path. Focused live Jest pass/fail and setup-refusal checks passed.
+The combined live suite remains incomplete after GitHub API rate-limit exhaustion;
+rerun it before claiming full current-workflow evidence. See the dated audit.
 
 ### 1. Establish The Baseline
 

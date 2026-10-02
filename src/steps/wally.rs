@@ -259,20 +259,26 @@ pub fn sync_for_project(project_dir: &Path, project_file: &str) -> Result<()> {
 /// complete package tree. `wally install` replaces `_Index` directories and
 /// link files; doing that while `rproj watch` has Rojo observing those paths
 /// can crash the watcher during the replacement window.
+/// Retyping can also reject its own previously rewritten links, so reuse their
+/// types and regenerate only the sourcemap when all dependencies are present.
 pub fn sync_for_test(project_dir: &Path, project_file: &str, selected: &[String]) -> Result<()> {
     if packages_ready(project_dir, selected) {
         ui::ok("Wally packages already installed");
-        refresh(project_dir, project_file)
+        refresh_sourcemap(project_dir, project_file)
     } else {
         sync_for_project(project_dir, project_file)
     }
 }
 
 fn refresh(project_dir: &Path, project_file: &str) -> Result<()> {
-    ensure_sync_mounts(project_dir, project_file)?;
-    rojo::generate_sourcemap_from(project_dir, project_file)?;
+    refresh_sourcemap(project_dir, project_file)?;
     // Safe with no packages: an empty directory is a successful no-op.
     wally_package_types(project_dir)
+}
+
+fn refresh_sourcemap(project_dir: &Path, project_file: &str) -> Result<()> {
+    ensure_sync_mounts(project_dir, project_file)?;
+    rojo::generate_sourcemap_from(project_dir, project_file)
 }
 
 fn packages_ready(project_dir: &Path, selected: &[String]) -> bool {
