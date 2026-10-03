@@ -39,7 +39,8 @@ The candidate passed 435 ordinary Windows tests, formatting and clippy. Its
 all 14 live workflow tests, three real-Rojo validation tests, and the installed
 Jest credential-refusal regression. Locked packaging and its extracted-package
 build passed with an inspected 101-file archive. Final CodeRabbit review reported
-zero findings. The release PR records reviewed-head and merged-main CI before
+zero findings. [Release PR #48](https://github.com/chatarabdelilah/rproj/pull/48)
+records reviewed-head and merged-main CI before
 publication; [the release audit](release-audit.md) records local commands and
 evidence.
 

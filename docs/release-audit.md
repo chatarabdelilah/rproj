@@ -44,7 +44,9 @@ findings across all six changed files. The iterative review's pending-gate
 advisory confused this candidate with prior PR #47 evidence; the sections now
 explicitly distinguish them. Later documentation-only evidence updates are
 inspected directly. Exact-head and merged-main CI must both pass and be recorded
-on the implementing release PR before owner publication.
+on [release PR #48](https://github.com/chatarabdelilah/rproj/pull/48) before
+owner publication. That PR's closeout records the final candidate Git identity,
+both CI runs, tree preservation and completed branch cleanup.
 
 Publication remains the owner's action. No 0.19.0 tag or GitHub
 release has been created. Authenticated Open Cloud execution, fresh Windows
