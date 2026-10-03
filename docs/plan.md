@@ -85,6 +85,12 @@ The tests use disposable persistence paths and check raw-mode restoration;
 they do not modify the user's global template or expand Rojo's accepted fields.
 See the dated audit for boundaries and evidence.
 
+Terminal resize coverage now preserves an active JSON draft through narrow,
+minimum and undersized screens. It reproduced and fixed an Exit confirmation
+trap below 60 x 16: the discard dialog remains visible and usable while edits,
+save and reset stay blocked. This runtime fix is on the development line and
+is not part of published 0.19.0; include it when preparing the next candidate.
+
 Open Cloud missing-credential handling now has executed regression coverage:
 the generated CI guard rejects absent/empty credentials before the runner step,
 and installed Jest 0.4.1 through `rproj test` names missing fields and preserves

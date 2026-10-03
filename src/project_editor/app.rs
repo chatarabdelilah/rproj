@@ -352,11 +352,7 @@ pub fn run_in(
         let previous_status = app.status.clone();
         let request = match event {
             Event::Key(key) if key.kind != event::KeyEventKind::Release => {
-                if small
-                    && !matches!(key.code, KeyCode::Esc | KeyCode::Char('?'))
-                    && !(key.modifiers.contains(KeyModifiers::CONTROL)
-                        && key.code == KeyCode::Char('c'))
-                {
+                if small && !allows_small_key(&app, key) {
                     continue;
                 }
                 handle_key(&mut app, key)
@@ -450,6 +446,21 @@ enum Request {
     Save(Value),
     Reset,
     Cancel,
+}
+
+fn allows_small_key(app: &App, key: KeyEvent) -> bool {
+    matches!(key.code, KeyCode::Esc | KeyCode::Char('?'))
+        || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
+        || (matches!(
+            app.modal,
+            Some(Modal::Confirm {
+                action: ConfirmAction::Exit,
+                ..
+            })
+        ) && matches!(
+            key.code,
+            KeyCode::Enter | KeyCode::Char('y' | 'Y' | 'n' | 'N')
+        ))
 }
 
 fn handle_key(app: &mut App, key: KeyEvent) -> Option<Request> {
@@ -1322,8 +1333,15 @@ fn render(frame: &mut ratatui::Frame<'_>, app: &App) {
     let area = frame.area();
     if is_too_small(area) {
         render_too_small(frame, area);
-        if let Some(Modal::Help) = app.modal {
-            render_modal(frame, &Modal::Help, area);
+        if let Some(
+            modal @ (Modal::Help
+            | Modal::Confirm {
+                action: ConfirmAction::Exit,
+                ..
+            }),
+        ) = &app.modal
+        {
+            render_modal(frame, modal, area);
         }
         return;
     }
@@ -1690,6 +1708,86 @@ mod tests {
             std::fs::read_dir(path.parent().unwrap()).unwrap().count(),
             1
         );
+    }
+
+    #[test]
+    fn pty_shrunk_dirty_editor_can_confirm_discard() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        write_pty_template(&path);
+        let original = std::fs::read(&path).unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        session.resize(10, 40);
+        session.wait_for("too small");
+        session.send("\x03");
+        session.wait_for("Discard changes and exit?");
+        session.send("y");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+    }
+
+    #[test]
+    fn pty_resize_preserves_json_draft_and_blocks_small_edits_and_saves() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        let mut expected = write_pty_template(&path);
+        let original = std::fs::read(&path).unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        session.send("\x05");
+        session.wait_for("Advanced JSON");
+        paste_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+            let checkpoint = session.output_checkpoint();
+            session.resize(rows, cols);
+            session.wait_for_output_since(
+                checkpoint,
+                if cols < 60 {
+                    "too small"
+                } else {
+                    "Advanced JSON"
+                },
+            );
+        }
+        session.send("\x1b[200~!\x1b[201~x\x13\x12");
+        session.send("?");
+        session.wait_for("Navigation");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        session.send(common::ESC);
+        session.send("\x03");
+        session.wait_for("Discard changes and exit?");
+        session.send("n");
+        let checkpoint = session.output_checkpoint();
+        session.resize(24, 80);
+        session.wait_for_output_since(checkpoint, "Advanced JSON");
+        save_pty_template(&mut session);
+        expected["serveAddress"] = serde_json::json!("127.0.0.1");
+        assert_pty_template(&path, &expected);
+        session.send("\x03");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+    }
+
+    #[test]
+    fn pty_resize_blocks_pending_reset_until_cancelled() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        write_pty_template(&path);
+        let original = std::fs::read(&path).unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        session.send("\x12");
+        session.wait_for("Restore the built-in");
+        session.resize(10, 40);
+        session.wait_for("too small");
+        session.send("y\r");
+        session.send("\x03");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+        assert_eq!(std::fs::read(&path).unwrap(), original);
     }
 
     #[test]

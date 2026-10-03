@@ -1,5 +1,34 @@
 # Release-Hardening Audit
 
+## October 3: Template Explorer resize recovery
+
+Verification started from clean main `6ab9ef3` (PR #50). A disposable real
+terminal regression reproduced an exit trap: shrinking an edited Explorer to
+40 x 10 hid its discard confirmation and blocked its confirmation keys.
+The editor now renders Exit confirmation below the 60 x 16 editing minimum
+and accepts Enter/Y to discard or Esc/N to retain the draft. Help and Ctrl+C
+remain available; editing, paste, save, reset and other confirmation actions
+remain blocked at these sizes.
+
+Three new ordinary terminal regressions verify edited-draft discard with
+byte-identical persistence, JSON draft preservation through 80 x 24, 60 x 16,
+40 x 10 and back, blocked small-screen typing/paste/save/reset, refusal of a
+pending reset, and raw-mode restoration after exit. The PTY harness replays
+recorded resize boundaries at their actual dimensions. Its child runs the
+production editor with a disposable template path; no global template,
+configuration, project, plugin or authentication state is changed.
+
+Local locked gates passed: 442 ordinary Windows tests, with 22
+prerequisite-dependent tests ignored, formatting and clippy with warnings
+denied. There are 464 discovered tests (391 unit/73 integration), including
+38 project-editor tests. Ignored live-tool tests were not rerun for this
+terminal-only change and are not counted as passes. Headroom processed the
+approved source diff and saved 33 tokens; diagnostic logs stayed local.
+Iterative CodeRabbit review reported zero findings. Whole-branch review and
+exact-head/main CI closeout are recorded on the change's PR.
+This runtime fix is unreleased; the published 0.19.0 baseline and its tag
+remain unchanged. Prepare a new version when the next candidate is selected.
+
 ## October 3: Template Explorer terminal recovery regressions
 
 Verification started from clean main `729beb5` after the 0.19.0 publication

@@ -128,7 +128,8 @@ pub struct Session {
     raw: Arc<Mutex<Vec<u8>>>,
     // Held so the pty outlives the child; dropping it early terminates the
     // process with STATUS_CONTROL_C_EXIT instead of letting it finish.
-    _master: Box<dyn MasterPty + Send>,
+    master: Box<dyn MasterPty + Send>,
+    resizes: Vec<(usize, u16, u16)>,
 }
 
 impl Session {
@@ -185,7 +186,8 @@ impl Session {
             child,
             writer,
             raw,
-            _master: pair.master,
+            master: pair.master,
+            resizes: Vec::new(),
         }
     }
 
@@ -197,12 +199,36 @@ impl Session {
     /// which one it picks varies with machine load. Feeding the bytes
     /// through a terminal emulator makes the text deterministic.
     pub fn text(&self) -> String {
+        self.text_since(0).trim_end().to_string()
+    }
+
+    fn text_since(&self, checkpoint: usize) -> String {
         let raw = self.raw.lock().unwrap();
         let mut parser = vt100::Parser::new(ROWS, COLS, 0);
-        parser.process(&raw);
-        let contents = parser.screen().contents();
-        // Trailing blank rows are padding, not output.
-        contents.trim_end().to_string()
+        let mut position = checkpoint;
+        for &(offset, rows, cols) in &self.resizes {
+            if offset >= checkpoint {
+                parser.process(&raw[position..offset]);
+                position = offset;
+            }
+            parser.set_size(rows, cols);
+        }
+        parser.process(&raw[position..]);
+        parser.screen().contents()
+    }
+
+    pub fn resize(&mut self, rows: u16, cols: u16) {
+        // Record the size before resize output can enter the stream, so screen replay stays accurate.
+        let raw = self.raw.lock().unwrap();
+        self.master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .expect("resize pty");
+        self.resizes.push((raw.len(), rows, cols));
     }
 
     pub fn output_checkpoint(&self) -> usize {
@@ -212,12 +238,7 @@ impl Session {
     pub fn wait_for_output_since(&self, checkpoint: usize, needle: &str) {
         let deadline = Instant::now() + timeout();
         loop {
-            let text = {
-                let raw = self.raw.lock().unwrap();
-                let mut parser = vt100::Parser::new(ROWS, COLS, 0);
-                parser.process(&raw[checkpoint..]);
-                parser.screen().contents()
-            };
+            let text = self.text_since(checkpoint);
             if text.contains(needle) {
                 return;
             }
