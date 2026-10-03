@@ -43,8 +43,9 @@ whole-branch review of `d1651ab` found only a stale aggregate test count in
 architecture; it is corrected to 461 discovered (388 unit/73 integration),
 439 ordinary and 22 ignored. The documentation-only correction was inspected
 directly without repeating successful runtime/live gates. Exact-head/main CI
-closeout will be recorded on the implementing PR. No new release candidate or
-publication is needed.
+closeout is recorded on [PR #50](https://github.com/chatarabdelilah/rproj/pull/50),
+including final-head/main Git identities, CI runs and branch cleanup. No new
+release candidate or publication is needed.
 
 ## October 3: 0.19.0 publication verified
 
