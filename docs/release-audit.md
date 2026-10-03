@@ -39,9 +39,14 @@ Both packaged Cargo files use 0.19.0, retain Rust 1.89, and the package Git
 identity matches the clean commit. Subsequent documentation-only updates do
 not alter the tested source, dependencies or packaged file set.
 
-For the new 0.19.0 candidate, final CodeRabbit review, reviewed-head CI and
-merged-main CI are pending; completed PR #47 evidence below belongs to the
-preceding change. Publication remains the owner's action. No 0.19.0 tag or GitHub
+The final `cr review --agent --base main` review of `41f1b18` reported zero
+findings across all six changed files. The iterative review's pending-gate
+advisory confused this candidate with prior PR #47 evidence; the sections now
+explicitly distinguish them. Later documentation-only evidence updates are
+inspected directly. Exact-head and merged-main CI must both pass and be recorded
+on the implementing release PR before owner publication.
+
+Publication remains the owner's action. No 0.19.0 tag or GitHub
 release has been created. Authenticated Open Cloud execution, fresh Windows
 provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
 Scribe Studio playtesting and unavailable Windows symlink privileges remain
