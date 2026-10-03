@@ -38,8 +38,13 @@ acceptance. No production defect was reproduced.
 Local gates passed: 439 ordinary Windows tests with 22 prerequisite-dependent
 tests ignored, formatting, clippy with warnings denied and `git diff --check`.
 Headroom processed the approved source diff and saved 16 tokens; diagnostic
-logs stayed local. Review and exact-head/main CI closeout will be recorded on
-the implementing PR. No new release candidate or publication is needed.
+logs stayed local. Iterative CodeRabbit review reported zero findings. The
+whole-branch review of `d1651ab` found only a stale aggregate test count in
+architecture; it is corrected to 461 discovered (388 unit/73 integration),
+439 ordinary and 22 ignored. The documentation-only correction was inspected
+directly without repeating successful runtime/live gates. Exact-head/main CI
+closeout will be recorded on the implementing PR. No new release candidate or
+publication is needed.
 
 ## October 3: 0.19.0 publication verified
 
