@@ -1,5 +1,45 @@
 # Release-Hardening Audit
 
+## October 4: Template Explorer external-edit protection
+
+Work started from clean main `3dc9e7e` (PR #51), with successful merged-main
+CI `37154970455` and no open PRs. A disposable terminal regression reproduced
+the defect: another process replaced the template after the editor opened,
+but Ctrl+S overwrote that edit and reported success.
+
+Both standalone and Home entry points now load the draft and persistence
+baseline from the same `project_template::EditSession` read. Save and reset
+refuse changed contents, external creation or deletion. Save checks before
+Rojo validation and after permission-preserving sibling staging; the snapshot
+advances only after successful persistence. Refusal retains the draft and
+names reopening Template Explorer as the recovery action. This is optimistic
+conflict detection, not a file lock: external writes between the final check
+and replacement/removal remain possible.
+
+Five new storage regressions cover external change/create/delete refusal for
+save/reset, validation-time changes without write artifacts, successive saves
+and reset/recreation, validation refusal/repair and non-file read refusal.
+Two terminal regressions verify external save/reset refusal, bytes or absence
+preservation, dirty-draft retention, retry after restoration of the original
+snapshot, and raw-mode restoration. The child harness uses the same session
+and production editor with disposable paths; no global template, machine
+configuration, projects, plugins or authentication are changed.
+
+Local locked gates passed: 449 ordinary Windows tests, with 22 ignored
+prerequisite-dependent cases, formatting, clippy with warnings denied and
+diff checks. There are 471 discovered tests (398 unit/73 integration), with
+40 project-editor tests. An explicit installed-Rojo 7.7.0 run of
+`pty_real_rojo_save_and_rejection_preserve_last_valid_template` passed in
+5.31 seconds on the final source, exercising valid save, upstream refusal and corrected-draft
+save through all ten generated variants. Other ignored live-tool tests were
+not rerun and are not counted as passes.
+
+Headroom processed the approved source diff and saved 47 tokens; diagnostic
+logs stayed local. Iterative CodeRabbit review reported zero findings. Final
+branch review and exact-head/main CI closeout are recorded on the change's PR.
+This runtime protection and PR #51's resize fix await the next selected
+release candidate; Cargo versions, published 0.19.0 and its tag are unchanged.
+
 ## October 3: Template Explorer resize recovery
 
 Verification started from clean main `6ab9ef3` (PR #50). A disposable real

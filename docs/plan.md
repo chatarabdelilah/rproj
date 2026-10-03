@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 3, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 4, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -90,6 +90,13 @@ minimum and undersized screens. It reproduced and fixed an Exit confirmation
 trap below 60 x 16: the discard dialog remains visible and usable while edits,
 save and reset stay blocked. This runtime fix is on the development line and
 is not part of published 0.19.0; include it when preparing the next candidate.
+
+Template Explorer now captures the file it opens and refuses save/reset after
+external changes, creation or deletion. Disposable storage and terminal tests
+verify external bytes/absence and the draft survive refusal; a fresh snapshot
+is recorded after successful saves. Installed-Rojo save/refusal/repair also
+passed. This protection is likewise unreleased after 0.19.0. See the October 4
+audit for evidence and the optimistic conflict-detection limit.
 
 Open Cloud missing-credential handling now has executed regression coverage:
 the generated CI guard rejects absent/empty credentials before the runner step,
