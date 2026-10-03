@@ -359,6 +359,93 @@ jobs:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{path::PathBuf, process::Command};
+
+    fn bash() -> PathBuf {
+        if cfg!(windows) {
+            let git = Command::new("git")
+                .arg("--exec-path")
+                .output()
+                .expect("Git for Windows is required for the generated CI shell test");
+            assert!(git.status.success(), "git --exec-path failed");
+            let exec_path = PathBuf::from(String::from_utf8(git.stdout).unwrap().trim());
+            exec_path
+                .ancestors()
+                .flat_map(|root| [root.join("bin/bash.exe"), root.join("usr/bin/bash.exe")])
+                .find(|path| path.is_file())
+                .expect("Git for Windows must include Bash")
+        } else {
+            PathBuf::from("bash")
+        }
+    }
+
+    #[test]
+    fn cloud_ci_refuses_missing_credentials_before_the_runner() {
+        let ci = ci_workflow(
+            PackageWorkflow::Wally,
+            false,
+            Some(TestRunner::JestRoblox),
+            crate::graph::JestBackend::OpenCloud,
+        );
+        let (_, credential_step) = ci
+            .split_once("      - name: Check Jest Roblox credentials\n")
+            .expect("credential check precedes the test runner");
+        let (credential_step, _) = credential_step
+            .split_once("\n      - name: Run tests")
+            .expect("test runner follows the credential check");
+        let (_, body) = credential_step.split_once("        run: |\n").unwrap();
+        let script = body
+            .lines()
+            .map(|line| line.strip_prefix("          ").unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        // Execute the generated guard, then an offline stand-in for the next
+        // step. No real runner is launched even in the all-present case.
+        let script = format!("{script}\nprintf 'credential-check-passed\\n'\n");
+        let credentials = [
+            ("ROBLOX_OPEN_CLOUD_API_KEY", "rproj-fixture-key"),
+            ("ROBLOX_UNIVERSE_ID", "1"),
+            ("ROBLOX_PLACE_ID", "2"),
+        ];
+        let shell = bash();
+        let project = tempfile::tempdir().unwrap();
+        for empty in [false, true] {
+            for present in 0_u8..8 {
+                let mut command = Command::new(&shell);
+                command
+                    .args(["--noprofile", "--norc", "-e", "-c", &script])
+                    .current_dir(project.path())
+                    .env_remove("BASH_ENV")
+                    .env_remove("ENV");
+                for (index, (name, value)) in credentials.iter().enumerate() {
+                    if present & (1 << index) != 0 {
+                        command.env(name, value);
+                    } else if empty {
+                        command.env(name, "");
+                    } else {
+                        command.env_remove(name);
+                    }
+                }
+                let output = command.output().unwrap();
+                let text = format!(
+                    "{}{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                if present == 7 {
+                    assert!(output.status.success(), "{text}");
+                    assert_eq!(text.trim(), "credential-check-passed");
+                } else {
+                    assert_eq!(output.status.code(), Some(1), "{text}");
+                    assert!(!text.contains("credential-check-passed"), "{text}");
+                    for (name, _) in credentials {
+                        assert!(text.contains(name), "missing guidance for {name}: {text}");
+                    }
+                }
+                assert!(!text.contains("rproj-fixture-key"), "{text}");
+            }
+        }
+    }
 
     #[test]
     fn local_jest_ci_has_no_test_steps_or_cloud_configuration() {

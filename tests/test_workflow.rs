@@ -1,7 +1,6 @@
-use std::{fs, process::Command};
+use std::{ffi::OsString, fs, process::Command};
 
-#[test]
-fn testing_reuses_complete_packages_and_recovers_missing_packages() {
+fn fixture_tools() -> (tempfile::TempDir, OsString) {
     let tools = tempfile::tempdir().unwrap();
     let executable = tools
         .path()
@@ -40,7 +39,12 @@ fn testing_reuses_complete_packages_and_recovers_missing_packages() {
             .chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())),
     )
     .unwrap();
+    (tools, path)
+}
 
+#[test]
+fn testing_reuses_complete_packages_and_recovers_missing_packages() {
+    let (_tools, path) = fixture_tools();
     for (runner, section, folder, alias, source) in [
         (
             "testez",
@@ -132,6 +136,104 @@ fn testing_reuses_complete_packages_and_recovers_missing_packages() {
                     ]
                 );
             }
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires RPROJ_LIVE_JEST_CLI pointing to an installed Jest Roblox CLI; no cloud credentials"]
+fn open_cloud_missing_credentials_report_names_and_preserve_exit_code() {
+    let runner = std::env::var_os("RPROJ_LIVE_JEST_CLI")
+        .expect("set RPROJ_LIVE_JEST_CLI to an installed Jest Roblox CLI executable");
+    let (tools, path) = fixture_tools();
+    fs::copy(
+        runner,
+        tools
+            .path()
+            .join(format!("jest-roblox-cli{}", std::env::consts::EXE_SUFFIX)),
+    )
+    .expect("copy the installed runner into the isolated tool fixture");
+    let credentials = [
+        ("ROBLOX_OPEN_CLOUD_API_KEY", "apiKey", "rproj-fixture-key"),
+        ("ROBLOX_UNIVERSE_ID", "universeId", "1"),
+        ("ROBLOX_PLACE_ID", "placeId", "2"),
+    ];
+    for prefix in ["", "JEST_"] {
+        // Never supply all three credentials to the real runner. The base URL
+        // also targets loopback, so this fixture cannot upload a cloud place.
+        for present in 0_u8..7 {
+            let project = tempfile::tempdir().unwrap();
+            fs::write(
+                project.path().join("rproj.toml"),
+                "mode='expert'\npackage_workflow='wally'\n[capabilities]\ntest='jest-roblox-open-cloud'\n",
+            ).unwrap();
+            fs::write(
+                project.path().join("default.project.json"),
+                r#"{"name":"Refusal","tree":{"$className":"DataModel","ReplicatedStorage":{"$className":"ReplicatedStorage","devPackages":{"$path":"DevPackages"}},"ServerScriptService":{},"StarterPlayer":{"StarterPlayerScripts":{}}}}"#,
+            ).unwrap();
+            fs::write(
+                project.path().join("wally.toml"),
+                "[package]\nname='rproj/demo'\nversion='0.1.0'\nrealm='shared'\n[dev-dependencies]\nJest='roblox/jest@3.20.1'\n",
+            ).unwrap();
+            fs::write(
+                project.path().join("wally.lock"),
+                "[[package]]\nname='rproj/demo'\nversion='0.1.0'\ndependencies=[['Jest', 'roblox/jest@3.20.1']]\n",
+            ).unwrap();
+            fs::create_dir_all(project.path().join("DevPackages/_Index")).unwrap();
+            fs::write(project.path().join("DevPackages/Jest.lua"), "return {}\n").unwrap();
+            for area in ["shared", "server", "client"] {
+                fs::create_dir_all(project.path().join("tests").join(area)).unwrap();
+            }
+            let spec = project.path().join("tests/shared/refusal.spec.luau");
+            let source =
+                "return function() it('runs', function() expect(true).to.equal(true) end) end\n";
+            fs::write(&spec, source).unwrap();
+            let production = fs::read(project.path().join("default.project.json")).unwrap();
+            let mut command = Command::new(env!("CARGO_BIN_EXE_rproj"));
+            command
+                .arg("test")
+                .current_dir(project.path())
+                .env("PATH", &path)
+                .env("RPROJ_NO_LOG", "1")
+                .env("JEST_ROBLOX_OPEN_CLOUD_BASE_URL", "http://127.0.0.1:9");
+            let mut missing = Vec::new();
+            for (index, (name, field, value)) in credentials.iter().enumerate() {
+                command.env_remove(name).env_remove(format!("JEST_{name}"));
+                if present & (1 << index) != 0 {
+                    command.env(format!("{prefix}{name}"), value);
+                } else {
+                    missing.push(*field);
+                }
+            }
+            let output = command.output().unwrap();
+            let text = format!(
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(output.status.code(), Some(2), "{prefix}, {present}: {text}");
+            assert!(
+                text.contains(&format!("Missing: {}.", missing.join(", "))),
+                "{text}"
+            );
+            for (index, (name, _, _)) in credentials.iter().enumerate() {
+                if present & (1 << index) == 0 {
+                    assert!(text.contains(&format!("{name} (or JEST_{name})")), "{text}");
+                }
+            }
+            assert!(!text.contains("rproj-fixture-key"), "{text}");
+            assert_eq!(fs::read_to_string(&spec).unwrap(), source);
+            assert_eq!(
+                fs::read(project.path().join("default.project.json")).unwrap(),
+                production
+            );
+            assert_eq!(
+                fs::read_to_string(project.path().join("DevPackages/Jest.lua")).unwrap(),
+                "return {}\n"
+            );
+            let calls = fs::read_to_string(project.path().join("tool-calls.txt")).unwrap();
+            assert_eq!(calls.lines().count(), 1, "unexpected preparation: {calls}");
+            assert!(calls.starts_with("rojo sourcemap "), "{calls}");
         }
     }
 }

@@ -1,5 +1,55 @@
 # Release-Hardening Audit
 
+## October 3: Open Cloud missing-credential regressions
+
+The audit began on clean main `2bc6462` (PR #46), with merged-main CI
+`37083248511` passing and no open PRs. Generated cloud CI already refused
+missing credentials; local `rproj test` delegated credential resolution to
+Jest Roblox. No production correction was needed.
+
+The new ordinary regression executes the credential guard extracted from
+generated CI with Git Bash, followed by an offline success marker. All seven
+incomplete combinations are tested with absent and empty variables: each exits
+1, names the required fields and prevents the marker from running. All-present
+synthetic values reach the marker without launching a runner. No API-key value
+is printed. This is an executed shell check, not only a workflow string check.
+
+With `RPROJ_LIVE_JEST_CLI` pointing to installed Jest Roblox CLI 0.4.1,
+`cargo test --locked --test test_workflow open_cloud_missing_credentials_report_names_and_preserve_exit_code -- --ignored --exact --test-threads=1 --nocapture`
+passed in 4.10 seconds. It drives `rproj test` for all seven incomplete
+credential combinations using standard variables and then `JEST_`-prefixed
+variables: 14 refusals, each naming exactly the missing fields with environment
+guidance and preserving runner exit code 2. Each case keeps the production
+project, test source and installed package link byte-identical. Preparation
+uses fixture tools; the existing package-reuse regression still passes.
+
+The real-runner fixture clears all six credential variables only in each child
+environment, supplies synthetic values for present fields, never supplies a
+complete set, and sets the cloud base URL to loopback. It uses disposable
+directories and does not provision applications or change user authentication,
+projects, machine configuration or Studio plugins. This test remains ignored
+without its explicit installed-runner prerequisite. Source excerpts were sent
+to Headroom under the owner's existing approval; diagnostics stayed local.
+
+This establishes missing-credential error handling, not authenticated cloud
+execution or upload success. Fresh-machine provisioning and Windows symlink
+execution also remain separate gaps. No runtime/dependency/version change,
+publication, tag or release preparation. Review and CI evidence belong to the
+implementing PR.
+
+Local gates passed: 435 ordinary Windows tests, with 21 prerequisite-dependent
+tests ignored; formatting, clippy with warnings denied and `git diff --check`
+also passed. The new ordinary shell test requires Bash from the existing Git
+for Windows installation. The restricted sandbox token could not create Bash's
+signal pipe; the test passed under the normal host token used by this suite's
+Windows permission regressions.
+
+CodeRabbit identified an additional Git Bash installation layout; discovery now
+accepts both `bin/bash.exe` and `usr/bin/bash.exe` beside Git's ancestor paths.
+Its advisory to ignore or skip a missing Bash is not adopted: Windows CI provides
+Git Bash, this guard should be exercised by ordinary CI, and unavailable tooling
+must remain a reported prerequisite failure. The requirement is documented.
+
 ## October 3: Template Explorer validation with real Rojo
 
 Clean main `845512a` (PR #45) passed
@@ -21,6 +71,12 @@ modify existing projects, provision tools, or use cloud credentials. This
 verifies the validation boundary, not a new interactive edit/save/cancel session.
 Open Cloud, fresh-machine provisioning, and Windows symlink-privilege execution
 remain separate gaps. No runtime, dependency, version, publication or tag change.
+
+[PR #46](https://github.com/chatarabdelilah/rproj/pull/46) merged at `2bc6462`.
+Its documentation diff was inspected directly. PR head `0c4a027` passed CI
+`37083008971`; merged-main CI `37083248511` passed Windows stable, Rust 1.89,
+and locked packaging. The merged tree matched the reviewed head and completed
+local/remote branches were removed.
 
 ## October 2: combined live verification and negative-gate diagnostics
 
