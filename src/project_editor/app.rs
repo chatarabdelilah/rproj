@@ -1629,18 +1629,31 @@ mod tests {
             return;
         };
         let path = std::path::PathBuf::from(path);
-        let text = std::fs::read_to_string(&path).unwrap_or_else(|_| {
-            serde_json::to_string_pretty(&crate::steps::rojo::builtin_project_template()).unwrap()
-        });
+        let session = std::cell::RefCell::new(
+            crate::config::project_template::EditSession::open_at(&path).unwrap(),
+        );
+        let text = session
+            .borrow()
+            .text()
+            .map(str::to_owned)
+            .unwrap_or_else(|| {
+                serde_json::to_string_pretty(&crate::steps::rojo::builtin_project_template())
+                    .unwrap()
+            });
         super::run(
             text,
             |value| {
-                if std::env::var("RPROJ_EDITOR_TEST_ROJO").as_deref() == Ok("1") {
-                    crate::steps::rojo::validate_template_with_rojo(value)?;
-                }
-                crate::config::project_template::save_to(value, &path).map(|_| ())
+                session
+                    .borrow_mut()
+                    .save(value, |value| {
+                        if std::env::var("RPROJ_EDITOR_TEST_ROJO").as_deref() == Ok("1") {
+                            crate::steps::rojo::validate_template_with_rojo(value)?;
+                        }
+                        Ok(())
+                    })
+                    .map(|_| ())
             },
-            || crate::config::project_template::reset_at(&path).map(|_| ()),
+            || session.borrow_mut().reset().map(|_| ()),
         )
         .unwrap();
         assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
@@ -1708,6 +1721,79 @@ mod tests {
             std::fs::read_dir(path.parent().unwrap()).unwrap().count(),
             1
         );
+    }
+
+    #[test]
+    fn pty_external_template_edit_refuses_save_and_retains_draft() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        let mut expected = write_pty_template(&path);
+        let original = std::fs::read(&path).unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        let external = b"{\"external\": \"preserve this edit\"}\n";
+        std::fs::write(&path, external).unwrap();
+        session.send("\x13");
+        session.wait_for("changed outside this editor");
+        assert_eq!(std::fs::read(&path).unwrap(), external);
+        session.send(common::ESC);
+        session.send("\x03");
+        session.wait_for("Discard changes and exit?");
+        session.send("n");
+        std::fs::write(&path, original).unwrap();
+        save_pty_template(&mut session);
+        expected["serveAddress"] = serde_json::json!("127.0.0.1");
+        assert_pty_template(&path, &expected);
+        session.send("\x03");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+    }
+
+    #[test]
+    fn pty_external_change_refuses_reset_and_preserves_draft() {
+        for scenario in ["changed", "created", "deleted"] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("template.json");
+            if scenario != "created" {
+                write_pty_template(&path);
+            }
+            let original = std::fs::read(&path).ok();
+            let mut session = pty_editor(&path);
+            session.wait_for("rproj project template");
+            edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+            if scenario == "deleted" {
+                std::fs::remove_file(&path).unwrap();
+            } else {
+                std::fs::write(&path, b"external bytes to preserve\n").unwrap();
+            }
+            let external = std::fs::read(&path).ok();
+            session.send("\x12");
+            session.wait_for("Restore the built-in");
+            session.send("y");
+            session.wait_for("Template was not reset");
+            session.wait_for("changed outside this editor");
+            assert_eq!(std::fs::read(&path).ok(), external);
+            assert_eq!(
+                std::fs::read_dir(root.path()).unwrap().count(),
+                usize::from(external.is_some())
+            );
+            session.send(common::ESC);
+            session.send("\x03");
+            session.wait_for("Discard changes and exit?");
+            session.send("n");
+            match original {
+                Some(bytes) => std::fs::write(&path, bytes).unwrap(),
+                None => std::fs::remove_file(&path).unwrap(),
+            }
+            session.send("\x12");
+            session.wait_for("Restore the built-in");
+            session.send("y");
+            session.wait_for("Editor returned");
+            assert_eq!(session.finish().code, 0);
+            assert!(!path.exists());
+            assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        }
     }
 
     #[test]
@@ -2030,7 +2116,9 @@ mod tests {
         assert!(!super::validate_save(
             &mut app,
             draft.clone(),
-            &mut |value| crate::config::project_template::save_to(value, &blocked).map(|_| ())
+            &mut |value| crate::config::project_template::EditSession::open_at(&blocked)?
+                .save(value, |_| Ok(()))
+                .map(|_| ())
         ));
         assert_eq!(app.model().value(), &draft);
         assert_eq!(

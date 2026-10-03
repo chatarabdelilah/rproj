@@ -279,6 +279,7 @@ impl Setups {
 /// Persistence for the machine-wide Rojo project template.
 pub mod project_template {
     use super::*;
+    use anyhow::ensure;
 
     pub fn path() -> Result<PathBuf> {
         Ok(GlobalConfig::dirs()?
@@ -291,24 +292,68 @@ pub mod project_template {
         load_from(&path()?)
     }
 
-    pub fn read_text() -> Result<Option<String>> {
-        read_text_from(&path()?)
+    pub(crate) struct EditSession {
+        path: PathBuf,
+        baseline: Option<String>,
     }
 
-    pub fn save(template: &Value) -> Result<PathBuf> {
-        save_to(template, &path()?)
-    }
-
-    pub fn reset() -> Result<bool> {
-        reset_at(&path()?)
-    }
-
-    pub(crate) fn reset_at(path: &Path) -> Result<bool> {
-        if !path.exists() {
-            return Ok(false);
+    impl EditSession {
+        pub fn open() -> Result<Self> {
+            Self::open_at(&path()?)
         }
-        fs::remove_file(path).with_context(|| format!("failed to remove {}", path.display()))?;
-        Ok(true)
+
+        pub fn open_at(path: &Path) -> Result<Self> {
+            Ok(Self {
+                path: path.to_owned(),
+                baseline: read_text_from(path)?,
+            })
+        }
+
+        pub fn text(&self) -> Option<&str> {
+            self.baseline.as_deref()
+        }
+
+        fn ensure_current(&self) -> Result<()> {
+            ensure!(
+                read_text_from(&self.path)? == self.baseline,
+                "The template changed outside this editor: {}. Your draft is retained. Reopen Template Explorer to load the current file before saving or resetting.",
+                self.path.display()
+            );
+            Ok(())
+        }
+
+        pub fn save(
+            &mut self,
+            template: &Value,
+            validate: impl FnOnce(&Value) -> Result<()>,
+        ) -> Result<PathBuf> {
+            self.ensure_current()?;
+            validate(template)?;
+            self.ensure_current()?;
+            let text = format!("{}\n", serde_json::to_string_pretty(template)?);
+            let staged =
+                crate::file_replace::stage(&self.path, text.as_bytes(), self.baseline.is_some())
+                    .with_context(|| format!("failed to stage {}", self.path.display()))?;
+            // Validation and staging may take time; refuse newly changed input before replacement.
+            self.ensure_current()?;
+            staged
+                .persist(&self.path)
+                .map_err(|error| error.error)
+                .with_context(|| format!("failed to replace {}", self.path.display()))?;
+            self.baseline = Some(text);
+            Ok(self.path.clone())
+        }
+
+        pub fn reset(&mut self) -> Result<bool> {
+            self.ensure_current()?;
+            if self.baseline.is_none() {
+                return Ok(false);
+            }
+            fs::remove_file(&self.path)
+                .with_context(|| format!("failed to remove {}", self.path.display()))?;
+            self.baseline = None;
+            Ok(true)
+        }
     }
 
     pub(crate) fn load_from(path: &Path) -> Result<Option<Value>> {
@@ -325,34 +370,154 @@ pub mod project_template {
     }
 
     fn read_text_from(path: &Path) -> Result<Option<String>> {
-        if !path.exists() {
-            return Ok(None);
+        match fs::read_to_string(path) {
+            Ok(text) => Ok(Some(text)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
         }
-        fs::read_to_string(path)
-            .map(Some)
-            .with_context(|| format!("failed to read {}", path.display()))
     }
 
-    pub(crate) fn save_to(template: &Value, path: &Path) -> Result<PathBuf> {
-        let parent = path
-            .parent()
-            .context("project template path has no parent")?;
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create {}", parent.display()))?;
-        let text = format!("{}\n", serde_json::to_string_pretty(template)?);
-        let mut staged = tempfile::NamedTempFile::new_in(parent)
-            .with_context(|| format!("failed to stage {}", path.display()))?;
-        staged
-            .write_all(text.as_bytes())
-            .with_context(|| format!("failed to stage {}", path.display()))?;
-        staged
-            .as_file()
-            .sync_all()
-            .with_context(|| format!("failed to sync {}", path.display()))?;
-        staged
-            .persist(path)
-            .with_context(|| format!("failed to replace {}", path.display()))?;
-        Ok(path.to_path_buf())
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn external_changes_creation_and_deletion_refuse_save_and_reset() {
+            for scenario in ["changed", "created", "deleted"] {
+                let root = tempfile::tempdir().unwrap();
+                let path = root.path().join("template.json");
+                if scenario != "created" {
+                    fs::write(&path, "original bytes\n").unwrap();
+                }
+                let mut session = EditSession::open_at(&path).unwrap();
+                let baseline = session.baseline.clone();
+                if scenario == "deleted" {
+                    fs::remove_file(&path).unwrap();
+                } else {
+                    fs::write(&path, "external bytes\n").unwrap();
+                }
+                let external = read_text_from(&path).unwrap();
+                let value = serde_json::json!({"draft": true});
+                let error = session
+                    .save(&value, |_| panic!("conflict must precede validation"))
+                    .unwrap_err();
+                assert!(
+                    error.to_string().contains("changed outside this editor"),
+                    "{scenario}: {error}"
+                );
+                assert!(
+                    session
+                        .reset()
+                        .unwrap_err()
+                        .to_string()
+                        .contains("changed outside this editor")
+                );
+                assert_eq!(session.baseline, baseline);
+                assert_eq!(read_text_from(&path).unwrap(), external);
+                assert_eq!(
+                    fs::read_dir(root.path()).unwrap().count(),
+                    usize::from(external.is_some())
+                );
+            }
+        }
+
+        #[test]
+        fn validation_time_changes_are_refused_without_write_artifacts() {
+            for scenario in ["changed", "created", "deleted"] {
+                let root = tempfile::tempdir().unwrap();
+                let path = root.path().join("template.json");
+                if scenario != "created" {
+                    fs::write(&path, "original\n").unwrap();
+                }
+                let mut session = EditSession::open_at(&path).unwrap();
+                let baseline = session.baseline.clone();
+                let error = session
+                    .save(&serde_json::json!({"draft": true}), |_| {
+                        if scenario == "deleted" {
+                            fs::remove_file(&path)?;
+                        } else {
+                            fs::write(&path, "external during validation\n")?;
+                        }
+                        Ok(())
+                    })
+                    .unwrap_err();
+                assert!(
+                    error.to_string().contains("changed outside this editor"),
+                    "{scenario}: {error}"
+                );
+                let external = read_text_from(&path).unwrap();
+                assert_eq!(
+                    external.as_deref(),
+                    (scenario != "deleted").then_some("external during validation\n")
+                );
+                assert_eq!(session.baseline, baseline);
+                assert_eq!(
+                    fs::read_dir(root.path()).unwrap().count(),
+                    usize::from(external.is_some())
+                );
+            }
+        }
+
+        #[test]
+        fn successful_saves_and_reset_refresh_the_session_baseline() {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("templates/template.json");
+            let mut session = EditSession::open_at(&path).unwrap();
+            assert_eq!(session.text(), None);
+            for port in [40000, 40001] {
+                let value = serde_json::json!({"servePort": port, "unknown": "preserve café"});
+                session.save(&value, |_| Ok(())).unwrap();
+                assert_eq!(session.text().unwrap(), fs::read_to_string(&path).unwrap());
+                assert_eq!(load_from(&path).unwrap(), Some(value));
+            }
+            assert!(session.reset().unwrap());
+            assert_eq!(session.text(), None);
+            assert!(!session.reset().unwrap());
+            session
+                .save(&serde_json::json!({"afterReset": true}), |_| Ok(()))
+                .unwrap();
+            assert_eq!(
+                load_from(&path).unwrap(),
+                Some(serde_json::json!({"afterReset": true}))
+            );
+            assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+        }
+
+        #[test]
+        fn rejected_validation_keeps_original_and_allows_retry() {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("template.json");
+            fs::write(&path, "malformed input to repair\n").unwrap();
+            let mut session = EditSession::open_at(&path).unwrap();
+            let value = serde_json::json!({"repaired": true});
+            session
+                .save(&value, |_| anyhow::bail!("refused by validator"))
+                .unwrap_err();
+            assert_eq!(
+                fs::read_to_string(&path).unwrap(),
+                "malformed input to repair\n"
+            );
+            assert_eq!(session.text(), Some("malformed input to repair\n"));
+            assert_eq!(fs::read_dir(root.path()).unwrap().count(), 1);
+            session.save(&value, |_| Ok(())).unwrap();
+            assert_eq!(load_from(&path).unwrap(), Some(value));
+        }
+
+        #[test]
+        fn unreadable_template_is_not_treated_as_absent() {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("template.json");
+            fs::create_dir(&path).unwrap();
+            fs::write(path.join("owned"), "preserve").unwrap();
+            assert!(
+                EditSession::open_at(&path)
+                    .err()
+                    .unwrap()
+                    .to_string()
+                    .contains("failed to read")
+            );
+            assert_eq!(fs::read_to_string(path.join("owned")).unwrap(), "preserve");
+        }
     }
 }
 
@@ -467,7 +632,10 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         let template = serde_json::json!({"name": "ProjectName", "tree": {}});
 
-        project_template::save_to(&template, &path).expect("save template");
+        project_template::EditSession::open_at(&path)
+            .unwrap()
+            .save(&template, |_| Ok(()))
+            .expect("save template");
         assert_eq!(
             project_template::load_from(&path).expect("load template"),
             Some(template)
@@ -502,10 +670,11 @@ mod tests {
         fs::write(&path, "{}").expect("write template");
         fs::write(&sibling, "last_checked = 'now'").expect("write sibling");
 
-        assert!(project_template::reset_at(&path).expect("reset template"));
+        let mut session = project_template::EditSession::open_at(&path).unwrap();
+        assert!(session.reset().expect("reset template"));
         assert!(!path.exists());
         assert!(sibling.exists(), "reset removed unrelated configuration");
-        assert!(!project_template::reset_at(&path).expect("repeat reset"));
+        assert!(!session.reset().expect("repeat reset"));
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -521,7 +690,10 @@ mod tests {
         fs::write(&path, "previous contents").expect("write previous template");
 
         let template = serde_json::json!({ "name": "ProjectName", "tree": {} });
-        project_template::save_to(&template, &path).expect("replace template");
+        project_template::EditSession::open_at(&path)
+            .unwrap()
+            .save(&template, |_| Ok(()))
+            .expect("replace template");
 
         assert_eq!(
             fs::read_to_string(&path).expect("read replacement"),

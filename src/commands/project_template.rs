@@ -1,24 +1,36 @@
 use anyhow::Result;
+use std::cell::RefCell;
 
 use crate::config::project_template;
 use crate::project_editor;
 use crate::steps::rojo;
 
 pub fn run() -> Result<()> {
-    project_editor::run(draft()?, save, || project_template::reset().map(|_| ()))?;
+    let session = RefCell::new(project_template::EditSession::open()?);
+    let text = draft(&session.borrow())?;
+    project_editor::run(
+        text,
+        |value| save(&session, value),
+        || session.borrow_mut().reset().map(|_| ()),
+    )?;
     Ok(())
 }
 
 pub fn run_in(terminal: &mut crate::tui::TerminalSession) -> Result<()> {
-    project_editor::run_in(terminal, draft()?, save, || {
-        project_template::reset().map(|_| ())
-    })?;
+    let session = RefCell::new(project_template::EditSession::open()?);
+    let text = draft(&session.borrow())?;
+    project_editor::run_in(
+        terminal,
+        text,
+        |value| save(&session, value),
+        || session.borrow_mut().reset().map(|_| ()),
+    )?;
     Ok(())
 }
 
-fn draft() -> Result<String> {
-    Ok(match project_template::read_text()? {
-        Some(text) => text,
+fn draft(session: &project_template::EditSession) -> Result<String> {
+    Ok(match session.text() {
+        Some(text) => text.to_owned(),
         None => format!(
             "{}\n",
             serde_json::to_string_pretty(&rojo::builtin_project_template())?
@@ -26,8 +38,9 @@ fn draft() -> Result<String> {
     })
 }
 
-fn save(value: &serde_json::Value) -> Result<()> {
-    rojo::validate_template_with_rojo(value)?;
-    project_template::save(value)?;
+fn save(session: &RefCell<project_template::EditSession>, value: &serde_json::Value) -> Result<()> {
+    session
+        .borrow_mut()
+        .save(value, rojo::validate_template_with_rojo)?;
     Ok(())
 }
