@@ -77,6 +77,13 @@ validation across all ten generated variants; an invalid property was refused.
 This verifies Template Explorer's validation boundary, not a new interactive
 editing session. See the dated audit for the command and remaining limits.
 
+Open Cloud missing-credential handling now has executed regression coverage:
+the generated CI guard rejects absent/empty credentials before the runner step,
+and installed Jest 0.4.1 through `rproj test` names missing fields and preserves
+exit code 2 for standard and prefixed environment variables. Synthetic partial
+credentials and a loopback endpoint are used; authenticated cloud execution
+remains unverified. See the October 3 audit.
+
 ### 1. Establish The Baseline
 
 - Run formatting, ordinary tests, clippy, and locked packaging on a clean checkout.
