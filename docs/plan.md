@@ -77,6 +77,14 @@ validation across all ten generated variants; an invalid property was refused.
 This verifies Template Explorer's validation boundary, not a new interactive
 editing session. See the dated audit for the command and remaining limits.
 
+Template Explorer's isolated terminal harness now covers edited-draft
+discard, byte/absence preservation, invalid-JSON recovery, and Windows locked
+replacement retry. An explicit installed-Rojo run also exercises valid save,
+upstream refusal and corrected-draft recovery across generated variants.
+The tests use disposable persistence paths and check raw-mode restoration;
+they do not modify the user's global template or expand Rojo's accepted fields.
+See the dated audit for boundaries and evidence.
+
 Open Cloud missing-credential handling now has executed regression coverage:
 the generated CI guard rejects absent/empty credentials before the runner step,
 and installed Jest 0.4.1 through `rproj test` names missing fields and preserves

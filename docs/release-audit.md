@@ -1,5 +1,52 @@
 # Release-Hardening Audit
 
+## October 3: Template Explorer terminal recovery regressions
+
+Verification started from clean main `729beb5` after the 0.19.0 publication
+closeout. The new code is confined to the existing `#[cfg(test)]` editor
+harness; runtime behavior, dependencies and Cargo versions are unchanged.
+
+Four new ordinary terminal regressions exercise first-edit cancellation with
+an existing or absent template, saving then discarding a later draft with
+Esc/Ctrl+C, invalid-JSON refusal followed by repair, and a real Windows sharing
+violation followed by retry. They preserve original bytes or file absence,
+unknown fields at the editor/persistence boundary and unrelated settings,
+confirm the draft survives a failed save, verify temporary-file cleanup,
+reopen saved content and assert raw mode is disabled after the editor returns.
+
+The child harness runs the production editor loop and existing atomic template
+writer with an injected disposable path; it does not change the user's global
+template, machine configuration, projects, plugins or authentication. Basic
+Home/editor handoff remains covered by the existing hub integration tests;
+these new cases exercise the isolated editor and save boundary.
+
+With installed Rojo 7.7.0,
+`cargo test --locked --bin rproj project_editor::app::tests::pty_real_rojo_save_and_rejection_preserve_last_valid_template -- --ignored --exact --nocapture`
+passed in 5.38 seconds. Through the real terminal loop, valid edits passed all
+ten generated sourcemap/build variants; invalid `servePlaceIds` was refused
+before persistence; repairing the draft passed validation and saved. The last
+valid file remained byte-identical during refusal. This installed-tool test
+remains ignored without its prerequisite and is not an ordinary-CI pass.
+
+Two fixture assumptions were corrected during verification: Rojo rejects an
+invented unknown top-level field, so the live fixture uses supported fields;
+ConPTY may deliver pasted characters separately, so the live repair uses
+ordinary editing keys rather than assuming one Undo removes the whole paste.
+Unknown-field preservation is tested separately without claiming upstream Rojo
+acceptance. No production defect was reproduced.
+
+Local gates passed: 439 ordinary Windows tests with 22 prerequisite-dependent
+tests ignored, formatting, clippy with warnings denied and `git diff --check`.
+Headroom processed the approved source diff and saved 16 tokens; diagnostic
+logs stayed local. Iterative CodeRabbit review reported zero findings. The
+whole-branch review of `d1651ab` found only a stale aggregate test count in
+architecture; it is corrected to 461 discovered (388 unit/73 integration),
+439 ordinary and 22 ignored. The documentation-only correction was inspected
+directly without repeating successful runtime/live gates. Exact-head/main CI
+closeout is recorded on [PR #50](https://github.com/chatarabdelilah/rproj/pull/50),
+including final-head/main Git identities, CI runs and branch cleanup. No new
+release candidate or publication is needed.
+
 ## October 3: 0.19.0 publication verified
 
 The owner published 0.19.0 to crates.io at `2026-10-03T16:55:48.275821Z`.
