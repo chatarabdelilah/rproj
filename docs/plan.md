@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 2, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 3, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -70,6 +70,12 @@ defects after a terminal return produced syntax errors. The corrected fixture
 passed separately, now requiring actual type/lint/format diagnostics and rejecting
 parse errors. See the dated audit for exact revisions and results; Open Cloud
 and fresh-machine provisioning remain separate gaps.
+
+October 3 verification ran the three ignored real-Rojo template tests on main
+`845512a`. Built-in templates and guided compound values passed sourcemap/build
+validation across all ten generated variants; an invalid property was refused.
+This verifies Template Explorer's validation boundary, not a new interactive
+editing session. See the dated audit for the command and remaining limits.
 
 ### 1. Establish The Baseline
 

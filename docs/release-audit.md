@@ -1,5 +1,27 @@
 # Release-Hardening Audit
 
+## October 3: Template Explorer validation with real Rojo
+
+Clean main `845512a` (PR #45) passed
+`cargo test --locked --bin rproj real_rojo -- --ignored --test-threads=1 --nocapture`
+with installed Rojo 7.7.0: **three passed, zero failed, zero ignored**, in
+4.24 seconds. This explicitly executes three prerequisite-dependent tests
+that remain ignored in ordinary CI; it does not change the ordinary test count.
+
+- The built-in template passed sourcemap generation and binary builds for all
+  ten validation variants: plain, plain with tests, four Wally combinations,
+  two submodule combinations, and two Jest combinations.
+- Guided CFrame, UDim2, UDim, and Rect attribute values, plus guided GUI
+  Size/SliceCenter/Padding properties, passed the same real-Rojo validation.
+- An invalid Part Anchored value was refused with a Rojo rejection error.
+
+These tests use disposable validation workspaces, and no matching temporary
+workspace remained afterward. They do not save the user's global template or
+modify existing projects, provision tools, or use cloud credentials. This
+verifies the validation boundary, not a new interactive edit/save/cancel session.
+Open Cloud, fresh-machine provisioning, and Windows symlink-privilege execution
+remain separate gaps. No runtime, dependency, version, publication or tag change.
+
 ## October 2: combined live verification and negative-gate diagnostics
 
 After the GitHub API quota reset, clean main `144c35a` (PR #44) passed
@@ -39,6 +61,12 @@ no machine applications, authentication or user projects were changed. Headroom
 was used for authorized source compression; diagnostic logs stayed local.
 Open Cloud, fresh-machine provisioning, and Windows symlink-privilege execution
 remain separate gaps. No version bump, publication, tag or release is prepared.
+
+[PR #45](https://github.com/chatarabdelilah/rproj/pull/45) merged at `845512a`.
+CodeRabbit reported zero findings on reviewed head `5c92dbe`. PR CI
+`37058950254` and merged-main CI `37059254161` passed Windows stable, Rust 1.89,
+and locked packaging. The merged tree matched the reviewed head; completed
+local and remote branches were removed.
 
 ## October 2: live workflow audit and repeated test preparation
 
