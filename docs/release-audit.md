@@ -44,6 +44,12 @@ for Windows installation. The restricted sandbox token could not create Bash's
 signal pipe; the test passed under the normal host token used by this suite's
 Windows permission regressions.
 
+CodeRabbit identified an additional Git Bash installation layout; discovery now
+accepts both `bin/bash.exe` and `usr/bin/bash.exe` beside Git's ancestor paths.
+Its advisory to ignore or skip a missing Bash is not adopted: Windows CI provides
+Git Bash, this guard should be exercised by ordinary CI, and unavailable tooling
+must remain a reported prerequisite failure. The requirement is documented.
+
 ## October 3: Template Explorer validation with real Rojo
 
 Clean main `845512a` (PR #45) passed

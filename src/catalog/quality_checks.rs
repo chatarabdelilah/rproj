@@ -371,7 +371,7 @@ mod tests {
             let exec_path = PathBuf::from(String::from_utf8(git.stdout).unwrap().trim());
             exec_path
                 .ancestors()
-                .map(|root| root.join("bin/bash.exe"))
+                .flat_map(|root| [root.join("bin/bash.exe"), root.join("usr/bin/bash.exe")])
                 .find(|path| path.is_file())
                 .expect("Git for Windows must include Bash")
         } else {

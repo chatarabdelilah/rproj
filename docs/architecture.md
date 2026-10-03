@@ -1254,6 +1254,12 @@ T5's `commands::machine_setup` selection/worker/TUI tests and `steps::execution`
 
 As of October 3, 2026, `cargo test` discovers 456 tests on Windows: 383 unit tests and 73 integration tests. Twenty-one prerequisite-dependent tests are ignored in the ordinary suite, leaving 435 ordinary tests. T5 added selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
 
+The ordinary generated-cloud credential guard regression executes Bash from
+the existing Git for Windows installation (`bin` or `usr/bin`); Windows CI
+runners provide this prerequisite. An unavailable Bash is a prerequisite failure,
+not a skipped passing check. Restricted Windows tokens can prevent Bash's signal
+pipe creation, so local execution uses the normal host token, like the DACL tests.
+
 T3 covers shallow discovery, canonical deduplication, Unicode filtering, junction exclusion, malformed/missing-root warnings, stale-worker results, Back preservation, creation handoff, responsive renders, and removed-target rejection. A child test process launched in B exercises Watch subprocess and Upgrade writes in A; Copy uses an injected sink instead of the real clipboard. Existing PTY checks cover selected-project actions and repeated Watch interruption. Catalog presentation removal leaves generated template data unchanged.
 
 T2 adds package-guide coverage and import-alias tests; grouped Catalog completeness, ordering, Back state, End/Up detail scrolling, and four-size renders; real PTY repeated save/reset and malformed-JSON repair; save-baseline/atomic-failure regressions; and Home template/command cancellation plus Windows foreground child-interruption tests. The editor PTY driver exists only in the unit-test executable and writes isolated temporary files. Its persistence callback exercises the real atomic writer; Rojo authority is covered separately by the real-Rojo suite. Existing live creation checks now acknowledge command completion and return Home before exiting.
