@@ -1,5 +1,59 @@
 # Release-Hardening Audit
 
+## October 3: 0.19.0 alpha candidate preparation
+
+Preparation started from clean main `a47d818` (PR #47), whose merged-main
+CI `37108848149` passed. The owner approved preparing the next release.
+`codex/release-0-19-0` aligns Cargo.toml and the root Cargo.lock entry to
+0.19.0 without changing dependency resolution. Dedicated release notes cover
+the merged changes in PRs #38–#47 and their remaining alpha limitations.
+
+Candidate local gates passed on Windows with Cargo 1.94.0: 435 ordinary tests
+passed and 21 prerequisite-dependent tests were ignored; formatting, clippy
+with warnings denied, locked offline metadata and `git diff --check` passed.
+The lockfile diff changes only the root package version.
+
+Applicable ignored checks were then executed explicitly on the candidate:
+
+- `RPROJ_TEST_TIMEOUT=180 cargo test --locked --test live -- --ignored --test-threads=1 --nocapture`:
+  all 14 passed together in 141.82 seconds, including actual negative-gate
+  diagnostics, setup replay/refusal, Watch recovery and local Jest pass/fail.
+- `cargo test --locked --bin rproj real_rojo -- --ignored --test-threads=1 --nocapture`:
+  all three passed in 4.93 seconds, covering ten built-in/guided validation
+  variants and rejection of an invalid property.
+- With `RPROJ_LIVE_JEST_CLI` selecting installed Jest Roblox CLI 0.4.1,
+  `cargo test --locked --test test_workflow open_cloud_missing_credentials_report_names_and_preserve_exit_code -- --ignored --exact --test-threads=1 --nocapture`:
+  passed in 5.01 seconds, exercising 14 refusals with synthetic partial values.
+
+Installed tools included Rojo 7.7.0, Wally 0.3.2, Rokit 1.2.0, Git for Windows
+2.52.0, Selene 0.31.0 and StyLua 2.5.2. Before/after comparisons confirmed
+unchanged machine configuration, Jest Studio plugin bytes, existing project
+names and saved setup names. Disposable fixture cleanup completed.
+Headroom processed the approved Cargo version diff (zero tokens saved);
+diagnostic logs stayed local.
+
+Clean candidate `4c34500` passed `cargo package --locked`: 101 files,
+1.3 MiB (324.0 KiB compressed), followed by a successful extracted-package build.
+The file list excludes documentation, development metadata and user secrets.
+Both packaged Cargo files use 0.19.0, retain Rust 1.89, and the package Git
+identity matches the clean commit. Subsequent documentation-only updates do
+not alter the tested source, dependencies or packaged file set.
+
+The final `cr review --agent --base main` review of `41f1b18` reported zero
+findings across all six changed files. The iterative review's pending-gate
+advisory confused this candidate with prior PR #47 evidence; the sections now
+explicitly distinguish them. Later documentation-only evidence updates are
+inspected directly. Exact-head and merged-main CI must both pass and be recorded
+on [release PR #48](https://github.com/chatarabdelilah/rproj/pull/48) before
+owner publication. That PR's closeout records the final candidate Git identity,
+both CI runs, tree preservation and completed branch cleanup.
+
+Publication remains the owner's action. No 0.19.0 tag or GitHub
+release has been created. Authenticated Open Cloud execution, fresh Windows
+provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
+Scribe Studio playtesting and unavailable Windows symlink privileges remain
+unverified; Unix permission-mode checks were not run on Windows.
+
 ## October 3: Open Cloud missing-credential regressions
 
 The audit began on clean main `2bc6462` (PR #46), with merged-main CI
@@ -49,6 +103,12 @@ accepts both `bin/bash.exe` and `usr/bin/bash.exe` beside Git's ancestor paths.
 Its advisory to ignore or skip a missing Bash is not adopted: Windows CI provides
 Git Bash, this guard should be exercised by ordinary CI, and unavailable tooling
 must remain a reported prerequisite failure. The requirement is documented.
+
+[PR #47](https://github.com/chatarabdelilah/rproj/pull/47) merged at `a47d818`.
+Final CodeRabbit review of head `e1e40df` reported zero findings. PR CI
+`37108674698` and merged-main CI `37108848149` passed Windows stable,
+Rust 1.89 and locked packaging. The merged tree matched the reviewed head;
+the completed local and remote branch was removed.
 
 ## October 3: Template Explorer validation with real Rojo
 
