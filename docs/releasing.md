@@ -2,13 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.18.1**, at `9d136812d5d33d358b67a36e503db47466fc0760`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.18.1) are verified. See [release notes](release-notes-0.18.1.md), [audit evidence](release-audit.md), and [PR #36](https://github.com/chatarabdelilah/rproj/pull/36). The next public-alpha candidate is **0.19.0**; see its [dedicated notes](release-notes-0.19.0.md).
+The published baseline is **v0.19.0**, at `68fa47929fc9deea81a3a8447e01db9f8cd71301`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.0) are verified. See [release notes](release-notes-0.19.0.md), [audit evidence](release-audit.md), and [PR #48](https://github.com/chatarabdelilah/rproj/pull/48). No later release candidate is prepared.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-The active unpublished candidate is **0.19.0**, containing the merged changes in PRs #38–#47. Its preparation and remaining gates are recorded in [the audit](release-audit.md). The latest published release remains **0.18.1**, at `9d136812d5d33d358b67a36e503db47466fc0760`. Crates.io published it on September 29, 2026 with checksum `e2080b8fef645191fdb7e6c0df5c33b11530a0678080a5efdac067bab285c7d3`; the archive Git identity, annotated tag, and GitHub prerelease match that commit. Fresh-machine installation acceptance remains unverified.
+No unpublished release candidate is active. The latest published release is **0.19.0**, containing the merged changes in PRs #38–#47, prepared in PR #48 at `68fa47929fc9deea81a3a8447e01db9f8cd71301`. Crates.io published it on October 3, 2026 with checksum `f7711708ad0669085feedbe5f2ae7194c6e59a10eed53b36863ae253162047f8`; the archive Git identity, annotated tag, and GitHub prerelease match that commit. Fresh-machine installation acceptance remains unverified. Previous release evidence remains in [the audit](release-audit.md).
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.

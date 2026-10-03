@@ -1,6 +1,6 @@
 # rproj 0.19.0 — Safer project maintenance and UI Labs
 
-Public-alpha candidate; not yet published.
+Published October 3, 2026. Public alpha.
 
 ## Changes
 
@@ -40,9 +40,9 @@ all 14 live workflow tests, three real-Rojo validation tests, and the installed
 Jest credential-refusal regression. Locked packaging and its extracted-package
 build passed with an inspected 101-file archive. Final CodeRabbit review reported
 zero findings. [Release PR #48](https://github.com/chatarabdelilah/rproj/pull/48)
-records reviewed-head and merged-main CI before
-publication; [the release audit](release-audit.md) records local commands and
-evidence.
+passed reviewed-head and merged-main Windows stable, Rust 1.89, and package CI.
+The published archive matches release commit `68fa479`;
+[the release audit](release-audit.md) records local commands and evidence.
 
 This release adds the Windows-only `windows-permissions` 0.2.4 dependency for
 permission-preserving saves. Local validation runs on Windows; authenticated

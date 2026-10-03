@@ -1,5 +1,32 @@
 # Release-Hardening Audit
 
+## October 3: 0.19.0 publication verified
+
+The owner published 0.19.0 to crates.io at `2026-10-03T16:55:48.275821Z`.
+The version is not yanked and crates.io reports it as current. The downloaded
+archive's SHA-256 matches registry checksum
+`f7711708ad0669085feedbe5f2ae7194c6e59a10eed53b36863ae253162047f8`.
+Its `.cargo_vcs_info.json` identifies
+`68fa47929fc9deea81a3a8447e01db9f8cd71301`, exactly the clean, reviewed release
+commit from [PR #48](https://github.com/chatarabdelilah/rproj/pull/48).
+Both packaged Cargo files identify 0.19.0. No publication was performed by
+the agent.
+
+PR #48's final head `fbd8052` passed CI `37135709267`; merged release commit
+`68fa479` passed CI `37135909071`. Both passed Windows stable, Rust 1.89 and
+locked packaging. Their trees matched exactly and the completed local/remote
+release branch was removed. Badge freshness was skipped and is not a pass.
+
+After archive verification, annotated tag `v0.19.0` was created at `68fa479`.
+Remote tag object `64ca544de4f1880e24f60561f776acee9647ad1c` peels to that same
+commit. The matching [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.0)
+was published at `2026-10-03T17:00:43Z`, is not a draft, and remains marked
+as a prerelease. Its body uses the dedicated 0.19.0 release notes.
+
+The documentation closeout changes no runtime, dependencies or version.
+Publication closes release alignment; the acceptance gaps listed below remain
+unverified. No subsequent release candidate is active.
+
 ## October 3: 0.19.0 alpha candidate preparation
 
 Preparation started from clean main `a47d818` (PR #47), whose merged-main
@@ -48,8 +75,9 @@ on [release PR #48](https://github.com/chatarabdelilah/rproj/pull/48) before
 owner publication. That PR's closeout records the final candidate Git identity,
 both CI runs, tree preservation and completed branch cleanup.
 
-Publication remains the owner's action. No 0.19.0 tag or GitHub
-release has been created. Authenticated Open Cloud execution, fresh Windows
+At preparation closeout, owner publication and tag/GitHub release alignment
+were pending; the publication section above records their subsequent completion.
+Authenticated Open Cloud execution, fresh Windows
 provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
 Scribe Studio playtesting and unavailable Windows symlink privileges remain
 unverified; Unix permission-mode checks were not run on Windows.
