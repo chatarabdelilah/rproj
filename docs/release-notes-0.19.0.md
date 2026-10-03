@@ -37,7 +37,8 @@ multi-file transactions.
 The candidate passed 435 ordinary Windows tests, formatting and clippy. Its
 21 ignored tests were not counted as passes; explicit installed-tool runs passed
 all 14 live workflow tests, three real-Rojo validation tests, and the installed
-Jest credential-refusal regression. Packaging, final review and CI are pending;
+Jest credential-refusal regression. Locked packaging and its extracted-package
+build passed with an inspected 101-file archive. Final review and CI are pending;
 [the release audit](release-audit.md) records the commands and evidence.
 
 This release adds the Windows-only `windows-permissions` 0.2.4 dependency for

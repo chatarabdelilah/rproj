@@ -32,10 +32,16 @@ names and saved setup names. Disposable fixture cleanup completed.
 Headroom processed the approved Cargo version diff (zero tokens saved);
 diagnostic logs stayed local.
 
-For the new 0.19.0 candidate, locked packaging, final CodeRabbit review,
-reviewed-head CI and merged-main CI are pending; completed PR #47 evidence
-below belongs to the preceding change. Publication remains the owner's action.
-No 0.19.0 tag or GitHub
+Clean candidate `4c34500` passed `cargo package --locked`: 101 files,
+1.3 MiB (324.0 KiB compressed), followed by a successful extracted-package build.
+The file list excludes documentation, development metadata and user secrets.
+Both packaged Cargo files use 0.19.0, retain Rust 1.89, and the package Git
+identity matches the clean commit. Subsequent documentation-only updates do
+not alter the tested source, dependencies or packaged file set.
+
+For the new 0.19.0 candidate, final CodeRabbit review, reviewed-head CI and
+merged-main CI are pending; completed PR #47 evidence below belongs to the
+preceding change. Publication remains the owner's action. No 0.19.0 tag or GitHub
 release has been created. Authenticated Open Cloud execution, fresh Windows
 provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
 Scribe Studio playtesting and unavailable Windows symlink privileges remain
