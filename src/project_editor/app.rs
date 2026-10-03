@@ -1616,14 +1616,24 @@ mod tests {
         });
         super::run(
             text,
-            |value| crate::config::project_template::save_to(value, &path).map(|_| ()),
+            |value| {
+                if std::env::var("RPROJ_EDITOR_TEST_ROJO").as_deref() == Ok("1") {
+                    crate::steps::rojo::validate_template_with_rojo(value)?;
+                }
+                crate::config::project_template::save_to(value, &path).map(|_| ())
+            },
             || crate::config::project_template::reset_at(&path).map(|_| ()),
         )
         .unwrap();
+        assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
         println!("Editor returned");
     }
 
     fn pty_editor(path: &std::path::Path) -> common::Session {
+        pty_editor_with_rojo(path, false)
+    }
+
+    fn pty_editor_with_rojo(path: &std::path::Path, real_rojo: bool) -> common::Session {
         common::Session::start_program(
             &std::env::current_exe().unwrap(),
             path.parent().unwrap(),
@@ -1632,8 +1642,224 @@ mod tests {
                 "--exact",
                 "--nocapture",
             ],
-            &[("RPROJ_EDITOR_TEST_PATH", path.to_str().unwrap())],
+            &[
+                ("RPROJ_EDITOR_TEST_PATH", path.to_str().unwrap()),
+                ("RPROJ_EDITOR_TEST_ROJO", if real_rojo { "1" } else { "0" }),
+                ("RPROJ_NO_LOG", "1"),
+            ],
         )
+    }
+
+    fn write_pty_template(path: &std::path::Path) -> serde_json::Value {
+        let mut value = crate::steps::rojo::builtin_project_template();
+        value["servePort"] = serde_json::json!(40000);
+        value["futureSetting"] = serde_json::json!({"note": "preserve café"});
+        std::fs::write(
+            path,
+            format!(" \n{}\n\n", serde_json::to_string_pretty(&value).unwrap()),
+        )
+        .unwrap();
+        value
+    }
+
+    fn paste_json_field(session: &mut common::Session, field: &str, marker: &str) {
+        session.send("\x1b[C");
+        session.send(&format!("\x1b[200~\n  {field},\x1b[201~"));
+        session.wait_for(marker);
+    }
+
+    fn edit_json_field(session: &mut common::Session, field: &str, marker: &str) {
+        session.send("\x05");
+        session.wait_for("Advanced JSON");
+        paste_json_field(session, field, marker);
+        session.send(common::ESC);
+        session.wait_for("JSON changes applied to the draft.");
+    }
+
+    fn save_pty_template(session: &mut common::Session) {
+        let checkpoint = session.output_checkpoint();
+        session.send("\x13");
+        session.wait_for_output_since(checkpoint, "Template saved.");
+    }
+
+    fn assert_pty_template(path: &std::path::Path, expected: &serde_json::Value) {
+        let actual: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(&actual, expected);
+        assert_eq!(
+            std::fs::read_dir(path.parent().unwrap()).unwrap().count(),
+            1
+        );
+    }
+
+    #[test]
+    fn pty_discard_first_edit_preserves_original_bytes_or_absence() {
+        for existing in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("template.json");
+            if existing {
+                write_pty_template(&path);
+            }
+            let original = std::fs::read(&path).ok();
+            let mut session = pty_editor(&path);
+            session.wait_for("rproj project template");
+            edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+            session.send("\x03");
+            session.wait_for("Discard changes and exit?");
+            session.send("y");
+            session.wait_for("Editor returned");
+            assert_eq!(session.finish().code, 0);
+            assert_eq!(std::fs::read(&path).ok(), original);
+            assert_eq!(
+                std::fs::read_dir(root.path()).unwrap().count(),
+                usize::from(existing)
+            );
+        }
+    }
+
+    #[test]
+    fn pty_edited_save_then_discard_preserves_unknown_fields() {
+        for exit_key in [common::ESC, "\x03"] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("template.json");
+            let mut expected = write_pty_template(&path);
+            let mut session = pty_editor(&path);
+            session.wait_for("rproj project template");
+            edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+            save_pty_template(&mut session);
+            expected["serveAddress"] = serde_json::json!("127.0.0.1");
+            assert_pty_template(&path, &expected);
+            let saved = std::fs::read(&path).unwrap();
+
+            edit_json_field(&mut session, "\"placeId\": 123456", "123456");
+            session.send(exit_key);
+            session.wait_for("Discard");
+            session.send("n");
+            session.send("?");
+            session.wait_for("Navigation");
+            session.send(common::ESC);
+            session.send(exit_key);
+            session.wait_for("Discard");
+            session.send("y");
+            session.wait_for("Editor returned");
+            assert_eq!(session.finish().code, 0);
+            assert_eq!(std::fs::read(&path).unwrap(), saved);
+
+            let mut session = pty_editor(&path);
+            session.wait_for("rproj project template");
+            session.send("\x05");
+            session.wait_for("127.0.0.1");
+            session.send("\x03");
+            session.wait_for("Editor returned");
+            assert_eq!(session.finish().code, 0);
+            assert_pty_template(&path, &expected);
+        }
+    }
+
+    #[test]
+    fn pty_invalid_json_refuses_then_repaired_draft_saves() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        let mut expected = write_pty_template(&path);
+        let original = std::fs::read(&path).unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        session.send("\x05");
+        session.wait_for("Advanced JSON");
+        session.send("!\x13");
+        session.wait_for("Template was not saved: invalid JSON");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        assert_pty_template(&path, &expected);
+        session.send(common::ESC);
+        session.send("\x1a");
+        paste_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        save_pty_template(&mut session);
+        expected["serveAddress"] = serde_json::json!("127.0.0.1");
+        assert_pty_template(&path, &expected);
+        session.send("\x03");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn pty_failed_replacement_keeps_saved_file_and_draft_for_retry() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        let mut expected = write_pty_template(&path);
+        let original = std::fs::read(&path).unwrap();
+        let held = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(3) // Permit reads/writes, but refuse replacement via DELETE sharing.
+            .open(&path)
+            .unwrap();
+        let mut session = pty_editor(&path);
+        session.wait_for("rproj project template");
+        edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        session.send("\x13");
+        session.wait_for("failed to replace");
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        assert_pty_template(&path, &expected);
+        session.send(common::ESC);
+        session.send("\x03");
+        session.wait_for("Discard changes and exit?");
+        session.send("n");
+        session.send("?");
+        session.wait_for("Navigation");
+        session.send(common::ESC);
+        drop(held);
+        save_pty_template(&mut session);
+        expected["serveAddress"] = serde_json::json!("127.0.0.1");
+        assert_pty_template(&path, &expected);
+        session.send(common::ESC);
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+    }
+
+    #[test]
+    #[ignore = "requires a real Rojo binary on PATH"]
+    fn pty_real_rojo_save_and_rejection_preserve_last_valid_template() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("template.json");
+        let mut expected = write_pty_template(&path);
+        // Rojo rejects unknown top-level fields; that preservation boundary is tested separately.
+        expected.as_object_mut().unwrap().remove("futureSetting");
+        std::fs::write(&path, serde_json::to_string_pretty(&expected).unwrap()).unwrap();
+        let mut session = pty_editor_with_rojo(&path, true);
+        session.wait_for("rproj project template");
+        edit_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        save_pty_template(&mut session);
+        expected["serveAddress"] = serde_json::json!("127.0.0.1");
+        assert_pty_template(&path, &expected);
+        let saved = std::fs::read(&path).unwrap();
+
+        session.send("\x05");
+        session.wait_for("Advanced JSON");
+        paste_json_field(
+            &mut session,
+            "\"servePlaceIds\": \"not-an-array\"",
+            "not-an-array",
+        );
+        session.send("\x13");
+        session.wait_for("Rojo rejected the plain template");
+        assert_eq!(std::fs::read(&path).unwrap(), saved);
+        assert_pty_template(&path, &expected);
+        session.send(common::ESC);
+        session.send("\x03");
+        session.wait_for("Discard changes and exit?");
+        session.send("n");
+        // ConPTY may deliver pasted characters separately, so repair the value with ordinary keys.
+        session.send("\x1b[D");
+        session.send(&"\x7f".repeat("\"not-an-array\"".len()));
+        session.send("[]");
+        session.wait_for("\"servePlaceIds\": []");
+        save_pty_template(&mut session);
+        expected["servePlaceIds"] = serde_json::json!([]);
+        session.send("\x03");
+        session.wait_for("Editor returned");
+        assert_eq!(session.finish().code, 0);
+        assert_pty_template(&path, &expected);
     }
 
     #[test]
