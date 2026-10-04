@@ -1,5 +1,28 @@
 # Release-Hardening Audit
 
+## October 4: Saved Setups browser resize recovery
+
+Work started from clean main `30e2b7b` (PR #58), with no open PRs.
+The existing Saved Setups rendering regression now types a filter over 31
+matching disposable setups and one excluded setup, selects `sample29`, and
+scrolls both its list and composition details. One app and TestBackend resize
+through 120 x 30, 280 x 70, 80 x 24, 60 x 16, 40 x 10 and back.
+
+The test checks the selected row and highlight within the list pane, selected
+document, query, focus and detail scroll; Help closes to the exact prior buffer
+at every size. Restored composition cells match the original buffer, scrolling
+still works, and Actions/Back retains the selected setup and browser scroll.
+Existing storage-error and editor Help checks remain covered. List offsets may
+adjust with viewport size. This is TestBackend coverage, not a new PTY check.
+
+Formatting, diff checks, clippy with warnings denied and all 453 ordinary tests
+passed; 22 prerequisite-dependent tests remain ignored. The full suite ran with
+normal Windows permissions. CodeRabbit CLI 0.7.6 connected after explicit owner
+approval but returned a 12-minute quota cooldown; no local review result is
+claimed. PR review and CI evidence will be recorded before closeout.
+No runtime, dependency or version change is involved; published 0.19.1 remains
+unchanged, and the test uses only temporary setup storage.
+
 ## October 4: Projects PTY resize recovery
 
 Work started from clean main `429b4bd` (PR #57), with no open PRs.
