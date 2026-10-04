@@ -1,5 +1,61 @@
 # Release-Hardening Audit
 
+## October 4: 0.19.1 patch candidate preparation
+
+Preparation started from clean main `32b4673` (PR #52), with successful
+merged-main CI `37162300958` and no open PRs. Registry verification found
+0.19.0 current and non-yanked; 0.19.1 was not present. The selected patch
+contains PR #51's small-terminal exit fix and PR #52's external-edit save/reset
+protection, plus PR #50's terminal recovery regressions. It changes no
+generated-project schema and requires no project migration.
+
+`codex/release-0-19-1` aligns Cargo.toml and the root Cargo.lock package entry
+to 0.19.1 without changing dependency resolution. Dedicated candidate notes
+describe the behavior and optimistic conflict-detection limit.
+
+Candidate local gates passed on Windows with Cargo 1.94.0:
+
+- Formatting, `cargo test --locked` (449 ordinary passes, 22 ignored), clippy
+  with warnings denied and diff checks. Metadata confirms 0.19.1 and Rust 1.89.
+- `RPROJ_TEST_TIMEOUT=180 cargo test --locked --test live -- --ignored --test-threads=1 --nocapture`:
+  all 14 passed in 138.19 seconds, including actual negative-gate diagnostics,
+  setup replay/refusal, Watch recovery and local Jest pass/fail.
+- `cargo test --locked --bin rproj real_rojo -- --ignored --test-threads=1 --nocapture`:
+  all four passed in 9.97 seconds, including the terminal save/refusal/repair
+  boundary and ten generated template validation variants.
+- With the actual installed Jest Roblox CLI 0.4.1 executable selected,
+  `open_cloud_missing_credentials_report_names_and_preserve_exit_code` passed
+  in 4.35 seconds. The first invocation incorrectly selected Rokit's dispatch
+  shim; copying that shim into the fixture caused OS error 50 and exit 1.
+  Selecting the installed executable corrected the audit invocation; no runtime
+  fix was needed. Synthetic partial credentials exercise 14 refusals.
+
+Installed tools included Rojo 7.7.0, Wally 0.3.2, Rokit 1.2.0, Git for Windows
+2.52.0, Selene 0.31.0 and StyLua 2.5.2. Before/after checks confirmed unchanged
+machine configuration, template, global Rokit manifest and existing project/setup
+names; temporary fixture cleanup completed. The live scaffold refreshed
+JestRobloxRunner rather than preserving its prior bytes. The resulting plugin
+matches upstream v0.4.4 asset SHA-256
+`7fa3e89d172ed8dc76bbbc57f6f36082818d41c4451a26217edae6c475bcabd8`.
+This normal scaffold side effect is not an unchanged-plugin claim.
+
+Headroom processed the approved Cargo version diff (zero tokens saved);
+diagnostic logs stayed local. Iterative CodeRabbit found one minor README
+overstatement; it now explains the optimistic conflict-detection limit.
+Clean candidate `01c76f1` passed `cargo package --locked`: 101 files,
+1.3 MiB (327.8 KiB compressed), with a successful extracted-package build.
+The inspected archive excludes `docs/`, `.github/` and `.codegraph/`; both
+packaged Cargo files identify 0.19.1, the manifest retains Rust 1.89 and its
+Git identity matches that clean commit. Subsequent documentation-only evidence
+updates do not alter runtime, dependencies, README or the packaged file set.
+
+Final branch review and exact-head/main CI will be recorded on the release PR
+before owner publication. Authenticated Open Cloud execution, fresh Windows
+provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
+Scribe Studio playtesting and unavailable Windows symlink privileges remain
+unverified. Unix permission-mode checks were not run on Windows.
+Owner publication and subsequent archive/tag/GitHub alignment remain pending.
+
 ## October 4: Template Explorer external-edit protection
 
 Work started from clean main `3dc9e7e` (PR #51), with successful merged-main

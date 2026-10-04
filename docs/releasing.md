@@ -2,13 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.19.0**, at `68fa47929fc9deea81a3a8447e01db9f8cd71301`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.0) are verified. See [release notes](release-notes-0.19.0.md), [audit evidence](release-audit.md), and [PR #48](https://github.com/chatarabdelilah/rproj/pull/48). No later release candidate is prepared.
+The published baseline is **v0.19.0**, at `68fa47929fc9deea81a3a8447e01db9f8cd71301`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.0) are verified. See [release notes](release-notes-0.19.0.md), [audit evidence](release-audit.md), and [PR #48](https://github.com/chatarabdelilah/rproj/pull/48). The **0.19.1 patch candidate** is prepared for Template Explorer recovery and external-edit protection; it is not published or tagged.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-No unpublished release candidate is active. The latest published release is **0.19.0**, containing the merged changes in PRs #38–#47, prepared in PR #48 at `68fa47929fc9deea81a3a8447e01db9f8cd71301`. Crates.io published it on October 3, 2026 with checksum `f7711708ad0669085feedbe5f2ae7194c6e59a10eed53b36863ae253162047f8`; the archive Git identity, annotated tag, and GitHub prerelease match that commit. Fresh-machine installation acceptance remains unverified. Previous release evidence remains in [the audit](release-audit.md).
+The active candidate is **0.19.1**, prepared on `codex/release-0-19-1` from main `32b4673`. Cargo versions are aligned without dependency changes. [Candidate notes](release-notes-0.19.1.md) cover PRs #50–#52 and their residual limits. Complete local gates, applicable live checks, locked packaging, CodeRabbit review and exact-head/main CI before requesting owner publication. The [audit](release-audit.md) and release PR closeout record evidence. The latest published release remains **0.19.0**; no 0.19.1 tag or GitHub release should exist before confirmed owner publication. Fresh-machine installation acceptance remains unverified.
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
