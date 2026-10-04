@@ -50,6 +50,13 @@ not just context from an earlier chat.
   game. Own authorized work end to end instead of asking the owner to repeat it.
 - Recommend model/reasoning/mode changes only when the next task warrants them.
   Do not enable goals or create separate tasks without an explicit request.
+- End every task with a concise handoff labeled **Done**, **Broken**, and
+  **Next**, even when continuing in the same chat. Done names completed changes
+  and verification, plus the current branch/release when relevant. Broken names
+  unresolved defects or blockers; say "No known broken items" when none are
+  confirmed and distinguish unverified checks from defects. Next names one
+  concrete development task and its first action doable in under two minutes.
+  Include the recommended model, reasoning effort and mode for that next task.
 - Before recommending a new chat, update the durable state and provide a short
   handoff naming these rules, current branch/release, and one next task. A new
   chat is not a usage reset; keep tool output and repeated reads bounded.
