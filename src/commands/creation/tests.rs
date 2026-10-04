@@ -560,6 +560,84 @@ fn unicode_paste_name_validation_and_setup_refusal_preserve_existing_data() {
 }
 
 #[test]
+fn new_project_resize_preserves_filtered_checked_package_revision() {
+    let mut draft = draft();
+    select(&mut draft, "expert");
+    select(&mut draft, "wally");
+    key(&mut draft, KeyCode::Enter);
+    key(&mut draft, KeyCode::Enter);
+    assert_eq!(draft.step, Step::Review);
+    let reviewed = graph_value(&draft);
+
+    select(&mut draft, "packages");
+    draft.paste("janitor");
+    key(&mut draft, KeyCode::Char(' '));
+    key(&mut draft, KeyCode::Tab);
+    key(&mut draft, KeyCode::Down);
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    let draw = |terminal: &mut Terminal<TestBackend>, draft: &Draft| {
+        terminal
+            .draw(|frame| super::render::draw(frame, draft, "C:\\Projects\\Example"))
+            .unwrap();
+    };
+    draw(&mut terminal, &draft);
+    let baseline = terminal.backend().buffer().clone();
+    for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10), (120, 30)] {
+        terminal.backend_mut().resize(width, height);
+        draw(&mut terminal, &draft);
+        let before_help = terminal.backend().buffer().clone();
+        assert_eq!(draft.step, Step::Packages(None));
+        assert_eq!(draft.picker.query.text(), "janitor");
+        assert_eq!(
+            draft.picker.selected_value().map(String::as_str),
+            Some("janitor")
+        );
+        assert_eq!(draft.checked, ["janitor".into()].into());
+        assert_eq!(graph_value(&draft), reviewed);
+        assert!(draft.details_focus);
+        assert_eq!(draft.scroll, 1);
+        let text: String = before_help.content().iter().map(|c| c.symbol()).collect();
+        if width < 60 {
+            assert!(text.contains("Resize to at least 60x16"));
+        } else {
+            assert!(text.contains("New Project"));
+            assert!(text.contains("Filter: janitor"));
+            assert!(text.contains("[x] janitor"));
+        }
+        assert_eq!(key(&mut draft, KeyCode::Char('?')), Effect::None);
+        draw(&mut terminal, &draft);
+        let help: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+        assert!(help.contains("Help"));
+        assert_eq!(key(&mut draft, KeyCode::Esc), Effect::None);
+        assert!(draft.modal.is_none());
+        draw(&mut terminal, &draft);
+        assert_eq!(terminal.backend().buffer(), &before_help);
+    }
+    assert_eq!(terminal.backend().buffer(), &baseline);
+    key(&mut draft, KeyCode::Up);
+    assert_eq!(draft.scroll, 0);
+    draw(&mut terminal, &draft);
+    assert_ne!(terminal.backend().buffer(), &baseline);
+    key(&mut draft, KeyCode::Tab);
+    assert_eq!(key(&mut draft, KeyCode::Enter), Effect::None);
+    assert_eq!(draft.step, Step::Review);
+    let mut expected = reviewed;
+    expected["packages"] = serde_json::json!(["janitor"]);
+    assert_eq!(graph_value(&draft), expected);
+    select(&mut draft, "packages");
+    assert_eq!(draft.checked, ["janitor".into()].into());
+    key(&mut draft, KeyCode::Esc);
+    assert_eq!(draft.step, Step::Review);
+    assert_eq!(graph_value(&draft), expected);
+}
+
+#[test]
 fn wide_narrow_help_errors_input_and_minimum_render() {
     let mut draft = review_graph(ProjectGraph::default());
     for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10)] {

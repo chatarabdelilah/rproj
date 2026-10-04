@@ -119,6 +119,12 @@ driver mirrors Home's input gate and checks blocked small-screen edits/saves,
 fixture bytes and raw-mode restoration. Home dispatch and other composition
 steps remain outside this bounded coverage. No new release is needed.
 
+New Project now has one TestBackend resize regression preserving a filtered,
+checked package revision, detail focus/scroll and Help through 120 x 30,
+80 x 24, 60 x 16, 40 x 10 and recovery. It restores the same screen, verifies
+continued scrolling, applies the revision and reopens the retained package
+choice. This is test-only coverage; no new release is needed.
+
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot

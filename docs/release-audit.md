@@ -1,5 +1,32 @@
 # Release-Hardening Audit
 
+## October 5: New Project package revision resize recovery
+
+Work started from clean main `edb9f4b` (PR #61), with no open PRs, on
+`codex/new-project-resize-coverage`. One ordinary TestBackend regression
+opens an expert Wally composition's package revision, types `janitor`, checks
+that package and focuses/scrolls details. The same app and terminal resize
+through 120 x 30, 80 x 24, 60 x 16, 40 x 10 and back to 120 x 30.
+
+The test retains the filter, selected/checked package and detail focus/scroll,
+while leaving the reviewed graph unchanged until acceptance. It checks the
+visible checked row at usable sizes, the resize message while undersized,
+Help opening/closing at every size and identical recovered screen cells.
+Scrolling still changes the recovered screen. Accepting the revision changes
+only the package list; reopening and cancelling retains the accepted choice.
+No project/setup is created and no tools are provisioned. This covers the
+creation model/render boundary, not Home's input gate or a real-terminal run.
+
+The focused regression, formatting, diff checks and clippy with warnings
+denied passed. All 458 ordinary tests passed with normal Windows permissions;
+22 prerequisite-dependent tests remain ignored (480 tests discovered).
+The restricted-token full run denied existing Windows DACL and Bash checks;
+that run is not counted as a pass. CodeRabbit CLI 0.7.6 reviewed the regression
+with zero findings; the documentation diff was inspected directly.
+Reviewed-head/merged-main CI evidence will be recorded on the PR.
+Published 0.19.1 remains unchanged;
+this test/documentation change needs no version bump.
+
 ## October 4: Saved Setup editor resize recovery
 
 Work started from clean main `76d7c88` (PR #60), with no open PRs.
