@@ -12,22 +12,388 @@ fn setup_pty_driver() {
     app.open();
     let mut terminal = tui::TerminalSession::enter().unwrap();
     loop {
-        terminal.draw(|frame| app.render(frame)).unwrap();
+        let mut small = false;
+        terminal
+            .draw(|frame| {
+                small = tui::is_too_small(frame.area());
+                app.render(frame);
+            })
+            .unwrap();
         match terminal.read_event().unwrap() {
             crossterm::event::Event::Key(key)
                 if key.kind != crossterm::event::KeyEventKind::Release =>
             {
-                if app.handle_key(key) {
+                if routed_key(&mut app, small, key) {
                     break;
                 }
             }
-            crossterm::event::Event::Paste(text) => app.paste(&text),
+            crossterm::event::Event::Paste(text) if !small => app.paste(&text),
             _ => {}
         }
     }
     drop(terminal);
     assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
     println!("Manager returned");
+}
+
+// Match Home's input gate: an undersized editor only accepts help and exit keys,
+// plus discard-confirmation choices. Storage and terminal state stay disposable.
+fn routed_key(app: &mut SavedSetupsApp, small: bool, key: KeyEvent) -> bool {
+    if !small
+        || app.exit_confirmation_key(key)
+        || matches!(key.code, KeyCode::Esc | KeyCode::Char('?'))
+        || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
+    {
+        app.handle_key(key)
+    } else {
+        false
+    }
+}
+
+fn wait_screen(session: &super::common::Session, ready: impl Fn(&str) -> bool) -> String {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let screen = session.screen().contents();
+        if ready(&screen) {
+            return screen;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "screen did not settle:\n{screen}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn editor_resize_preserves_revision_help_scroll_and_saved_discard_baseline() {
+    let (root, mut app) = app();
+    edit(&mut app);
+    for _ in 0..3 {
+        press(&mut app, KeyCode::Down);
+    }
+    press(&mut app, KeyCode::Enter);
+    app.paste("test");
+    press(&mut app, KeyCode::Char(' '));
+    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::Down);
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|frame| app.render(frame)).unwrap();
+    let baseline = terminal.backend().buffer().clone();
+    for (width, height) in [(80, 24), (60, 16), (40, 10), (120, 30)] {
+        terminal.backend_mut().resize(width, height);
+        terminal.draw(|frame| app.render(frame)).unwrap();
+        let before_help = terminal.backend().buffer().clone();
+        let View::Editor(draft) = &app.view else {
+            panic!("resize lost the editor");
+        };
+        assert_eq!(
+            draft.step,
+            crate::commands::creation::model::Step::Capabilities
+        );
+        assert_eq!(draft.picker.query.text(), "test");
+        assert_eq!(
+            draft.picker.selected_value().map(String::as_str),
+            Some("test")
+        );
+        assert!(!draft.checked.contains("test"));
+        assert_eq!(draft.graph.capabilities["test"], "testez");
+        assert!(draft.details_focus);
+        assert_eq!(draft.scroll, 1);
+        press(&mut app, KeyCode::Char('?'));
+        terminal.draw(|frame| app.render(frame)).unwrap();
+        assert!(rendered(&mut app, width, height).contains("Help"));
+        assert!(!press(&mut app, KeyCode::Esc));
+        terminal.draw(|frame| app.render(frame)).unwrap();
+        assert_eq!(terminal.backend().buffer(), &before_help);
+    }
+    assert_eq!(terminal.backend().buffer(), &baseline);
+    press(&mut app, KeyCode::Up);
+    let View::Editor(draft) = &app.view else {
+        unreachable!()
+    };
+    assert_eq!(draft.scroll, 0);
+    assert_ne!(
+        rendered(&mut app, 120, 30),
+        baseline
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect::<String>()
+    );
+    press(&mut app, KeyCode::Tab);
+    press(&mut app, KeyCode::Enter);
+    assert!(app.dirty());
+    let original = std::fs::read(root.path().join("sample.toml")).unwrap();
+    assert_eq!(original, SOURCE.as_bytes());
+    save(&mut app);
+    assert!(!app.dirty());
+    let saved = std::fs::read(root.path().join("sample.toml")).unwrap();
+    assert_ne!(saved, original);
+    let graph: crate::graph::ProjectGraph =
+        toml::from_str(std::str::from_utf8(&saved).unwrap()).unwrap();
+    assert!(!graph.capabilities.contains_key("test"));
+    // A second revision is dirty relative to the successful save, not the open bytes.
+    for _ in 0..3 {
+        press(&mut app, KeyCode::Down);
+    }
+    press(&mut app, KeyCode::Enter);
+    app.paste("test");
+    press(&mut app, KeyCode::Char(' '));
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Enter);
+    assert!(app.dirty());
+    terminal.backend_mut().resize(40, 10);
+    terminal.draw(|frame| app.render(frame)).unwrap();
+    let key = |code| KeyEvent::new(code, KeyModifiers::NONE);
+    assert!(!routed_key(&mut app, true, key(KeyCode::Esc)));
+    assert!(rendered(&mut app, 40, 10).contains("[No]"));
+    assert!(!routed_key(&mut app, true, key(KeyCode::Enter)));
+    assert!(app.modal.is_none());
+    assert!(app.dirty());
+    assert!(!routed_key(&mut app, true, key(KeyCode::Esc)));
+    assert!(!routed_key(&mut app, true, key(KeyCode::Right)));
+    assert!(rendered(&mut app, 40, 10).contains("[Yes]"));
+    assert!(!routed_key(&mut app, true, key(KeyCode::Enter)));
+    assert!(matches!(app.view, View::Actions));
+    assert_eq!(
+        std::fs::read(root.path().join("sample.toml")).unwrap(),
+        saved
+    );
+    press(&mut app, KeyCode::Enter);
+    assert!(!app.dirty());
+    assert!(routed_key(
+        &mut app,
+        true,
+        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)
+    ));
+    assert_eq!(
+        std::fs::read(root.path().join("sample.toml")).unwrap(),
+        saved
+    );
+}
+
+#[test]
+fn pty_editor_resize_recovers_filtered_revision_and_saves_only_on_request() {
+    use super::common;
+    let (root, _app) = app();
+    let path = root.path().join("sample.toml");
+    let mut session = common::Session::start_program(
+        &std::env::current_exe().unwrap(),
+        root.path(),
+        &[
+            "--exact",
+            "commands::saved_setups::tests::setup_pty_driver",
+            "--nocapture",
+            "--test-threads=1",
+        ],
+        &[
+            ("RPROJ_SETUP_TEST_ROOT", root.path().to_str().unwrap()),
+            ("RPROJ_NO_LOG", "1"),
+        ],
+    );
+    session.wait_for("Filter:");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Filter:");
+    session.send(common::ENTER);
+    session.wait_for("Actions");
+    session.send(common::ENTER);
+    session.wait_for("Edit Saved Setup");
+    for _ in 0..3 {
+        session.send(common::DOWN);
+    }
+    session.send(common::ENTER);
+    session.wait_for("[x] test");
+    session.send("test");
+    session.wait_for("Filter: test");
+    session.send(" ");
+    session.wait_for("[ ] test");
+    session.send("\t");
+    session.send(common::DOWN);
+    let checkpoint = session.output_checkpoint();
+    session.send("?");
+    session.wait_for_output_since(checkpoint, "Ctrl+S saves from Review");
+    session.send(common::ESC);
+    let baseline = wait_screen(&session, |screen| {
+        screen.contains("[ ] test") && !screen.contains("Esc or ? closes Help.")
+    });
+    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+        let checkpoint = session.output_checkpoint();
+        session.resize(rows, cols);
+        let expected = if cols < 60 {
+            "Resize to at least 60x16"
+        } else {
+            "Filter: test"
+        };
+        session.wait_for_output_since(checkpoint, expected);
+        session.send("?");
+        session.wait_for("Help");
+        session.send(common::ESC);
+        session.wait_for(expected);
+        if cols < 60 {
+            session.send("\x13");
+            session.send(common::ENTER);
+            session.send(" ");
+            session.send("blocked");
+            session.send("?");
+            session.wait_for(" Help ");
+            let checkpoint = session.output_checkpoint();
+            session.send(common::ESC);
+            session.wait_for_output_since(checkpoint, expected);
+        }
+        assert_eq!(std::fs::read(&path).unwrap(), SOURCE.as_bytes());
+    }
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Filter: test");
+    wait_screen(&session, |screen| screen == baseline);
+    let checkpoint = session.output_checkpoint();
+    session.send("\x1b[A"); // Up in details; scrolling must still work.
+    session.send("?");
+    session.wait_for_output_since(checkpoint, "Ctrl+S saves from Review");
+    session.send(common::ESC);
+    let unscrolled = wait_screen(&session, |screen| {
+        screen.contains("[ ] test") && !screen.contains("Esc or ? closes Help.")
+    });
+    assert_ne!(unscrolled, baseline);
+    session.send("\t");
+    session.send(common::ENTER);
+    session.wait_for(" Review ");
+    let review = wait_screen(&session, |screen| {
+        screen.contains("Ctrl+S save review") && !screen.contains("[ ] test")
+    });
+    let checkpoint = session.output_checkpoint();
+    session.resize(10, 40);
+    session.wait_for_output_since(checkpoint, "Resize to at least 60x16");
+    session.send("\x13"); // Save is blocked at Review too.
+    session.send(common::ENTER);
+    // Drain the blocked keys before the next resize reaches the event queue.
+    session.send("?");
+    session.wait_for(" Help ");
+    let checkpoint = session.output_checkpoint();
+    session.send(common::ESC);
+    session.wait_for_output_since(checkpoint, "Resize to at least 60x16");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, " Review ");
+    wait_screen(&session, |screen| screen == review);
+    assert_eq!(std::fs::read(&path).unwrap(), SOURCE.as_bytes());
+    session.send("\x13");
+    session.wait_for("Saved. Existing projects are unchanged.");
+    let saved = std::fs::read(&path).unwrap();
+    let graph: crate::graph::ProjectGraph =
+        toml::from_str(std::str::from_utf8(&saved).unwrap()).unwrap();
+    assert!(!graph.capabilities.contains_key("test"));
+    assert_eq!(graph.mode, "like:original");
+    assert_eq!(graph.dropped, ["future-file"]);
+    session.send("\x13");
+    session.wait_for("No changes to save.");
+    session.send(common::ESC);
+    session.wait_for("Actions");
+    session.send("\x03");
+    session.wait_for("Manager returned");
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(std::fs::read(&path).unwrap(), saved);
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn pty_undersized_dirty_editor_can_cancel_and_confirm_back_and_home() {
+    use super::common;
+    for home in [false, true] {
+        let (root, _app) = app();
+        let mut session = common::Session::start_program(
+            &std::env::current_exe().unwrap(),
+            root.path(),
+            &[
+                "--exact",
+                "commands::saved_setups::tests::setup_pty_driver",
+                "--nocapture",
+                "--test-threads=1",
+            ],
+            &[
+                ("RPROJ_SETUP_TEST_ROOT", root.path().to_str().unwrap()),
+                ("RPROJ_NO_LOG", "1"),
+            ],
+        );
+        session.wait_for("Filter:");
+        let checkpoint = session.output_checkpoint();
+        session.resize(30, 120);
+        session.wait_for_output_since(checkpoint, "Filter:");
+        session.send(common::ENTER);
+        session.wait_for("Actions");
+        session.send(common::ENTER);
+        session.wait_for("Edit Saved Setup");
+        for _ in 0..3 {
+            session.send(common::DOWN);
+        }
+        session.send(common::ENTER);
+        session.wait_for("[x] test");
+        session.send("test");
+        session.wait_for("Filter: test");
+        session.send(" ");
+        session.wait_for("[ ] test");
+        session.send(common::ENTER);
+        session.wait_for(" Review ");
+        let checkpoint = session.output_checkpoint();
+        session.resize(10, 40);
+        session.wait_for_output_since(checkpoint, "Resize to at least 60x16");
+        let exit = if home { "\x03" } else { common::ESC };
+        session.send(exit);
+        session.wait_for("[No]");
+        session.send(common::ENTER);
+        session.wait_for("Resize to at least 60x16");
+        session.send(exit);
+        session.wait_for("[No]");
+        session.send("\x1b[C");
+        session.wait_for("[Yes]");
+        session.send("n");
+        session.wait_for("Resize to at least 60x16");
+        // Cancel twice, then verify the dirty draft survived before discarding.
+        let checkpoint = session.output_checkpoint();
+        session.resize(30, 120);
+        session.wait_for_output_since(checkpoint, " Review ");
+        for _ in 0..3 {
+            session.send(common::DOWN);
+        }
+        session.send(common::ENTER);
+        session.wait_for("[ ] test");
+        session.send(common::ESC); // Cancel revision back to the dirty Review.
+        session.wait_for(" Review ");
+        let checkpoint = session.output_checkpoint();
+        session.resize(10, 40);
+        session.wait_for_output_since(checkpoint, "Resize to at least 60x16");
+        session.send(exit);
+        session.wait_for("[No]");
+        session.send("y");
+        session.wait_for("[Yes]");
+        session.send(common::ENTER);
+        if !home {
+            let checkpoint = session.output_checkpoint();
+            session.resize(30, 120);
+            session.wait_for_output_since(checkpoint, "Actions");
+            session.send(common::ENTER);
+            session.wait_for("Edit Saved Setup");
+            for _ in 0..3 {
+                session.send(common::DOWN);
+            }
+            session.send(common::ENTER);
+            session.wait_for("[x] test");
+            session.send(common::ESC);
+            session.wait_for(" Review ");
+            session.send("\x03");
+        }
+        session.wait_for("Manager returned");
+        let outcome = session.finish();
+        assert_eq!(outcome.code, 0, "home={home}: {}", outcome.text);
+        assert_eq!(
+            std::fs::read(root.path().join("sample.toml")).unwrap(),
+            SOURCE.as_bytes()
+        );
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+    }
 }
 
 #[test]

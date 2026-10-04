@@ -111,6 +111,14 @@ screens, restored detail contents, continued scrolling and Actions/Back.
 Fixture bytes and raw-mode restoration are checked. This is test-only coverage;
 published 0.19.1 remains unchanged. See the October 4 audit for evidence.
 
+Saved Setup editor resize regressions now preserve a filtered capability
+revision, checked choices, detail focus/scroll and Help, then save after recovery.
+Undersized default-No and confirmed discard cover both Back and Home; discard
+after a second revision retains the last successful save. The isolated terminal
+driver mirrors Home's input gate and checks blocked small-screen edits/saves,
+fixture bytes and raw-mode restoration. Home dispatch and other composition
+steps remain outside this bounded coverage. No new release is needed.
+
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot

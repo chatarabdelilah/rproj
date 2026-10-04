@@ -1,5 +1,39 @@
 # Release-Hardening Audit
 
+## October 4: Saved Setup editor resize recovery
+
+Work started from clean main `76d7c88` (PR #60), with no open PRs.
+Three ordinary regressions cover the editor using disposable setup storage.
+The TestBackend check retains a filtered capability revision, unchecked choice,
+detail focus/scroll and Help through 120 x 30, 80 x 24, 60 x 16, 40 x 10
+and back. It applies the revision, saves, makes a second revision and confirms
+discard without changing the last successful save's bytes.
+
+Two real-terminal tests recover the same filtered/scrolled revision, verify
+continued scrolling, apply and save after recovery, and repeat a no-op save.
+They cancel default-No discard and explicit No, then confirm Back and Home
+while undersized. Reopening after Back restores the original capability;
+discard leaves the commented source byte-identical. The driver checks raw-mode
+restoration and each test verifies its temporary directory contains only the
+owned setup. No user configuration is written and no tools are provisioned.
+
+The isolated driver now mirrors Home's small-screen key/paste gate, including
+`exit_confirmation_key`: edits and save are blocked while discard choices stay
+usable. This is manager coverage, not execution of Home's dispatch loop or all
+composition steps. PTY synchronization waits for completed Help redraws and
+uses Help as an input barrier before resizing, so pending keys are not delivered
+at the next size. The initial fixture failures exposed these synchronization
+assumptions; no runtime defect was found.
+
+All 12 Saved Setups tests passed, and all four manager PTY tests passed ten
+consecutive repetitions. Formatting, diff checks, clippy with warnings denied
+and all 457 ordinary tests passed; 22 prerequisite-dependent tests remain
+ignored (479 Windows tests discovered). The full suite passed with normal
+Windows permissions after a restricted-token run denied existing DACL and
+Bash checks. Iterative CodeRabbit review reported zero findings. Final branch
+review and reviewed-head/merged-main CI evidence will be recorded on the PR.
+This is test/documentation work; published 0.19.1 remains unchanged.
+
 ## October 4: Saved Setups PTY resize recovery
 
 Work started from clean main `bd77054` (PR #59), with no open PRs.
