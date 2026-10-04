@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.19.0, public alpha**, with UI Labs 2.4.2, shared creation/configuration behavior, safer configuration/upgrade/Jest saves, and Wally package preservation during tests. Existing features include compatible Jest mounts, explicit optional setup choices, Scribe Studio, trusted Rokit installation, additive project composition, Catalog mouse scrolling, and reliable Test/Watch coexistence. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `68fa479`. The **0.19.1 patch candidate** is prepared from main `32b4673` for the two Template Explorer fixes and their recovery regressions. Local ordinary/live checks and locked packaging passed; release-PR review and exact-head/main CI closeout precede owner publication. It remains unpublished; see [candidate notes](release-notes-0.19.1.md) and [audit evidence](release-audit.md) for checks and remaining acceptance gaps.
+The published baseline is **v0.19.1, public alpha**, with Template Explorer resize recovery and external-edit protection, UI Labs 2.4.2, shared creation/configuration behavior, safer configuration/upgrade/Jest saves, and Wally package preservation during tests. Existing features include compatible Jest mounts, explicit optional setup choices, Scribe Studio, trusted Rokit installation, additive project composition, Catalog mouse scrolling, and reliable Test/Watch coexistence. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `957a0aa`; no later candidate is prepared. See [release notes](release-notes-0.19.1.md) and [audit evidence](release-audit.md) for verified workflows and remaining acceptance gaps.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -88,14 +88,13 @@ See the dated audit for boundaries and evidence.
 Terminal resize coverage now preserves an active JSON draft through narrow,
 minimum and undersized screens. It reproduced and fixed an Exit confirmation
 trap below 60 x 16: the discard dialog remains visible and usable while edits,
-save and reset stay blocked. This runtime fix is on the development line and
-is not part of published 0.19.0; it is included in the selected 0.19.1 candidate.
+save and reset stay blocked. This fix shipped in 0.19.1.
 
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot
 is recorded after successful saves. Installed-Rojo save/refusal/repair also
-passed. This protection is likewise included in the unpublished 0.19.1 candidate. See the October 4
+passed. This protection likewise shipped in 0.19.1. See the October 4
 audit for evidence and the optimistic conflict-detection limit.
 
 Open Cloud missing-credential handling now has executed regression coverage:

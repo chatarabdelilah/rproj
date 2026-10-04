@@ -2,13 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.19.0**, at `68fa47929fc9deea81a3a8447e01db9f8cd71301`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.0) are verified. See [release notes](release-notes-0.19.0.md), [audit evidence](release-audit.md), and [PR #48](https://github.com/chatarabdelilah/rproj/pull/48). The **0.19.1 patch candidate** is prepared for Template Explorer recovery and external-edit protection; it is not published or tagged.
+The published baseline is **v0.19.1**, at `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.1) are verified. See [release notes](release-notes-0.19.1.md), [audit evidence](release-audit.md), and [PR #53](https://github.com/chatarabdelilah/rproj/pull/53). No later release candidate is prepared.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-The active candidate is **0.19.1**, prepared on `codex/release-0-19-1` from main `32b4673`. Cargo versions are aligned without dependency changes. [Candidate notes](release-notes-0.19.1.md) cover PRs #50–#52 and their residual limits. Complete local gates, applicable live checks, locked packaging, CodeRabbit review and exact-head/main CI before requesting owner publication. The [audit](release-audit.md) and release PR closeout record evidence. The latest published release remains **0.19.0**; no 0.19.1 tag or GitHub release should exist before confirmed owner publication. Fresh-machine installation acceptance remains unverified.
+No unpublished release candidate is active. The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github.com/chatarabdelilah/rproj/pull/53)'s reviewed-head and merged-main CI passed. Registry checksum `be193ef19a8277f78d788bb9494834d91ba3146d7d7a6daf1d32e7f854cdb210`, archive Git identity, annotated tag and GitHub prerelease match the clean release commit `957a0aa67fa679dca4194e6fd3c739594c409dc6`. [Release notes](release-notes-0.19.1.md) cover the two Template Explorer fixes and their residual limits; the [audit](release-audit.md) records evidence. Fresh-machine installation acceptance remains unverified.
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
