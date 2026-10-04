@@ -1825,7 +1825,12 @@ mod tests {
         session.wait_for("rproj project template");
         session.send("\x05");
         session.wait_for("Advanced JSON");
-        paste_json_field(&mut session, "\"serveAddress\": \"127.0.0.1\"", "127.0.0.1");
+        // ConPTY can deliver paste as individual keys; finish the comma before resizing.
+        paste_json_field(
+            &mut session,
+            "\"serveAddress\": \"127.0.0.1\"",
+            "\"serveAddress\": \"127.0.0.1\",",
+        );
         for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
             let checkpoint = session.output_checkpoint();
             session.resize(rows, cols);
