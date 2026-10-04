@@ -1,5 +1,31 @@
 # Release-Hardening Audit
 
+## October 4: Catalog resize recovery coverage
+
+Work started from clean main `1af843e` (PR #55), with no open PRs. Two new
+ordinary unit regressions resize the same Catalog and TestBackend through
+120 x 30, 80 x 24, 60 x 16, 40 x 10 and back. They preserve a typed filter,
+non-default selected entry, detail scroll and rendered detail contents;
+verify a long list keeps its selected row visible and remains scrolled;
+and exercise Help, Back history, keyboard and mouse scrolling after recovery.
+List offsets may adjust with viewport size while retaining selection visibility.
+
+A third ordinary regression runs standalone `rproj info` in the shared real
+terminal harness, filters to reactRoblox, scrolls to its caveats, shrinks through
+the same sizes, opens/closes Help while undersized, and restores the exact
+scrolled screen. Ctrl+Home/End still work afterward and Esc exits successfully.
+It waits for the complete filter and fresh resize output, uses a temporary
+working directory and disables diagnostic logging. No runtime or dependency
+change, machine provisioning or Cargo version bump is involved.
+
+Local formatting, `cargo test --locked` (452 passed, 22 prerequisite-dependent
+tests ignored), clippy with warnings denied and diff checks passed. There are
+474 discovered Windows tests: 400 unit and 74 integration. The new PTY regression
+also passed ten consecutive repetitions. CodeRabbit reported zero findings.
+Ignored live-tool tests were not rerun and are not counted as passes. Final
+reviewed-head/main CI and branch cleanup evidence will be recorded on the PR.
+Published 0.19.1 and its tag remain unchanged.
+
 ## October 4: 0.19.1 publication verified
 
 The owner published 0.19.1 to crates.io at `2026-10-04T00:38:42.3801Z`.
