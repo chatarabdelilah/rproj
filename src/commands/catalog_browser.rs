@@ -614,6 +614,136 @@ mod tests {
         assert_eq!(app.location.scroll, end.saturating_sub(10));
     }
 
+    fn resize_and_render(
+        app: &CatalogApp,
+        terminal: &mut ratatui::Terminal<ratatui::backend::TestBackend>,
+        width: u16,
+        height: u16,
+    ) -> String {
+        terminal.backend_mut().resize(width, height);
+        terminal.draw(|frame| app.render(frame)).unwrap();
+        terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect()
+    }
+
+    #[test]
+    fn resize_recovery_preserves_search_selection_and_detail_scroll() {
+        let mut app = CatalogApp::new();
+        for ch in "react".chars() {
+            press(&mut app, KeyCode::Char(ch));
+        }
+        let index = app
+            .visible()
+            .iter()
+            .position(|path| app.node(path).label() == "reactRoblox")
+            .unwrap();
+        assert!(index > 0, "exercise a non-default selection");
+        for _ in 0..index {
+            press(&mut app, KeyCode::Down);
+        }
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 30)).unwrap();
+        resize_and_render(&app, &mut terminal, 120, 30);
+        press(&mut app, KeyCode::PageDown);
+        assert!(app.location.scroll > 0);
+        let before = app.location.clone();
+        let selected = app.selected_path();
+        resize_and_render(&app, &mut terminal, 120, 30);
+        let baseline = terminal.backend().buffer().clone();
+
+        for (width, height) in [(80, 24), (60, 16), (40, 10), (120, 30)] {
+            let screen = resize_and_render(&app, &mut terminal, width, height);
+            assert_eq!(app.location.query, before.query);
+            assert_eq!(app.location.selected, before.selected);
+            assert_eq!(app.selected_path(), selected);
+            assert_eq!(app.location.scroll, before.scroll);
+            if width < 60 {
+                assert!(screen.contains("Resize to at least 60 x 16."));
+                press(&mut app, KeyCode::Char('?'));
+                assert!(resize_and_render(&app, &mut terminal, width, height).contains("Help"));
+                press(&mut app, KeyCode::Esc);
+            } else {
+                assert!(screen.contains("Filter: react"));
+                assert!(screen.contains(" reactRoblox "));
+            }
+        }
+        let restored = resize_and_render(&app, &mut terminal, 120, 30);
+        // The list offset can adjust to keep the selection visible in the smaller viewport.
+        let details = tui::responsive_panes(Rect::new(0, 3, 120, 24), 38)[1];
+        for y in details.y..details.bottom() {
+            for x in details.x..details.right() {
+                assert_eq!(terminal.backend().buffer()[(x, y)], baseline[(x, y)]);
+            }
+        }
+
+        press(&mut app, KeyCode::PageUp);
+        assert_eq!(app.location.scroll, before.scroll.saturating_sub(10));
+        assert_ne!(resize_and_render(&app, &mut terminal, 120, 30), restored);
+        press(&mut app, KeyCode::PageDown);
+        assert_eq!(resize_and_render(&app, &mut terminal, 120, 30), restored);
+        app.handle_mouse(crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::ScrollUp,
+            column: 0,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        });
+        assert_eq!(app.location.scroll, before.scroll.saturating_sub(3));
+        assert_eq!(app.selected_path(), selected);
+    }
+
+    #[test]
+    fn resize_recovery_keeps_scrolled_list_selection_visible_and_back_state() {
+        let mut app = CatalogApp::new();
+        app.roots = vec![group(
+            "Resize fixture",
+            (0..40)
+                .map(|index| group(&format!("Match {index:02}"), vec![]))
+                .collect(),
+        )];
+        press(&mut app, KeyCode::Enter);
+        for ch in "Match".chars() {
+            press(&mut app, KeyCode::Char(ch));
+        }
+        press(&mut app, KeyCode::End);
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 30)).unwrap();
+        resize_and_render(&app, &mut terminal, 120, 30);
+        assert!(app.location.offset.get() > 0);
+        let selected = app.selected_path();
+        let path = app.location.path.clone();
+
+        for (width, height) in [(80, 24), (60, 16), (40, 10), (120, 30)] {
+            let screen = resize_and_render(&app, &mut terminal, width, height);
+            assert_eq!(app.location.query, "Match");
+            assert_eq!(app.location.path, path);
+            assert_eq!(app.location.selected, 39);
+            assert_eq!(app.selected_path(), selected);
+            assert!(app.location.offset.get() > 0);
+            if width >= 60 {
+                assert!(
+                    screen.contains("Match 39"),
+                    "selected row must stay visible"
+                );
+                assert!(!screen.contains("Match 00"), "list must remain scrolled");
+            }
+        }
+
+        let before = app.location.clone();
+        press(&mut app, KeyCode::Enter);
+        resize_and_render(&app, &mut terminal, 40, 10);
+        press(&mut app, KeyCode::Esc);
+        assert_eq!(app.location, before);
+        assert!(resize_and_render(&app, &mut terminal, 120, 30).contains("Match 39"));
+        press(&mut app, KeyCode::Up);
+        assert!(resize_and_render(&app, &mut terminal, 120, 30).contains("Match 38"));
+        assert_eq!(app.location.selected, 38);
+    }
+
     #[test]
     fn mouse_wheel_scrolls_the_selected_details() {
         let mut app = CatalogApp::new();

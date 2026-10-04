@@ -90,6 +90,12 @@ minimum and undersized screens. It reproduced and fixed an Exit confirmation
 trap below 60 x 16: the discard dialog remains visible and usable while edits,
 save and reset stay blocked. This fix shipped in 0.19.1.
 
+Catalog resize regressions now cover search, non-default selection, list and
+detail scrolling, Help and Back through wide, narrow, minimum and undersized
+screens. The standalone terminal test restores the same scrolled details and
+verifies scrolling still works afterward. This is test-only coverage; no new
+release is needed. See the October 4 audit for evidence.
+
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot

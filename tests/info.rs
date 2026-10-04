@@ -49,6 +49,53 @@ fn the_browser_navigates_to_a_detail_page_and_back_out() {
     );
 }
 
+#[test]
+fn catalog_resize_recovery_preserves_filtered_details_and_scrolling() {
+    let project = TempProject::new("info-resize");
+    let mut session = Session::start_with_env(project.path(), &["info"], &[("RPROJ_NO_LOG", "1")]);
+    session.wait_for("rproj catalog");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Type filter");
+    session.send("reactRoblox");
+    // Wait for the complete filter before resizing: ConPTY can deliver text as individual keys.
+    session.wait_for("Filter: reactRoblox");
+    session.wait_for("React's Roblox renderer");
+    session.send("\x1b[1;5F"); // Ctrl+End
+    session.wait_for("Call root:unmount()");
+    session.wait_for("needed.");
+    let scrolled = session.text();
+    assert!(!scrolled.contains("React's Roblox renderer"), "{scrolled}");
+
+    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+        let checkpoint = session.output_checkpoint();
+        session.resize(rows, cols);
+        session.wait_for_output_since(
+            checkpoint,
+            if cols < 60 {
+                "Resize to at least 60 x 16."
+            } else {
+                "Filter: reactRoblox"
+            },
+        );
+    }
+    session.send("?");
+    session.wait_for("Catalog help");
+    session.send(ESC);
+    session.wait_for("Resize to at least 60 x 16.");
+    session.resize(30, 120);
+    session.wait_for(&scrolled);
+    assert_eq!(session.text(), scrolled);
+
+    session.send("\x1b[1;5H"); // Ctrl+Home
+    session.wait_for("React's Roblox renderer");
+    session.send("\x1b[1;5F");
+    session.wait_for(&scrolled);
+    session.send(ESC);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+}
+
 /// With no terminal on stdin, print the flat listing instead of prompting.
 ///
 /// The failure this prevents is not a wrong answer, it is a hang: inquire
