@@ -104,6 +104,13 @@ scrolled details and Help through those sizes, then verifies keyboard scrolling,
 opening the selected project and returning Home. This is test-only
 coverage and requires no new release. See the October 4 audit for evidence.
 
+Saved Setups now has real-terminal resize coverage alongside its TestBackend
+regression. Disposable setups exercise a typed filter, non-default selection,
+scrolled list and composition details, Help through narrow/minimum/undersized
+screens, restored detail contents, continued scrolling and Actions/Back.
+Fixture bytes and raw-mode restoration are checked. This is test-only coverage;
+published 0.19.1 remains unchanged. See the October 4 audit for evidence.
+
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot

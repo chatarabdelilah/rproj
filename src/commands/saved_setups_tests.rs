@@ -26,7 +26,139 @@ fn setup_pty_driver() {
         }
     }
     drop(terminal);
+    assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
     println!("Manager returned");
+}
+
+#[test]
+fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
+    use super::common;
+    let (root, _app) = app();
+    let source = format!(
+        "{SOURCE}{}",
+        (0..40)
+            .map(|n| format!("# Recovery detail {n:02}\n"))
+            .collect::<String>()
+    );
+    for n in 0..30 {
+        std::fs::write(root.path().join(format!("sample{n:02}.toml")), &source).unwrap();
+    }
+    std::fs::write(root.path().join("other.toml"), SOURCE).unwrap();
+    let mut session = common::Session::start_program(
+        &std::env::current_exe().unwrap(),
+        root.path(),
+        &[
+            "commands::saved_setups::tests::setup_pty_driver",
+            "--exact",
+            "--nocapture",
+        ],
+        &[
+            ("RPROJ_SETUP_TEST_ROOT", root.path().to_str().unwrap()),
+            ("RPROJ_NO_LOG", "1"),
+        ],
+    );
+    session.wait_for("Filter:");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Filter:");
+    session.send("sample");
+    // ConPTY can deliver text as individual keys; finish filtering before navigating.
+    session.wait_for("Filter: sample ");
+    session.send("\x1b[F"); // End in the setup list
+    session.wait_for("sample29.toml");
+    session.send("\t");
+    session.send("\x1b[F"); // End in composition details
+    session.wait_for("Recovery detail 39");
+    let scrolled = session.text();
+    assert!(!scrolled.contains("Future reuse only"), "{scrolled}");
+    assert!(!scrolled.contains("other"), "{scrolled}");
+    assert!(!scrolled.contains("sample00"), "{scrolled}");
+    let details = tui::responsive_panes(ratatui::layout::Rect::new(0, 2, 120, 25), 40)[1];
+    let composition = |screen: &vt100::Screen| {
+        screen
+            .rows(details.x, details.width)
+            .skip(details.y as usize)
+            .take(details.height as usize)
+            .collect::<Vec<_>>()
+    };
+    let baseline = composition(&session.screen());
+
+    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+        let checkpoint = session.output_checkpoint();
+        session.resize(rows, cols);
+        let expected = if cols < 60 {
+            "Resize to at least 60x16"
+        } else {
+            "Filter: sample "
+        };
+        session.wait_for_output_since(checkpoint, expected);
+        if cols >= 60 {
+            let screen = session.text();
+            let list =
+                tui::responsive_panes(ratatui::layout::Rect::new(0, 2, cols, rows - 5), 40)[0];
+            assert!(
+                session
+                    .screen()
+                    .rows(list.x + 1, list.width - 2)
+                    .skip((list.y + 1) as usize)
+                    .take((list.height - 2) as usize)
+                    .any(|line| line.starts_with("sample29")),
+                "{screen}"
+            );
+            assert!(!screen.contains("other"), "{screen}");
+        }
+        session.send("?");
+        session.wait_for("Help | Esc close");
+        session.send(common::ESC);
+        session.wait_for(expected);
+    }
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Recovery detail 39");
+    let restored = session.text();
+    // List offsets may adapt to the viewport; composition must return unchanged.
+    assert_eq!(composition(&session.screen()), baseline);
+    assert!(
+        session
+            .screen()
+            .rows(1, details.x - 2)
+            .skip(3)
+            .take(23)
+            .any(|line| line.starts_with("sample29")),
+        "{restored}"
+    );
+    session.send("\x1b[H"); // Home in composition details
+    session.wait_for("Future reuse only");
+    let checkpoint = session.output_checkpoint();
+    session.send("\x1b[F");
+    session.wait_for_output_since(checkpoint, "Recovery detail 39");
+    assert_eq!(composition(&session.screen()), baseline);
+    session.send("\t");
+    session.send(common::ENTER);
+    session.wait_for("Actions");
+    session.wait_for("sample29.toml");
+    let checkpoint = session.output_checkpoint();
+    session.send(common::ESC);
+    session.wait_for_output_since(checkpoint, "Filter: sample ");
+    session.wait_for("Recovery detail 39");
+    assert_eq!(composition(&session.screen()), baseline);
+    session.send("\x03");
+    session.wait_for("Manager returned");
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 32);
+    for n in 0..30 {
+        assert_eq!(
+            std::fs::read_to_string(root.path().join(format!("sample{n:02}.toml"))).unwrap(),
+            source
+        );
+    }
+    for name in ["sample", "other"] {
+        assert_eq!(
+            std::fs::read_to_string(root.path().join(format!("{name}.toml"))).unwrap(),
+            SOURCE
+        );
+    }
 }
 
 #[test]
