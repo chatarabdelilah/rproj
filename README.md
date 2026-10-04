@@ -10,7 +10,7 @@
 
 ## What rproj does
 
-Published 0.19.0 includes UI Labs 2.4.2 and safer project maintenance. The [0.19.1 patch candidate](docs/release-notes-0.19.1.md) adds Template Explorer recovery and external-edit protection; it is not yet published. rproj remains alpha software.
+Published [0.19.1](docs/release-notes-0.19.1.md) improves Template Explorer recovery and detects external template changes before saves/resets. UI Labs remains available at 2.4.2. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
@@ -206,7 +206,7 @@ Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain, Wally, and
 
 Saving does **not** close the editor, including standalone `rproj configure project`. Selection, editing mode, and undo history remain intact. Undoing a saved change makes the draft unsaved again. Esc keeps local Back behavior; leaving Explorer or pressing Ctrl+C confirms discarding changes since the last successful save. Confirmed reset removes only the custom template and returns to Home (or ends the standalone command). Failed validation/writes keep the draft and show a scrollable error.
 
-The 0.19.1 candidate detects external template changes at its save/reset checks and refuses the operation, retaining the draft. Checks are optimistic: a change after the final check can still be overwritten or removed. Reopen Template Explorer to load the current file after a refusal. This protection is not part of published 0.19.0.
+Version 0.19.1 detects external template changes at its save/reset checks and refuses the operation, retaining the draft. Checks are optimistic: a change after the final check can still be overwritten or removed. Reopen Template Explorer to load the current file after a refusal.
 
 Compound values use comma-separated components in the Inspector; rproj writes their required Rojo representation. UDim offsets must be signed 32-bit whole numbers, and numeric inputs must be finite. If an older draft contains a malformed UDim, UDim2, Rect, or CFrame attribute, re-enter that value in the Inspector before saving; existing templates are not silently rewritten.
 

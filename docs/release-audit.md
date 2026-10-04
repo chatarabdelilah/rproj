@@ -1,5 +1,36 @@
 # Release-Hardening Audit
 
+## October 4: 0.19.1 publication verified
+
+The owner published 0.19.1 to crates.io at `2026-10-04T00:38:42.3801Z`.
+The version is current and non-yanked. The downloaded archive matches registry
+SHA-256 `be193ef19a8277f78d788bb9494834d91ba3146d7d7a6daf1d32e7f854cdb210`.
+Its `.cargo_vcs_info.json` identifies clean reviewed release commit
+`957a0aa67fa679dca4194e6fd3c739594c409dc6`, exactly the main from
+[release PR #53](https://github.com/chatarabdelilah/rproj/pull/53).
+Both packaged Cargo files identify 0.19.1 and the manifest retains Rust 1.89.
+No publication was performed by the agent.
+
+PR #53's final head `61397d1` passed CI `37165190198`; merged release commit
+`957a0aa` passed CI `37165309630`. Both passed Windows stable, Rust 1.89 and
+locked packaging. Their trees matched exactly and the completed local/remote
+release branch was removed. Badge freshness was skipped and is not a pass.
+Final whole-branch CodeRabbit review reported zero findings after its service
+cooldown; the corrected iterative README finding is documented below.
+
+After archive verification, annotated tag `v0.19.1` was created at `957a0aa`.
+Remote tag object `fd9083834e6a194824ea6c3e22e0a095ea154968` peels to the
+same commit. The matching [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.1)
+was published at `2026-10-04T00:41:43Z`, is not a draft and remains marked as
+a prerelease. Its body uses the dedicated 0.19.1 release notes.
+
+This documentation-only publication closeout changes no runtime, dependencies
+or Cargo version; its small diff is inspected directly without spending another
+CodeRabbit review or repeating successful local runtime/live gates. Its PR
+records exact-head/main documentation CI and completed branch cleanup.
+Publication closes release alignment; the acceptance limits below remain
+unverified. No subsequent release candidate is active.
+
 ## October 4: 0.19.1 patch candidate preparation
 
 Preparation started from clean main `32b4673` (PR #52), with successful
@@ -54,7 +85,8 @@ before owner publication. Authenticated Open Cloud execution, fresh Windows
 provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
 Scribe Studio playtesting and unavailable Windows symlink privileges remain
 unverified. Unix permission-mode checks were not run on Windows.
-Owner publication and subsequent archive/tag/GitHub alignment remain pending.
+At preparation closeout, owner publication and archive/tag/GitHub alignment
+were pending; the publication section above records their completion.
 
 ## October 4: Template Explorer external-edit protection
 
