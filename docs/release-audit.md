@@ -9,8 +9,9 @@ back. Thirty matching temporary projects plus one excluded project exercise a
 typed filter, non-default selection and a scrolled list. Injected discovery
 warnings provide enough detail text to verify actual keyboard scrolling.
 
-The regression checks filter and selected-path preservation, visible selection
-at usable sizes, detail focus/scroll, Help open/close at every size, identical
+The regression checks filter and selected-path preservation, selected-row text
+and highlight inside the list pane at usable sizes, detail focus/scroll, Help
+open/close at every size, identical
 restored detail cells and working Home/End scrolling after recovery. List offsets
 may adjust to keep the selected row visible. Existing disabled-action reasons
 and the 280 x 70 rendering check remain covered. No runtime change, provisioning,
@@ -18,8 +19,11 @@ dependency or version bump is involved; published 0.19.1 remains unchanged.
 
 Local formatting, `cargo test --locked` (452 passed, 22 prerequisite-dependent
 tests ignored), clippy with warnings denied and diff checks passed. The test
-inventory remains 474 Windows tests (400 unit and 74 integration). Branch
-review and reviewed-head/main CI will be recorded on the PR before closeout.
+inventory remains 474 Windows tests (400 unit and 74 integration). CodeRabbit's
+initial review identified a weak row-visibility assertion: the selected name
+also appeared in the detail path. The test now checks the list pane and its
+selection highlight. Final review and reviewed-head/main CI will be recorded
+on the PR before closeout.
 This is TestBackend coverage, not a real-terminal Projects resize test;
 ignored live-tool tests are not counted as passes.
 

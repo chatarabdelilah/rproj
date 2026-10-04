@@ -1034,7 +1034,22 @@ mod tests {
             if width < 60 {
                 assert!(output.contains("Resize to at least 60 x 16."));
             } else {
-                assert!(output.contains("Project29"));
+                let list =
+                    tui::responsive_panes(ratatui::layout::Rect::new(0, 3, width, height - 6), 40)
+                        [0];
+                let buffer = terminal.backend().buffer();
+                let row = (list.y + 1..list.bottom() - 1)
+                    .find(|&y| {
+                        let text: String = (list.x + 1..list.right() - 1)
+                            .map(|x| buffer[(x, y)].symbol())
+                            .collect();
+                        text.starts_with("Project29")
+                    })
+                    .expect("selected project must be visible in the list pane");
+                for x in list.x + 1..list.x + 1 + "Project29".len() as u16 {
+                    assert_eq!(buffer[(x, row)].fg, Color::Black);
+                    assert_eq!(buffer[(x, row)].bg, Color::DarkGray);
+                }
                 assert!(output.contains("Discovery warning"));
             }
             key(&mut app, KeyCode::Char('?'));
