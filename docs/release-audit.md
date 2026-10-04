@@ -42,8 +42,18 @@ This normal scaffold side effect is not an unchanged-plugin claim.
 Headroom processed the approved Cargo version diff (zero tokens saved);
 diagnostic logs stayed local. Iterative CodeRabbit found one minor README
 overstatement; it now explains the optimistic conflict-detection limit.
-Clean locked packaging, final branch review and exact-head/main CI remain
-pending and will be recorded before owner publication.
+Clean candidate `01c76f1` passed `cargo package --locked`: 101 files,
+1.3 MiB (327.8 KiB compressed), with a successful extracted-package build.
+The inspected archive excludes `docs/`, `.github/` and `.codegraph/`; both
+packaged Cargo files identify 0.19.1, the manifest retains Rust 1.89 and its
+Git identity matches that clean commit. Subsequent documentation-only evidence
+updates do not alter runtime, dependencies, README or the packaged file set.
+
+Final branch review and exact-head/main CI will be recorded on the release PR
+before owner publication. Authenticated Open Cloud execution, fresh Windows
+provisioning, fresh Linux generated-project execution, UI Labs Studio stories,
+Scribe Studio playtesting and unavailable Windows symlink privileges remain
+unverified. Unix permission-mode checks were not run on Windows.
 Owner publication and subsequent archive/tag/GitHub alignment remain pending.
 
 ## October 4: Template Explorer external-edit protection

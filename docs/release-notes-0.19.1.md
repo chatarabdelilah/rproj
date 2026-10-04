@@ -32,10 +32,10 @@ the current file; it does not merge an older in-memory draft automatically.
 The candidate passed 449 ordinary locked Windows tests, formatting and clippy.
 Its 22 ignored tests are not ordinary passes; explicit installed-tool runs
 passed all 14 live workflows, four real-Rojo template regressions and the
-installed Jest credential-refusal regression. Locked packaging, final
-CodeRabbit review and exact-head/main CI are still pending. The release PR
-and [release audit](release-audit.md) record the final evidence before owner
-publication.
+installed Jest credential-refusal regression. Clean locked packaging passed,
+including its extracted-package build and inspected 101-file archive. The
+release PR and [release audit](release-audit.md) record final CodeRabbit review
+and exact-head/main CI before owner publication.
 
 Authenticated Open Cloud execution, fresh Windows provisioning, fresh Linux
 generated-project execution, UI Labs Studio stories and Scribe Studio playtesting
