@@ -1,5 +1,29 @@
 # Release-Hardening Audit
 
+## October 4: Projects PTY resize recovery
+
+Work started from clean main `429b4bd` (PR #57), with no open PRs.
+An ordinary regression in `tests/hub.rs` runs the real binary in a PTY.
+Its uniquely named temporary launch project supplies a long package summary;
+filtering by its full name excludes unrelated projects without changing the
+machine configuration or provisioning tools. Diagnostic logging is disabled.
+
+The regression focuses and scrolls details at 120 x 30, resizes through
+80 x 24, 60 x 16 and 40 x 10, and opens/closes Help at each small size.
+It checks fresh resize output, restores the exact scrolled screen at 120 x 30,
+then verifies Home/End scrolling, opening the filtered project, backing out
+and returning Home with Ctrl+C before a clean exit. It does not certify
+non-default browser selection or a scrolled project list; those remain covered
+by the separate TestBackend regression below.
+
+The new PTY test passed ten repetitions. Formatting, clippy with warnings
+denied and all 453 ordinary tests passed; 22 prerequisite-dependent tests
+remain ignored (475 Windows tests discovered). An initial restricted-token
+full run failed existing Windows DACL preservation and Bash checks; rerunning
+with normal permissions passed. No runtime, dependency or version change is
+involved; published 0.19.1 remains unchanged. PR review and CI evidence are
+recorded on the PR before closeout.
+
 ## October 4: Projects resize recovery coverage
 
 Work started from clean main `11dcfb6` (PR #56), with no open PRs and successful

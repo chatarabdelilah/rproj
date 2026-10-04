@@ -99,7 +99,9 @@ release is needed. See the October 4 audit for evidence.
 Projects now has a TestBackend resize regression preserving a typed filter,
 non-default selection, scrolled details and Help through the same sizes.
 It verifies restored detail contents and continued keyboard scrolling;
-real-terminal Projects resize recovery remains unverified. This is test-only
+real-terminal coverage now also preserves a uniquely filtered launch project,
+scrolled details and Help through those sizes, then verifies keyboard scrolling,
+opening the selected project and returning Home. This is test-only
 coverage and requires no new release. See the October 4 audit for evidence.
 
 Template Explorer now captures the file it opens and refuses save/reset after
