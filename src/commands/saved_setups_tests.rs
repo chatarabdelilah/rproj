@@ -50,10 +50,44 @@ fn routed_key(app: &mut SavedSetupsApp, small: bool, key: KeyEvent) -> bool {
     }
 }
 
+fn screen_rows(screen: &vt100::Screen) -> String {
+    // ConPTY redraws can change soft-wrap flags without changing the visible rows.
+    screen
+        .rows(0, screen.size().1)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn screen_rows_ignore_soft_wrap_metadata_but_preserve_layout() {
+    let mut wrapped = vt100::Parser::new(2, 4, 0);
+    wrapped.process(b"abcde");
+    let mut positioned = vt100::Parser::new(2, 4, 0);
+    positioned.process(b"abcd\x1b[2;1He");
+    assert_ne!(wrapped.screen().contents(), positioned.screen().contents());
+    assert_eq!(screen_rows(wrapped.screen()), "abcd\ne");
+    assert_eq!(
+        screen_rows(wrapped.screen()),
+        screen_rows(positioned.screen())
+    );
+
+    let mut different_layout = vt100::Parser::new(2, 4, 0);
+    different_layout.process(b"abc\x1b[2;1Hde");
+    assert_eq!(
+        wrapped.screen().contents(),
+        different_layout.screen().contents().replace('\n', "")
+    );
+    assert_ne!(
+        screen_rows(wrapped.screen()),
+        screen_rows(different_layout.screen())
+    );
+}
+
+#[track_caller]
 fn wait_screen(session: &super::common::Session, ready: impl Fn(&str) -> bool) -> String {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
-        let screen = session.screen().contents();
+        let screen = screen_rows(&session.screen());
         if ready(&screen) {
             return screen;
         }
