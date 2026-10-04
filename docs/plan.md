@@ -96,6 +96,12 @@ screens. The standalone terminal test restores the same scrolled details and
 verifies scrolling still works afterward. This is test-only coverage; no new
 release is needed. See the October 4 audit for evidence.
 
+Projects now has a TestBackend resize regression preserving a typed filter,
+non-default selection, scrolled details and Help through the same sizes.
+It verifies restored detail contents and continued keyboard scrolling;
+real-terminal Projects resize recovery remains unverified. This is test-only
+coverage and requires no new release. See the October 4 audit for evidence.
+
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot

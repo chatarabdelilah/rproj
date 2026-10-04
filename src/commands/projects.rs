@@ -986,12 +986,35 @@ mod tests {
     }
 
     #[test]
-    fn project_renders_wide_narrow_minimum_help_and_disabled_reasons() {
+    fn project_resize_preserves_filtered_scrolled_session_and_disabled_reasons() {
         let root = TempDir::new().unwrap();
-        project(root.path(), "Example");
+        for n in 0..30 {
+            project(root.path(), &format!("Project{n:02}"));
+        }
+        project(root.path(), "Other");
         let mut app = ready(root.path(), root.path());
-        for (width, height) in [(120, 30), (280, 70), (80, 24), (40, 10)] {
-            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        app.discovery.warnings = (0..40)
+            .map(|n| format!("Discovery warning {n:02}"))
+            .collect();
+        for ch in "Project".chars() {
+            key(&mut app, KeyCode::Char(ch));
+        }
+        assert_eq!(app.visible().len(), 30);
+        key(&mut app, KeyCode::End);
+        let selected_path = app.selected_path().cloned().unwrap();
+        assert_eq!(app.selected, 29);
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        terminal.draw(|frame| app.render(frame)).unwrap();
+        assert!(app.offset.get() > 0);
+        key(&mut app, KeyCode::Tab);
+        key(&mut app, KeyCode::PageDown);
+        let scroll = app.scroll.get();
+        assert!(scroll > 0);
+        terminal.draw(|frame| app.render(frame)).unwrap();
+        let baseline = terminal.backend().buffer().clone();
+
+        for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10), (120, 30)] {
+            terminal.backend_mut().resize(width, height);
             terminal.draw(|frame| app.render(frame)).unwrap();
             let output: String = terminal
                 .backend()
@@ -1001,24 +1024,77 @@ mod tests {
                 .map(|c| c.symbol())
                 .collect();
             assert!(output.contains("Projects"));
-            app.help = true;
+            assert_eq!(app.filter.text(), "Project");
+            assert_eq!(app.selected, 29);
+            assert_eq!(app.selected_path(), Some(&selected_path));
+            assert_eq!(app.scroll.get(), scroll);
+            assert!(app.details);
+            assert!(app.active.is_none());
+            assert!(app.offset.get() > 0);
+            if width < 60 {
+                assert!(output.contains("Resize to at least 60 x 16."));
+            } else {
+                let list =
+                    tui::responsive_panes(ratatui::layout::Rect::new(0, 3, width, height - 6), 40)
+                        [0];
+                let buffer = terminal.backend().buffer();
+                let row = (list.y + 1..list.bottom() - 1)
+                    .find(|&y| {
+                        let text: String = (list.x + 1..list.right() - 1)
+                            .map(|x| buffer[(x, y)].symbol())
+                            .collect();
+                        text.starts_with("Project29")
+                    })
+                    .expect("selected project must be visible in the list pane");
+                for x in list.x + 1..list.x + 1 + "Project29".len() as u16 {
+                    assert_eq!(buffer[(x, row)].fg, Color::Black);
+                    assert_eq!(buffer[(x, row)].bg, Color::DarkGray);
+                }
+                assert!(output.contains("Discovery warning"));
+            }
+            key(&mut app, KeyCode::Char('?'));
             terminal.draw(|frame| app.render(frame)).unwrap();
-            app.help = false;
+            let help: String = terminal
+                .backend()
+                .buffer()
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect();
+            assert!(help.contains("Help"));
+            assert!(key(&mut app, KeyCode::Esc).is_none());
+            assert!(!app.help);
+            terminal.draw(|frame| app.render(frame)).unwrap();
+            assert_eq!(app.scroll.get(), scroll);
         }
+        let details = tui::responsive_panes(ratatui::layout::Rect::new(0, 3, 120, 24), 40)[1];
+        for y in details.y..details.bottom() {
+            for x in details.x..details.right() {
+                assert_eq!(terminal.backend().buffer()[(x, y)], baseline[(x, y)]);
+            }
+        }
+        key(&mut app, KeyCode::Home);
+        assert_eq!(app.scroll.get(), 0);
+        key(&mut app, KeyCode::End);
+        assert_eq!(app.scroll.get(), app.scroll_limit.get());
+        assert!(app.scroll.get() > scroll);
+        key(&mut app, KeyCode::Tab);
         key(&mut app, KeyCode::Enter);
         app.action = 2;
         assert!(key(&mut app, KeyCode::Enter).is_none());
         assert!(app.status.contains("rproj.toml"));
-        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
-        terminal.draw(|frame| app.render(frame)).unwrap();
-        let output: String = terminal
-            .backend()
-            .buffer()
-            .content()
-            .iter()
-            .map(|c| c.symbol())
-            .collect();
-        assert!(output.contains("[unavailable]"));
-        assert!(output.contains("rproj.toml"));
+        for (width, height) in [(120, 30), (280, 70)] {
+            terminal.backend_mut().resize(width, height);
+            terminal.draw(|frame| app.render(frame)).unwrap();
+            let output: String = terminal
+                .backend()
+                .buffer()
+                .content()
+                .iter()
+                .map(|c| c.symbol())
+                .collect();
+            assert!(output.contains("[unavailable]"));
+            assert!(output.contains("rproj.toml"));
+        }
     }
 }
