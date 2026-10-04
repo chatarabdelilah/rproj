@@ -1,5 +1,31 @@
 # Release-Hardening Audit
 
+## October 5: PTY recovery comparisons preserve physical rows
+
+Merged-main [CI at `12027c5`](https://github.com/chatarabdelilah/rproj/actions/runs/37243719351)
+failed the Saved Setup editor's Capabilities recovery comparison on Windows
+Rust 1.89. Concurrent local PTY runs reproduced the same timeout at Review
+recovery. Temporary baseline diagnostics found identical visible text: the
+expected string had 3,600 characters and no newlines, while the recovered
+string had 3,601 characters and one newline. Removing only that newline made
+the strings equal. The diagnostics were removed after capture.
+
+`wait_screen` now compares physical rows from `vt100::Screen::rows`, instead
+of `contents()` whose newline insertion depends on soft-wrap flags. Row
+boundaries remain significant. A deterministic regression proves equal rows
+with different wrap metadata compare equal, while a different layout with the
+same flattened text compares unequal. Timeout panics now identify the caller.
+This fixes a test assertion; no editor state-loss defect was established.
+
+All 13 Saved Setups tests passed, followed by 20 consecutive repetitions of
+the four PTY tests running together with four test threads. Formatting, diff
+checks and clippy with warnings denied passed. All 459 ordinary tests passed
+with normal Windows permissions; 22 prerequisite-dependent tests remain
+ignored (481 discovered). CodeRabbit CLI 0.7.6 reviewed the two-file diff with
+zero findings; reviewed-head/merged-main CI evidence will be recorded on the
+PR. This test/documentation change needs no
+version bump; published 0.19.1 remains unchanged.
+
 ## October 5: New Project package revision resize recovery
 
 Work started from clean main `edb9f4b` (PR #61), with no open PRs, on
