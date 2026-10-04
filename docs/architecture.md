@@ -1263,6 +1263,13 @@ Catalog through narrow, minimum and undersized screens, uses Help, restores the
 same wide screen, then scrolls and exits. These ordinary tests require no
 external tool installation or user configuration writes.
 
+The Projects rendering regression resizes the same filtered, selected and
+scrolled browser through 120 x 30, 80 x 24, 60 x 16, 40 x 10 and back.
+It checks selected-row visibility, preserved detail focus/scroll, Help at each
+size, identical restored detail cells and subsequent keyboard scrolling.
+This uses TestBackend and temporary projects; real-terminal Projects resize
+recovery remains unverified.
+
 The ordinary generated-cloud credential guard regression executes Bash from
 the existing Git for Windows installation (`bin` or `usr/bin`); Windows CI
 runners provide this prerequisite. An unavailable Bash is a prerequisite failure,

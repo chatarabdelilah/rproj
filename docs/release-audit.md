@@ -1,5 +1,28 @@
 # Release-Hardening Audit
 
+## October 4: Projects resize recovery coverage
+
+Work started from clean main `11dcfb6` (PR #56), with no open PRs and successful
+merged-main CI `37180824242`. The existing Projects rendering regression now
+uses one app and TestBackend through 120 x 30, 80 x 24, 60 x 16, 40 x 10 and
+back. Thirty matching temporary projects plus one excluded project exercise a
+typed filter, non-default selection and a scrolled list. Injected discovery
+warnings provide enough detail text to verify actual keyboard scrolling.
+
+The regression checks filter and selected-path preservation, visible selection
+at usable sizes, detail focus/scroll, Help open/close at every size, identical
+restored detail cells and working Home/End scrolling after recovery. List offsets
+may adjust to keep the selected row visible. Existing disabled-action reasons
+and the 280 x 70 rendering check remain covered. No runtime change, provisioning,
+dependency or version bump is involved; published 0.19.1 remains unchanged.
+
+Local formatting, `cargo test --locked` (452 passed, 22 prerequisite-dependent
+tests ignored), clippy with warnings denied and diff checks passed. The test
+inventory remains 474 Windows tests (400 unit and 74 integration). Branch
+review and reviewed-head/main CI will be recorded on the PR before closeout.
+This is TestBackend coverage, not a real-terminal Projects resize test;
+ignored live-tool tests are not counted as passes.
+
 ## October 4: Catalog resize recovery coverage
 
 Work started from clean main `1af843e` (PR #55), with no open PRs. Two new
