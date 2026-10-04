@@ -1254,7 +1254,7 @@ Implementations are not all the same kind of thing: TestEZ is a Wally package, S
 
 T5's `commands::machine_setup` selection/worker/TUI tests and `steps::execution` process-adapter tests use temporary storage and harmless fixture executables. They cover recorded-empty/unknown selections, no-op cancellation, explicit confirmation, success/failure/save failure, returning through Review after completion, cooperative cancellation awaiting the child, output saturation, worker panic, Unicode/ANSI/CRLF handling, and concurrent stdout/stderr. `tests/setup.rs` covers redirected refusal and standalone terminal restoration. Windows configuration tests verify complete replacement and preservation on sharing violations.
 
-As of October 4, 2026, `cargo test` discovers 475 tests on Windows: 400 unit tests and 75 integration tests. Twenty-two prerequisite-dependent tests are ignored in the ordinary suite, leaving 453 ordinary tests. T5 added selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
+As of October 4, 2026, `cargo test` discovers 476 tests on Windows: 401 unit tests and 75 integration tests. Twenty-two prerequisite-dependent tests are ignored in the ordinary suite, leaving 454 ordinary tests. T5 added selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
 
 Catalog resize recovery has two unit regressions for filtered selection, list
 viewport visibility, detail scroll/render preservation and Back history. A
@@ -1270,6 +1270,15 @@ size, identical restored detail cells and subsequent keyboard scrolling.
 A real-terminal regression also preserves a uniquely filtered launch project,
 scrolled details and Help through small sizes and restores the exact screen.
 It then verifies Home/End scrolling, opening that project and returning Home.
+
+Saved Setups has TestBackend and real-terminal regressions preserving a typed
+filter, non-default selection, scrolled list and composition details through
+wide, narrow, minimum and undersized screens. The PTY test uses the isolated
+`setup_pty_driver`, opens/closes Help at each small size, compares restored
+composition rows, checks continued Home/End scrolling and Actions/Back, and
+verifies every fixture's bytes and raw-mode restoration. Pane assertions use
+terminal cell snapshots because flattened terminal text can join wrapped rows;
+list offsets may adjust while retaining the selected setup's visibility.
 
 The ordinary generated-cloud credential guard regression executes Bash from
 the existing Git for Windows installation (`bin` or `usr/bin`); Windows CI

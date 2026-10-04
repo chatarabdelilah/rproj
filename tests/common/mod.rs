@@ -203,6 +203,15 @@ impl Session {
     }
 
     fn text_since(&self, checkpoint: usize) -> String {
+        self.parser_since(checkpoint).screen().contents()
+    }
+
+    /// Cell snapshot for pane assertions; `contents()` can join soft-wrapped rows.
+    pub fn screen(&self) -> vt100::Screen {
+        self.parser_since(0).screen().clone()
+    }
+
+    fn parser_since(&self, checkpoint: usize) -> vt100::Parser {
         let raw = self.raw.lock().unwrap();
         let mut parser = vt100::Parser::new(ROWS, COLS, 0);
         let mut position = checkpoint;
@@ -214,7 +223,7 @@ impl Session {
             parser.set_size(rows, cols);
         }
         parser.process(&raw[position..]);
-        parser.screen().contents()
+        parser
     }
 
     pub fn resize(&mut self, rows: u16, cols: u16) {

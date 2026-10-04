@@ -1,5 +1,31 @@
 # Release-Hardening Audit
 
+## October 4: Saved Setups PTY resize recovery
+
+Work started from clean main `bd77054` (PR #59), with no open PRs.
+An ordinary unit regression drives the isolated `setup_pty_driver` in a real
+terminal. Thirty-one matching disposable setups plus one excluded setup exercise
+the complete `sample` filter, non-default `sample29` selection, scrolled list
+and composition details. It resizes from 120 x 30 through 80 x 24, 60 x 16,
+40 x 10 and back, opening/closing Help at each small size.
+
+Terminal cell snapshots verify the selected name inside the list pane and
+identical restored composition rows. Flattened text can join wrapped rows;
+list offsets may adjust with the viewport and after Actions/Back. Home/End
+still scrolls after recovery; Actions opens the same setup and Back restores
+the filter and scrolled composition. Ctrl+C exits successfully, the driver
+checks raw-mode restoration, and all 32 fixture files retain their original
+bytes. Logging is disabled; no user setup storage or provisioning is involved.
+
+The new regression passed ten consecutive repetitions. Formatting and the
+full ordinary suite passed with normal Windows permissions: 454 passed and
+22 prerequisite-dependent tests ignored, out of 476 discovered tests (401
+unit and 75 integration). Ignored tests are not counted as passes. Clippy with
+warnings denied and diff checks passed; final whole-branch CodeRabbit CLI
+review reported zero findings across all five changed files. Reviewed-head/main
+CI evidence will be recorded on the PR before closeout. This test-only change
+needs no version bump; published 0.19.1 remains unchanged.
+
 ## October 4: Saved Setups browser resize recovery
 
 Work started from clean main `30e2b7b` (PR #58), with no open PRs.
