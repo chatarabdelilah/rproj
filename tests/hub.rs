@@ -286,6 +286,73 @@ fn bare_rproj_opens_the_hub_and_exits_cleanly() {
 }
 
 #[test]
+fn projects_resize_recovery_preserves_filtered_details_and_navigation() {
+    let project = TempProject::new("projects-pty-resize");
+    project.write("default.project.json", "{}");
+    let packages: Vec<_> = (0..40)
+        .map(|n| format!("resize-fixture-package-{n:02}"))
+        .collect();
+    project.write(
+        "rproj.toml",
+        &format!(
+            "package_workflow = \"none\"\npackages = {}\n[capabilities]\n",
+            toml::Value::try_from(packages).unwrap()
+        ),
+    );
+    let filter = project.path().file_name().unwrap().to_str().unwrap();
+    let mut session = Session::start_with_env(project.path(), &[], &[("RPROJ_NO_LOG", "1")]);
+    session.wait_for("Tasks");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Tasks");
+    session.send(ENTER);
+    session.wait_for("Filter:");
+    session.send(filter);
+    session.wait_for(&format!("Filter: {filter}"));
+    session.wait_for("Workflow: None");
+    session.send("\t");
+    session.send("\x1b[F"); // End in the details pane
+    session.wait_for("resize-fixture-package-39");
+    let scrolled = session.text();
+    assert!(!scrolled.contains("Workflow: None"), "{scrolled}");
+
+    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+        let checkpoint = session.output_checkpoint();
+        session.resize(rows, cols);
+        let restored = if cols < 60 {
+            "Resize to at least 60 x 16.".to_string()
+        } else {
+            format!("Filter: {filter}")
+        };
+        session.wait_for_output_since(checkpoint, &restored);
+        session.send("?");
+        session.wait_for("Help");
+        session.send(ESC);
+        session.wait_for(&restored);
+    }
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "resize-fixture-package-39");
+    session.wait_for(&scrolled);
+    assert_eq!(session.text(), scrolled);
+    session.send("\x1b[H"); // Home in the details pane
+    session.wait_for("Workflow: None");
+    session.send("\x1b[F");
+    session.wait_for(&scrolled);
+    session.send("\t");
+    session.send(ENTER);
+    session.wait_for(&format!("Project: {filter}"));
+    session.wait_for("Project actions");
+    session.send(ESC);
+    session.wait_for(&format!("Filter: {filter}"));
+    session.send("\x03");
+    session.wait_for("Tasks");
+    session.send(ESC);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+}
+
+#[test]
 fn the_hub_opens_the_catalog_and_returns() {
     let project = TempProject::new("hub-catalog");
     let mut session = Session::start(project.path(), &[]);
