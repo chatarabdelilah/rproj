@@ -33,6 +33,15 @@ fixes: first add phase/state/log diagnostics to this lifecycle fixture, reproduc
 the failure, then select a fix from that evidence. Retain all merged follow-up
 branches until the final acceptance is green.
 
+On resuming, documentation-only head `afa0388` had passed all required CI gates
+with unchanged runtime/tests ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37304172636)).
+The lifecycle fixture now reports named wait phases and caller locations, plus
+persisted/live state and bounded log tails before panic cleanup. Snapshot tokens
+are excluded and log control characters are escaped. All seven scenarios passed
+locally with these diagnostics (8.13 seconds); clippy and diff checks passed.
+Timeouts and acceptance assertions remain unchanged. A recurrence must be
+diagnosed from this evidence rather than attributed to an unspecified race.
+
 Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
 Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
 reviewed head `8abc188` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37298235374))
