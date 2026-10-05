@@ -72,7 +72,32 @@ fn process_driver() {
         assert!(format!("{error:#}").contains("breakaway"), "{error:#}");
         return;
     }
-    let snapshot = start_at(&root, &project, &exe()).unwrap();
+    let competing = std::env::var_os("RPROJ_TEST_WATCH_READY");
+    if let Some(ready) = &competing {
+        fs::write(ready, "ready").unwrap();
+        wait(|| root.join("release-starts").exists());
+    }
+    let snapshot = match start_at(&root, &project, &exe()) {
+        Ok(snapshot) => snapshot,
+        Err(error)
+            if competing.is_some() && error.to_string().contains("Another rproj command") =>
+        {
+            fs::write(
+                PathBuf::from(competing.unwrap()).with_extension("owner"),
+                "busy",
+            )
+            .unwrap();
+            return;
+        }
+        Err(error) => panic!("{error:#}"),
+    };
+    if let Some(ready) = competing {
+        fs::write(
+            PathBuf::from(ready).with_extension("owner"),
+            snapshot.supervisor.to_string(),
+        )
+        .unwrap();
+    }
     assert!(matches!(snapshot.state, State::Preparing | State::Watching));
 }
 
@@ -91,14 +116,32 @@ fn driver(root: &Path, project: &Path, path: &std::ffi::OsStr) -> Command {
 }
 
 fn outside_launcher(root: &Path, project: &Path, path: &std::ffi::OsStr) {
+    let done = begin_outside_launcher(root, project, path, false);
+    finish_launcher(&done);
+}
+
+fn begin_outside_launcher(
+    root: &Path,
+    project: &Path,
+    path: &std::ffi::OsStr,
+    competing: bool,
+) -> PathBuf {
     // Codex and some CI launchers prohibit job breakaway. WMI creates this owned
     // test launcher outside their job; production has no escape fallback.
     fs::create_dir_all(root).unwrap();
     let quote =
         |value: &std::ffi::OsStr| format!("'{}'", value.to_string_lossy().replace('\'', "''"));
-    let script = root.join("launcher.ps1");
-    let done = root.join("launcher.exit");
-    fs::write(&script, format!("$env:RPROJ_TEST_WATCH_ROOT={}\n$env:RPROJ_TEST_WATCH_PROJECT={}\n$env:PATH={}\n$info = New-Object System.Diagnostics.ProcessStartInfo\n$info.FileName={}\n$info.Arguments='--exact background_watch::windows::tests::process_driver --nocapture'\n$info.UseShellExecute=$false\n$info.CreateNoWindow=$true\n$process=[System.Diagnostics.Process]::Start($info)\nif ($process.WaitForExit(12000)) {{ $process.ExitCode | Set-Content -Encoding ASCII -LiteralPath {} }} else {{ $process.Kill(); 'timeout' | Set-Content -Encoding ASCII -LiteralPath {} }}\n",
+    let script = root.join(format!("launcher-{}.ps1", &random_token().unwrap()[..12]));
+    let done = script.with_extension("exit");
+    let barrier = if competing {
+        format!(
+            "$env:RPROJ_TEST_WATCH_READY={}\n",
+            quote(done.with_extension("ready").as_os_str())
+        )
+    } else {
+        String::new()
+    };
+    fs::write(&script, format!("{barrier}$env:RPROJ_TEST_WATCH_ROOT={}\n$env:RPROJ_TEST_WATCH_PROJECT={}\n$env:PATH={}\n$info = New-Object System.Diagnostics.ProcessStartInfo\n$info.FileName={}\n$info.Arguments='--exact background_watch::windows::tests::process_driver --nocapture'\n$info.UseShellExecute=$false\n$info.CreateNoWindow=$true\n$process=[System.Diagnostics.Process]::Start($info)\nif ($process.WaitForExit(12000)) {{ $process.ExitCode | Set-Content -Encoding ASCII -LiteralPath {} }} else {{ $process.Kill(); 'timeout' | Set-Content -Encoding ASCII -LiteralPath {} }}\n",
         quote(root.as_os_str()), quote(project.as_os_str()), quote(path), quote(std::env::current_exe().unwrap().as_os_str()), quote(done.as_os_str()), quote(done.as_os_str()))).unwrap();
     let command = format!(
         "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"",
@@ -111,6 +154,10 @@ fn outside_launcher(root: &Path, project: &Path, path: &std::ffi::OsStr) {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    done
+}
+
+fn finish_launcher(done: &Path) {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !done.exists() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(20));
@@ -195,16 +242,32 @@ fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
             assert!(!session.root.join("session.json").exists());
             continue;
         }
-        outside_launcher(&session.root, &session.project, &path);
         if scenario == "simultaneous" {
-            let output = driver(&session.root, &session.project, &path)
-                .output()
-                .unwrap();
+            let first = begin_outside_launcher(&session.root, &session.project, &path, true);
+            let second = begin_outside_launcher(&session.root, &session.project, &path, true);
+            wait(|| {
+                first.with_extension("ready").exists() && second.with_extension("ready").exists()
+            });
+            fs::write(session.root.join("release-starts"), "go").unwrap();
+            finish_launcher(&first);
+            finish_launcher(&second);
+            let owner = status_at(&session.root)
+                .unwrap()
+                .unwrap()
+                .supervisor
+                .to_string();
+            let outcomes = [
+                fs::read_to_string(first.with_extension("owner")).unwrap(),
+                fs::read_to_string(second.with_extension("owner")).unwrap(),
+            ];
+            assert!(outcomes.iter().any(|result| result == &owner));
             assert!(
-                output.status.success()
-                    || String::from_utf8_lossy(&output.stderr).contains("Another rproj command"),
-                "{output:?}"
+                outcomes
+                    .iter()
+                    .all(|result| result == "busy" || result == &owner)
             );
+        } else {
+            outside_launcher(&session.root, &session.project, &path);
         }
         if scenario == "stop-recovery" {
             wait(|| session.project.join("recovery-started").exists());
@@ -250,6 +313,16 @@ fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
         wait(|| status_at(&session.root).unwrap().unwrap().state == State::Watching);
         wait(|| session.project.join("grandchild-started").exists());
         let snapshot = status_at(&session.root).unwrap().unwrap();
+        if scenario == "simultaneous" {
+            assert_eq!(
+                fs::read_to_string(session.project.join("tools.log"))
+                    .unwrap()
+                    .lines()
+                    .filter(|line| line.contains("--watch"))
+                    .count(),
+                1
+            );
+        }
         assert_eq!(
             start_at(&session.root, &session.project, &exe())
                 .unwrap()
