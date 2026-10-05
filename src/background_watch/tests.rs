@@ -174,6 +174,43 @@ fn finish_launcher(done: &Path) {
 }
 
 #[test]
+fn slow_log_writer_does_not_block_the_control_runtime() {
+    let root = tempfile::tempdir().unwrap();
+    let log = Arc::new(Mutex::new(RotatingLog::new(root.path()).unwrap()));
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let busy_log = log.clone();
+    let writer = std::thread::spawn(move || {
+        let _guard = busy_log.lock().unwrap();
+        ready_tx.send(()).unwrap();
+        release_rx.recv_timeout(Duration::from_secs(2)).is_ok()
+    });
+    ready_rx.recv().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let released = runtime.block_on(async {
+        let (mut input, output) = tokio::io::duplex(64);
+        let draining = tokio::spawn(drain(output, log));
+        input.write_all(b"fixture output").await.unwrap();
+        drop(input);
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        let released = release_tx.send(()).is_ok();
+        draining.await.unwrap().unwrap();
+        released
+    });
+    assert!(
+        writer.join().unwrap() && released,
+        "log writer blocked control"
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join("watch.log")).unwrap(),
+        "fixture output"
+    );
+}
+
+#[test]
 fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
     let fixtures = tempfile::tempdir().unwrap();
     let bin = fixtures.path().join("bin");

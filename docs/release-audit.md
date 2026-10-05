@@ -2,6 +2,23 @@
 
 ## October 5: Persistent background Watch v1 (unreleased)
 
+Main `acf9c70` contains the completion-marker and Catalog visible-row corrections
+from [PR #72](https://github.com/chatarabdelilah/rproj/pull/72). Its reviewed-head
+CI passed; merged-main stable subsequently exposed a Stop control timeout after
+output flooding ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37302044628)).
+The supervisor's single-thread runtime also ran synchronous disk writes and log
+rotation. Those operations now run on Tokio's blocking pool, with each pipe
+awaiting its current chunk to retain bounded buffering and propagate errors.
+A deterministic regression holds the log mutex until a control-runtime timer
+releases it; disk work must yield rather than block that timer.
+The regression failed with the original synchronous drain (2.01 seconds), then
+passed with blocking-pool writes (0.07 seconds). The ordinary suite passed
+470 tests with 24 ignored (494 discovered), and both explicit installed-tool
+checks passed (5.94 seconds). All seven lifecycle scenarios passed in three
+further focused runs. Formatting, clippy with warnings denied and diff checks
+passed. Locked packaging is rerun after committing; its first invocation
+correctly refused the uncommitted runtime files.
+
 Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
 Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
 reviewed head `8abc188` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37298235374))
