@@ -10,7 +10,7 @@
 
 ## What rproj does
 
-Published [0.19.1](docs/release-notes-0.19.1.md) improves Template Explorer recovery and detects external template changes before saves/resets. UI Labs remains available at 2.4.2. rproj remains alpha software.
+The [0.20.0 alpha candidate](docs/release-notes-0.20.0.md) adds persistent background sourcemap Watch on Windows, with status, logs and stop controls. Published [0.19.1](docs/release-notes-0.19.1.md) remains the registry baseline until owner publication. UI Labs remains available at 2.4.2. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
