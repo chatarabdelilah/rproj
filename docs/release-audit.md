@@ -1,5 +1,40 @@
 # Release-Hardening Audit
 
+## October 5: New Project package revision PTY resize recovery
+
+Work started from clean main `c7ba7e2` (PR #63), with successful merged-main
+CI and no open PRs, on `codex/new-project-pty-resize`. An ordinary PTY
+regression starts an isolated expert/Wally draft at its package revision.
+It filters `janitor`, checks it and focuses/scrolls details, then resizes
+through 120 x 30, 80 x 24, 60 x 16, 40 x 10 and back, with Help at each size.
+
+The unit-test driver calls production `creation::next_effect`, covering its
+small-screen key/paste gate without configuration, template preparation or
+execution. Undersized focus, toggle, acceptance and paste input cannot alter
+the recovered screen. Physical-row snapshots retain the filtered/checked
+revision and scrolled details; scrolling still changes the recovered screen.
+The test accepts the revision, reopens the checked package, cancels that
+revision and exits. The driver verifies the reviewed graph differs only by
+Janitor and checks raw-mode restoration. A temporary sentinel stays
+byte-identical; no project or setup is created and no tools are provisioned.
+Home dispatch, preparation and confirmed creation remain separate coverage.
+
+Initial harness failures identified two synchronization assumptions: ConPTY
+diff output does not always repeat an unchanged filter label, and `Help` in
+the undersized footer is not proof that the popup opened. Current-screen
+predicates, the popup border title and Help input barriers address those
+assumptions. No runtime defect was established.
+
+All 24 creation tests passed, and the new PTY regression passed 20 consecutive
+repetitions. Formatting, diff checks, clippy with warnings denied and all 461
+ordinary tests passed with normal Windows permissions. Twenty-two
+prerequisite-dependent tests remain ignored (483 discovered). CodeRabbit CLI
+0.7.6 found one stale documentation total, now corrected and directly
+inspected; no code findings were reported. Reviewed-head/merged-main CI
+evidence will be recorded on the PR.
+Published 0.19.1 remains unchanged; this test/documentation change needs no
+version bump.
+
 ## October 5: PTY recovery comparisons preserve physical rows
 
 Merged-main [CI at `12027c5`](https://github.com/chatarabdelilah/rproj/actions/runs/37243719351)
