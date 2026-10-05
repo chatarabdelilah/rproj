@@ -20,6 +20,20 @@ barrier, then start together. Both results must identify the same supervisor
 or explicitly report busy startup, and exactly one Rojo watcher may launch.
 All seven lifecycle cases passed again (8.16 seconds); runtime code is unchanged.
 
+Final main CI on `6b652d5` passed Rust 1.89 and packaging, but stable reproduced
+a completion-marker fixture race: `Set-Content` created the file before closing
+its exclusive handle, and `finish_launcher` read it immediately (Windows sharing
+violation 32, [failed run](https://github.com/chatarabdelilah/rproj/actions/runs/37299861247)).
+The test launcher now writes a sibling pending file with `File.WriteAllText`,
+closes it, then atomically moves it to the completion path. Marker existence
+means the complete result is readable; exit-code checks remain strict. Runtime
+code is unchanged; this failure is not counted as passing evidence.
+The corrected fixture passed the ordinary suite (469 passed, 24 ignored) and
+both explicit installed Rojo/Wally/Jest checks (5.84 seconds), formatting and
+clippy. The narrow local CodeRabbit retry was rate-limited for 25 minutes;
+this small test-only diff was inspected directly, not recorded as a passed
+CodeRabbit review. The runtime's two earlier local reviews remain applicable.
+
 The owner approved one persistent Windows sourcemap Watch per user, manual
 startup and stop after the active recovery command. Work starts from main
 `5ee9809`; published 0.19.1 remains unchanged. Direct foreground Watch remains

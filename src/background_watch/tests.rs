@@ -133,6 +133,7 @@ fn begin_outside_launcher(
         |value: &std::ffi::OsStr| format!("'{}'", value.to_string_lossy().replace('\'', "''"));
     let script = root.join(format!("launcher-{}.ps1", &random_token().unwrap()[..12]));
     let done = script.with_extension("exit");
+    let pending = script.with_extension("pending");
     let barrier = if competing {
         format!(
             "$env:RPROJ_TEST_WATCH_READY={}\n",
@@ -141,8 +142,10 @@ fn begin_outside_launcher(
     } else {
         String::new()
     };
-    fs::write(&script, format!("{barrier}$env:RPROJ_TEST_WATCH_ROOT={}\n$env:RPROJ_TEST_WATCH_PROJECT={}\n$env:PATH={}\n$info = New-Object System.Diagnostics.ProcessStartInfo\n$info.FileName={}\n$info.Arguments='--exact background_watch::windows::tests::process_driver --nocapture'\n$info.UseShellExecute=$false\n$info.CreateNoWindow=$true\n$process=[System.Diagnostics.Process]::Start($info)\nif ($process.WaitForExit(12000)) {{ $process.ExitCode | Set-Content -Encoding ASCII -LiteralPath {} }} else {{ $process.Kill(); 'timeout' | Set-Content -Encoding ASCII -LiteralPath {} }}\n",
-        quote(root.as_os_str()), quote(project.as_os_str()), quote(path), quote(std::env::current_exe().unwrap().as_os_str()), quote(done.as_os_str()), quote(done.as_os_str()))).unwrap();
+    // Publish only after WriteAllText closes its exclusive handle; existence
+    // must mean that the complete marker is immediately readable on Windows.
+    fs::write(&script, format!("{barrier}$env:RPROJ_TEST_WATCH_ROOT={}\n$env:RPROJ_TEST_WATCH_PROJECT={}\n$env:PATH={}\n$info = New-Object System.Diagnostics.ProcessStartInfo\n$info.FileName={}\n$info.Arguments='--exact background_watch::windows::tests::process_driver --nocapture'\n$info.UseShellExecute=$false\n$info.CreateNoWindow=$true\n$process=[System.Diagnostics.Process]::Start($info)\nif ($process.WaitForExit(12000)) {{ $result=[string]$process.ExitCode }} else {{ $process.Kill(); $result='timeout' }}\n[System.IO.File]::WriteAllText({}, $result, [System.Text.Encoding]::ASCII)\n[System.IO.File]::Move({}, {})\n",
+        quote(root.as_os_str()), quote(project.as_os_str()), quote(path), quote(std::env::current_exe().unwrap().as_os_str()), quote(pending.as_os_str()), quote(pending.as_os_str()), quote(done.as_os_str()))).unwrap();
     let command = format!(
         "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"",
         script.display()
