@@ -11,6 +11,7 @@ use crate::steps::{git, jest, modules, rojo, testez, toolchain, wally};
 use crate::ui;
 
 pub fn apply(project_dir: &Path, edit: ProjectEdit) -> Result<()> {
+    let _guard = crate::background_watch::mutation_guard(Some(project_dir), false)?;
     let record_path = project_file::path_in(project_dir);
     let current_source = std::fs::read_to_string(&record_path)
         .with_context(|| format!("failed to read {}", record_path.display()))?;

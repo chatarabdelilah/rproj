@@ -424,6 +424,7 @@ fn ctrl_c(key: KeyEvent) -> bool {
 }
 
 pub fn run_in(terminal: &mut TerminalSession, config: &mut GlobalConfig) -> Result<bool> {
+    let _guard = crate::background_watch::mutation_guard(None, false)?;
     let result = run_with(terminal, config, Worker::start, GlobalConfig::save);
     if matches!(result, Ok(true)) {
         crate::steps::notify::summary(

@@ -99,6 +99,8 @@ rproj watch
 
 `rproj watch` restores missing project dependencies, regenerates the Rojo sourcemap, and starts the development watcher.
 
+On Windows, `rproj watch start` runs that sourcemap Watch in the background after rproj closes. Only one project can run in the background per user. Use `rproj watch status`, `rproj watch logs`, and `rproj watch stop` from any directory. Stop finishes the active recovery command before skipping later work. During watching it terminates the owned process tree. Startup is manual; Watch does not restart after logout/reboot or failure. It does not run Rojo Serve.
+
 ## Commands
 
 | Command | Purpose |
@@ -111,6 +113,8 @@ rproj watch
 | `rproj configure project` | Edit or reset the global Rojo tree inherited by future projects |
 | `rproj upgrade` | Re-render maintained files from the current `rproj.toml` decisions |
 | `rproj watch` | Restore dependencies and start the Rojo development loop |
+| `rproj watch start` | Start persistent background sourcemap Watch on Windows |
+| `rproj watch status / logs / stop` | Inspect or stop the single background Watch from any directory |
 | `rproj test [args]` | Restore dependencies and run the selected test runner; pass remaining arguments through |
 | `rproj copy` | Copy source files with path headers |
 | `rproj info [key]` | Open the TUI Catalog or print one entry when a key is supplied |
@@ -122,7 +126,9 @@ Projects lists recognized folders directly beneath the configured projects root,
 
 Type to filter by name or path; use arrows and Enter to open a project, F5 to refresh, Tab to focus details, and `?` for help. Esc returns to the list with its filter, selection, and scroll intact; Ctrl+C returns Home. Selection lasts only for this session.
 
-The project screen offers Configure Tools, Upgrade Project, Watch Project, Test Project, and Copy Source. Unavailable actions explain their requirements. Actions target the selected directory, never the launch directory. Configure Tools stays inside Ratatui with setting details, pending changes, default-No save/discard confirmation, and preservation of unrelated values. Other commands acknowledge output before returning to the project. Watch stays foreground-only: Ctrl+C stops the child before returning; unexpected nonzero exits remain failures. Successful creation opens the new project's screen; Back selects it in the refreshed Projects list.
+The project screen offers Configure Tools, Upgrade Project, Start background Watch, Test Project, Copy Source, Watch Status, Watch Logs, Stop Watch, and Watch in Foreground. Home shows background Watch's project and state; quitting leaves it running. Actions target the selected directory. Stop Watch before changing the watched project's composition, tools, or configuration, and before Machine Setup. Tests can coexist with Watching but are blocked during Preparing/Stopping. Configure Tools stays inside Ratatui with setting details, pending changes, default-No save/discard confirmation, and preservation of unrelated values. Other commands acknowledge output before returning to the project. Foreground Watch retains Ctrl+C stopping and failure reporting. Successful creation opens the new project's screen; Back selects it in the refreshed Projects list.
+
+Background states are Preparing, Watching, Stopping, Stopped, Failed, and Unresponsive. Start acknowledges Preparing; Watching requires successful recovery, initial sourcemap generation, and a spawned watcher. If the launcher prohibits process detachment, start from a normal Windows terminal. Unresponsive ownership blocks a replacement; rproj never kills a process using a cached PID. Watch logs retain two files of at most 1 MiB each under the user's local rproj data directory. Review tool output and local paths before sharing logs.
 
 ### Catalog
 

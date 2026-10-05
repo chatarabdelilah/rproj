@@ -1,5 +1,54 @@
 # Release-Hardening Audit
 
+## October 5: Persistent background Watch v1 (unreleased)
+
+The owner approved one persistent Windows sourcemap Watch per user, manual
+startup and stop after the active recovery command. Work starts from main
+`5ee9809`; published 0.19.1 remains unchanged. Direct foreground Watch remains
+available; the hub defaults to background Watch and includes status/logs/stop
+and an explicit foreground action. Home refreshes the active project/state.
+
+The hidden supervisor owns an engine and all tool descendants through
+process-wrap 10.0.1's Tokio JobObject plus KillOnDrop. An exclusive lifetime file
+lock is ownership authority; status readers share their probes. Restricted
+storage and separately authenticated versioned loopback control prevent token
+disclosure through normal UI/log output. Stale PIDs are never used for control.
+Conflicting project writes/Machine Setup require stopping Watch; tests coexist
+with Watching and are blocked during recovery/stopping or lost control.
+
+Executed evidence:
+
+- Seven ordinary lifecycle cases verify launcher exit/reopened control,
+  idempotent and competing starts, different-project refusal, recovery stopping,
+  watcher failure, supervisor crash and grandchild cleanup, blocked job
+  breakaway, and output saturation. Invalid control tokens and held/corrupt or
+  unresponsive ownership are refused. Mutation policy is checked separately.
+- The lifecycle fixture found two defects in the new implementation before
+  review: append-only Windows log access could not truncate during rotation;
+  exclusive status probes could look like an owner to concurrent readers.
+  Logs now retain write access and seek after truncation; probes share locks.
+- `cargo test --locked`: 468 ordinary tests passed before the second installed-
+  tool acceptance was added. That addition is ignored by default; it does not
+  replace ordinary evidence. Formatting, clippy with warnings denied, and diff
+  checks passed. Final review/CI evidence follows in the PR.
+- `cargo test --locked installed_rojo_keeps_updating_after_launcher_exit -- --ignored --nocapture`:
+  passed with installed Rojo 7.7.0. A source added after the launcher exited
+  appeared in the sourcemap; stopping completed and removed owned processes.
+- `cargo test --locked installed_wally_and_jest_background_recovery -- --ignored --nocapture`:
+  passed for both generated Wally and Jest compositions (6.93 seconds). Installed
+  Wally and wally-package-types restored Charm exports; Jest's generated project
+  retained its development-package mount; both watchers updated after launcher
+  exit and stopped. Initial acceptance fixtures omitted generated package mounts
+  and assumed Wally's alias extensions; those fixture errors were corrected.
+
+Tests own unique temporary projects/session storage and verify child locks are
+released. Codex's containing job denies breakaway, so ordinary positive fixtures
+use a hidden WMI-created test launcher outside that job; a separate negative
+case verifies the product's refusal. Production has no WMI escape fallback.
+No applications or startup tasks were installed, and existing projects were
+not replaced. Authenticated Open Cloud and fresh-machine provisioning remain
+unverified. No automatic restart, Rojo Serve, beta date or publication is implied.
+
 ## October 5: Bounded New Project execution-boundary audit
 
 Audited clean main `0e05001`, with successful merged-main CI and no open PRs.
