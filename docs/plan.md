@@ -133,8 +133,12 @@ A second TestBackend regression now follows a capability revision through
 Capabilities, test implementation and Jest execution. Each screen preserves its
 filter, selection, checked choices and detail focus/scroll through the same
 resize sequence and Help. Cancellation restores the reviewed TestEZ composition;
-acceptance retains Open Cloud on reopening. This verifies model/render recovery;
-capability-path PTY input gating and hosted execution remain separate checks.
+acceptance retains Open Cloud on reopening. An isolated PTY now drives these
+three screens through the same sizes using production input gating. It verifies
+blocked undersized input, complete resized screens, continued scrolling,
+whole-graph cancellation and retained execution choice, with unchanged fixture
+bytes and terminal restoration. Home dispatch, preparation, confirmed creation
+and hosted execution remain separate checks.
 
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests

@@ -758,14 +758,30 @@ fn creation_pty_driver() {
     let Some(root) = std::env::var_os("RPROJ_CREATION_TEST_ROOT") else {
         return;
     };
-    let mut draft = draft();
-    select(&mut draft, "expert");
-    select(&mut draft, "wally");
-    key(&mut draft, KeyCode::Enter);
-    key(&mut draft, KeyCode::Enter);
+    let capability_revision = std::env::var_os("RPROJ_CREATION_TEST_CAPABILITY").is_some();
+    let mut draft = if capability_revision {
+        capability_pty_draft()
+    } else {
+        let mut draft = draft();
+        select(&mut draft, "expert");
+        select(&mut draft, "wally");
+        key(&mut draft, KeyCode::Enter);
+        key(&mut draft, KeyCode::Enter);
+        draft
+    };
+    let reviewed = graph_value(&draft);
     let mut expected = graph_value(&draft);
-    expected["packages"] = serde_json::json!(["janitor"]);
-    select(&mut draft, "packages");
+    if capability_revision {
+        let mut accepted = draft.graph.clone();
+        accepted.choose("test", Some("jest-roblox-open-cloud"));
+        super::super::new::apply_derived_packages(&mut accepted);
+        expected = serde_json::to_value(accepted).unwrap();
+        select(&mut draft, "capabilities");
+    } else {
+        expected["packages"] = serde_json::json!(["janitor"]);
+        select(&mut draft, "packages");
+    }
+    let mut cancelled_revision = false;
     let destination = std::path::PathBuf::from(root).join("Example");
     let mut terminal = crate::tui::TerminalSession::enter().unwrap();
     loop {
@@ -780,17 +796,46 @@ fn creation_pty_driver() {
             Effect::Cancel => break,
             effect => panic!("unexpected execution effect: {effect:?}"),
         }
+        if capability_revision
+            && !cancelled_revision
+            && draft.step == Step::Review
+            && draft.status == "Revision cancelled."
+        {
+            assert_eq!(graph_value(&draft), reviewed);
+            cancelled_revision = true;
+        }
     }
     drop(terminal);
     assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
     assert_eq!(draft.step, Step::Review);
     assert_eq!(graph_value(&draft), expected);
     assert!(draft.save_setup.is_none());
-    println!("Creation cancelled; reviewed packages retained; terminal restored");
+    if capability_revision {
+        assert!(cancelled_revision);
+        println!("Creation cancelled; reviewed capabilities retained; terminal restored");
+    } else {
+        println!("Creation cancelled; reviewed packages retained; terminal restored");
+    }
+}
+
+fn capability_pty_draft() -> Draft {
+    let mut draft = draft();
+    select(&mut draft, "expert");
+    select(&mut draft, "wally");
+    key(&mut draft, KeyCode::Enter);
+    draft.checked.insert("test".into());
+    key(&mut draft, KeyCode::Enter);
+    select(&mut draft, "testez");
+    assert_eq!(draft.step, Step::Review);
+    draft
 }
 
 fn expected_pty_screen(draft: &Draft, destination: &str) -> String {
-    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    expected_pty_screen_at(draft, destination, 120, 30)
+}
+
+fn expected_pty_screen_at(draft: &Draft, destination: &str, cols: u16, rows: u16) -> String {
+    let mut terminal = Terminal::new(TestBackend::new(cols, rows)).unwrap();
     terminal
         .draw(|frame| super::render::draw(frame, draft, destination))
         .unwrap();
@@ -798,7 +843,7 @@ fn expected_pty_screen(draft: &Draft, destination: &str) -> String {
         .backend()
         .buffer()
         .content()
-        .chunks(120)
+        .chunks(usize::from(cols))
         .map(|row| {
             row.iter()
                 .map(|cell| cell.symbol())
@@ -934,6 +979,146 @@ fn pty_new_project_resize_recovers_checked_package_revision_without_creating() {
     session.wait_for("Revision cancelled.");
     session.send("\x03");
     session.wait_for("Creation cancelled; reviewed packages retained; terminal restored");
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert!(!root.path().join("Example").exists());
+    assert_eq!(
+        std::fs::read(&sentinel).unwrap(),
+        b"preserve fixture bytes\n"
+    );
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+}
+
+#[test]
+fn pty_new_project_resize_recovers_capability_revision_without_creating() {
+    use crate::test_common as common;
+
+    fn resize_revision(session: &mut common::Session, expected: &mut Draft, destination: &str) {
+        session.send("\t");
+        session.send(common::DOWN);
+        key(expected, KeyCode::Tab);
+        key(expected, KeyCode::Down);
+        let baseline = expected_pty_screen(expected, destination);
+        wait_pty_screen(session, |text| text == baseline);
+        for (cols, rows) in [(80, 24), (60, 16), (40, 10), (120, 30)] {
+            session.resize(rows, cols);
+            let frame = expected_pty_screen_at(expected, destination, cols, rows);
+            wait_pty_screen(session, |text| text == frame);
+            session.send("?");
+            wait_pty_screen(session, |text| text.contains("┌ Help "));
+            session.send(common::ESC);
+            wait_pty_screen(session, |text| text == frame);
+            if cols < 60 {
+                session.send("\t \rblocked\x1b[200~pasted\x1b[201~\x13");
+                // Help drains blocked input before the terminal grows again.
+                session.send("?");
+                wait_pty_screen(session, |text| text.contains("┌ Help "));
+                session.send(common::ESC);
+                wait_pty_screen(session, |text| text == frame);
+            }
+        }
+        wait_pty_screen(session, |text| text == baseline);
+        session.send("\x1b[A");
+        key(expected, KeyCode::Up);
+        let unscrolled = expected_pty_screen(expected, destination);
+        assert_ne!(unscrolled, baseline);
+        wait_pty_screen(session, |text| text == unscrolled);
+        session.send("\t");
+        key(expected, KeyCode::Tab);
+        let choices = expected_pty_screen(expected, destination);
+        wait_pty_screen(session, |text| text == choices);
+    }
+
+    let root = tempfile::tempdir().unwrap();
+    let sentinel = root.path().join("sentinel.txt");
+    std::fs::write(&sentinel, b"preserve fixture bytes\n").unwrap();
+    let destination = root.path().join("Example").display().to_string();
+    let mut expected = capability_pty_draft();
+    let reviewed = graph_value(&expected);
+    select(&mut expected, "capabilities");
+    let mut session = common::Session::start_program(
+        &std::env::current_exe().unwrap(),
+        root.path(),
+        &[
+            "--exact",
+            "commands::creation::tests::creation_pty_driver",
+            "--nocapture",
+            "--test-threads=1",
+        ],
+        &[
+            ("RPROJ_CREATION_TEST_ROOT", root.path().to_str().unwrap()),
+            ("RPROJ_CREATION_TEST_CAPABILITY", "1"),
+            ("RPROJ_NO_LOG", "1"),
+        ],
+    );
+    session.wait_for(" New Project:");
+    session.resize(30, 120);
+    let initial = expected_pty_screen(&expected, &destination);
+    wait_pty_screen(&session, |text| text == initial);
+    for cancel in [true, false] {
+        for (step, filter) in [
+            (Step::Capabilities, "test"),
+            (Step::Implementation("test"), "jest"),
+            (Step::JestBackend, "cloud"),
+        ] {
+            assert_eq!(expected.step, step);
+            session.send(filter);
+            expected.paste(filter);
+            resize_revision(&mut session, &mut expected, &destination);
+            assert!(!root.path().join("Example").exists());
+            assert_eq!(
+                std::fs::read(&sentinel).unwrap(),
+                b"preserve fixture bytes\n"
+            );
+            let code = if cancel && step == Step::JestBackend {
+                KeyCode::Esc
+            } else {
+                KeyCode::Enter
+            };
+            session.send(if code == KeyCode::Esc {
+                common::ESC
+            } else {
+                common::ENTER
+            });
+            key(&mut expected, code);
+            let frame = expected_pty_screen(&expected, &destination);
+            wait_pty_screen(&session, |text| text == frame);
+        }
+        assert_eq!(expected.step, Step::Review);
+        if cancel {
+            assert_eq!(graph_value(&expected), reviewed);
+            session.send("capabilities");
+            session.send(common::ENTER);
+            select(&mut expected, "capabilities");
+            let frame = expected_pty_screen(&expected, &destination);
+            wait_pty_screen(&session, |text| text == frame);
+        }
+    }
+    assert_eq!(
+        expected.graph.capabilities["test"],
+        "jest-roblox-open-cloud"
+    );
+    session.send("capabilities");
+    session.send(common::ENTER);
+    select(&mut expected, "capabilities");
+    session.send(common::ENTER);
+    key(&mut expected, KeyCode::Enter);
+    session.send("jest");
+    session.send(common::ENTER);
+    select(&mut expected, "jest-roblox");
+    assert_eq!(expected.step, Step::JestBackend);
+    assert_eq!(
+        expected.picker.selected_value().map(String::as_str),
+        Some("jest-roblox-open-cloud")
+    );
+    let reopened = expected_pty_screen(&expected, &destination);
+    wait_pty_screen(&session, |text| text == reopened);
+    session.send(common::ESC);
+    key(&mut expected, KeyCode::Esc);
+    let frame = expected_pty_screen(&expected, &destination);
+    wait_pty_screen(&session, |text| text == frame);
+    session.send("\x03");
+    session.wait_for("Creation cancelled; reviewed capabilities retained; terminal restored");
     let outcome = session.finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     assert!(!root.path().join("Example").exists());
