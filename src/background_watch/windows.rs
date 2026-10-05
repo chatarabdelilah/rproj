@@ -217,10 +217,13 @@ fn lock_state(root: &Path, writing: bool) -> Result<File> {
     let gate = open_lock(root, "state-writer.lock")?;
     let deadline = Instant::now() + TIMEOUT;
     let pause = || -> Result<()> {
-        ensure!(
-            Instant::now() < deadline,
-            "Watch session state is busy; retry the command"
-        );
+        if Instant::now() >= deadline {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                "Watch session state is busy; retry the command",
+            )
+            .into());
+        }
         std::thread::sleep(Duration::from_millis(1));
         Ok(())
     };

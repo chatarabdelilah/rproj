@@ -263,14 +263,27 @@ fn concurrent_session_readers_do_not_break_atomic_replacement() {
     save(root.path(), &snapshot).unwrap();
     let done = AtomicBool::new(false);
     let errors = AtomicUsize::new(0);
+    let reads = AtomicUsize::new(0);
     let result = std::thread::scope(|scope| {
         for _ in 0..8 {
             scope.spawn(|| {
                 while !done.load(Ordering::Relaxed) {
-                    if let Err(error) = metadata(root.path())
-                        && errors.fetch_add(1, Ordering::Relaxed) == 0
-                    {
-                        eprintln!("reader error: {error:#}");
+                    match metadata(root.path()) {
+                        Ok(Some(current)) => {
+                            assert_eq!(current.nonce, snapshot.nonce);
+                            assert_eq!(current.state, State::Watching);
+                            reads.fetch_add(1, Ordering::Relaxed);
+                        }
+                        Ok(None) => panic!("snapshot disappeared during replacement"),
+                        Err(error)
+                            if error.downcast_ref::<std::io::Error>().is_some_and(|error| {
+                                error.kind() == std::io::ErrorKind::WouldBlock
+                            }) => {}
+                        Err(error) => {
+                            if errors.fetch_add(1, Ordering::Relaxed) == 0 {
+                                eprintln!("reader error: {error:#}");
+                            }
+                        }
                     }
                 }
             });
@@ -283,6 +296,7 @@ fn concurrent_session_readers_do_not_break_atomic_replacement() {
     });
     result.unwrap();
     assert_eq!(errors.load(Ordering::Relaxed), 0);
+    assert!(reads.load(Ordering::Relaxed) > 0);
     assert_eq!(
         metadata(root.path()).unwrap().unwrap().state,
         State::Watching
@@ -306,18 +320,16 @@ fn held_state_lock_refuses_reads_and_writes_without_changing_the_snapshot() {
     let before = fs::read(root.path().join("session.json")).unwrap();
     let held = open_lock(root.path(), "state.lock").unwrap();
     assert!(acquire(&held).unwrap());
-    assert!(
-        metadata(root.path())
-            .unwrap_err()
-            .to_string()
-            .contains("state is busy")
-    );
-    assert!(
-        save(root.path(), &snapshot)
-            .unwrap_err()
-            .to_string()
-            .contains("state is busy")
-    );
+    for error in [
+        metadata(root.path()).unwrap_err(),
+        save(root.path(), &snapshot).unwrap_err(),
+    ] {
+        assert!(error.to_string().contains("state is busy"));
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+    }
     assert_eq!(fs::read(root.path().join("session.json")).unwrap(), before);
     drop(held);
     assert_eq!(
