@@ -140,6 +140,13 @@ whole-graph cancellation and retained execution choice, with unchanged fixture
 bytes and terminal restoration. Home dispatch, preparation, confirmed creation
 and hosted execution remain separate checks.
 
+Strategy revisions now have TestBackend resize recovery for leaving Wally
+through None or Git submodules, including the intermediate Git package screen
+and Testing repair. Filters, selection, detail focus/scroll, warning and graph
+survive Help and the same resize sizes. Escape restores the complete reviewed
+Open Cloud composition; acceptance retains TestEZ or disabled Testing while
+preserving lint. Strategy-path PTY input gating remains a separate check.
+
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
 verify external bytes/absence and the draft survive refusal; a fresh snapshot

@@ -637,65 +637,65 @@ fn new_project_resize_preserves_filtered_checked_package_revision() {
     assert_eq!(graph_value(&draft), expected);
 }
 
-#[test]
-fn new_project_resize_preserves_capability_revision_through_jest_execution() {
-    fn resize_and_help(draft: &mut Draft, expected_step: Step) {
-        let graph = graph_value(draft);
-        let query = draft.picker.query.text().to_owned();
-        let selected = draft.picker.selected_value().cloned();
-        let checked = draft.checked.clone();
-        key(draft, KeyCode::Tab);
-        key(draft, KeyCode::Down);
+fn resize_creation_revision_with_help(draft: &mut Draft, expected_step: Step) {
+    let graph = graph_value(draft);
+    let query = draft.picker.query.text().to_owned();
+    let selected = draft.picker.selected_value().cloned();
+    let checked = draft.checked.clone();
+    key(draft, KeyCode::Tab);
+    key(draft, KeyCode::Down);
+    assert!(draft.details_focus);
+    assert_eq!(draft.scroll, 1);
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    let draw = |terminal: &mut Terminal<TestBackend>, draft: &Draft| {
+        terminal
+            .draw(|frame| super::render::draw(frame, draft, "C:\\Projects\\Example"))
+            .unwrap();
+    };
+    draw(&mut terminal, draft);
+    let baseline = terminal.backend().buffer().clone();
+    for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10), (120, 30)] {
+        terminal.backend_mut().resize(width, height);
+        draw(&mut terminal, draft);
+        let before_help = terminal.backend().buffer().clone();
+        let text: String = before_help
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+        assert!(text.contains(if width < 60 {
+            "Resize to at least 60x16"
+        } else {
+            "New Project"
+        }));
+        key(draft, KeyCode::Char('?'));
+        draw(&mut terminal, draft);
+        let help: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|cell| cell.symbol())
+            .collect();
+        assert!(help.contains("Help"));
+        key(draft, KeyCode::Esc);
+        assert!(draft.modal.is_none());
+        draw(&mut terminal, draft);
+        assert_eq!(terminal.backend().buffer(), &before_help);
+        assert_eq!(draft.step, expected_step);
+        assert_eq!(draft.picker.query.text(), query);
+        assert_eq!(draft.picker.selected_value(), selected.as_ref());
+        assert_eq!(draft.checked, checked);
+        assert_eq!(graph_value(draft), graph);
         assert!(draft.details_focus);
         assert_eq!(draft.scroll, 1);
-        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
-        let draw = |terminal: &mut Terminal<TestBackend>, draft: &Draft| {
-            terminal
-                .draw(|frame| super::render::draw(frame, draft, "C:\\Projects\\Example"))
-                .unwrap();
-        };
-        draw(&mut terminal, draft);
-        let baseline = terminal.backend().buffer().clone();
-        for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10), (120, 30)] {
-            terminal.backend_mut().resize(width, height);
-            draw(&mut terminal, draft);
-            let before_help = terminal.backend().buffer().clone();
-            let text: String = before_help
-                .content()
-                .iter()
-                .map(|cell| cell.symbol())
-                .collect();
-            assert!(text.contains(if width < 60 {
-                "Resize to at least 60x16"
-            } else {
-                "New Project"
-            }));
-            key(draft, KeyCode::Char('?'));
-            draw(&mut terminal, draft);
-            let help: String = terminal
-                .backend()
-                .buffer()
-                .content()
-                .iter()
-                .map(|cell| cell.symbol())
-                .collect();
-            assert!(help.contains("Help"));
-            key(draft, KeyCode::Esc);
-            assert!(draft.modal.is_none());
-            draw(&mut terminal, draft);
-            assert_eq!(terminal.backend().buffer(), &before_help);
-            assert_eq!(draft.step, expected_step);
-            assert_eq!(draft.picker.query.text(), query);
-            assert_eq!(draft.picker.selected_value(), selected.as_ref());
-            assert_eq!(draft.checked, checked);
-            assert_eq!(graph_value(draft), graph);
-            assert!(draft.details_focus);
-            assert_eq!(draft.scroll, 1);
-        }
-        assert_eq!(terminal.backend().buffer(), &baseline);
-        key(draft, KeyCode::Tab);
     }
+    assert_eq!(terminal.backend().buffer(), &baseline);
+    key(draft, KeyCode::Tab);
+}
 
+#[test]
+fn new_project_resize_preserves_capability_revision_through_jest_execution() {
     let mut draft = draft();
     select(&mut draft, "expert");
     select(&mut draft, "wally");
@@ -710,7 +710,7 @@ fn new_project_resize_preserves_capability_revision_through_jest_execution() {
         select(&mut draft, "capabilities");
         draft.paste("test");
         assert_eq!(draft.checked, ["test".into()].into());
-        resize_and_help(&mut draft, Step::Capabilities);
+        resize_creation_revision_with_help(&mut draft, Step::Capabilities);
         key(&mut draft, KeyCode::Enter);
         assert_eq!(draft.step, Step::Implementation("test"));
         draft.paste("jest");
@@ -718,7 +718,7 @@ fn new_project_resize_preserves_capability_revision_through_jest_execution() {
             draft.picker.selected_value().map(String::as_str),
             Some("jest-roblox")
         );
-        resize_and_help(&mut draft, Step::Implementation("test"));
+        resize_creation_revision_with_help(&mut draft, Step::Implementation("test"));
         key(&mut draft, KeyCode::Enter);
         assert_eq!(draft.step, Step::JestBackend);
         draft.paste("cloud");
@@ -726,7 +726,7 @@ fn new_project_resize_preserves_capability_revision_through_jest_execution() {
             draft.picker.selected_value().map(String::as_str),
             Some("jest-roblox-open-cloud")
         );
-        resize_and_help(&mut draft, Step::JestBackend);
+        resize_creation_revision_with_help(&mut draft, Step::JestBackend);
         key(
             &mut draft,
             if cancel { KeyCode::Esc } else { KeyCode::Enter },
@@ -751,6 +751,106 @@ fn new_project_resize_preserves_capability_revision_through_jest_execution() {
         draft.picker.selected_value().map(String::as_str),
         Some("jest-roblox-open-cloud")
     );
+}
+
+#[test]
+fn new_project_resize_preserves_strategy_revision_and_testing_repair() {
+    for (strategy, workflow) in [
+        ("none", PackageWorkflow::None),
+        ("git", PackageWorkflow::GitSubmodules),
+    ] {
+        for (repair, filter) in [("testez", "testez"), ("off", "disable")] {
+            let mut graph = ProjectGraph {
+                mode: "expert".into(),
+                packages: vec!["signal".into()],
+                dropped: vec![".gitignore".into(), "test-examples".into()],
+                ..Default::default()
+            };
+            graph.choose("test", Some("jest-roblox-open-cloud"));
+            graph.choose("lint", Some("selene"));
+            let mut draft = review_graph(graph);
+            let reviewed = draft.graph.clone();
+            let before = graph_value(&draft);
+
+            select(&mut draft, "strategy");
+            draft.paste(strategy);
+            assert_eq!(
+                draft.picker.selected_value().map(String::as_str),
+                Some(strategy)
+            );
+            resize_creation_revision_with_help(&mut draft, Step::Strategy);
+            key(&mut draft, KeyCode::Esc);
+            assert_eq!(draft.step, Step::Review);
+            assert_eq!(graph_value(&draft), before);
+
+            for cancel in [true, false] {
+                select(&mut draft, "strategy");
+                draft.paste(strategy);
+                resize_creation_revision_with_help(&mut draft, Step::Strategy);
+                key(&mut draft, KeyCode::Enter);
+                if workflow == PackageWorkflow::GitSubmodules {
+                    assert_eq!(draft.step, Step::Packages(None));
+                    assert!(draft.checked.is_empty());
+                    resize_creation_revision_with_help(&mut draft, Step::Packages(None));
+                    key(&mut draft, KeyCode::Enter);
+                }
+                assert_eq!(draft.step, Step::RepairTesting);
+                assert_eq!(draft.graph.package_workflow, workflow);
+                assert!(draft.graph.packages.is_empty());
+                assert!(draft.graph.dropped.is_empty());
+                assert_eq!(draft.graph.capabilities, reviewed.capabilities);
+                assert!(!draft.graph.testing_is_compatible());
+                assert!(draft.status.contains("requires Wally"));
+                draft.paste(filter);
+                assert_eq!(
+                    draft.picker.selected_value().map(String::as_str),
+                    Some(repair)
+                );
+                let warning = draft.status.clone();
+                resize_creation_revision_with_help(&mut draft, Step::RepairTesting);
+                assert_eq!(draft.status, warning);
+                key(
+                    &mut draft,
+                    if cancel { KeyCode::Esc } else { KeyCode::Enter },
+                );
+                assert_eq!(draft.step, Step::Review);
+                if cancel {
+                    assert_eq!(graph_value(&draft), before);
+                    assert_eq!(draft.status, "Revision cancelled.");
+                } else {
+                    let mut expected = reviewed.clone();
+                    expected.mode = if strategy == "none" { "none" } else { "expert" }.into();
+                    expected.package_workflow = workflow;
+                    expected.packages = if repair == "testez" {
+                        vec!["testez".into()]
+                    } else {
+                        vec![]
+                    };
+                    expected.dropped.clear();
+                    if repair == "testez" {
+                        expected.capabilities.insert("test".into(), "testez".into());
+                    } else {
+                        expected.capabilities.remove("test");
+                    }
+                    assert_eq!(graph_value(&draft), serde_json::to_value(expected).unwrap());
+                    assert!(draft.graph.testing_is_compatible());
+                }
+            }
+            let accepted = graph_value(&draft);
+            select(&mut draft, "strategy");
+            assert_eq!(
+                draft.picker.selected_value().map(String::as_str),
+                Some(strategy)
+            );
+            key(&mut draft, KeyCode::Esc);
+            assert_eq!(graph_value(&draft), accepted);
+            select(&mut draft, "capabilities");
+            assert_eq!(draft.checked.contains("test"), repair == "testez");
+            assert!(draft.checked.contains("lint"));
+            key(&mut draft, KeyCode::Esc);
+            assert_eq!(graph_value(&draft), accepted);
+        }
+    }
 }
 
 #[test]

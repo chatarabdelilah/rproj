@@ -1,5 +1,39 @@
 # Release-Hardening Audit
 
+## October 5: New Project strategy revision resize recovery
+
+Work starts from clean main `9b040a5`, successful merged-main CI and no open
+PRs. `new_project_resize_preserves_strategy_revision_and_testing_repair`
+covers None/Git submodules crossed with TestEZ/disabled Testing. Each case
+starts with a reviewed Wally/Open Cloud composition, explicit Signal package,
+lint capability and optional-file exclusions.
+
+The test filters Dependencies, preserves detail focus/scroll through 120 x 30,
+80 x 24, 60 x 16, 40 x 10 and recovery, and closes Help to the identical
+buffer. Escape at Dependencies restores the complete graph. Both cancellation
+and acceptance passes resize again, including Git's cleared package selection,
+then filter the required Testing decision and repeat the same resize/Help
+checks. The incompatible-Jest warning and all graph state remain unchanged
+during rendering. Escape at Testing repair restores the entire reviewed graph,
+including packages, Open Cloud backend and exclusions.
+
+Acceptance verifies the complete expected graph: the selected workflow/mode,
+cleared explicit packages/exclusions, TestEZ's derived package or disabled
+Testing, and unchanged lint. Reopening Dependencies retains the workflow;
+Capabilities retains the repaired Testing choice and lint. A shared test-only
+resize helper also continues to cover the existing capability revision.
+
+This is model/render coverage, not strategy-path PTY input gating, preparation,
+project creation or installed-runner execution. No runtime behavior or package
+version changes; published 0.19.1 remains unchanged.
+
+All three focused New Project TestBackend resize tests and all 464 ordinary
+tests passed locally with normal Windows permissions. Twenty-two prerequisite
+tests remain ignored (486 discovered). Formatting, diff checks and clippy with
+warnings denied passed. CodeRabbit CLI 0.7.6 reviewed the final branch against
+main with zero findings. Reviewed-head/merged-main CI evidence is recorded on
+the accompanying PR after completion.
+
 ## October 5: New Project capability revision PTY resize recovery
 
 Work starts from clean main `8a07456` with successful merged-main CI and no
