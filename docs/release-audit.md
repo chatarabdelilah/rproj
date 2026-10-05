@@ -2,6 +2,52 @@
 
 ## October 5: Persistent background Watch v1 (unreleased)
 
+Main `acf9c70` contains the completion-marker and Catalog visible-row corrections
+from [PR #72](https://github.com/chatarabdelilah/rproj/pull/72). Its reviewed-head
+CI passed; merged-main stable subsequently exposed a Stop control timeout after
+output flooding ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37302044628)).
+The supervisor's single-thread runtime also ran synchronous disk writes and log
+rotation. Those operations now run on Tokio's blocking pool, with each pipe
+awaiting its current chunk to retain bounded buffering and propagate errors.
+A deterministic regression holds the log mutex until a control-runtime timer
+releases it; disk work must yield rather than block that timer.
+The regression failed with the original synchronous drain (2.01 seconds), then
+passed with blocking-pool writes (0.07 seconds). The ordinary suite passed
+470 tests with 24 ignored (494 discovered), and both explicit installed-tool
+checks passed (5.94 seconds). All seven lifecycle scenarios passed in three
+further focused runs. Formatting, clippy with warnings denied and diff checks
+passed. Locked packaging verified the 105-file archive and compiled it after
+committing the runtime correction. Local review and final-head/main CI are
+recorded with the correction's PR.
+
+The correction is tracked in [PR #73](https://github.com/chatarabdelilah/rproj/pull/73),
+branch `codex/watch-control-during-log-drain`. Whole-branch local CodeRabbit
+completed with zero findings on `8b76826`. Exact-head CI
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37303706265)) passed
+Rust 1.89 and packaging, but stable timed out in the normal Watch lifecycle
+scenario. The generic wait did not identify which phase timed out; this result
+does not establish that the log-drain correction failed or that the remaining
+failure is only a fixture defect. At that revision, the PR remained unmerged and
+release acceptance was incomplete. After three corrections without clean final
+CI, speculative fixes stopped in favor of phase/state/log diagnostics. Retain
+all merged follow-up branches until final acceptance is green.
+
+On resuming, documentation-only head `afa0388` had passed all required CI gates
+with unchanged runtime/tests ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37304172636)).
+The lifecycle fixture now reports named wait phases and caller locations, plus
+persisted/live state and bounded log tails before panic cleanup. Snapshot tokens
+are excluded and log control characters are escaped. All seven scenarios passed
+locally with these diagnostics (8.13 seconds); clippy and diff checks passed.
+Timeouts and acceptance assertions remain unchanged. A recurrence must be
+diagnosed from this evidence rather than attributed to an unspecified race.
+Diagnostic head `054a470` passed all required CI gates
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37304758537)); its
+narrow follow-up CodeRabbit review reported zero findings. The normal timeout
+did not recur locally or in these two subsequent CI runs. Its cause remains
+unconfirmed; the diagnostics remain available if it recurs. Final documentation
+head and merged-main CI are recorded in PR #73. Published 0.19.1 is unchanged;
+the next release task remains 0.20.0 alpha candidate preparation.
+
 Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
 Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
 reviewed head `8abc188` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37298235374))

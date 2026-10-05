@@ -503,9 +503,15 @@ async fn drain(mut pipe: impl AsyncRead + Unpin, log: Arc<Mutex<RotatingLog>>) -
         if count == 0 {
             return Ok(());
         }
-        log.lock()
-            .map_err(|_| anyhow::anyhow!("Watch log lock failed"))?
-            .append(&bytes[..count])?;
+        let chunk = bytes[..count].to_vec();
+        let log = log.clone();
+        // Disk writes and rotation must not block the single control-runtime thread.
+        tokio::task::spawn_blocking(move || {
+            log.lock()
+                .map_err(|_| anyhow::anyhow!("Watch log lock failed"))?
+                .append(&chunk)
+        })
+        .await??;
     }
 }
 

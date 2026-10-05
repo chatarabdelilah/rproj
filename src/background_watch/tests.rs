@@ -10,6 +10,7 @@ fn exe() -> PathBuf {
         .join("rproj.exe")
 }
 
+#[track_caller]
 fn wait(mut condition: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !condition() {
@@ -23,8 +24,39 @@ struct Session {
     project: PathBuf,
 }
 
+impl Session {
+    #[track_caller]
+    fn wait(&self, phase: &str, condition: impl FnMut() -> bool) {
+        eprintln!("Watch phase: {phase}");
+        wait(condition);
+    }
+
+    fn report_failure(&self) {
+        // Display state without serializing the snapshot's authentication tokens.
+        eprintln!(
+            "Watch failure: project={} persisted={:?} live={:?}",
+            self.project.display(),
+            metadata(&self.root).map(|snapshot| snapshot.map(|snapshot| snapshot.display())),
+            status_at(&self.root).map(|snapshot| snapshot.map(|snapshot| snapshot.display()))
+        );
+        for path in [
+            self.project.join("tools.log"),
+            self.root.join("watch.1.log"),
+            self.root.join("watch.log"),
+        ] {
+            let tail = fs::read(&path).map(|bytes| {
+                String::from_utf8_lossy(&bytes[bytes.len().saturating_sub(4096)..]).into_owned()
+            });
+            eprintln!("{} tail: {tail:?}", path.display());
+        }
+    }
+}
+
 impl Drop for Session {
     fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.report_failure();
+        }
         let _ = fs::remove_file(self.project.join("hold-recovery"));
         if let Ok(Some(snapshot)) = status_at(&self.root)
             && snapshot.state.active()
@@ -46,8 +78,9 @@ impl Drop for Session {
     }
 }
 
+#[track_caller]
 fn stopped(session: &Session) {
-    wait(|| {
+    session.wait("terminal state after stopping", || {
         status_at(&session.root)
             .unwrap()
             .is_some_and(|snapshot| !snapshot.state.active())
@@ -55,7 +88,9 @@ fn stopped(session: &Session) {
     for name in ["watcher.lock", "grandchild.lock", "recovery.lock"] {
         let path = session.project.join(name);
         if path.exists() {
-            wait(|| OpenOptions::new().write(true).open(&path).is_ok());
+            session.wait(&format!("released {name}"), || {
+                OpenOptions::new().write(true).open(&path).is_ok()
+            });
         }
     }
 }
@@ -174,6 +209,43 @@ fn finish_launcher(done: &Path) {
 }
 
 #[test]
+fn slow_log_writer_does_not_block_the_control_runtime() {
+    let root = tempfile::tempdir().unwrap();
+    let log = Arc::new(Mutex::new(RotatingLog::new(root.path()).unwrap()));
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let busy_log = log.clone();
+    let writer = std::thread::spawn(move || {
+        let _guard = busy_log.lock().unwrap();
+        ready_tx.send(()).unwrap();
+        release_rx.recv_timeout(Duration::from_secs(2)).is_ok()
+    });
+    ready_rx.recv().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let released = runtime.block_on(async {
+        let (mut input, output) = tokio::io::duplex(64);
+        let draining = tokio::spawn(drain(output, log));
+        input.write_all(b"fixture output").await.unwrap();
+        drop(input);
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        let released = release_tx.send(()).is_ok();
+        draining.await.unwrap().unwrap();
+        released
+    });
+    assert!(
+        writer.join().unwrap() && released,
+        "log writer blocked control"
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join("watch.log")).unwrap(),
+        "fixture output"
+    );
+}
+
+#[test]
 fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
     let fixtures = tempfile::tempdir().unwrap();
     let bin = fixtures.path().join("bin");
@@ -248,7 +320,7 @@ fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
         if scenario == "simultaneous" {
             let first = begin_outside_launcher(&session.root, &session.project, &path, true);
             let second = begin_outside_launcher(&session.root, &session.project, &path, true);
-            wait(|| {
+            session.wait("both competing launchers ready", || {
                 first.with_extension("ready").exists() && second.with_extension("ready").exists()
             });
             fs::write(session.root.join("release-starts"), "go").unwrap();
@@ -273,7 +345,9 @@ fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
             outside_launcher(&session.root, &session.project, &path);
         }
         if scenario == "stop-recovery" {
-            wait(|| session.project.join("recovery-started").exists());
+            session.wait("recovery tool started", || {
+                session.project.join("recovery-started").exists()
+            });
             let snapshot = status_at(&session.root).unwrap().unwrap();
             assert_eq!(
                 request(&snapshot, &snapshot.token, "stop").unwrap().state,
@@ -313,8 +387,12 @@ fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
             );
             continue;
         }
-        wait(|| status_at(&session.root).unwrap().unwrap().state == State::Watching);
-        wait(|| session.project.join("grandchild-started").exists());
+        session.wait("Watching acknowledgement", || {
+            status_at(&session.root).unwrap().unwrap().state == State::Watching
+        });
+        session.wait("grandchild started", || {
+            session.project.join("grandchild-started").exists()
+        });
         let snapshot = status_at(&session.root).unwrap().unwrap();
         if scenario == "simultaneous" {
             assert_eq!(
@@ -347,7 +425,7 @@ fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
             State::Watching
         );
         if scenario == "flood" {
-            wait(|| {
+            session.wait("flood output drained", || {
                 let snapshot = status_at(&session.root).unwrap().unwrap();
                 assert_ne!(snapshot.state, State::Failed, "{}", snapshot.display());
                 session.project.join("output-drained").exists()
