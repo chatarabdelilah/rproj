@@ -638,6 +638,165 @@ fn new_project_resize_preserves_filtered_checked_package_revision() {
 }
 
 #[test]
+fn creation_pty_driver() {
+    let Some(root) = std::env::var_os("RPROJ_CREATION_TEST_ROOT") else {
+        return;
+    };
+    let mut draft = draft();
+    select(&mut draft, "expert");
+    select(&mut draft, "wally");
+    key(&mut draft, KeyCode::Enter);
+    key(&mut draft, KeyCode::Enter);
+    let mut expected = graph_value(&draft);
+    expected["packages"] = serde_json::json!(["janitor"]);
+    select(&mut draft, "packages");
+    let destination = std::path::PathBuf::from(root).join("Example");
+    let mut terminal = crate::tui::TerminalSession::enter().unwrap();
+    loop {
+        match super::next_effect(
+            &mut terminal,
+            &mut draft,
+            &destination.display().to_string(),
+        )
+        .unwrap()
+        {
+            Effect::None => {}
+            Effect::Cancel => break,
+            effect => panic!("unexpected execution effect: {effect:?}"),
+        }
+    }
+    drop(terminal);
+    assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
+    assert_eq!(draft.step, Step::Review);
+    assert_eq!(graph_value(&draft), expected);
+    assert!(draft.save_setup.is_none());
+    println!("Creation cancelled; reviewed packages retained; terminal restored");
+}
+
+#[track_caller]
+fn wait_pty_screen(session: &crate::test_common::Session, ready: impl Fn(&str) -> bool) -> String {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let screen = session.screen();
+        // Physical rows ignore ConPTY soft-wrap metadata while preserving layout.
+        let text = screen
+            .rows(0, screen.size().1)
+            .collect::<Vec<_>>()
+            .join("\n");
+        if ready(&text) {
+            return text;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "screen did not settle:\n{text}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+#[test]
+fn pty_new_project_resize_recovers_checked_package_revision_without_creating() {
+    use crate::test_common as common;
+    let root = tempfile::tempdir().unwrap();
+    let sentinel = root.path().join("sentinel.txt");
+    std::fs::write(&sentinel, b"preserve fixture bytes\n").unwrap();
+    let mut session = common::Session::start_program(
+        &std::env::current_exe().unwrap(),
+        root.path(),
+        &[
+            "--exact",
+            "commands::creation::tests::creation_pty_driver",
+            "--nocapture",
+            "--test-threads=1",
+        ],
+        &[
+            ("RPROJ_CREATION_TEST_ROOT", root.path().to_str().unwrap()),
+            ("RPROJ_NO_LOG", "1"),
+        ],
+    );
+    session.wait_for(" New Project:");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, " Packages ");
+    session.send("janitor");
+    session.wait_for("Filter: janitor");
+    session.send(" ");
+    session.wait_for("[x] janitor");
+    session.send("\t");
+    session.send(common::DOWN);
+    let checkpoint = session.output_checkpoint();
+    session.send("?");
+    session.wait_for_output_since(checkpoint, "Esc or ? closes Help.");
+    session.send(common::ESC);
+    let baseline = wait_pty_screen(&session, |text| {
+        text.contains("[x] janitor") && !text.contains("Esc or ? closes Help.")
+    });
+    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+        session.resize(rows, cols);
+        let expected = if cols < 60 {
+            "Resize to at least 60x16"
+        } else {
+            "Filter: janitor"
+        };
+        wait_pty_screen(&session, |text| {
+            text.contains(expected) && !text.contains("┌ Help ")
+        });
+        session.send("?");
+        session.wait_for("┌ Help ");
+        session.send(common::ESC);
+        wait_pty_screen(&session, |text| {
+            text.contains(expected) && !text.contains("┌ Help ")
+        });
+        if cols < 60 {
+            session.send("\t \rblocked\x1b[200~pasted\x1b[201~\x13");
+            // Help is an input barrier before resizing so blocked keys cannot run later.
+            session.send("?");
+            session.wait_for("┌ Help ");
+            session.send(common::ESC);
+            wait_pty_screen(&session, |text| {
+                text.contains(expected) && !text.contains("┌ Help ")
+            });
+        }
+        assert!(!root.path().join("Example").exists());
+        assert_eq!(
+            std::fs::read(&sentinel).unwrap(),
+            b"preserve fixture bytes\n"
+        );
+    }
+    session.resize(30, 120);
+    wait_pty_screen(&session, |text| text == baseline);
+    session.send("\x1b[A");
+    let checkpoint = session.output_checkpoint();
+    session.send("?");
+    session.wait_for_output_since(checkpoint, "Esc or ? closes Help.");
+    session.send(common::ESC);
+    let unscrolled = wait_pty_screen(&session, |text| {
+        text.contains("[x] janitor") && !text.contains("Esc or ? closes Help.")
+    });
+    assert_ne!(unscrolled, baseline);
+    session.send("\t");
+    session.send(common::ENTER);
+    session.wait_for(" Review ");
+    session.send("packages");
+    session.send(common::ENTER);
+    session.wait_for(" Packages ");
+    session.send("janitor");
+    session.wait_for("[x] janitor");
+    session.send(common::ESC);
+    session.wait_for("Revision cancelled.");
+    session.send("\x03");
+    session.wait_for("Creation cancelled; reviewed packages retained; terminal restored");
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert!(!root.path().join("Example").exists());
+    assert_eq!(
+        std::fs::read(&sentinel).unwrap(),
+        b"preserve fixture bytes\n"
+    );
+    assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+}
+
+#[test]
 fn wide_narrow_help_errors_input_and_minimum_render() {
     let mut draft = review_graph(ProjectGraph::default());
     for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10)] {
