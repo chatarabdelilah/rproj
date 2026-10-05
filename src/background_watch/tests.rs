@@ -246,6 +246,50 @@ fn slow_log_writer_does_not_block_the_control_runtime() {
 }
 
 #[test]
+fn concurrent_session_readers_do_not_break_atomic_replacement() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    let root = tempfile::tempdir().unwrap();
+    private_directory(root.path()).unwrap();
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "probe".into(),
+        project: root.path().into(),
+        state: State::Watching,
+        message: "probe".into(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        token: "probe".into(),
+        supervisor: 0,
+    };
+    save(root.path(), &snapshot).unwrap();
+    let done = AtomicBool::new(false);
+    let errors = AtomicUsize::new(0);
+    let result = std::thread::scope(|scope| {
+        for _ in 0..8 {
+            scope.spawn(|| {
+                while !done.load(Ordering::Relaxed) {
+                    if let Err(error) = metadata(root.path())
+                        && errors.fetch_add(1, Ordering::Relaxed) == 0
+                    {
+                        eprintln!("reader error: {error:#}");
+                    }
+                }
+            });
+        }
+        let result = (0..500).try_for_each(|iteration| {
+            save(root.path(), &snapshot).with_context(|| format!("replacement {iteration}"))
+        });
+        done.store(true, Ordering::Relaxed);
+        result
+    });
+    result.unwrap();
+    assert_eq!(errors.load(Ordering::Relaxed), 0);
+    assert_eq!(
+        metadata(root.path()).unwrap().unwrap().state,
+        State::Watching
+    );
+}
+
+#[test]
 fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
     let fixtures = tempfile::tempdir().unwrap();
     let bin = fixtures.path().join("bin");

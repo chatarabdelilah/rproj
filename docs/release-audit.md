@@ -2,6 +2,27 @@
 
 ## October 5: Persistent background Watch v1 (unreleased)
 
+Current main is `e543203`, containing reviewed [PR #73](https://github.com/chatarabdelilah/rproj/pull/73).
+Its final reviewed head passed all required CI, but merged-main CI
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37305627562)) failed
+Rust 1.89 while stable, clippy, formatting and packaging passed. The new
+diagnostics identify the crash fixture's Watching acknowledgement: persisted
+and live state were Failed with Windows error 5 (Access denied), although both
+Rojo sourcemap commands had started. This is an actual terminal failure, not
+merely a slow acknowledgement; release acceptance remains incomplete.
+
+Branch `codex/watch-state-persistence-diagnostics` preserves stage-specific
+state-write errors and a failing regression. Eight concurrent metadata readers
+reproduced error 5 on the first atomic `session.json` replacement locally.
+Three coordination prototypes failed the bounded concurrency check (exclusive
+state lock, writer-intent gate, then buffered decoding). The gate diagnostics
+showed waiting for the active state reader; those unsuccessful prototypes were
+removed. The doubtful assumption is that the state lock's lifetime and fairness
+match the intended read/replace interval. Next, isolate lock acquisition/release
+and handle lifetime before selecting another correction. This branch is not
+reviewed or merged; its red regression is diagnostic evidence, not a pass.
+Keep the merged follow-up branches until corrected final-main CI is green.
+
 Main `acf9c70` contains the completion-marker and Catalog visible-row corrections
 from [PR #72](https://github.com/chatarabdelilah/rproj/pull/72). Its reviewed-head
 CI passed; merged-main stable subsequently exposed a Stop control timeout after
