@@ -1,5 +1,51 @@
 # Release-Hardening Audit
 
+## October 5: 0.20.0 alpha candidate preparation
+
+The candidate starts from clean main `ece51e5`, containing background Watch v1
+and its reviewed follow-ups. [PR #74](https://github.com/chatarabdelilah/rproj/pull/74)
+passed exact-head CI and merged-main CI on `ece51e5`
+([final attempt](https://github.com/chatarabdelilah/rproj/actions/runs/37373801957/attempts/2)).
+The first main attempt passed stable and packaging, but GitHub could not acquire
+a hosted runner for Rust 1.89; it ran no test steps. Only that job was retried,
+and its tests passed. All four merged follow-up branches were checked against
+their squash-merge trees and main ancestry, then removed locally and remotely.
+
+Branch `codex/release-0.20.0` aligns Cargo.toml/Cargo.lock to 0.20.0 and updates
+README, roadmap, release instructions and dedicated release notes. Runtime,
+tests and resolved dependency versions are unchanged from `ece51e5`. Published
+0.19.1 remains the registry baseline; no 0.20.0 tag or publication occurs during
+preparation. Final CodeRabbit review, clean locked packaging, exact-head/main CI
+and publication readiness are recorded in the release PR.
+
+The provisioned audit machine has Rojo 7.7.0, Wally 0.3.2, Rokit 1.2.0 and
+Lute 1.0.0. No background Watch was active before validation. Explicit live
+checks use isolated temporary projects and existing shared tool/package caches.
+No machine-wide applications are provisioned to complete this audit.
+
+The candidate reports `rproj 0.20.0`. Ordinary locked validation passed 472
+tests with 24 ignored (496 discovered), formatting, clippy with warnings denied
+and diff checks. Explicit serial validation passed all 14 live workflows
+(138.33 seconds), four real-Rojo template checks (9.49 seconds), both installed
+background Watch checks (5.77 seconds), and the installed Jest 0.4.1
+missing-credential refusal check (4.46 seconds): 21 separately executed checks.
+Live Jest passed three starter specs and reported the deliberate failure as
+two passed/one failed with exit 1. Background Watch continued sourcemap updates
+after launcher exit and preserved recovered Wally/Jest types and mounts.
+
+The first credential-check invocation mistakenly selected `.rokit/bin`'s
+Rokit proxy; copying it into the isolated fixture produced Windows error 50.
+The proxy has the same hash as the Rojo proxy. Pointing `RPROJ_LIVE_JEST_CLI`
+to the existing `tool-storage/christopher-buss/jest-roblox-cli/0.4.1` executable
+passed without source changes. The test never supplies complete cloud
+credentials and targets loopback; authenticated Open Cloud remains unverified.
+
+The symlink-privilege, upstream-badge and broader eight-example Jest-stack
+ignored checks were not executed for this candidate. Fresh Windows provisioning,
+fresh Linux generated-project execution, UI Labs Studio stories and Scribe
+Studio playtesting remain unverified. These are residual acceptance gaps,
+not inferred passes; published 0.19.1 remains unchanged.
+
 ## October 5: Persistent background Watch v1 (unreleased)
 
 Before this correction, main was `e543203`, containing reviewed [PR #73](https://github.com/chatarabdelilah/rproj/pull/73).

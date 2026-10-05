@@ -2,13 +2,15 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.19.1**, at `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.1) are verified. See [release notes](release-notes-0.19.1.md), [audit evidence](release-audit.md), and [PR #53](https://github.com/chatarabdelilah/rproj/pull/53). No later release candidate is prepared.
+The published baseline is **v0.19.1**, at `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.1) are verified. See [release notes](release-notes-0.19.1.md), [audit evidence](release-audit.md), and [PR #53](https://github.com/chatarabdelilah/rproj/pull/53). The active **0.20.0 alpha candidate** adds persistent Windows background Watch; it is not yet published.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-No unpublished release candidate is active. The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github.com/chatarabdelilah/rproj/pull/53)'s reviewed-head and merged-main CI passed. Registry checksum `be193ef19a8277f78d788bb9494834d91ba3146d7d7a6daf1d32e7f854cdb210`, archive Git identity, annotated tag and GitHub prerelease match the clean release commit `957a0aa67fa679dca4194e6fd3c739594c409dc6`. [Release notes](release-notes-0.19.1.md) cover the two Template Explorer fixes and their residual limits; the [audit](release-audit.md) records evidence. Fresh-machine installation acceptance remains unverified.
+Candidate **0.20.0** is prepared on `codex/release-0.20.0`, with aligned Cargo versions and dedicated [release notes](release-notes-0.20.0.md). The [audit](release-audit.md) records local verification; the release PR records final CodeRabbit and exact-head/main CI gates. Publication requires all those gates, merged-branch cleanup and a clean main checkout. The owner then runs `cargo publish --locked`; archive identity, the annotated `v0.20.0` tag and matching GitHub alpha release follow confirmed publication. No tag is created during preparation.
+
+The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github.com/chatarabdelilah/rproj/pull/53)'s reviewed-head and merged-main CI passed. Registry checksum `be193ef19a8277f78d788bb9494834d91ba3146d7d7a6daf1d32e7f854cdb210`, archive Git identity, annotated tag and GitHub prerelease match the clean release commit `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Fresh-machine installation acceptance remains unverified.
 
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
