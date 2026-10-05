@@ -20,18 +20,17 @@ passed. Locked packaging verified the 105-file archive and compiled it after
 committing the runtime correction. Local review and final-head/main CI are
 recorded with the correction's PR.
 
-The correction is open in [PR #73](https://github.com/chatarabdelilah/rproj/pull/73),
+The correction is tracked in [PR #73](https://github.com/chatarabdelilah/rproj/pull/73),
 branch `codex/watch-control-during-log-drain`. Whole-branch local CodeRabbit
 completed with zero findings on `8b76826`. Exact-head CI
 ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37303706265)) passed
 Rust 1.89 and packaging, but stable timed out in the normal Watch lifecycle
 scenario. The generic wait did not identify which phase timed out; this result
 does not establish that the log-drain correction failed or that the remaining
-failure is only a fixture defect. The PR remains unmerged and release acceptance
-is incomplete. After three corrections without clean final CI, stop speculative
-fixes: first add phase/state/log diagnostics to this lifecycle fixture, reproduce
-the failure, then select a fix from that evidence. Retain all merged follow-up
-branches until the final acceptance is green.
+failure is only a fixture defect. At that revision, the PR remained unmerged and
+release acceptance was incomplete. After three corrections without clean final
+CI, speculative fixes stopped in favor of phase/state/log diagnostics. Retain
+all merged follow-up branches until final acceptance is green.
 
 On resuming, documentation-only head `afa0388` had passed all required CI gates
 with unchanged runtime/tests ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37304172636)).
@@ -41,6 +40,13 @@ are excluded and log control characters are escaped. All seven scenarios passed
 locally with these diagnostics (8.13 seconds); clippy and diff checks passed.
 Timeouts and acceptance assertions remain unchanged. A recurrence must be
 diagnosed from this evidence rather than attributed to an unspecified race.
+Diagnostic head `054a470` passed all required CI gates
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37304758537)); its
+narrow follow-up CodeRabbit review reported zero findings. The normal timeout
+did not recur locally or in these two subsequent CI runs. Its cause remains
+unconfirmed; the diagnostics remain available if it recurs. Final documentation
+head and merged-main CI are recorded in PR #73. Published 0.19.1 is unchanged;
+the next release task remains 0.20.0 alpha candidate preparation.
 
 Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
 Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
