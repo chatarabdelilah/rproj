@@ -7,6 +7,7 @@
 // directory in, rather than mutating process-global state).
 #![forbid(unsafe_code)]
 
+mod background_watch;
 mod catalog;
 mod catalog_view;
 mod cli;
@@ -36,6 +37,15 @@ use cli::{Cli, Command};
 /// by `ui::error` instead of by Rust's default `Termination` impl, which
 /// writes an uncoloured `Error: ...` with the chain in `Debug` form.
 fn main() -> ExitCode {
+    if let Some(result) = background_watch::internal_entry() {
+        return match result {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("{error:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
@@ -85,7 +95,7 @@ fn log_command(cli: &Cli) {
         Some(Command::Setup { tool }) => format!("setup tool={tool:?}"),
         Some(Command::Configure { key }) => format!("configure key={key:?}"),
         Some(Command::Upgrade { yes }) => format!("upgrade yes={yes}"),
-        Some(Command::Watch) => "watch".into(),
+        Some(Command::Watch { .. }) => "watch".into(),
         Some(Command::Test { args }) => format!(
             "test; {} passthrough arguments (values omitted)",
             args.len()
@@ -115,7 +125,13 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         }) => commands::new::run(&name, reconfigure, like.as_deref(), save_setup.as_deref()),
         Some(Command::Configure { key }) => commands::configure::run(key.as_deref()),
         Some(Command::Upgrade { yes }) => commands::upgrade::run(yes),
-        Some(Command::Watch) => commands::watch::run(),
+        Some(Command::Watch { action }) => match action {
+            None => commands::watch::run(),
+            Some(cli::WatchCommand::Start) => background_watch::start_in(&std::env::current_dir()?),
+            Some(cli::WatchCommand::Status) => background_watch::show_status(),
+            Some(cli::WatchCommand::Logs) => background_watch::show_logs(),
+            Some(cli::WatchCommand::Stop) => background_watch::stop(),
+        },
         Some(Command::Test { args }) => commands::test::run(&args),
         Some(Command::Copy) => commands::copy::run(),
         Some(Command::Info { key }) => commands::info::run(key.as_deref()),

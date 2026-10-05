@@ -80,6 +80,7 @@ impl UpgradePlan {
     }
 
     fn apply(&self, project_dir: &Path) -> Result<()> {
+        let _guard = crate::background_watch::mutation_guard(Some(project_dir), false)?;
         self.verify(project_dir)?;
         let staged: Vec<_> = self
             .rewrites

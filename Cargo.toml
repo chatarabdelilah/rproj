@@ -47,3 +47,7 @@ vt100 = "0.15.2"
 
 [target."cfg(windows)".dependencies]
 windows-permissions = "0.2.4"
+getrandom = "0.4.2"
+process-wrap = { version = "=10.0.1", features = ["tokio1", "job-object", "kill-on-drop", "creation-flags"], default-features = false }
+tokio = { version = "1.48", features = ["rt", "process", "io-util", "time"] }
+windows = { version = "0.62.2", features = ["Win32_System_Threading"] }

@@ -98,6 +98,7 @@ impl EditSession {
         if !self.dirty() {
             return Ok(false);
         }
+        let _guard = crate::background_watch::mutation_guard(Some(&self.project), false)?;
         let answers: Vec<_> = self
             .tool
             .settings
@@ -145,6 +146,38 @@ fn read_snapshot(path: &Path) -> Result<Option<String>> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    #[cfg(windows)]
+    fn background_owner_refuses_save_and_keeps_the_pending_draft() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("stylua.toml");
+        fs::write(&path, "column_width=91\ncustom='keep'\n").unwrap();
+        let tool = tool_settings::find("stylua").unwrap();
+        let mut session = EditSession::load(root.path(), tool).unwrap();
+        let index = tool
+            .settings
+            .iter()
+            .position(|setting| setting.key == "column_width")
+            .unwrap();
+        session.set(index, json!(100));
+        crate::background_watch::with_unresponsive_fixture(root.path(), || {
+            assert!(
+                session
+                    .save()
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Stop background Watch")
+            );
+            assert!(session.dirty());
+            assert_eq!(
+                fs::read_to_string(&path).unwrap(),
+                "column_width=91\ncustom='keep'\n"
+            );
+        });
+        assert!(session.save().unwrap());
+        assert!(fs::read_to_string(path).unwrap().contains("custom"));
+    }
 
     #[test]
     fn a_read_only_destination_keeps_pending_changes_for_retry() {

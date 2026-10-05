@@ -40,6 +40,7 @@ pub fn run(arguments: &[String]) -> Result<()> {
 }
 
 pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
+    let _guard = crate::background_watch::mutation_guard(Some(project_dir), true)?;
     let Some(project) = project_file::load_from(project_dir)? else {
         bail!("no rproj.toml here - `rproj test` needs the recorded Testing capability");
     };

@@ -61,7 +61,10 @@ pub enum Command {
     },
     /// Resume the dev loop in the current project: install anything missing,
     /// then start the Rojo sourcemap watcher
-    Watch,
+    Watch {
+        #[command(subcommand)]
+        action: Option<WatchCommand>,
+    },
     /// Restore dependencies and run the project's selected test runner
     Test {
         /// Arguments passed unchanged to Lute or jest-roblox
@@ -75,4 +78,16 @@ pub enum Command {
         /// Package/tool key to look up. Omit to list everything.
         key: Option<String>,
     },
+}
+
+#[derive(Subcommand)]
+pub enum WatchCommand {
+    /// Start one persistent background sourcemap Watch (Windows)
+    Start,
+    /// Show the background Watch state and project from any directory
+    Status,
+    /// Print the bounded background Watch logs
+    Logs,
+    /// Stop Watch after the current recovery command finishes
+    Stop,
 }

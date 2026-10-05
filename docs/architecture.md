@@ -42,6 +42,7 @@ This version is Windows-only (installs go through `winget`).
 | `rproj configure [key]` | Walks through one tool's settings, printing what each does before prompting, then writes them to that tool's config file relative to the current directory (see §8.4). With no key, prompts to pick a tool or the project template; with an unknown key, errors and lists the valid ones. |
 | `rproj configure project` | Opens a built-in, keyboard-driven Explorer for the machine-wide Rojo project template. It supports structural instance operations, typed common properties/attributes/settings, undo/redo, and an internal Advanced JSON mode. Invalid JSON, protected mounts, unsupported `$path` targets, and any tree Rojo rejects are never saved. Existing projects are not modified. |
 | `rproj watch` | Must be run from inside an existing project directory (one containing `default.project.json`); otherwise errors. Syncs the project's own tools/packages, then starts and blocks on Rojo's sourcemap watcher until interrupted (Ctrl+C). |
+| `rproj watch start / status / logs / stop` | Windows background sourcemap Watch: manual startup from a project, one per user, persistent after the caller exits. Inspection and stopping work from any directory. |
 | `rproj test [runner arguments...]` | Runs from the exact current project directory, restores pinned tools, reuses a complete selected Wally package tree or recovers missing aliases, then dispatches TestEZ to `lute test` or Jest Roblox to `jest-roblox-cli --passWithNoTests`. Remaining arguments and runner output are preserved. Jest requires Wally, Studio, and `JestRobloxRunner.rbxm`. |
 | `rproj copy` | Recursively walks `./src`, concatenates every file's contents (each prefixed with a `// --- relative/path ---` header) and copies the result to the system clipboard. Prints a message and exits cleanly (not an error) if `src/` doesn't exist or contains no readable files. |
 | `rproj upgrade` | Re-applies rproj's generated config to an existing project so it picks up fixes made since it was scaffolded (see 6.3b). `--yes` skips the confirmation. |
@@ -672,6 +673,48 @@ flowchart TD
 
 Stop confirmation waits for the active item, skips later items, and suppresses configuration saving. Individual installer failures continue with warnings; bootstrap and projects-folder errors are fatal. Returning through Review after a completed attempt retains its completion result. Existing project commands and pins remain separate.
 
+### Persistent background Watch (Windows)
+
+`rproj watch` retains its synchronous foreground interface. The Windows-only
+`watch start/status/logs/stop` controls use a dedicated hidden supervisor spawned
+from the same installed executable. Startup explicitly requests detachment and
+job breakaway; a launcher that prohibits breakaway receives an actionable error.
+There is no silent foreground fallback, service, sign-in task, or auto-restart.
+
+The supervisor holds an exclusive `owner.lock` in `%LOCALAPPDATA%/rproj/data/watch`.
+Restricted inherited DACLs grant access to the current user. An atomic versioned
+JSON cache records the project and local endpoint; it is not ownership authority.
+Status probes use shared locks so concurrent readers cannot look like an owner.
+A versioned loopback protocol authenticates status/stop with OS-random tokens;
+the engine's phase channel has a separate token. Production never kills a cached
+PID. Held ownership with lost control is Unresponsive and blocks replacement.
+
+The supervisor's Tokio runtime owns an engine in a process-wrap 10.0.1 JobObject
+with KillOnDrop. The job assigns the suspended engine before it can spawn tools;
+its descendants remain owned. Closing/crashing the supervisor terminates them.
+The engine reuses foreground Watch recovery and validates an initial sourcemap,
+then starts Rojo and acknowledges Watching. Stop during recovery sets cooperative
+cancellation, waits for the active tool command, and skips later work. Stop during
+Watching terminates and reaps the owned job. Terminal state is persisted after
+the child exits and output drains. Unexpected exits are Failed; restart is manual.
+
+Both output streams are continuously drained into two rotating files of at most
+1 MiB each. Log replay strips control characters. Shared operation locks exclude
+concurrent background starts while project changes/tests run. Write boundaries
+in configuration, upgrade, tool setup and composition require stopping the
+watched project; Machine Setup requires stopping any background Watch. Test can
+coexist with Watching and is blocked during Preparing/Stopping/Unresponsive.
+These locks coordinate rproj commands, not arbitrary external editors.
+
+Home refreshes background project/state once per second, and quitting leaves it
+running. Project actions offer background Start, Status, Logs, Stop and an explicit
+foreground Watch. The supervisor and async runtime are isolated from other
+commands. Windows fixtures verify parent exit, recovery cancellation, failure,
+crash/grandchild cleanup, blocked breakaway, duplicate starts and output saturation.
+Their WMI launcher exists only to run owned fixtures outside restrictive test-host
+jobs; production never uses WMI as an escape mechanism. Provisioned-tool checks
+are ignored by ordinary CI and must be executed explicitly.
+
 ### 6.3b `rproj upgrade`
 
 Every `ensure_*` step in the scaffold skips a file that already exists. That is correct for `rproj new` — running it twice must not clobber your work — and it strands existing projects: when a scaffold default changes, a project made yesterday keeps the old version forever and nothing says so. Three of §7's fixes landed in one day and none of them could reach a project already on disk.
@@ -1037,7 +1080,8 @@ validation, runner behavior, and existing tool pins.
 New Project preflight runs in a scoped worker; cancellation prevents the next
 validation step and joins the worker before returning Home. It never creates the
 project directory. Interrupted external work similarly stops at execution
-boundaries; no generic process supervisor or background Watch is introduced.
+boundaries. Background Watch uses a separate dedicated supervisor; other
+commands retain their existing synchronous execution boundaries.
 
 Optional machine items and new-project capabilities start unchecked. Saved selections are restored exactly; catalog entries no longer carry a `default_selected` field. Machine Setup uses `rokit add --global --force` after confirmation, so first-use trust does not require terminal input. This reinstalls selected global tools, without changing project pins.
 
@@ -1364,6 +1408,8 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
 | `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |
 | `ctrlc` 3.5.2 | Hub-session console interruption | Registered only for interactive bare rproj. The safe API records cancellation while active children receive the Windows console event; process boundaries await completion and refuse further work when cancelled. Direct CLI handler/exit behavior remains unchanged. |
+| `process-wrap` 10.0.1, Tokio, Windows APIs | Background Watch engine ownership | A dedicated supervisor runtime uses JobObject plus KillOnDrop and hidden process flags. The crate remains `forbid(unsafe_code)`. No async runtime is started for foreground commands or HTTP. |
+| `getrandom` | Local Watch control authentication | OS randomness supplies separate startup, public-control and engine-control tokens. Tokens stay in restricted storage or the owned engine's environment; logs omit them. |
 | `unicode-width` | Display width of option lines and markers | Also already in the tree via `inquire`. Truncating by `char` count or byte length overshoots on any double-width character, and it is what settled the `⚠️` padding question empirically rather than by guess (§2.4). |
 | `anstream`, `anstyle` | Red, bold error output (`ui::error`) | Both already in the tree via `clap`. `anstream` is what makes colouring errors safe at all: it strips escape codes when stderr is redirected to a file or CI log rather than emitting them into it, and honours `NO_COLOR`/`CLICOLOR=0` for free. |
 | `serde` (derive), `toml` | `GlobalConfig`/`ProjectConfig` (de)serialization | TOML chosen for both config files to match the Rust/Rokit/Wally ecosystem's own convention (`Cargo.toml`, `rokit.toml`, `wally.toml`). |

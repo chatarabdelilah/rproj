@@ -161,6 +161,8 @@ struct HubApp {
     status: String,
     update: UpdateStatus,
     update_receiver: Option<Receiver<UpdateStatus>>,
+    watch: String,
+    watch_checked: std::time::Instant,
 }
 
 impl HubApp {
@@ -176,10 +178,16 @@ impl HubApp {
             status: "Choose a task. Direct commands remain available for scripts.".into(),
             update,
             update_receiver,
+            watch: crate::background_watch::summary(),
+            watch_checked: std::time::Instant::now(),
         }
     }
 
     fn refresh_update(&mut self) {
+        if self.watch_checked.elapsed() >= Duration::from_secs(1) {
+            self.watch = crate::background_watch::summary();
+            self.watch_checked = std::time::Instant::now();
+        }
         let received = self.update_receiver.as_ref().map(Receiver::try_recv);
         match received {
             Some(Ok(status)) => {
@@ -425,7 +433,8 @@ impl HubApp {
             format!("\n\nWarnings\n{}", self.context.warnings.join("\n"))
         };
         let body = format!(
-            "{description}{availability}\n\nWorkspace\n{}\n\nMachine\n{}\n\nTemplate\n{}\n\nSaved setups\n{}\n\nVersion\n{}{}",
+            "Background Watch\n{}\n\n{description}{availability}\n\nWorkspace\n{}\n\nMachine\n{}\n\nTemplate\n{}\n\nSaved setups\n{}\n\nVersion\n{}{}",
+            self.watch,
             self.context
                 .projects_root
                 .as_ref()
@@ -478,11 +487,7 @@ pub fn run() -> Result<()> {
                 small = is_too_small(frame.area());
                 app.render(frame);
             })?;
-            let event = if app.update_receiver.is_some() || app.projects.loading() {
-                terminal.poll_event(Duration::from_millis(150))?
-            } else {
-                Some(terminal.read_event()?)
-            };
+            let event = terminal.poll_event(Duration::from_millis(150))?;
             if let Some(Event::Paste(text)) = &event
                 && matches!(app.screen, Screen::SavedSetups)
                 && !small
@@ -535,7 +540,7 @@ pub fn run() -> Result<()> {
                 let watch = matches!(
                     outcome,
                     HubOutcome::Project {
-                        action: ProjectAction::Watch,
+                        action: ProjectAction::WatchForeground,
                         ..
                     }
                 );

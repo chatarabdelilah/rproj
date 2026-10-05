@@ -22,16 +22,24 @@ pub enum ProjectAction {
     Watch,
     Test,
     Copy,
+    WatchStatus,
+    WatchLogs,
+    StopWatch,
+    WatchForeground,
 }
 
 impl ProjectAction {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 10] = [
         Self::Composition,
         Self::Configure,
         Self::Upgrade,
         Self::Watch,
         Self::Test,
         Self::Copy,
+        Self::WatchStatus,
+        Self::WatchLogs,
+        Self::StopWatch,
+        Self::WatchForeground,
     ];
 
     pub fn label(self) -> &'static str {
@@ -39,9 +47,13 @@ impl ProjectAction {
             Self::Composition => "Edit Packages & Capabilities",
             Self::Configure => "Configure Tools",
             Self::Upgrade => "Upgrade Project",
-            Self::Watch => "Watch Project",
+            Self::Watch => "Start background Watch",
             Self::Test => "Test Project",
             Self::Copy => "Copy Source",
+            Self::WatchStatus => "Watch Status",
+            Self::WatchLogs => "Watch Logs",
+            Self::StopWatch => "Stop Watch",
+            Self::WatchForeground => "Watch in Foreground",
         }
     }
 
@@ -58,9 +70,13 @@ impl ProjectAction {
             }
             Self::Configure => super::configure::run_tools_in(path),
             Self::Upgrade => super::upgrade::run_in(path, false),
-            Self::Watch => super::watch::run_in(path),
+            Self::Watch => crate::background_watch::start_in(path),
             Self::Test => super::test::run_in(path, &[]),
             Self::Copy => super::copy::run_in(path),
+            Self::WatchStatus => crate::background_watch::show_status(),
+            Self::WatchLogs => crate::background_watch::show_logs(),
+            Self::StopWatch => crate::background_watch::stop(),
+            Self::WatchForeground => super::watch::run_in(path),
         }
     }
 }
@@ -109,6 +125,15 @@ impl ProjectContext {
     }
 
     pub fn availability(&self, action: ProjectAction) -> std::result::Result<(), String> {
+        if !cfg!(windows) && action == ProjectAction::Watch {
+            return Err("Background Watch requires Windows; use Watch in Foreground.".into());
+        }
+        if matches!(
+            action,
+            ProjectAction::WatchStatus | ProjectAction::WatchLogs | ProjectAction::StopWatch
+        ) {
+            return Ok(());
+        }
         if !self.exists {
             return Err("The selected project directory no longer exists.".into());
         }
@@ -126,7 +151,10 @@ impl ProjectContext {
         }
         if matches!(
             action,
-            ProjectAction::Composition | ProjectAction::Upgrade | ProjectAction::Watch
+            ProjectAction::Composition
+                | ProjectAction::Upgrade
+                | ProjectAction::Watch
+                | ProjectAction::WatchForeground
         ) && !self.has_rojo
         {
             return Err(format!("{} requires default.project.json.", action.label()));
@@ -160,8 +188,10 @@ impl ProjectContext {
             if action == ProjectAction::Test && graph.test_runner().is_none() {
                 return Err("Testing is not enabled in this project.".into());
             }
-            if matches!(action, ProjectAction::Watch | ProjectAction::Test)
-                && graph.test_runner() == Some(TestRunner::JestRoblox)
+            if matches!(
+                action,
+                ProjectAction::Watch | ProjectAction::WatchForeground | ProjectAction::Test
+            ) && graph.test_runner() == Some(TestRunner::JestRoblox)
                 && !self.has_wally
             {
                 return Err("Jest Roblox requires wally.toml; run Upgrade Project.".into());
@@ -863,7 +893,7 @@ mod tests {
             return;
         };
         let path = PathBuf::from(path);
-        ProjectAction::Watch.run(&path).unwrap();
+        ProjectAction::WatchForeground.run(&path).unwrap();
         super::super::upgrade::run_in(&path, true).unwrap();
     }
 

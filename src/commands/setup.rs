@@ -30,6 +30,7 @@ fn setup_tool(key: &str) -> Result<()> {
     })?;
 
     let project_dir = find_project_root()?;
+    let _guard = crate::background_watch::mutation_guard(Some(&project_dir), false)?;
     ui::section(&format!(
         "Setting up {} in {}",
         entry.key,

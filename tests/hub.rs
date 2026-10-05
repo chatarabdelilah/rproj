@@ -206,7 +206,7 @@ fn foreground_watch_interrupt_and_failure_return_to_a_usable_home() {
     let mut session = Session::start_with_env(project.path(), &[], &[("PATH", &path)]);
     session.wait_for("Tasks");
     open_project(&mut session, &project);
-    for _ in 0..3 {
+    for _ in 0..9 {
         session.send(common::DOWN);
     }
     for attempt in 1..=2 {
