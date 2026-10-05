@@ -20,6 +20,19 @@ passed. Locked packaging verified the 105-file archive and compiled it after
 committing the runtime correction. Local review and final-head/main CI are
 recorded with the correction's PR.
 
+The correction is open in [PR #73](https://github.com/chatarabdelilah/rproj/pull/73),
+branch `codex/watch-control-during-log-drain`. Whole-branch local CodeRabbit
+completed with zero findings on `8b76826`. Exact-head CI
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37303706265)) passed
+Rust 1.89 and packaging, but stable timed out in the normal Watch lifecycle
+scenario. The generic wait did not identify which phase timed out; this result
+does not establish that the log-drain correction failed or that the remaining
+failure is only a fixture defect. The PR remains unmerged and release acceptance
+is incomplete. After three corrections without clean final CI, stop speculative
+fixes: first add phase/state/log diagnostics to this lifecycle fixture, reproduce
+the failure, then select a fix from that evidence. Retain all merged follow-up
+branches until the final acceptance is green.
+
 Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
 Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
 reviewed head `8abc188` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37298235374))
