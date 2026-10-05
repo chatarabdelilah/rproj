@@ -20,6 +20,13 @@ rows retain leading/internal spaces and row boundaries; trailing blank-cell
 padding is normalized across backends. The existing regression also verifies
 explicit trailing spaces do not change the visible-row comparison.
 
+The first follow-up PR run passed both resize-baseline tests, stable and
+packaging, but Rust 1.89 exposed a separate browser snapshot race: the
+selected-row assertion at line 533 sampled an empty screen immediately after
+fresh filter output. That assertion now waits for the selected name inside
+the current list pane instead of assuming the filter redraw completes the
+list. The failing run is retained on the PR and is not counted as a pass.
+
 Both focused resize tests passed. The four concurrent Saved Setup PTYs and
 the New Project PTY each passed 20 repetitions, with the two groups running
 concurrently. All 461 ordinary tests passed with normal Windows permissions;
@@ -27,6 +34,9 @@ concurrently. All 461 ordinary tests passed with normal Windows permissions;
 warnings denied passed. CodeRabbit CLI 0.7.6 reviewed the three-file diff with
 zero findings. No runtime behavior, user storage or package version changes;
 reviewed-head/merged-main CI evidence will be recorded on the follow-up PR.
+After the browser correction, all four Saved Setup PTYs passed another 20
+repetitions, all 461 ordinary tests passed again, and final whole-branch
+CodeRabbit review reported zero findings.
 
 ## October 5: New Project package revision PTY resize recovery
 

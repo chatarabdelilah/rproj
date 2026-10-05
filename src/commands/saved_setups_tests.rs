@@ -527,18 +527,22 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
         };
         session.wait_for_output_since(checkpoint, expected);
         if cols >= 60 {
-            let screen = session.text();
             let list =
                 tui::responsive_panes(ratatui::layout::Rect::new(0, 2, cols, rows - 5), 40)[0];
-            assert!(
-                session
-                    .screen()
-                    .rows(list.x + 1, list.width - 2)
+            // A fresh filter update can precede the list redraw in ConPTY's diff stream.
+            let screen = wait_screen(&session, |screen| {
+                screen
+                    .lines()
                     .skip((list.y + 1) as usize)
                     .take((list.height - 2) as usize)
-                    .any(|line| line.starts_with("sample29")),
-                "{screen}"
-            );
+                    .any(|line| {
+                        line.chars()
+                            .skip((list.x + 1) as usize)
+                            .take((list.width - 2) as usize)
+                            .collect::<String>()
+                            .starts_with("sample29")
+                    })
+            });
             assert!(!screen.contains("other"), "{screen}");
         }
         session.send("?");
