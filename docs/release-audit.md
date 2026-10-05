@@ -16,8 +16,9 @@ passed with blocking-pool writes (0.07 seconds). The ordinary suite passed
 470 tests with 24 ignored (494 discovered), and both explicit installed-tool
 checks passed (5.94 seconds). All seven lifecycle scenarios passed in three
 further focused runs. Formatting, clippy with warnings denied and diff checks
-passed. Locked packaging is rerun after committing; its first invocation
-correctly refused the uncommitted runtime files.
+passed. Locked packaging verified the 105-file archive and compiled it after
+committing the runtime correction. Local review and final-head/main CI are
+recorded with the correction's PR.
 
 Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
 Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
