@@ -1,6 +1,6 @@
 # rproj 0.20.0 — Persistent background Watch on Windows
 
-Release candidate. Public alpha; owner publication is pending.
+Published October 6, 2026. Public alpha.
 
 ## Changes
 
@@ -45,11 +45,13 @@ Its 24 ignored tests are not ordinary passes; explicit serial runs passed all
 14 live workflows, four real-Rojo template checks, both installed background
 Watch acceptances and the installed Jest missing-credential refusal check.
 The [release audit](release-audit.md) records commands, tool versions and limits.
-The release PR records clean locked packaging, CodeRabbit review and
-exact-head/main Windows stable, Rust 1.89 and locked-package CI.
+The [release PR #75](https://github.com/chatarabdelilah/rproj/pull/75) passed
+clean locked packaging, zero-finding CodeRabbit review and exact-head/main
+Windows stable, Rust 1.89 and locked-package CI. The owner-published archive's
+checksum and Git identity are verified at reviewed release commit `f3cdea8`.
 
 Authenticated Open Cloud execution, fresh Windows provisioning, fresh Linux
 generated-project execution, UI Labs Studio stories and Scribe Studio playtesting
 remain unverified. Windows symlink privileges are unavailable on this audit
-machine; Unix permission-mode checks require Unix. This candidate retains the
+machine; Unix permission-mode checks require Unix. This release retains the
 0.19.1 Template Explorer protections and their optimistic conflict-check limit.

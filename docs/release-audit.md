@@ -1,5 +1,41 @@
 # Release-Hardening Audit
 
+## October 6: 0.20.0 owner publication and release alignment
+
+Owner publication is confirmed on crates.io; current newest/max version is
+0.20.0 and it is not yanked. The downloaded published archive's SHA-256 matches
+registry checksum `175f1bb4b3b746960c623bfdaf29600c3069707bd3e70c253ff8deb421b2f190`.
+Its manifest declares 0.20.0 and `.cargo_vcs_info.json` identifies clean reviewed
+release commit `f3cdea8d1c88a8acb5831c00a3d7f44c2d6654b0`.
+
+[Release PR #75](https://github.com/chatarabdelilah/rproj/pull/75) passed
+whole-branch CodeRabbit with zero findings and all required CI on reviewed head
+`41f352b` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37377921971))
+and merged main `f3cdea8`
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37378547740)).
+Local verification passed 472 ordinary tests and 21 explicit checks; clean
+locked packaging compiled its inspected 105-file archive. The release branch
+was checked against the merge tree and main ancestry, then removed locally
+and remotely before publication.
+
+Annotated tag `v0.20.0` was created only after archive verification. Tag object
+`0ce9fe32c1b592c713c128bc79680528a5f50728` resolves locally and remotely to
+`f3cdea8`. The matching [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.0)
+targets that exact commit, is public, and remains marked as a prerelease.
+Publication dates here use Europe/Brussels: the registry's October 5 22:18 UTC
+timestamp is October 6 locally. No shipped tag was moved.
+
+README, roadmap, release instructions and dedicated release notes now describe
+published 0.20.0. This follow-up changes documentation only; Cargo versions,
+runtime, tests and dependencies retain the published identity. No repeat local
+runtime tests or CodeRabbit review are required for this correction; its PR
+records documentation inspection and required exact-head/main CI.
+
+Fresh-Windows provisioning and authenticated Open Cloud execution remain
+unverified. The next development action is to inventory available disposable
+Windows environments before attempting the existing fresh-machine acceptance.
+Package additions and further audits remain uncommitted backlog.
+
 ## October 5: 0.20.0 alpha candidate preparation
 
 The candidate starts from clean main `ece51e5`, containing background Watch v1
