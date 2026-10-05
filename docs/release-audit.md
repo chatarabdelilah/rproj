@@ -1,5 +1,28 @@
 # Release-Hardening Audit
 
+## October 5: New Project capability revision resize recovery
+
+`new_project_resize_preserves_capability_revision_through_jest_execution`
+starts with a reviewed expert/Wally TestEZ composition. It filters the checked
+testing capability, chooses Jest Roblox and filters its Open Cloud execution
+choice. At each screen it renders 120 x 30, 80 x 24, 60 x 16, undersized
+40 x 10 and recovered 120 x 30; Help closes to the identical buffer, and
+filter, selection, checked choices, detail focus/scroll and graph are retained.
+One pass cancels the revision and restores the complete reviewed graph; another
+accepts Open Cloud, verifies unrelated graph state and reopens the retained
+execution choice.
+
+The focused regression, formatting, diff checks, clippy with warnings denied
+and all 462 ordinary tests passed locally with normal Windows permissions.
+Twenty-two prerequisite-dependent tests remain ignored (484 discovered).
+This is TestBackend model/render evidence, not a capability-path PTY run,
+project creation or authenticated Open Cloud execution. Runtime behavior and
+published 0.19.1 are unchanged.
+
+CodeRabbit CLI 0.7.6 reviewed the final test/documentation branch against main
+and reported zero findings. Reviewed-head and merged-main CI evidence belongs
+in the accompanying PR; this audit does not infer a passing run before it finishes.
+
 ## October 5: Complete PTY resize expectations
 
 PR #64's new creation regression passed both reviewed-head CI jobs and both

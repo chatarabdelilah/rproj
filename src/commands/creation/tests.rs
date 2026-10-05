@@ -638,6 +638,122 @@ fn new_project_resize_preserves_filtered_checked_package_revision() {
 }
 
 #[test]
+fn new_project_resize_preserves_capability_revision_through_jest_execution() {
+    fn resize_and_help(draft: &mut Draft, expected_step: Step) {
+        let graph = graph_value(draft);
+        let query = draft.picker.query.text().to_owned();
+        let selected = draft.picker.selected_value().cloned();
+        let checked = draft.checked.clone();
+        key(draft, KeyCode::Tab);
+        key(draft, KeyCode::Down);
+        assert!(draft.details_focus);
+        assert_eq!(draft.scroll, 1);
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let draw = |terminal: &mut Terminal<TestBackend>, draft: &Draft| {
+            terminal
+                .draw(|frame| super::render::draw(frame, draft, "C:\\Projects\\Example"))
+                .unwrap();
+        };
+        draw(&mut terminal, draft);
+        let baseline = terminal.backend().buffer().clone();
+        for (width, height) in [(120, 30), (80, 24), (60, 16), (40, 10), (120, 30)] {
+            terminal.backend_mut().resize(width, height);
+            draw(&mut terminal, draft);
+            let before_help = terminal.backend().buffer().clone();
+            let text: String = before_help
+                .content()
+                .iter()
+                .map(|cell| cell.symbol())
+                .collect();
+            assert!(text.contains(if width < 60 {
+                "Resize to at least 60x16"
+            } else {
+                "New Project"
+            }));
+            key(draft, KeyCode::Char('?'));
+            draw(&mut terminal, draft);
+            let help: String = terminal
+                .backend()
+                .buffer()
+                .content()
+                .iter()
+                .map(|cell| cell.symbol())
+                .collect();
+            assert!(help.contains("Help"));
+            key(draft, KeyCode::Esc);
+            assert!(draft.modal.is_none());
+            draw(&mut terminal, draft);
+            assert_eq!(terminal.backend().buffer(), &before_help);
+            assert_eq!(draft.step, expected_step);
+            assert_eq!(draft.picker.query.text(), query);
+            assert_eq!(draft.picker.selected_value(), selected.as_ref());
+            assert_eq!(draft.checked, checked);
+            assert_eq!(graph_value(draft), graph);
+            assert!(draft.details_focus);
+            assert_eq!(draft.scroll, 1);
+        }
+        assert_eq!(terminal.backend().buffer(), &baseline);
+        key(draft, KeyCode::Tab);
+    }
+
+    let mut draft = draft();
+    select(&mut draft, "expert");
+    select(&mut draft, "wally");
+    key(&mut draft, KeyCode::Enter);
+    draft.checked.insert("test".into());
+    key(&mut draft, KeyCode::Enter);
+    select(&mut draft, "testez");
+    assert_eq!(draft.step, Step::Review);
+    let reviewed = graph_value(&draft);
+
+    for cancel in [true, false] {
+        select(&mut draft, "capabilities");
+        draft.paste("test");
+        assert_eq!(draft.checked, ["test".into()].into());
+        resize_and_help(&mut draft, Step::Capabilities);
+        key(&mut draft, KeyCode::Enter);
+        assert_eq!(draft.step, Step::Implementation("test"));
+        draft.paste("jest");
+        assert_eq!(
+            draft.picker.selected_value().map(String::as_str),
+            Some("jest-roblox")
+        );
+        resize_and_help(&mut draft, Step::Implementation("test"));
+        key(&mut draft, KeyCode::Enter);
+        assert_eq!(draft.step, Step::JestBackend);
+        draft.paste("cloud");
+        assert_eq!(
+            draft.picker.selected_value().map(String::as_str),
+            Some("jest-roblox-open-cloud")
+        );
+        resize_and_help(&mut draft, Step::JestBackend);
+        key(
+            &mut draft,
+            if cancel { KeyCode::Esc } else { KeyCode::Enter },
+        );
+        assert_eq!(draft.step, Step::Review);
+        if cancel {
+            assert_eq!(graph_value(&draft), reviewed);
+            assert_eq!(draft.status, "Revision cancelled.");
+        } else {
+            assert_eq!(draft.graph.capabilities["test"], "jest-roblox-open-cloud");
+            let mut expected = draft.graph.clone();
+            expected.choose("test", Some("testez"));
+            super::super::new::apply_derived_packages(&mut expected);
+            assert_eq!(serde_json::to_value(expected).unwrap(), reviewed);
+        }
+    }
+    select(&mut draft, "capabilities");
+    key(&mut draft, KeyCode::Enter);
+    select(&mut draft, "jest-roblox");
+    assert_eq!(draft.step, Step::JestBackend);
+    assert_eq!(
+        draft.picker.selected_value().map(String::as_str),
+        Some("jest-roblox-open-cloud")
+    );
+}
+
+#[test]
 fn creation_pty_driver() {
     let Some(root) = std::env::var_os("RPROJ_CREATION_TEST_ROOT") else {
         return;
