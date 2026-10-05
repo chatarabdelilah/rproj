@@ -6,6 +6,32 @@ use std::process::{Command, Stdio};
 
 use common::{ENTER, ESC, Session, TempProject};
 
+fn screen_rows(session: &Session) -> String {
+    let screen = session.screen();
+    // Compare visible rows; ConPTY redraws can change soft-wrap metadata.
+    screen
+        .rows(0, screen.size().1)
+        .map(|row| row.trim_end().to_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[track_caller]
+fn wait_screen(session: &Session, expected: &str) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        let actual = screen_rows(session);
+        if actual == expected {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "screen did not settle:\nexpected:\n{expected}\nactual:\n{actual}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
 /// Section menu, entry list, detail page, and back out again.
 ///
 /// Navigates by *filtering* rather than counting arrow presses: the order of
@@ -64,7 +90,7 @@ fn catalog_resize_recovery_preserves_filtered_details_and_scrolling() {
     session.send("\x1b[1;5F"); // Ctrl+End
     session.wait_for("Call root:unmount()");
     session.wait_for("needed.");
-    let scrolled = session.text();
+    let scrolled = screen_rows(&session);
     assert!(!scrolled.contains("React's Roblox renderer"), "{scrolled}");
 
     for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
@@ -84,13 +110,13 @@ fn catalog_resize_recovery_preserves_filtered_details_and_scrolling() {
     session.send(ESC);
     session.wait_for("Resize to at least 60 x 16.");
     session.resize(30, 120);
-    session.wait_for(&scrolled);
-    assert_eq!(session.text(), scrolled);
+    wait_screen(&session, &scrolled);
+    assert_eq!(screen_rows(&session), scrolled);
 
     session.send("\x1b[1;5H"); // Ctrl+Home
     session.wait_for("React's Roblox renderer");
     session.send("\x1b[1;5F");
-    session.wait_for(&scrolled);
+    wait_screen(&session, &scrolled);
     session.send(ESC);
     let outcome = session.finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
