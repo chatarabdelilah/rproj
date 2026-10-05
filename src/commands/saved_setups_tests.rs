@@ -54,6 +54,26 @@ fn screen_rows(screen: &vt100::Screen) -> String {
     // ConPTY redraws can change soft-wrap flags without changing the visible rows.
     screen
         .rows(0, screen.size().1)
+        .map(|row| row.trim_end_matches(' ').to_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn expected_screen(app: &mut SavedSetupsApp) -> String {
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal.draw(|frame| app.render(frame)).unwrap();
+    terminal
+        .backend()
+        .buffer()
+        .content()
+        .chunks(120)
+        .map(|row| {
+            row.iter()
+                .map(|cell| cell.symbol())
+                .collect::<String>()
+                .trim_end_matches(' ')
+                .to_owned()
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -66,6 +86,11 @@ fn screen_rows_ignore_soft_wrap_metadata_but_preserve_layout() {
     positioned.process(b"abcd\x1b[2;1He");
     assert_ne!(wrapped.screen().contents(), positioned.screen().contents());
     assert_eq!(screen_rows(wrapped.screen()), "abcd\ne");
+    assert_eq!(
+        screen_rows(wrapped.screen()),
+        screen_rows(positioned.screen())
+    );
+    positioned.process(b"\x1b[2;4H ");
     assert_eq!(
         screen_rows(wrapped.screen()),
         screen_rows(positioned.screen())
@@ -210,7 +235,17 @@ fn editor_resize_preserves_revision_help_scroll_and_saved_discard_baseline() {
 #[test]
 fn pty_editor_resize_recovers_filtered_revision_and_saves_only_on_request() {
     use super::common;
-    let (root, _app) = app();
+    let (root, mut expected_app) = app();
+    edit(&mut expected_app);
+    for _ in 0..3 {
+        press(&mut expected_app, KeyCode::Down);
+    }
+    press(&mut expected_app, KeyCode::Enter);
+    expected_app.paste("test");
+    press(&mut expected_app, KeyCode::Char(' '));
+    press(&mut expected_app, KeyCode::Tab);
+    press(&mut expected_app, KeyCode::Down);
+    let baseline = expected_screen(&mut expected_app);
     let path = root.path().join("sample.toml");
     let mut session = common::Session::start_program(
         &std::env::current_exe().unwrap(),
@@ -249,9 +284,7 @@ fn pty_editor_resize_recovers_filtered_revision_and_saves_only_on_request() {
     session.send("?");
     session.wait_for_output_since(checkpoint, "Ctrl+S saves from Review");
     session.send(common::ESC);
-    let baseline = wait_screen(&session, |screen| {
-        screen.contains("[ ] test") && !screen.contains("Esc or ? closes Help.")
-    });
+    wait_screen(&session, |screen| screen == baseline);
     for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
         let checkpoint = session.output_checkpoint();
         session.resize(rows, cols);
@@ -287,16 +320,17 @@ fn pty_editor_resize_recovers_filtered_revision_and_saves_only_on_request() {
     session.send("?");
     session.wait_for_output_since(checkpoint, "Ctrl+S saves from Review");
     session.send(common::ESC);
-    let unscrolled = wait_screen(&session, |screen| {
-        screen.contains("[ ] test") && !screen.contains("Esc or ? closes Help.")
-    });
+    press(&mut expected_app, KeyCode::Up);
+    let unscrolled = expected_screen(&mut expected_app);
+    wait_screen(&session, |screen| screen == unscrolled);
     assert_ne!(unscrolled, baseline);
     session.send("\t");
     session.send(common::ENTER);
     session.wait_for(" Review ");
-    let review = wait_screen(&session, |screen| {
-        screen.contains("Ctrl+S save review") && !screen.contains("[ ] test")
-    });
+    press(&mut expected_app, KeyCode::Tab);
+    press(&mut expected_app, KeyCode::Enter);
+    let review = expected_screen(&mut expected_app);
+    wait_screen(&session, |screen| screen == review);
     let checkpoint = session.output_checkpoint();
     session.resize(10, 40);
     session.wait_for_output_since(checkpoint, "Resize to at least 60x16");
@@ -493,18 +527,22 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
         };
         session.wait_for_output_since(checkpoint, expected);
         if cols >= 60 {
-            let screen = session.text();
             let list =
                 tui::responsive_panes(ratatui::layout::Rect::new(0, 2, cols, rows - 5), 40)[0];
-            assert!(
-                session
-                    .screen()
-                    .rows(list.x + 1, list.width - 2)
+            // A fresh filter update can precede the list redraw in ConPTY's diff stream.
+            let screen = wait_screen(&session, |screen| {
+                screen
+                    .lines()
                     .skip((list.y + 1) as usize)
                     .take((list.height - 2) as usize)
-                    .any(|line| line.starts_with("sample29")),
-                "{screen}"
-            );
+                    .any(|line| {
+                        line.chars()
+                            .skip((list.x + 1) as usize)
+                            .take((list.width - 2) as usize)
+                            .collect::<String>()
+                            .starts_with("sample29")
+                    })
+            });
             assert!(!screen.contains("other"), "{screen}");
         }
         session.send("?");
