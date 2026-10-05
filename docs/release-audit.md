@@ -2,6 +2,55 @@
 
 ## October 5: Persistent background Watch v1 (unreleased)
 
+Before this correction, main was `e543203`, containing reviewed [PR #73](https://github.com/chatarabdelilah/rproj/pull/73).
+Its final reviewed head passed all required CI, but merged-main CI
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37305627562)) failed
+Rust 1.89 while stable, clippy, formatting and packaging passed. The new
+diagnostics identify the crash fixture's Watching acknowledgement: persisted
+and live state were Failed with Windows error 5 (Access denied), although both
+Rojo sourcemap commands had started. This was an actual terminal failure rather
+than a slow acknowledgement, blocking release acceptance at that revision.
+
+Branch `codex/watch-state-persistence-diagnostics` initially preserved stage-specific
+state-write errors and a failing regression. Eight concurrent metadata readers
+reproduced error 5 on the first atomic `session.json` replacement locally.
+Three coordination prototypes failed the bounded concurrency check (exclusive
+state lock, writer-intent gate, then buffered decoding). The gate diagnostics
+showed waiting for the active state reader; those unsuccessful prototypes were
+removed. The doubtful assumption was that the state lock's lifetime and fairness
+matched the intended read/replace interval. The resumed minimal probes confirmed
+that dropping a handle releases its lock and individual snapshot reads finish
+normally. A guarded 50-write probe passed, while a 500-write probe exposed reader
+starvation when the lock also covered staging and disk flushing.
+
+The correction uses shared snapshot-read locks and an exclusive replacement
+lock, with a separate writer-intent gate preventing new readers from starving
+replacement. Staging and flushing occur before acquiring these locks; decoding
+uses a buffered reader. The lock deadline remains 300 ms. A held state lock
+refuses reads/writes and preserves the snapshot; dropping it allows reading
+again. The original eight-reader, 500-replacement regression passes, including
+three further focused runs, with no read errors.
+
+The first correction head's CI completed all 500 replacements and passed the
+Watch lifecycle scenarios, but stable failed because the stress test counted
+16 bounded busy responses as unexpected read errors
+([run](https://github.com/chatarabdelilah/rproj/actions/runs/37370739903)).
+Contention now returns a typed `WouldBlock` error with the same retry message
+and unchanged deadline. The stress test retries that result, still rejects
+missing or malformed snapshots and every other read error, requires successful
+reads, and requires all 500 writes to succeed. The held-lock check verifies
+the typed error for both reads and writes.
+
+Ordinary validation passed 472 tests with 24 ignored (496 discovered). Both
+explicit installed Rojo/Wally/Jest acceptances passed (7.72 seconds), along with
+formatting, clippy with warnings denied and diff checks. Temporary probes were
+removed. The final whole-branch local CodeRabbit review reported zero findings.
+Locked packaging and final-head/main CI are recorded in
+[the correction's PR #74](https://github.com/chatarabdelilah/rproj/pull/74).
+Keep merged follow-up branches until corrected final-main
+CI is green. Published 0.19.1 remains unchanged; 0.20.0 candidate preparation
+follows successful acceptance.
+
 Main `acf9c70` contains the completion-marker and Catalog visible-row corrections
 from [PR #72](https://github.com/chatarabdelilah/rproj/pull/72). Its reviewed-head
 CI passed; merged-main stable subsequently exposed a Stop control timeout after

@@ -175,19 +175,32 @@ fn random_token() -> Result<String> {
 }
 
 fn save(root: &Path, snapshot: &Snapshot) -> Result<()> {
-    let mut pending = tempfile::NamedTempFile::new_in(root)?;
-    pending.write_all(&serde_json::to_vec(snapshot)?)?;
-    pending.as_file().sync_all()?;
+    let mut pending =
+        tempfile::NamedTempFile::new_in(root).context("could not stage Watch session state")?;
+    pending
+        .write_all(&serde_json::to_vec(snapshot)?)
+        .context("could not write staged Watch session state")?;
+    pending
+        .as_file()
+        .sync_all()
+        .context("could not flush staged Watch session state")?;
+    let _state = lock_state(root, true)?;
     pending
         .persist(root.join("session.json"))
-        .map_err(|error| error.error)?;
+        .map_err(|error| error.error)
+        .context("could not replace Watch session state")?;
     Ok(())
 }
 
 fn metadata(root: &Path) -> Result<Option<Snapshot>> {
+    if !root.exists() {
+        return Ok(None);
+    }
+    let _state = lock_state(root, false)?;
     match File::open(root.join("session.json")) {
         Ok(file) => {
-            let snapshot: Snapshot = serde_json::from_reader(file.take(MAX_MESSAGE))?;
+            let snapshot: Snapshot =
+                serde_json::from_reader(BufReader::new(file).take(MAX_MESSAGE))?;
             ensure!(
                 snapshot.version == PROTOCOL && snapshot.address.ip().is_loopback(),
                 "Unsupported Watch session metadata"
@@ -196,6 +209,44 @@ fn metadata(root: &Path) -> Result<Option<Snapshot>> {
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error.into()),
+    }
+}
+
+fn lock_state(root: &Path, writing: bool) -> Result<File> {
+    let state = open_lock(root, "state.lock")?;
+    let gate = open_lock(root, "state-writer.lock")?;
+    let deadline = Instant::now() + TIMEOUT;
+    let pause = || -> Result<()> {
+        if Instant::now() >= deadline {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::WouldBlock,
+                "Watch session state is busy; retry the command",
+            )
+            .into());
+        }
+        std::thread::sleep(Duration::from_millis(1));
+        Ok(())
+    };
+    if writing {
+        // Stop new readers before waiting for existing read handles to close.
+        // Staging and flushing happen before this short replacement interval.
+        while !acquire(&gate)? {
+            pause()?;
+        }
+        while !acquire(&state)? {
+            pause()?;
+        }
+        return Ok(state);
+    }
+    loop {
+        if acquire_shared(&gate)? {
+            let acquired = acquire_shared(&state)?;
+            gate.unlock()?;
+            if acquired {
+                return Ok(state);
+            }
+        }
+        pause()?;
     }
 }
 
@@ -556,7 +607,7 @@ fn supervisor(root: &Path, project: &Path, nonce: String) -> Result<()> {
         let mut stderr = Some(tokio::spawn(drain(child.stderr().take().context("missing engine errors")?, log.clone())));
         let mut stopping = false;
         loop {
-            if let Some(exit) = child.try_wait()? {
+            if let Some(exit) = child.try_wait().context("could not poll owned Watch engine")? {
                 // Closing the armed JobObject also terminates surviving grandchildren.
                 drop(child);
                 if let Some(task) = stdout.take() { task.await??; }
@@ -595,7 +646,7 @@ fn supervisor(root: &Path, project: &Path, nonce: String) -> Result<()> {
                     }
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
-                Err(error) => return Err(error.into()),
+                Err(error) => return Err(error).context("could not accept Watch control connection"),
             }
             tokio::time::sleep(Duration::from_millis(20)).await;
         }

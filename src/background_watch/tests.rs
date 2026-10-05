@@ -246,6 +246,99 @@ fn slow_log_writer_does_not_block_the_control_runtime() {
 }
 
 #[test]
+fn concurrent_session_readers_do_not_break_atomic_replacement() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    let root = tempfile::tempdir().unwrap();
+    private_directory(root.path()).unwrap();
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "probe".into(),
+        project: root.path().into(),
+        state: State::Watching,
+        message: "probe".into(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        token: "probe".into(),
+        supervisor: 0,
+    };
+    save(root.path(), &snapshot).unwrap();
+    let done = AtomicBool::new(false);
+    let errors = AtomicUsize::new(0);
+    let reads = AtomicUsize::new(0);
+    let result = std::thread::scope(|scope| {
+        for _ in 0..8 {
+            scope.spawn(|| {
+                while !done.load(Ordering::Relaxed) {
+                    match metadata(root.path()) {
+                        Ok(Some(current)) => {
+                            assert_eq!(current.nonce, snapshot.nonce);
+                            assert_eq!(current.state, State::Watching);
+                            reads.fetch_add(1, Ordering::Relaxed);
+                        }
+                        Ok(None) => panic!("snapshot disappeared during replacement"),
+                        Err(error)
+                            if error.downcast_ref::<std::io::Error>().is_some_and(|error| {
+                                error.kind() == std::io::ErrorKind::WouldBlock
+                            }) => {}
+                        Err(error) => {
+                            if errors.fetch_add(1, Ordering::Relaxed) == 0 {
+                                eprintln!("reader error: {error:#}");
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        let result = (0..500).try_for_each(|iteration| {
+            save(root.path(), &snapshot).with_context(|| format!("replacement {iteration}"))
+        });
+        done.store(true, Ordering::Relaxed);
+        result
+    });
+    result.unwrap();
+    assert_eq!(errors.load(Ordering::Relaxed), 0);
+    assert!(reads.load(Ordering::Relaxed) > 0);
+    assert_eq!(
+        metadata(root.path()).unwrap().unwrap().state,
+        State::Watching
+    );
+}
+
+#[test]
+fn held_state_lock_refuses_reads_and_writes_without_changing_the_snapshot() {
+    let root = tempfile::tempdir().unwrap();
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "fixture".into(),
+        project: root.path().into(),
+        state: State::Watching,
+        message: String::new(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        token: "fixture".into(),
+        supervisor: 0,
+    };
+    save(root.path(), &snapshot).unwrap();
+    let before = fs::read(root.path().join("session.json")).unwrap();
+    let held = open_lock(root.path(), "state.lock").unwrap();
+    assert!(acquire(&held).unwrap());
+    for error in [
+        metadata(root.path()).unwrap_err(),
+        save(root.path(), &snapshot).unwrap_err(),
+    ] {
+        assert!(error.to_string().contains("state is busy"));
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+    }
+    assert_eq!(fs::read(root.path().join("session.json")).unwrap(), before);
+    drop(held);
+    assert_eq!(
+        metadata(root.path()).unwrap().unwrap().state,
+        State::Watching
+    );
+}
+
+#[test]
 fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
     let fixtures = tempfile::tempdir().unwrap();
     let bin = fixtures.path().join("bin");
