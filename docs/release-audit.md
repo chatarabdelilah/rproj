@@ -1,5 +1,39 @@
 # Release-Hardening Audit
 
+## October 5: New Project capability revision PTY resize recovery
+
+Work starts from clean main `8a07456` with successful merged-main CI and no
+open PRs. The isolated creation driver now also supports a reviewed expert/Wally
+TestEZ composition, entering its capability revision without configuration,
+template preparation or execution. Its first cancelled revision must restore
+the entire reviewed graph; its final graph must match the Open Cloud composition
+and raw mode must be restored.
+
+`pty_new_project_resize_recovers_capability_revision_without_creating` filters
+Capabilities, test implementation and Jest execution. On both cancellation and
+acceptance passes, each screen retains its checked choices, filter, selection
+and focused/scrolled details through 120 x 30, 80 x 24, 60 x 16, 40 x 10 and
+recovery. Help closes to the complete expected screen at each size. Blocked
+undersized focus/toggle/acceptance/text/paste/save inputs are followed by a Help
+input barrier before recovery. Expected physical rows come from full TestBackend
+renders at every size; leading/internal spacing and row boundaries are preserved.
+Continued scrolling changes the recovered screen. The accepted Open Cloud
+choice remains selected after reopening, cancelling that revision and exiting.
+
+The temporary sentinel remains byte-identical, the root contains only that
+sentinel and no project/setup is created. This covers production `next_effect`
+input gating and terminal recovery, not Home dispatch, preparation, confirmed
+creation, installed runners or authenticated Open Cloud execution. No runtime
+or package-version change is needed; published 0.19.1 remains unchanged.
+
+The focused PTY regression and all 463 ordinary tests passed locally with normal
+Windows permissions; 22 prerequisite-dependent tests remain ignored (485
+discovered). Formatting, diff checks and clippy with warnings denied passed.
+Both package and capability PTYs passed 20 repetitions together with two test
+threads. CodeRabbit CLI 0.7.6 reviewed the final test/documentation branch against
+main with zero findings. Reviewed-head and merged-main CI evidence is recorded
+on the accompanying PR after each run completes.
+
 ## October 5: New Project capability revision resize recovery
 
 `new_project_resize_preserves_capability_revision_through_jest_execution`
