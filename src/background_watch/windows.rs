@@ -184,6 +184,7 @@ fn save(root: &Path, snapshot: &Snapshot) -> Result<()> {
         .as_file()
         .sync_all()
         .context("could not flush staged Watch session state")?;
+    let _state = lock_state(root, true)?;
     pending
         .persist(root.join("session.json"))
         .map_err(|error| error.error)
@@ -192,9 +193,14 @@ fn save(root: &Path, snapshot: &Snapshot) -> Result<()> {
 }
 
 fn metadata(root: &Path) -> Result<Option<Snapshot>> {
+    if !root.exists() {
+        return Ok(None);
+    }
+    let _state = lock_state(root, false)?;
     match File::open(root.join("session.json")) {
         Ok(file) => {
-            let snapshot: Snapshot = serde_json::from_reader(file.take(MAX_MESSAGE))?;
+            let snapshot: Snapshot =
+                serde_json::from_reader(BufReader::new(file).take(MAX_MESSAGE))?;
             ensure!(
                 snapshot.version == PROTOCOL && snapshot.address.ip().is_loopback(),
                 "Unsupported Watch session metadata"
@@ -203,6 +209,41 @@ fn metadata(root: &Path) -> Result<Option<Snapshot>> {
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error.into()),
+    }
+}
+
+fn lock_state(root: &Path, writing: bool) -> Result<File> {
+    let state = open_lock(root, "state.lock")?;
+    let gate = open_lock(root, "state-writer.lock")?;
+    let deadline = Instant::now() + TIMEOUT;
+    let pause = || -> Result<()> {
+        ensure!(
+            Instant::now() < deadline,
+            "Watch session state is busy; retry the command"
+        );
+        std::thread::sleep(Duration::from_millis(1));
+        Ok(())
+    };
+    if writing {
+        // Stop new readers before waiting for existing read handles to close.
+        // Staging and flushing happen before this short replacement interval.
+        while !acquire(&gate)? {
+            pause()?;
+        }
+        while !acquire(&state)? {
+            pause()?;
+        }
+        return Ok(state);
+    }
+    loop {
+        if acquire_shared(&gate)? {
+            let acquired = acquire_shared(&state)?;
+            gate.unlock()?;
+            if acquired {
+                return Ok(state);
+            }
+        }
+        pause()?;
     }
 }
 

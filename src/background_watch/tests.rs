@@ -290,6 +290,43 @@ fn concurrent_session_readers_do_not_break_atomic_replacement() {
 }
 
 #[test]
+fn held_state_lock_refuses_reads_and_writes_without_changing_the_snapshot() {
+    let root = tempfile::tempdir().unwrap();
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "fixture".into(),
+        project: root.path().into(),
+        state: State::Watching,
+        message: String::new(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        token: "fixture".into(),
+        supervisor: 0,
+    };
+    save(root.path(), &snapshot).unwrap();
+    let before = fs::read(root.path().join("session.json")).unwrap();
+    let held = open_lock(root.path(), "state.lock").unwrap();
+    assert!(acquire(&held).unwrap());
+    assert!(
+        metadata(root.path())
+            .unwrap_err()
+            .to_string()
+            .contains("state is busy")
+    );
+    assert!(
+        save(root.path(), &snapshot)
+            .unwrap_err()
+            .to_string()
+            .contains("state is busy")
+    );
+    assert_eq!(fs::read(root.path().join("session.json")).unwrap(), before);
+    drop(held);
+    assert_eq!(
+        metadata(root.path()).unwrap().unwrap().state,
+        State::Watching
+    );
+}
+
+#[test]
 fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
     let fixtures = tempfile::tempdir().unwrap();
     let bin = fixtures.path().join("bin");
