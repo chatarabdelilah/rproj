@@ -673,6 +673,27 @@ fn creation_pty_driver() {
     println!("Creation cancelled; reviewed packages retained; terminal restored");
 }
 
+fn expected_pty_screen(draft: &Draft, destination: &str) -> String {
+    let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+    terminal
+        .draw(|frame| super::render::draw(frame, draft, destination))
+        .unwrap();
+    terminal
+        .backend()
+        .buffer()
+        .content()
+        .chunks(120)
+        .map(|row| {
+            row.iter()
+                .map(|cell| cell.symbol())
+                .collect::<String>()
+                .trim_end_matches(' ')
+                .to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[track_caller]
 fn wait_pty_screen(session: &crate::test_common::Session, ready: impl Fn(&str) -> bool) -> String {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -681,6 +702,7 @@ fn wait_pty_screen(session: &crate::test_common::Session, ready: impl Fn(&str) -
         // Physical rows ignore ConPTY soft-wrap metadata while preserving layout.
         let text = screen
             .rows(0, screen.size().1)
+            .map(|row| row.trim_end_matches(' ').to_owned())
             .collect::<Vec<_>>()
             .join("\n");
         if ready(&text) {
@@ -700,6 +722,18 @@ fn pty_new_project_resize_recovers_checked_package_revision_without_creating() {
     let root = tempfile::tempdir().unwrap();
     let sentinel = root.path().join("sentinel.txt");
     std::fs::write(&sentinel, b"preserve fixture bytes\n").unwrap();
+    let mut expected_draft = draft();
+    select(&mut expected_draft, "expert");
+    select(&mut expected_draft, "wally");
+    key(&mut expected_draft, KeyCode::Enter);
+    key(&mut expected_draft, KeyCode::Enter);
+    select(&mut expected_draft, "packages");
+    expected_draft.paste("janitor");
+    key(&mut expected_draft, KeyCode::Char(' '));
+    key(&mut expected_draft, KeyCode::Tab);
+    key(&mut expected_draft, KeyCode::Down);
+    let destination = root.path().join("Example").display().to_string();
+    let baseline = expected_pty_screen(&expected_draft, &destination);
     let mut session = common::Session::start_program(
         &std::env::current_exe().unwrap(),
         root.path(),
@@ -728,9 +762,7 @@ fn pty_new_project_resize_recovers_checked_package_revision_without_creating() {
     session.send("?");
     session.wait_for_output_since(checkpoint, "Esc or ? closes Help.");
     session.send(common::ESC);
-    let baseline = wait_pty_screen(&session, |text| {
-        text.contains("[x] janitor") && !text.contains("Esc or ? closes Help.")
-    });
+    wait_pty_screen(&session, |text| text == baseline);
     for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
         session.resize(rows, cols);
         let expected = if cols < 60 {
@@ -770,9 +802,9 @@ fn pty_new_project_resize_recovers_checked_package_revision_without_creating() {
     session.send("?");
     session.wait_for_output_since(checkpoint, "Esc or ? closes Help.");
     session.send(common::ESC);
-    let unscrolled = wait_pty_screen(&session, |text| {
-        text.contains("[x] janitor") && !text.contains("Esc or ? closes Help.")
-    });
+    key(&mut expected_draft, KeyCode::Up);
+    let unscrolled = expected_pty_screen(&expected_draft, &destination);
+    wait_pty_screen(&session, |text| text == unscrolled);
     assert_ne!(unscrolled, baseline);
     session.send("\t");
     session.send(common::ENTER);

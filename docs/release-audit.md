@@ -1,5 +1,33 @@
 # Release-Hardening Audit
 
+## October 5: Complete PTY resize expectations
+
+PR #64's new creation regression passed both reviewed-head CI jobs and both
+merged-main toolchains. Merged-main [CI at `7d3d0fd`](https://github.com/chatarabdelilah/rproj/actions/runs/37259045946)
+nevertheless failed the existing Saved Setup recovery comparison on stable;
+Rust 1.89 and packaging passed. That run is not counted as a passing main run.
+The failing Capabilities screen matched a complete local baseline row-for-row.
+CI did not capture its expected baseline, and 30 focused diagnostic repetitions
+did not reproduce the mismatch, so a partial-baseline timing cause remains an
+inference rather than a captured second root cause.
+
+The follow-up removes that assumption: Saved Setup and New Project PTY tests
+derive expected screens from completed TestBackend renders of their fixture
+states. They wait for the entire expected screen before and after recovery,
+after scrolling and, for Saved Setup, at Review. A first partial snapshot
+matching a row label can no longer become the expected baseline. Physical
+rows retain leading/internal spaces and row boundaries; trailing blank-cell
+padding is normalized across backends. The existing regression also verifies
+explicit trailing spaces do not change the visible-row comparison.
+
+Both focused resize tests passed. The four concurrent Saved Setup PTYs and
+the New Project PTY each passed 20 repetitions, with the two groups running
+concurrently. All 461 ordinary tests passed with normal Windows permissions;
+22 prerequisite tests remain ignored. Formatting, diff checks and clippy with
+warnings denied passed. CodeRabbit CLI 0.7.6 reviewed the three-file diff with
+zero findings. No runtime behavior, user storage or package version changes;
+reviewed-head/merged-main CI evidence will be recorded on the follow-up PR.
+
 ## October 5: New Project package revision PTY resize recovery
 
 Work started from clean main `c7ba7e2` (PR #63), with successful merged-main
