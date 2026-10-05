@@ -1,5 +1,45 @@
 # Release-Hardening Audit
 
+## October 5: Bounded New Project execution-boundary audit
+
+Audited clean main `0e05001`, with successful merged-main CI and no open PRs.
+CodeGraph traced Home confirmation, `creation::prepare`, `Prepared::execute`,
+`new::execute_confirmed`, scaffolding and named-setup persistence. No actionable
+defect was established in this bounded review; no runtime change or new test
+was needed.
+
+The creation model requires a separate Create confirmation. Preparation checks
+the final destination and setup name before returning a prepared operation;
+Home suspends the terminal before execution. The executor checks interruption
+and claims the destination with `create_dir`, refusing an existing directory
+even if it appeared after review. Project records and setup saving occur after
+scaffolding; a new named setup is staged, synced and committed without clobbering
+an existing file. Execution errors return failure and warn that partial project
+files remain for inspection. These operations are not a multi-file transaction:
+a later failure can leave a project and an already saved setup. The audit does
+not claim rollback or exhaustive failure injection.
+
+Executed existing checks on this revision:
+
+- `cargo test --locked --test live hub_creation_ -- --ignored --test-threads=1 --nocapture`:
+  all three passed on the provisioned machine (19.77 seconds). Cancellation
+  creates nothing and restores the terminal; a concurrently created destination
+  is preserved; confirmed creation hands off the reviewed graph, saves identical
+  project/setup bytes, returns to project actions, and replay cancellation leaves
+  the saved setup unchanged.
+- Existing ordinary tests for destination refusal/missing-parent creation,
+  explicit Create/Ctrl+C behavior and atomic no-clobber setup saving: four passed.
+
+Live fixtures use reserved temporary setup names and unique project directories,
+with their existing cleanup guards. No machine applications were installed;
+this is not fresh-machine or hosted Open Cloud evidence. Broader partial-failure,
+external-writer and installed-runner paths remain outside this bounded audit.
+
+The audit is complete. Further resize matrices are coverage gaps rather than
+automatic roadmap tasks; they should be selected for an observed defect or
+specific acceptance requirement. Any next product feature needs a separately
+scoped proposal, not another inferred test-only milestone.
+
 ## October 5: New Project strategy revision resize recovery
 
 Work starts from clean main `9b040a5`, successful merged-main CI and no open

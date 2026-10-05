@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 4, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 5, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -216,6 +216,25 @@ The completed 0.13.1 change fixes confirmed `configure` preservation failures: u
 T3 introduced Projects, New Project, Edit Project Template, Machine Setup, and Catalog on Home. Projects is read-only shallow discovery plus explicit-path action dispatch; it is not a registry or filesystem manager. The redundant Catalog Place Template section was removed. PR #22 passed local review and reviewed-head/main CI, and owner publication was verified on September 10, 2026. Its merged feature branch was deleted. T4 subsequently added Saved Setups to Home; see the release audit for evidence.
 
 ## Next Milestones
+
+**No next feature milestone is approved.** The October 5 bounded New Project
+confirmation/execution audit found no actionable defect and passed the three
+existing live Home creation checks plus four ordinary boundary checks. That
+audit is complete; see [the release audit](release-audit.md). The recent resize
+coverage sequence is also complete for its selected scope. Additional matrices
+are not an automatic development queue.
+
+Current work is release hardening driven by concrete defects and acceptance
+requirements. Authenticated Open Cloud execution and fresh-Windows provisioning
+remain unverified and require suitable test environments. Beta requires current
+critical-workflow evidence and contracts intended for stabilization; no beta or
+1.0 date is committed.
+
+Potential product work remains **uncommitted backlog**: package additions and
+background Watch. Select one based on a concrete use case, define its behavior
+and acceptance criteria, then approve a bounded implementation milestone.
+The completed creation audit does not approve either feature or close the
+broader code-audit backlog.
 
 T4 shipped as **0.16.0 alpha** in [PR #24](https://github.com/chatarabdelilah/rproj/pull/24). The published archive, annotated tag, and GitHub prerelease identify `d54a9a8`. Existing saved setups now have their own Home manager; changes affect future reuse. New setup creation remains part of New Project. T5 also shipped as 0.17.0; no next feature milestone has been approved.
 
