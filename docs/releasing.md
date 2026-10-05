@@ -2,13 +2,13 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.19.1**, at `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.19.1) are verified. See [release notes](release-notes-0.19.1.md), [audit evidence](release-audit.md), and [PR #53](https://github.com/chatarabdelilah/rproj/pull/53). The active **0.20.0 alpha candidate** adds persistent Windows background Watch; it is not yet published.
+The published baseline is **v0.20.0**, at `f3cdea8d1c88a8acb5831c00a3d7f44c2d6654b0`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.0) are verified. See [release notes](release-notes-0.20.0.md), [audit evidence](release-audit.md), and [PR #75](https://github.com/chatarabdelilah/rproj/pull/75). No later release candidate is prepared.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-Candidate **0.20.0** is prepared on `codex/release-0.20.0`, with aligned Cargo versions and dedicated [release notes](release-notes-0.20.0.md). The [audit](release-audit.md) records local verification; the release PR records final CodeRabbit and exact-head/main CI gates. Publication requires all those gates, merged-branch cleanup and a clean main checkout. The owner then runs `cargo publish --locked`; archive identity, the annotated `v0.20.0` tag and matching GitHub alpha release follow confirmed publication. No tag is created during preparation.
+No unpublished release candidate is active. The owner published **0.20.0** on October 6, 2026, after [PR #75](https://github.com/chatarabdelilah/rproj/pull/75)'s reviewed-head and merged-main CI passed. Registry checksum `175f1bb4b3b746960c623bfdaf29600c3069707bd3e70c253ff8deb421b2f190`, archive Git identity, annotated tag and GitHub alpha prerelease match the clean release commit `f3cdea8d1c88a8acb5831c00a3d7f44c2d6654b0`. The merged release branch was verified and removed. Fresh-machine installation acceptance remains unverified.
 
 The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github.com/chatarabdelilah/rproj/pull/53)'s reviewed-head and merged-main CI passed. Registry checksum `be193ef19a8277f78d788bb9494834d91ba3146d7d7a6daf1d32e7f854cdb210`, archive Git identity, annotated tag and GitHub prerelease match the clean release commit `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Fresh-machine installation acceptance remains unverified.
 

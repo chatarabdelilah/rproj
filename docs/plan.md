@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 5, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 6, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.19.1, public alpha**, with Template Explorer resize recovery and external-edit protection, UI Labs 2.4.2, shared creation/configuration behavior, safer configuration/upgrade/Jest saves, and Wally package preservation during tests. Existing features include compatible Jest mounts, explicit optional setup choices, Scribe Studio, trusted Rokit installation, additive project composition, Catalog mouse scrolling, and reliable Test/Watch coexistence. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `957a0aa`. The **0.20.0 alpha candidate** adds persistent Windows background Watch; its release gates are recorded in [audit evidence](release-audit.md). See the [candidate notes](release-notes-0.20.0.md) for behavior and limits.
+The published baseline is **v0.20.0, public alpha**, adding persistent Windows background Watch with status, logs, stop and owned process-tree cleanup. It retains Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `f3cdea8`; no later candidate is prepared. See [release notes](release-notes-0.20.0.md) and [audit evidence](release-audit.md) for behavior, verification and limits.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -217,17 +217,17 @@ T3 introduced Projects, New Project, Edit Project Template, Machine Setup, and C
 
 ## Next Milestones
 
-**Implemented on main, unreleased: persistent background Watch v1 on Windows.** It supports
+**Shipped in 0.20.0 alpha: persistent background Watch v1 on Windows.** It supports
 one project per user, manual startup, sourcemap Watch after rproj closes,
 status/logs/stop controls, owned process-tree cleanup, and cooperative recovery
 cancellation. It adds no Rojo Serve, sign-in task, automatic restart, or service.
 Implementation and acceptance are recorded in [the release audit](release-audit.md);
-published 0.19.1 remains unchanged. The 0.20.0 alpha candidate aligns Cargo
-versions and includes [release notes](release-notes-0.20.0.md). Complete its
-recorded review, packaging and exact-head/main CI gates before owner publication.
-After crates.io confirms publication, verify archive identity and align the
-annotated tag and GitHub alpha release. Further acceptance work requires a
-suitable Open Cloud or fresh-Windows environment.
+owner publication, archive identity, annotated tag and GitHub alpha release
+are verified at `f3cdea8`. [Release notes](release-notes-0.20.0.md) record limits.
+The next development task is fresh-Windows provisioning acceptance: first
+inventory available disposable Windows test environments. The current machine
+is already configured and cannot establish a fresh-machine pass. Authenticated
+Open Cloud execution likewise requires a suitable environment and credentials.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
@@ -249,7 +249,7 @@ audit does not close the broader code-audit backlog.
 T4 shipped as **0.16.0 alpha** in [PR #24](https://github.com/chatarabdelilah/rproj/pull/24). The published archive, annotated tag, and GitHub prerelease identify `d54a9a8`. Existing saved setups now have their own Home manager; changes affect future reuse. New setup creation remains part of New Project. T5 also shipped as 0.17.0.
 
 1. **T5 - Ratatui Machine Setup (0.17.0 shipped):** review-first selection, in-TUI progress/results, and cooperative stopping after the active item. The published archive, annotated tag, and GitHub alpha prerelease identify `9ee8d51`. [PR #28](https://github.com/chatarabdelilah/rproj/pull/28) records final-head and merged-main verification.
-2. **Background Watch v1 (0.20.0 candidate, unreleased):** complete the release gates and owner publication, then verify archive/tag/alpha-release identity. Package additions and further audits remain separate backlog. Model import remains permanently dropped.
+2. **Background Watch v1 (0.20.0 shipped):** archive, annotated tag and GitHub alpha release identify `f3cdea8`. Fresh-Windows and authenticated Open Cloud acceptance remain unverified. Package additions and further audits remain separate backlog. Model import remains permanently dropped.
 
 Further configuration or upgrade screens should address observed friction. A full-screen wrapper around every long-running subprocess is not a goal by itself.
 
