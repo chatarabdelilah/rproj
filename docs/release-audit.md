@@ -2,6 +2,24 @@
 
 ## October 5: Persistent background Watch v1 (unreleased)
 
+Runtime implementation merged in [PR #70](https://github.com/chatarabdelilah/rproj/pull/70).
+Both local whole-branch CodeRabbit reviews reported zero findings. CI passed on
+reviewed head `8abc188` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37298235374))
+and merged main `8b0b9d1` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37298724095)):
+Windows stable, Rust 1.89, locked packaging, stable clippy and formatting.
+Final local ordinary validation passed 469 tests with 24 explicitly ignored
+(493 discovered: 418 unit and 75 integration). Locked packaging verified its
+105-file archive and compiled it. The save-refusal regression preserves bytes
+and the pending draft under lost Watch control, then saves successfully after
+ownership clears.
+
+A test-only correction restores actual competing-start coverage: the earlier
+WMI wrapper waited for its first launcher before starting the second. Two
+independent launchers now write distinct readiness markers, wait at a shared
+barrier, then start together. Both results must identify the same supervisor
+or explicitly report busy startup, and exactly one Rojo watcher may launch.
+All seven lifecycle cases passed again (8.16 seconds); runtime code is unchanged.
+
 The owner approved one persistent Windows sourcemap Watch per user, manual
 startup and stop after the active recovery command. Work starts from main
 `5ee9809`; published 0.19.1 remains unchanged. Direct foreground Watch remains
@@ -27,10 +45,10 @@ Executed evidence:
   review: append-only Windows log access could not truncate during rotation;
   exclusive status probes could look like an owner to concurrent readers.
   Logs now retain write access and seek after truncation; probes share locks.
-- `cargo test --locked`: 468 ordinary tests passed before the second installed-
-  tool acceptance was added. That addition is ignored by default; it does not
-  replace ordinary evidence. Formatting, clippy with warnings denied, and diff
-  checks passed. Final review/CI evidence follows in the PR.
+- `cargo test --locked`: final ordinary validation passed 469 tests. Both
+  installed-tool acceptances are ignored by default and were executed explicitly;
+  they do not replace ordinary evidence. Formatting, clippy with warnings denied,
+  and diff checks passed.
 - `cargo test --locked installed_rojo_keeps_updating_after_launcher_exit -- --ignored --nocapture`:
   passed with installed Rojo 7.7.0. A source added after the launcher exited
   appeared in the sourcemap; stopping completed and removed owned processes.
