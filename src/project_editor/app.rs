@@ -1672,6 +1672,8 @@ mod tests {
                 "project_editor::app::tests::editor_pty_driver",
                 "--exact",
                 "--nocapture",
+                // Keep libtest's parallel timer warnings out of the active UI screen.
+                "--test-threads=1",
             ],
             &[
                 ("RPROJ_EDITOR_TEST_PATH", path.to_str().unwrap()),
@@ -1693,9 +1695,70 @@ mod tests {
         value
     }
 
+    fn json_text_consumed(screen: &vt100::Screen, text: &str, cursor: (u16, u16)) -> bool {
+        screen.cursor_position() == cursor
+            && screen
+                .rows(6, screen.size().1 - 7)
+                .nth(cursor.0 as usize)
+                .is_some_and(|row| row.starts_with(text.trim_end_matches(' ')))
+    }
+
+    #[test]
+    fn json_paste_acknowledgment_requires_the_complete_row_and_cursor() {
+        let mut parser = vt100::Parser::new(10, 80, 0);
+        parser.process(b"\x1b[6;7H  \"serveAddress\": \"127.0.0.1");
+        let field = "  \"serveAddress\": \"127.0.0.1\",";
+        let end = (5, 6 + field.len() as u16);
+        assert!(parser.screen().contents().contains("127.0.0.1"));
+        assert!(!json_text_consumed(parser.screen(), field, end));
+        parser.process(b"\",");
+        parser.process(b"\x1b[1;1H");
+        assert!(!json_text_consumed(parser.screen(), field, end));
+        parser.process(format!("\x1b[{};{}H", end.0 + 1, end.1 + 1).as_bytes());
+        assert!(json_text_consumed(parser.screen(), field, end));
+
+        let mut wrong_row = vt100::Parser::new(10, 80, 0);
+        wrong_row.process(format!("\x1b[5;7H{field}\x1b[6;{}H", end.1 + 1).as_bytes());
+        assert!(!json_text_consumed(wrong_row.screen(), field, end));
+    }
+
+    #[track_caller]
+    fn wait_json_ready(session: &common::Session) {
+        session.wait_for_screen("complete JSON editor at its initial cursor", |screen| {
+            screen.cursor_position() == (4, 6)
+                && screen.contents().contains("Advanced JSON")
+                && screen.contents().contains("Esc apply/return")
+        });
+    }
+
+    #[track_caller]
+    fn paste_json_text(session: &mut common::Session, text: &str) {
+        let mut cursor = session.screen().cursor_position();
+        let mut line = String::new();
+        // ConPTY can expose paste as individual keys. Wait for the complete final
+        // row and cursor before queuing another editor action.
+        session.send(&format!("\x1b[200~{text}\x1b[201~"));
+        for ch in text.chars() {
+            if ch == '\n' {
+                cursor = (cursor.0 + 1, 6);
+                line.clear();
+            } else {
+                line.push(ch);
+                cursor.1 += UnicodeWidthStr::width(ch.to_string().as_str()) as u16;
+            }
+        }
+        session.wait_for_screen("complete JSON paste", |screen| {
+            json_text_consumed(screen, &line, cursor)
+        });
+    }
+
     fn paste_json_field(session: &mut common::Session, field: &str, marker: &str) {
+        wait_json_ready(session);
         session.send("\x1b[C");
-        session.send(&format!("\x1b[200~\n  {field},\x1b[201~"));
+        session.wait_for_screen("JSON cursor after the opening brace", |screen| {
+            screen.cursor_position() == (4, 7)
+        });
+        paste_json_text(session, &format!("\n  {field},"));
         session.wait_for(marker);
     }
 
@@ -2085,10 +2148,10 @@ mod tests {
         let path = root.path().join("template.json");
         std::fs::write(&path, "").unwrap();
         let mut session = pty_editor(&path);
-        session.wait_for("Advanced JSON");
+        wait_json_ready(&session);
         let text =
             serde_json::to_string_pretty(&crate::steps::rojo::builtin_project_template()).unwrap();
-        session.send(&format!("\x1b[200~{text}\x1b[201~"));
+        paste_json_text(&mut session, &text);
         session.wait_for("StarterPlayerScripts");
         session.send("\x13");
         session.wait_for("Template saved.");

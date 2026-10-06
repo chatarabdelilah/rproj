@@ -249,12 +249,16 @@ fresh-machine acceptance.
 physical-row assertion repair. Archive identity, immutable annotated tag and
 GitHub alpha release match clean release commit `07634cc`.
 See [release notes](release-notes-0.20.1.md) and [release preparation](releasing.md).
-The next bounded task is to repair Template Explorer PTY paste synchronization:
-main CI's first stable run timed out on three pasted-text assertions; the
-unchanged retry passed, but did not fix the harness. Start with CodeGraph's
-`paste_json_field`, `edit_json_field` and malformed-template PTY test. Preserve
-complete input and file-protection assertions; do not extend timeouts or treat
-retry success as a repair. No new package release is required for a test-only fix.
+Template Explorer's PTY driver now isolates libtest's parallel timer output
+from its active screen and waits for complete JSON text/cursor acknowledgments.
+A deliberately slow paste reproduced the child's 60-second warning inside a
+JSON row; the isolated child completed the same probe in 72.46 seconds. The
+final helper retains one intact paste and all file-protection assertions;
+timeouts and ordinary-suite parallelism are unchanged. This is a test-only
+repair, requiring no new package release. Local validation is recorded in the
+release audit; required CodeRabbit review and CI remain release-independent gates.
+After this repair is merged, inspect other unit-test UI drivers for the same
+libtest output boundary before adding new workflow coverage.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
