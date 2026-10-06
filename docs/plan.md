@@ -224,10 +224,19 @@ cancellation. It adds no Rojo Serve, sign-in task, automatic restart, or service
 Implementation and acceptance are recorded in [the release audit](release-audit.md);
 owner publication, archive identity, annotated tag and GitHub alpha release
 are verified at `f3cdea8`. [Release notes](release-notes-0.20.0.md) record limits.
-The next development task is fresh-Windows provisioning acceptance: first
-inventory available disposable Windows test environments. The current machine
-is already configured and cannot establish a fresh-machine pass. Authenticated
-Open Cloud execution likewise requires a suitable environment and credentials.
+The fresh-Windows environment inventory is complete: the current PC is already
+configured, and no spare Windows machine or ready local VM is available. The
+owner deferred Hyper-V/VM provisioning on October 6; do not resume it on an
+ordinary request to continue. Fresh-machine acceptance remains unverified.
+Authenticated Open Cloud execution likewise requires a suitable environment
+and credentials.
+
+Continue existing-workflow hardening without host provisioning. A bounded
+missing-Cargo regression reproduced an unactionable Rokit bootstrap spawn error;
+the correction names the Rust prerequisite and PATH recovery, while preserving
+permission and Cargo build failures. This is unreleased runtime work after
+0.20.0, not a new release candidate or a fresh-machine acceptance pass. Select
+further work from observed defects rather than repeating completed audits.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three

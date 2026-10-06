@@ -1,5 +1,31 @@
 # Release-Hardening Audit
 
+## October 6: deferred VM provisioning and Cargo bootstrap recovery
+
+Read-only inventory found Windows 11 Pro with firmware virtualization enabled,
+but no ready local VM manager or installed Hyper-V module. Hyper-V and Windows
+Sandbox features were disabled. The owner has only the already-provisioned PC
+and deferred the proposed VM setup; no host Windows feature, driver or
+application was changed for this audit. Do not resume host provisioning on a
+routine request to continue. Fresh-Windows acceptance remains unverified.
+
+The next bounded existing-workflow check reproduced missing-Cargo recovery:
+the Rokit bootstrap reported only a spawn error, with no Rust/PATH instructions.
+An isolated nonexistent executable reproduced the underlying OS NotFound error;
+the recovery assertion failed before the correction. The shared bootstrap now
+adds the Rust installation URL, a new-terminal/PATH check and `rproj setup`
+retry instructions for NotFound only, for both ordinary and reported execution.
+Permission errors and Cargo build failures retain their original diagnostics.
+No tool installation or machine-wide prerequisite provisioning is used by these
+regressions. Both focused Cargo-bootstrap tests pass after the correction.
+Ordinary locked validation passes all 474 runnable tests with 24 ignored;
+formatting, clippy with warnings denied and diff checks also pass. The ignored
+checks were not executed by this change and do not establish fresh-machine or
+authenticated Open Cloud evidence.
+Whole-branch review and exact-head/main CI are recorded in the corresponding
+PR. Published 0.20.0 and its immutable tag remain unchanged; no candidate bump
+is prepared by this fix.
+
 ## October 6: 0.20.0 owner publication and release alignment
 
 Owner publication is confirmed on crates.io; current newest/max version is
@@ -32,9 +58,8 @@ runtime tests or CodeRabbit review are required for this correction; its PR
 records documentation inspection and required exact-head/main CI.
 
 Fresh-Windows provisioning and authenticated Open Cloud execution remain
-unverified. The next development action is to inventory available disposable
-Windows environments before attempting the existing fresh-machine acceptance.
-Package additions and further audits remain uncommitted backlog.
+unverified. The environment inventory and subsequent owner decision are
+recorded above. Package additions and further audits remain uncommitted backlog.
 
 ## October 5: 0.20.0 alpha candidate preparation
 
