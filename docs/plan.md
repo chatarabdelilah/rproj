@@ -25,6 +25,12 @@ The existing product includes machine setup, configurable project generation, sa
 
 The unfinished model-import experiment is **permanently dropped** by the owner's September 9, 2026 decision. Its unmerged local branch and importer-specific build artifacts were removed; no importer implementation or DOM/serializer dependencies entered main. It is not a future milestone.
 
+The October 6 MSRV CI failure exposed a Projects assertion that compared
+soft-wrap serialization instead of physical rows. Projects and Catalog now
+share a complete physical-row snapshot wait; a deterministic regression
+accepts wrap-metadata changes while rejecting text moved between rows. This
+repairs the test harness without changing Projects behavior or the release.
+
 ## Scope Removed
 
 | Former proposal | Decision |

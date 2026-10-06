@@ -1,5 +1,29 @@
 # Release-Hardening Audit
 
+## October 6: Projects physical-row assertion recovery
+
+PR #78's first MSRV CI attempt failed the Projects resize assertion. The
+expected and actual screens contained identical characters but differed by
+one newline at offset 600: `vt100::Screen::contents()` joins soft-wrapped
+rows, and ConPTY can change wrap flags without changing visible cells. The
+unchanged head passed the failed-job retry and merged-main CI; that retry
+did not resolve the assertion defect.
+
+Projects now captures and waits for complete physical-row snapshots through
+the same shared helper as Catalog. The helper preserves row boundaries and
+trims only trailing spaces within each row. Its deterministic regression
+accepts equivalent wrapped/cursor-positioned screens and rejects a different
+layout with the same characters. Filter, detail scrolling, Help, Home/End,
+project opening and Home return remain covered by the real-terminal test.
+
+Focused validation passes all 12 Hub and 4 Catalog tests. Ordinary locked
+validation passes 477 tests with 24 ignored, plus formatting, clippy with
+warnings denied and diff checks. Local CodeRabbit review and reviewed-head/main
+CI are recorded in the repair PR. This is test-only work; published v0.20.0
+and the two unreleased prerequisite diagnostic corrections remain unchanged.
+Fresh Windows and authenticated Open Cloud acceptance remain unverified,
+and VM provisioning remains deferred.
+
 ## October 6: missing WinGet bootstrap recovery
 
 The next bounded prerequisite check reproduced the same generic spawn error
