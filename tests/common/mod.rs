@@ -36,6 +36,15 @@ pub const DOWN: &str = "\x1b[B";
 pub const LEFT: &str = "\x1b[D";
 pub const ESC: &str = "\x1b";
 
+pub fn screen_rows(screen: &vt100::Screen) -> String {
+    // ConPTY redraws can change soft-wrap flags without changing visible rows.
+    screen
+        .rows(0, screen.size().1)
+        .map(|row| row.trim_end_matches(' ').to_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// How long any single wait may take before the test fails. Generous: the
 /// cost of a high value is only paid when something is already broken.
 ///
@@ -209,6 +218,22 @@ impl Session {
     /// Cell snapshot for pane assertions; `contents()` can join soft-wrapped rows.
     pub fn screen(&self) -> vt100::Screen {
         self.parser_since(0).screen().clone()
+    }
+
+    #[track_caller]
+    pub fn wait_screen(&self, expected: &str) {
+        let deadline = Instant::now() + timeout();
+        loop {
+            let actual = screen_rows(&self.screen());
+            if actual == expected {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "screen did not settle:\nexpected:\n{expected}\nactual:\n{actual}"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
     }
 
     fn parser_since(&self, checkpoint: usize) -> vt100::Parser {

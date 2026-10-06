@@ -2,7 +2,34 @@ mod common;
 
 use std::process::{Command, Stdio};
 
-use common::{ENTER, ESC, Session, TempProject};
+use common::{ENTER, ESC, Session, TempProject, screen_rows};
+
+#[test]
+fn physical_screen_rows_ignore_soft_wrap_but_preserve_layout() {
+    let mut wrapped = vt100::Parser::new(2, 4, 0);
+    wrapped.process(b"abcde");
+    let mut positioned = vt100::Parser::new(2, 4, 0);
+    positioned.process(b"abcd\x1b[2;1He");
+    assert_ne!(wrapped.screen().contents(), positioned.screen().contents());
+    assert_eq!(screen_rows(wrapped.screen()), "abcd\ne");
+    assert_eq!(
+        screen_rows(wrapped.screen()),
+        screen_rows(positioned.screen())
+    );
+    positioned.process(b"\x1b[2;4H ");
+    assert_eq!(
+        screen_rows(wrapped.screen()),
+        screen_rows(positioned.screen())
+    );
+
+    let mut moved = vt100::Parser::new(2, 4, 0);
+    moved.process(b"abc\x1b[2;1Hde");
+    assert_eq!(
+        screen_rows(wrapped.screen()).replace('\n', ""),
+        screen_rows(moved.screen()).replace('\n', "")
+    );
+    assert_ne!(screen_rows(wrapped.screen()), screen_rows(moved.screen()));
+}
 
 fn tool_path(project: &TempProject) -> String {
     use std::sync::OnceLock;
@@ -313,7 +340,7 @@ fn projects_resize_recovery_preserves_filtered_details_and_navigation() {
     session.send("\t");
     session.send("\x1b[F"); // End in the details pane
     session.wait_for("resize-fixture-package-39");
-    let scrolled = session.text();
+    let scrolled = screen_rows(&session.screen());
     assert!(!scrolled.contains("Workflow: None"), "{scrolled}");
 
     for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
@@ -333,12 +360,12 @@ fn projects_resize_recovery_preserves_filtered_details_and_navigation() {
     let checkpoint = session.output_checkpoint();
     session.resize(30, 120);
     session.wait_for_output_since(checkpoint, "resize-fixture-package-39");
-    session.wait_for(&scrolled);
-    assert_eq!(session.text(), scrolled);
+    session.wait_screen(&scrolled);
+    assert_eq!(screen_rows(&session.screen()), scrolled);
     session.send("\x1b[H"); // Home in the details pane
     session.wait_for("Workflow: None");
     session.send("\x1b[F");
-    session.wait_for(&scrolled);
+    session.wait_screen(&scrolled);
     session.send("\t");
     session.send(ENTER);
     session.wait_for(&format!("Project: {filter}"));
