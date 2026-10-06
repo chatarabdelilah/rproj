@@ -33,6 +33,7 @@ passes explicitly (5.92 seconds). Ordinary locked validation, formatting,
 clippy with warnings denied and diff checks pass. Required local CodeRabbit
 review was blocked by automatic approval review because it treated source-diff
 export as requiring payload-specific authorization; no rejected review ran.
+The owner subsequently gave explicit CodeRabbit authorization in this chat.
 Review and exact-head/main CI follow-through are recorded in the repair PR.
 
 Changes are confined to test code, the shared PTY harness and documentation.
