@@ -76,10 +76,11 @@ pub(crate) fn install_winget(winget_id: &str, reporter: Option<&Reporter>) -> Re
         "--accept-package-agreements",
     ];
     let output = if let Some(reporter) = reporter {
-        reporter.capture(std::process::Command::new("winget").args(args))?
+        reporter.capture(std::process::Command::new("winget").args(args))
     } else {
-        capture("winget", &args, None)?
+        capture("winget", &args, None)
     };
+    let output = missing_tool_result(output, WINGET_MISSING_HELP)?;
     if !output.success || ui::is_verbose() {
         ui::passthrough(&output.stdout, &output.stderr);
     }
@@ -123,27 +124,87 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
     run("rokit", &["self-install"])
 }
 
-fn cargo_bootstrap_result(result: Result<()>) -> Result<()> {
+const WINGET_MISSING_HELP: &str = "WinGet was not found on PATH; it is required to install applications. \
+    Install or repair App Installer using https://learn.microsoft.com/en-us/windows/package-manager/winget/, \
+    ensure WinGet is on PATH, open a new terminal, check `winget --version`, and rerun `rproj setup`";
+
+fn missing_tool_result<T>(result: Result<T>, help: &'static str) -> Result<T> {
     result.map_err(|error| {
         if error
             .downcast_ref::<std::io::Error>()
             .is_some_and(|cause| cause.kind() == std::io::ErrorKind::NotFound)
         {
-            error.context(
-                "Cargo was not found on PATH; it is required to install Rokit. \
-                 Install Rust from https://rustup.rs, open a new terminal, \
-                 check `cargo --version`, and rerun `rproj setup`",
-            )
+            error.context(help)
         } else {
             error
         }
     })
 }
 
+fn cargo_bootstrap_result(result: Result<()>) -> Result<()> {
+    missing_tool_result(
+        result,
+        "Cargo was not found on PATH; it is required to install Rokit. \
+         Install Rust from https://rustup.rs, open a new terminal, \
+         check `cargo --version`, and rerun `rproj setup`",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::catalog::tool_catalog::SYSTEM_APPS;
+
+    #[test]
+    fn missing_winget_recovery_covers_plain_and_reported_spawn() {
+        let dir = tempfile::tempdir().unwrap();
+        let absent = dir.path().join("missing-winget");
+        for reported in [false, true] {
+            let result = if reported {
+                let reporter = Reporter(std::sync::Arc::new(|_, _| {}));
+                reporter.capture(&mut std::process::Command::new(&absent))
+            } else {
+                capture(absent.to_str().unwrap(), &[], None)
+            };
+            let error = missing_tool_result(result, WINGET_MISSING_HELP).unwrap_err();
+            let message = format!("{error:#}");
+            for expected in [
+                "App Installer",
+                "https://learn.microsoft.com/en-us/windows/package-manager/winget/",
+                "new terminal",
+                "winget --version",
+                "rproj setup",
+            ] {
+                assert!(message.contains(expected), "{message}");
+            }
+            assert!(message.contains("missing-winget"), "{message}");
+            assert_eq!(
+                error.downcast_ref::<std::io::Error>().unwrap().kind(),
+                std::io::ErrorKind::NotFound
+            );
+        }
+    }
+
+    #[test]
+    fn winget_help_preserves_permission_errors_and_installer_output() {
+        let denied = anyhow::Error::new(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+            .context("failed to spawn `winget`");
+        let before = format!("{denied:#}");
+        let error = missing_tool_result::<crate::steps::Captured>(Err(denied), WINGET_MISSING_HELP)
+            .unwrap_err();
+        assert_eq!(format!("{error:#}"), before);
+        for success in [false, true] {
+            let output = crate::steps::Captured {
+                stdout: "installer output".into(),
+                stderr: "Installer hash does not match".into(),
+                success,
+            };
+            let preserved = missing_tool_result(Ok(output), WINGET_MISSING_HELP).unwrap();
+            assert_eq!(preserved.stdout, "installer output");
+            assert_eq!(preserved.stderr, "Installer hash does not match");
+            assert_eq!(preserved.success, success);
+        }
+    }
 
     #[test]
     fn missing_cargo_bootstrap_explains_rust_and_path_recovery() {
