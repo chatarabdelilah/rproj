@@ -2,13 +2,20 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.20.0**, at `f3cdea8d1c88a8acb5831c00a3d7f44c2d6654b0`. Owner publication, archive checksum, annotated tag, and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.0) are verified. See [release notes](release-notes-0.20.0.md), [audit evidence](release-audit.md), and [PR #75](https://github.com/chatarabdelilah/rproj/pull/75). The **0.20.1 patch candidate** is prepared for missing Cargo/WinGet recovery; owner publication is pending. See [candidate notes](release-notes-0.20.1.md).
+The published baseline is **v0.20.1**, at `07634cc90dc638abbea113574134d3ddc501df4b`.
+Owner publication, archive checksum, annotated tag and
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.1)
+are verified. See [release notes](release-notes-0.20.1.md),
+[audit evidence](release-audit.md), and [PR #80](https://github.com/chatarabdelilah/rproj/pull/80).
+No unpublished release candidate is active.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
 
-The active unpublished candidate is **0.20.1**. The owner published **0.20.0** on October 6, 2026, after [PR #75](https://github.com/chatarabdelilah/rproj/pull/75)'s reviewed-head and merged-main CI passed. Registry checksum `175f1bb4b3b746960c623bfdaf29600c3069707bd3e70c253ff8deb421b2f190`, archive Git identity, annotated tag and GitHub alpha prerelease match the clean release commit `f3cdea8d1c88a8acb5831c00a3d7f44c2d6654b0`. The merged release branch was verified and removed. Fresh-machine installation acceptance remains unverified.
+The owner published **0.20.1** on October 6, 2026, after [PR #80](https://github.com/chatarabdelilah/rproj/pull/80)'s reviewed-head and merged-main CI passed. Registry checksum `17085cc851e7d73cbdf3de2671380e86bde3ff664a5ecaebd3aa594b329fd0bf`, archive Git identity, annotated tag and GitHub alpha prerelease match clean release commit `07634cc90dc638abbea113574134d3ddc501df4b`. The merged candidate branch was verified and removed. Fresh-machine installation acceptance remains unverified; VM provisioning remains deferred.
+
+The owner published **0.20.0** on October 6, 2026, after [PR #75](https://github.com/chatarabdelilah/rproj/pull/75)'s reviewed-head and merged-main CI passed. Registry checksum `175f1bb4b3b746960c623bfdaf29600c3069707bd3e70c253ff8deb421b2f190`, archive Git identity, annotated tag and GitHub alpha prerelease match the clean release commit `f3cdea8d1c88a8acb5831c00a3d7f44c2d6654b0`. The merged release branch was verified and removed. Fresh-machine installation acceptance remains unverified.
 
 The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github.com/chatarabdelilah/rproj/pull/53)'s reviewed-head and merged-main CI passed. Registry checksum `be193ef19a8277f78d788bb9494834d91ba3146d7d7a6daf1d32e7f854cdb210`, archive Git identity, annotated tag and GitHub prerelease match the clean release commit `957a0aa67fa679dca4194e6fd3c739594c409dc6`. Fresh-machine installation acceptance remains unverified.
 

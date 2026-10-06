@@ -10,9 +10,7 @@
 
 ## What rproj does
 
-Published [0.20.0](docs/release-notes-0.20.0.md) adds persistent background sourcemap Watch on Windows, with status, logs and stop controls. UI Labs remains available at 2.4.2. rproj remains alpha software.
-
-The [0.20.1 candidate](docs/release-notes-0.20.1.md) improves recovery when Cargo or WinGet is missing. Owner publication is pending; 0.20.0 remains the published baseline.
+Published [0.20.1](docs/release-notes-0.20.1.md) improves recovery when Cargo or WinGet is missing. It retains persistent background sourcemap Watch on Windows, with status, logs and stop controls. UI Labs remains available at 2.4.2. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 

@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.0, public alpha**, adding persistent Windows background Watch with status, logs, stop and owned process-tree cleanup. It retains Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `f3cdea8`; no later candidate is prepared. See [release notes](release-notes-0.20.0.md) and [audit evidence](release-audit.md) for behavior, verification and limits.
+The published baseline is **v0.20.1, public alpha**, improving missing-Cargo and missing-WinGet recovery. It retains persistent Windows background Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `07634cc`; no later candidate is prepared. See [release notes](release-notes-0.20.1.md) and [audit evidence](release-audit.md) for behavior, verification and limits.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -245,13 +245,16 @@ App Installer, PATH verification and a new-terminal retry. Both use shared
 NotFound-only recovery; installer output, hash diagnostics and permission
 failures retain their existing handling. These fixes do not establish
 fresh-machine acceptance.
-The **0.20.1 patch candidate** now packages these two diagnostic fixes and the
-Projects physical-row assertion repair. Owner publication is pending; no tag
-or GitHub release is created before crates.io confirms the published archive.
-See [candidate notes](release-notes-0.20.1.md) and [release preparation](releasing.md).
-After publication, verify archive identity and align the immutable tag and
-GitHub alpha release. Select further work from observed defects rather than
-repeating completed audits.
+**0.20.1 is published**, packaging these two diagnostic fixes and the Projects
+physical-row assertion repair. Archive identity, immutable annotated tag and
+GitHub alpha release match clean release commit `07634cc`.
+See [release notes](release-notes-0.20.1.md) and [release preparation](releasing.md).
+The next bounded task is to repair Template Explorer PTY paste synchronization:
+main CI's first stable run timed out on three pasted-text assertions; the
+unchanged retry passed, but did not fix the harness. Start with CodeGraph's
+`paste_json_field`, `edit_json_field` and malformed-template PTY test. Preserve
+complete input and file-protection assertions; do not extend timeouts or treat
+retry success as a repair. No new package release is required for a test-only fix.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three

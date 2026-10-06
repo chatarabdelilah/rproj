@@ -1,5 +1,38 @@
 # Release-Hardening Audit
 
+## October 6: 0.20.1 owner publication and release alignment
+
+Crates.io confirms owner publication of 0.20.1; it is current and not yanked.
+The downloaded archive's SHA-256 matches registry checksum
+`17085cc851e7d73cbdf3de2671380e86bde3ff664a5ecaebd3aa594b329fd0bf`.
+Its manifest and root lockfile are 0.20.1, and `.cargo_vcs_info.json` identifies
+clean reviewed release commit `07634cc90dc638abbea113574134d3ddc501df4b`.
+
+[Candidate PR #80](https://github.com/chatarabdelilah/rproj/pull/80) passed both
+local CodeRabbit reviews with zero findings and all exact-head checks at
+`cdd69f6` ([run](https://github.com/chatarabdelilah/rproj/actions/runs/37445624015)).
+Merged-main [run](https://github.com/chatarabdelilah/rproj/actions/runs/37446019202)
+passed on attempt 2: its first stable attempt timed out waiting for pasted JSON
+in three existing Template Explorer PTY tests. All 11 runnable editor PTY checks
+passed locally (one installed-Rojo check ignored), and unchanged main passed
+the failed-job retry. The watcher subsequently encountered GitHub HTTP 502;
+a fresh run query confirmed success. Retry success did not repair the harness.
+The next bounded task is to synchronize editor PTY paste/ready-state assertions
+while preserving input and file-protection coverage.
+
+The annotated `v0.20.1` tag was created only after published-archive verification.
+Tag object `eacb94a2e96848f988f50734befb3511ff1924f7` resolves locally and remotely
+to `07634cc`. The matching public GitHub release remains an alpha prerelease
+at that commit; no shipped tag moved. Candidate branches were verified and
+removed after green CI. README, roadmap, release instructions and dedicated
+notes now describe published 0.20.1. This alignment changes documentation only;
+Cargo versions, runtime, tests and dependencies retain the shipped identity.
+No repeated local runtime tests or CodeRabbit review are required for the small
+documentation correction; its PR records direct inspection and exact-head/main CI.
+
+Fresh-Windows, authenticated Open Cloud and recorded platform/Studio acceptance
+gaps remain unverified. Owner-deferred Hyper-V/VM provisioning stays deferred.
+
 ## October 6: 0.20.1 prerequisite-recovery candidate
 
 The patch candidate packages the missing-Cargo recovery from PR #77 and
