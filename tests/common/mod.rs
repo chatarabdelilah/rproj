@@ -221,6 +221,24 @@ impl Session {
     }
 
     #[track_caller]
+    pub fn wait_for_screen(&self, label: &str, ready: impl Fn(&vt100::Screen) -> bool) {
+        let deadline = Instant::now() + timeout();
+        loop {
+            let screen = self.screen();
+            if ready(&screen) {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {label}; cursor {:?} in:\n{}",
+                screen.cursor_position(),
+                screen_rows(&screen)
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[track_caller]
     pub fn wait_screen(&self, expected: &str) {
         let deadline = Instant::now() + timeout();
         loop {

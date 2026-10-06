@@ -1,5 +1,46 @@
 # Release-Hardening Audit
 
+## October 6: editor PTY paste and child-harness output isolation
+
+Investigation of PR #80's first stable-main failure initially considered lost
+paste input. A character-acknowledged probe then exposed a different boundary:
+the child libtest watchdog printed its 60-second warning into the live JSON
+screen. The captured row contained `editor_pty_driver has been running for over
+60 seconds` amid the JSON field; text/cursor assertions could no longer trust
+the displayed row. This was harness output interference, not evidence that
+the saved JSON or production editor had lost input.
+
+The child runs one editor driver with `--test-threads=1`, avoiding libtest's
+parallel timeout notification loop while leaving the ordinary parent suite
+parallel. The same slow malformed-template probe then passed in 72.46 seconds.
+Rust's [1.89 runner source](https://github.com/rust-lang/rust/blob/1.89.0/library/test/src/lib.rs#L371)
+and 1.94 implementation both use blocking completion receive in that single-
+thread branch rather than the parallel timer notification path. No timeout
+was extended. The probe patch and logs remain in ignored `target/editor-paste-*`
+artifacts; the slow character-pacing prototype is not retained in normal tests.
+
+Final helpers send the complete bracketed-paste payload and wait for its final
+row/cursor acknowledgment. They also wait for the complete JSON frame and the
+cursor after the opening brace before inserting a field. A deterministic
+regression rejects incomplete text, stale cursor position and text on another
+row. It failed with a text-only acknowledgment and passes with the row/cursor
+check. Existing byte/absence preservation, concurrent-edit refusal, locked-save
+retry, resize recovery and terminal restoration assertions remain intact.
+
+All 24 runnable editor tests pass (8.17 seconds); two installed-Rojo tests are
+ignored in that run. The affected installed-Rojo editor PTY save/refusal check
+passes explicitly (5.92 seconds). Ordinary locked validation, formatting,
+clippy with warnings denied and diff checks pass. Required local CodeRabbit
+review was blocked by automatic approval review because it treated source-diff
+export as requiring payload-specific authorization; no rejected review ran.
+The owner subsequently gave explicit CodeRabbit authorization in this chat.
+Review and exact-head/main CI follow-through are recorded in the repair PR.
+
+Changes are confined to test code, the shared PTY harness and documentation.
+Published 0.20.1, Cargo versions, dependencies and production behavior remain
+unchanged. Fresh-Windows/Open Cloud gaps remain unverified; VM provisioning
+stays deferred.
+
 ## October 6: 0.20.1 owner publication and release alignment
 
 Crates.io confirms owner publication of 0.20.1; it is current and not yanked.
