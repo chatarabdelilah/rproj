@@ -114,17 +114,65 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
         return Ok(());
     }
     if let Some(reporter) = reporter {
-        reporter.run(std::process::Command::new("cargo").args(["install", "rokit", "--locked"]))?;
+        cargo_bootstrap_result(
+            reporter.run(std::process::Command::new("cargo").args(["install", "rokit", "--locked"])),
+        )?;
         return reporter.run(std::process::Command::new("rokit").arg("self-install"));
     }
-    run("cargo", &["install", "rokit", "--locked"])?;
+    cargo_bootstrap_result(run("cargo", &["install", "rokit", "--locked"]))?;
     run("rokit", &["self-install"])
+}
+
+fn cargo_bootstrap_result(result: Result<()>) -> Result<()> {
+    result.map_err(|error| {
+        if error
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|cause| cause.kind() == std::io::ErrorKind::NotFound)
+        {
+            error.context(
+                "Cargo was not found on PATH; it is required to install Rokit. \
+                 Install Rust from https://rustup.rs, open a new terminal, \
+                 check `cargo --version`, and rerun `rproj setup`",
+            )
+        } else {
+            error
+        }
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::catalog::tool_catalog::SYSTEM_APPS;
+
+    #[test]
+    fn missing_cargo_bootstrap_explains_rust_and_path_recovery() {
+        let dir = tempfile::tempdir().unwrap();
+        let absent = dir.path().join("missing-cargo");
+        let result = run(absent.to_str().unwrap(), &[]);
+        let error = cargo_bootstrap_result(result).unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("https://rustup.rs"), "{message}");
+        assert!(message.contains("new terminal"), "{message}");
+        assert!(message.contains("rproj setup"), "{message}");
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::NotFound
+        );
+    }
+
+    #[test]
+    fn cargo_bootstrap_preserves_permission_and_build_failures() {
+        let denied = anyhow::Error::new(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+            .context("failed to spawn `cargo`");
+        let build = anyhow::anyhow!("cargo install rokit failed with exit code 1");
+        for original in [denied, build] {
+            let before = format!("{original:#}");
+            let after = cargo_bootstrap_result(Err(original)).unwrap_err();
+            assert_eq!(format!("{after:#}"), before);
+        }
+        assert!(cargo_bootstrap_result(Ok(())).is_ok());
+    }
 
     /// Studio must not be detected through winget.
     ///
