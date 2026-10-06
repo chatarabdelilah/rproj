@@ -1,5 +1,28 @@
 # Release-Hardening Audit
 
+## October 6: missing WinGet bootstrap recovery
+
+The next bounded prerequisite check reproduced the same generic spawn error
+when WinGet was unavailable. Disposable nonexistent-executable fixtures cover
+both plain capture and the reported execution used by Machine Setup; the
+App Installer recovery assertion failed before the correction.
+
+WinGet now names App Installer's Microsoft installation/repair documentation,
+PATH verification, a new terminal, `winget --version` and a `rproj setup` retry.
+The Cargo and WinGet paths share NotFound-only context handling and preserve
+the underlying OS error. Regressions preserve permission errors and successful
+or failed installer output, including the existing hash-mismatch payload.
+All 10 bootstrap regressions pass, including the earlier Cargo checks. Ordinary
+locked validation passes 476 tests with 24 ignored, plus formatting, clippy
+with warnings denied and diff checks. Local whole-branch review and
+exact-head/main CI evidence are recorded in the PR; ignored prerequisites
+remain separate from these passing ordinary checks.
+
+These fixtures install no tools, mutate no process-wide PATH and do not change
+the owner's Windows features, drivers or applications. Fresh-Windows acceptance
+remains unverified and VM provisioning stays deferred. Published 0.20.0 remains
+unchanged; this compatible recovery correction is unreleased.
+
 ## October 6: deferred VM provisioning and Cargo bootstrap recovery
 
 Read-only inventory found Windows 11 Pro with firmware virtualization enabled,

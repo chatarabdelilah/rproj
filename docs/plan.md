@@ -234,9 +234,13 @@ and credentials.
 Continue existing-workflow hardening without host provisioning. A bounded
 missing-Cargo regression reproduced an unactionable Rokit bootstrap spawn error;
 the correction names the Rust prerequisite and PATH recovery, while preserving
-permission and Cargo build failures. This is unreleased runtime work after
-0.20.0, not a new release candidate or a fresh-machine acceptance pass. Select
-further work from observed defects rather than repeating completed audits.
+permission and Cargo build failures. Missing WinGet now similarly points to
+App Installer, PATH verification and a new-terminal retry. Both use shared
+NotFound-only recovery; installer output, hash diagnostics and permission
+failures retain their existing handling. These are unreleased runtime fixes
+after 0.20.0, not a new release candidate or a fresh-machine acceptance pass.
+Select further work from observed defects rather than repeating completed
+audits.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
