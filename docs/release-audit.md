@@ -1,5 +1,38 @@
 # Release-Hardening Audit
 
+## October 6: 0.20.1 prerequisite-recovery candidate
+
+The patch candidate packages the missing-Cargo recovery from PR #77 and
+missing-WinGet recovery from PR #78, plus PR #79's physical-row assertion
+repair. Cargo.toml and the root Cargo.lock package agree on 0.20.1; dependency
+versions and runtime source are unchanged from reviewed main `3291c75`.
+Dedicated candidate notes, README, roadmap and release instructions distinguish
+the unpublished candidate from the immutable published 0.20.0 baseline.
+
+Candidate validation passes 477 ordinary locked tests with 24 ignored,
+formatting, clippy with warnings denied and diff checks. The ordinary suite
+includes all ten Cargo/WinGet bootstrap regressions and the Projects/Catalog
+terminal assertions. Both explicit installed-tool background Watch acceptances
+pass serially (8.95 seconds): persistence after launcher exit, sourcemap updates,
+clean stop and Wally/Jest recovery with preserved types and mounts. Command:
+`cargo test --locked --bin rproj installed_ -- --ignored --test-threads=1`.
+Tools: Rojo 7.7.0, Wally 0.3.2, wally-package-types 1.6.2, Rust/Cargo 1.94.0.
+These checks exercise temporary project/session storage with installed tools.
+No fresh-machine or authenticated Open Cloud check is counted as a pass.
+Clean locked packaging and file inspection are recorded in the candidate PR.
+
+PR #79's initial MSRV run timed out on a Watch stop request with Windows error
+10060 at `src/background_watch/tests.rs:544`. Its focused local lifecycle test,
+unchanged-head retry and first-attempt merged-main CI passed. This candidate
+does not claim that retry fixed the timeout; retain the evidence and investigate
+if it reproduces during applicable validation.
+
+Whole-branch CodeRabbit review, exact-head CI, merged-main CI and branch cleanup
+are recorded in the candidate PR. Owner publication remains pending. No 0.20.1
+tag or GitHub release is created before the published archive is verified.
+Fresh Windows, authenticated Open Cloud and the other recorded platform/Studio
+acceptance gaps remain unverified; Hyper-V/VM provisioning stays deferred.
+
 ## October 6: Projects physical-row assertion recovery
 
 PR #78's first MSRV CI attempt failed the Projects resize assertion. The

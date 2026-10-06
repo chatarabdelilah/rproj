@@ -243,10 +243,15 @@ the correction names the Rust prerequisite and PATH recovery, while preserving
 permission and Cargo build failures. Missing WinGet now similarly points to
 App Installer, PATH verification and a new-terminal retry. Both use shared
 NotFound-only recovery; installer output, hash diagnostics and permission
-failures retain their existing handling. These are unreleased runtime fixes
-after 0.20.0, not a new release candidate or a fresh-machine acceptance pass.
-Select further work from observed defects rather than repeating completed
-audits.
+failures retain their existing handling. These fixes do not establish
+fresh-machine acceptance.
+The **0.20.1 patch candidate** now packages these two diagnostic fixes and the
+Projects physical-row assertion repair. Owner publication is pending; no tag
+or GitHub release is created before crates.io confirms the published archive.
+See [candidate notes](release-notes-0.20.1.md) and [release preparation](releasing.md).
+After publication, verify archive identity and align the immutable tag and
+GitHub alpha release. Select further work from observed defects rather than
+repeating completed audits.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
