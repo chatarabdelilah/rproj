@@ -114,9 +114,9 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
         return Ok(());
     }
     if let Some(reporter) = reporter {
-        cargo_bootstrap_result(
-            reporter.run(std::process::Command::new("cargo").args(["install", "rokit", "--locked"])),
-        )?;
+        let mut command = std::process::Command::new("cargo");
+        command.args(["install", "rokit", "--locked"]);
+        cargo_bootstrap_result(reporter.run(&mut command))?;
         return reporter.run(std::process::Command::new("rokit").arg("self-install"));
     }
     cargo_bootstrap_result(run("cargo", &["install", "rokit", "--locked"]))?;
