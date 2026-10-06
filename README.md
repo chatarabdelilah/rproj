@@ -12,6 +12,8 @@
 
 Published [0.20.0](docs/release-notes-0.20.0.md) adds persistent background sourcemap Watch on Windows, with status, logs and stop controls. UI Labs remains available at 2.4.2. rproj remains alpha software.
 
+The [0.20.1 candidate](docs/release-notes-0.20.1.md) improves recovery when Cargo or WinGet is missing. Owner publication is pending; 0.20.0 remains the published baseline.
+
 rproj connects two layers that are usually assembled by hand:
 
 1. **Machine setup** installs and configures development applications, command-line tools, Roblox Studio plugins, and VS Code extensions.
