@@ -12,8 +12,13 @@ dependency resolution and CI remain unchanged from the reviewed implementation.
 The candidate binary reports `rproj 0.21.1`. Formatting, the complete locked
 offline ordinary suite (**485 passed, 23 ignored**, excluding nested child
 summaries), and strict all-target Clippy pass. CodeRabbit iteration review has
-zero findings; clean locked packaging, final branch review (including the new
-release notes), reviewed-head CI and merged-main CI remain pending. Applicable
+zero findings. Clean `cargo package --locked --offline` at `1b0a7c1` builds
+successfully: 105 archive files, all 95 source/test files byte-identical to the
+checkout, clean Git identity, and both manifests/root lockfile at 0.21.1. The
+dependency graph is unchanged except for the root package version; docs, CI,
+CodeGraph and build directories are excluded. Subsequent evidence changes
+affect excluded docs only. Final branch review (including the new release
+notes), reviewed-head CI and merged-main CI remain pending. Applicable
 changed-path checks are ordinary fixture/PTY tests: upgrade is file planning and
 replacement without external tool execution, and creation shares the same pure
 merge rules. No ignored external-tool workflow is needed to validate this patch.

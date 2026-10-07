@@ -15,7 +15,9 @@ from [PR #96](https://github.com/chatarabdelilah/rproj/pull/96). Cargo manifest
 and root lockfile are aligned at 0.21.1; runtime, tests, dependency resolution
 and CI remain unchanged from implementation main `9eea7eb`. See
 [candidate notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md).
-Candidate gates and owner publication are pending. No 0.21.1 tag or GitHub
+Local formatting, ordinary tests, strict Clippy and clean packaging pass;
+final CodeRabbit review, reviewed-head/main CI and owner publication are pending.
+No 0.21.1 tag or GitHub
 release exists; these follow confirmed crates.io publication.
 Previous shipped tags remain immutable.
 

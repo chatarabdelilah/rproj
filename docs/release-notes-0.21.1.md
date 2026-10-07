@@ -41,8 +41,10 @@ successful earlier replacements are not rolled back if a later replacement
 fails. Recovery instructions report saved files and explain how to retry.
 
 The candidate binary reports 0.21.1. Formatting, 485 ordinary tests with 23
-ignored, and strict all-target Clippy pass. Clean packaging, final CodeRabbit
-review, and release-preparation CI remain pending; [the release audit](release-audit.md)
+ignored, and strict all-target Clippy pass. Clean locked packaging builds its
+105-file archive; all 95 source/test files match the checkout, and Git identity
+and manifest/root-lockfile versions are aligned. Final CodeRabbit review and
+release-preparation CI remain pending; [the release audit](release-audit.md)
 records their outcomes and package inspection. Source, tests, dependencies and CI are
 unchanged from the reviewed implementation; only the package version and release
 documentation change.
