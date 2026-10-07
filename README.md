@@ -12,6 +12,8 @@
 
 Published [0.20.4](docs/release-notes-0.20.4.md) replaces generated Wally CI's custom source build with the official tool release. Older projects must explicitly update their tool pin before upgrading managed Wally CI; upgrade explains the requirement and preserves files. It retains 0.20.3's missing-Git guidance, background Watch improvements, missing-Cargo and missing-WinGet recovery, and UI Labs 2.4.2. rproj remains alpha software.
 
+The unreleased [0.21.0 alpha candidate](docs/release-notes-0.21.0.md) removes Git-submodule dependencies. New projects and saved compositions support Wally or None. Old `git-submodules` records are unsupported; there is no compatibility layer, automatic conversion or migration tooling. Existing repositories, templates and dependency folders are not deleted or converted.
+
 rproj connects two layers that are usually assembled by hand:
 
 1. **Machine setup** installs and configures development applications, command-line tools, Roblox Studio plugins, and VS Code extensions.
