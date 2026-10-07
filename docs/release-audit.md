@@ -27,9 +27,11 @@ CodeGraph/cache/target paths and local credentials are absent. The manifest and
 lockfile identify 0.20.2, and `.cargo_vcs_info.json` names the clean candidate
 commit. The rebuilt binary reports `rproj 0.20.2`.
 
-Local CodeRabbit iteration review reported zero findings across all seven files.
-Final branch review and exact-head/main CI evidence are recorded in the candidate
-PR before completion. Ongoing owner approval covers tracked rproj review diffs
+Local CodeRabbit iteration and final branch reviews both reported zero findings
+across all seven files; final review was at `b2502ed`. This evidence-only update
+does not change runtime/tests, dependencies or packaged content. Exact-head/main
+CI evidence is recorded in the candidate PR before completion. Ongoing owner
+approval covers tracked rproj review diffs
 and public repository context. Publication remains the owner's action; no 0.20.2
 tag or GitHub release is created before registry/archive verification.
 
