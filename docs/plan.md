@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.21.0, public alpha**, removing Git-submodule dependencies so new projects and saved compositions use Wally or None. It retains the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `07dcf17`. The active candidate is **0.21.1 alpha**, packaging complete upgrade review; Cargo manifest and root lockfile are aligned at 0.21.1. Owner publication is pending. See [candidate notes](release-notes-0.21.1.md), [published notes](release-notes-0.21.0.md), and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.21.1, public alpha**, making upgrade review cover every planned write, including housekeeping files. It retains 0.21.0's Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `f9d300f`. Cargo manifest and root lockfile are aligned at 0.21.1; there is no active release candidate. See [published notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md) for verification and limits.
 
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
@@ -244,8 +244,9 @@ an empty plan is a no-op; unparseable `.luaurc` files remain explicitly skipped.
 All 28 upgrade tests, the ordinary suite (485 passed, 23 ignored), formatting,
 strict Clippy, clean locked packaging, and both CodeRabbit reviews (zero
 findings) pass, along with final reviewed-head and merged-main CI. This runtime
-change is included in candidate 0.21.1, awaiting owner publication after its
-release-preparation gates pass. Evidence is tracked in the PR and release audit.
+change shipped in 0.21.1 after [release PR #97](https://github.com/chatarabdelilah/rproj/pull/97)'s
+gates passed. Registry/archive identity, annotated tag and GitHub alpha release
+match `f9d300f`; there is no active candidate. Evidence is tracked in the PR and release audit.
 
 **Shipped in 0.20.0 alpha: persistent background Watch v1 on Windows.** It supports
 one project per user, manual startup, sourcemap Watch after rproj closes,

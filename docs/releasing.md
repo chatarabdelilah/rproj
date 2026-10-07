@@ -2,25 +2,19 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.21.0**, at `07dcf17fb8a841c2f842a3753f58ad10507f99e1`.
+The published baseline is **v0.21.1**, at `f9d300ff2539033852d51926488b05bf3840cb29`.
 Owner publication, archive checksum, annotated tag and
-[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.0)
-are verified. See [release notes](release-notes-0.21.0.md),
-[audit evidence](release-audit.md), and [PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
-This release packages the intentional Git-submodule retirement from
-[PR #93](https://github.com/chatarabdelilah/rproj/pull/93), while preserving the
-official Wally type-tool requirement shipped in 0.20.4.
-The active candidate is **0.21.1 alpha**, packaging the complete upgrade review
-from [PR #96](https://github.com/chatarabdelilah/rproj/pull/96). Cargo manifest
-and root lockfile are aligned at 0.21.1; runtime, tests, dependency resolution
-and CI remain unchanged from implementation main `9eea7eb`. See
-[candidate notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md).
-Local formatting, ordinary tests, strict Clippy and clean packaging pass;
-both CodeRabbit reviews pass with zero findings. Reviewed-head/main CI must pass
-before owner publication; [release PR #97](https://github.com/chatarabdelilah/rproj/pull/97)
-records final run identities.
-No 0.21.1 tag or GitHub
-release exists; these follow confirmed crates.io publication.
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.1)
+are verified. See [release notes](release-notes-0.21.1.md),
+[audit evidence](release-audit.md), and [release PR #97](https://github.com/chatarabdelilah/rproj/pull/97).
+This release packages complete upgrade review from
+[PR #96](https://github.com/chatarabdelilah/rproj/pull/96), retaining 0.21.0's
+Wally-or-None workflows and the official Wally type-tool requirement shipped in
+0.20.4. Cargo manifest and root lockfile are aligned at 0.21.1; no active
+candidate remains. Local formatting, ordinary tests, strict Clippy, clean
+packaging, both CodeRabbit reviews, final-head CI and merged-main CI passed.
+The release branch was removed after main verification; owner publication and
+the official archive identify the reviewed release commit above.
 Previous shipped tags remain immutable.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.

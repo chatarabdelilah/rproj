@@ -1,6 +1,6 @@
 # rproj 0.21.1 — Complete upgrade review
 
-Candidate prepared October 7, 2026. Public alpha. Owner publication is pending.
+Published October 7, 2026. Public alpha.
 
 ## Changes
 
@@ -40,20 +40,27 @@ failure preserves target contents but may leave empty parent directories;
 successful earlier replacements are not rolled back if a later replacement
 fails. Recovery instructions report saved files and explain how to retry.
 
-The candidate binary reports 0.21.1. Formatting, 485 ordinary tests with 23
+The release binary reports 0.21.1. Formatting, 485 ordinary tests with 23
 ignored, and strict all-target Clippy pass. Clean locked packaging builds its
 105-file archive; all 95 source/test files match the checkout, and Git identity
 and manifest/root-lockfile versions are aligned. Both local CodeRabbit reviews
 report zero findings, including all seven files in the final branch review.
-Release-preparation reviewed-head and merged-main CI must pass before owner
-publication; [release PR #97](https://github.com/chatarabdelilah/rproj/pull/97)
-and [the release audit](release-audit.md)
-record their outcomes and package inspection. Source, tests, dependencies and CI are
+Release [PR #97](https://github.com/chatarabdelilah/rproj/pull/97) passed all four
+required jobs on its final reviewed head and merged main; [the release audit](release-audit.md)
+records the run identities and package inspection. Source, tests, dependencies and CI are
 unchanged from the reviewed implementation; only the package version and release
 documentation change.
 
 Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
 project execution, UI Labs Studio stories and Scribe Studio playtesting remain
-unverified. VM provisioning remains deferred. This is a public alpha candidate,
-not a claim of beta readiness. The owner publishes from clean main after all
-candidate gates pass; the tag and GitHub prerelease follow registry confirmation.
+unverified. VM provisioning remains deferred. This is a public alpha release,
+not a claim of beta readiness.
+
+The owner published 0.21.1 after all release gates passed. The official archive
+contains 105 files, all byte-identical to a clean locked package from release
+commit `f9d300ff2539033852d51926488b05bf3840cb29`. Its clean Git identity,
+both manifests, and root lockfile match that commit and version. Registry checksum:
+`7d58dab4175ddfd4c4b0fd2eca32976c66bdc01df5f2b769e5bae74c388b1031`.
+The annotated `v0.21.1` tag and
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.1)
+identify that commit. Earlier published tags remain unchanged.
