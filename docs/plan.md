@@ -265,12 +265,19 @@ Existing Machine Setup, capability-prompt and Saved Setup behavior checks pass.
 This closes the selected child-output audit; no new workflow matrix or package
 release is required. Review and CI evidence belong in the follow-up PR.
 
-Next, diagnose the recurring Watch control timeout observed in the follow-up's
-Rust 1.89 CI: the flood scenario's stop request returned Windows error 10060.
-The same lifecycle acceptance passed locally; the UI-child flag repair does not
-resolve this separate timing boundary. Missing-Git recovery during project
-creation follows that investigation, using a disposable child-PATH fixture.
-Machine-wide provisioning remains deferred.
+The Watch investigation reproduced two acknowledgement failures: a valid delayed
+reply exceeded the shared 300 ms status budget, and an aborted reply escaped as a
+fatal supervisor error. State-changing acknowledgements now allow two seconds
+for durable state writes; status, connection and send deadlines remain 300 ms.
+Reply delivery failures no longer terminate the owned engine. Controlled
+regressions and both installed-tool Watch acceptances pass; the historic CI
+host's precise timing remains unmeasured, with phase-specific errors now available.
+See the release audit for evidence and limits.
+
+After this runtime repair is reviewed, merged and verified on main, prepare a
+0.20.2 alpha candidate. No new candidate is active yet; published 0.20.1 stays
+immutable. Missing-Git recovery during project creation follows release alignment,
+using a disposable child-PATH fixture. Machine-wide provisioning remains deferred.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three

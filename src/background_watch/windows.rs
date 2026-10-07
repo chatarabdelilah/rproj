@@ -21,6 +21,7 @@ const PROTOCOL: u8 = 1;
 const MAX_MESSAGE: u64 = 16 * 1024;
 const LOG_SIZE: usize = 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_millis(300);
+const ACK_TIMEOUT: Duration = Duration::from_secs(2);
 const INTERNAL: &str = "--rproj-watch-internal";
 const NONCE: &str = "RPROJ_WATCH_NONCE";
 const ENGINE_TOKEN: &str = "RPROJ_WATCH_ENGINE_TOKEN";
@@ -250,20 +251,40 @@ fn lock_state(root: &Path, writing: bool) -> Result<File> {
     }
 }
 
+fn write_control_reply(output: &mut impl Write, snapshot: &Snapshot) -> Result<()> {
+    let frame = serde_json::to_vec(snapshot)?;
+    if let Err(error) = output.write_all(&frame) {
+        // A vanished reader must not tear down the engine's owned process tree.
+        crate::diagnostics::event(
+            "watch.control.reply",
+            format!("Acknowledgment delivery failed: {error}"),
+        );
+    }
+    Ok(())
+}
+
 fn request(snapshot: &Snapshot, token: &str, verb: &str) -> Result<Snapshot> {
-    let mut stream = TcpStream::connect_timeout(&snapshot.address, TIMEOUT)?;
-    stream.set_read_timeout(Some(TIMEOUT))?;
+    let mut stream = TcpStream::connect_timeout(&snapshot.address, TIMEOUT)
+        .context("could not connect to Watch control")?;
+    // Mutations persist session state before replying; disk flushes need more than a status probe.
+    let acknowledgement_timeout = if matches!(verb, "stop" | "watching") {
+        ACK_TIMEOUT
+    } else {
+        TIMEOUT
+    };
+    stream.set_read_timeout(Some(acknowledgement_timeout))?;
     stream.set_write_timeout(Some(TIMEOUT))?;
-    serde_json::to_writer(
-        &mut stream,
-        &Request {
-            version: PROTOCOL,
-            token: token.into(),
-            verb: verb.into(),
-        },
-    )?;
-    stream.write_all(b"\n")?;
-    let result: Snapshot = serde_json::from_reader(BufReader::new(stream).take(MAX_MESSAGE))?;
+    let mut frame = serde_json::to_vec(&Request {
+        version: PROTOCOL,
+        token: token.into(),
+        verb: verb.into(),
+    })?;
+    frame.push(b'\n');
+    stream
+        .write_all(&frame)
+        .context("could not send Watch control request")?;
+    let result: Snapshot = serde_json::from_reader(BufReader::new(stream).take(MAX_MESSAGE))
+        .context("Watch control did not return an acknowledgment")?;
     ensure!(
         result.version == PROTOCOL && result.nonce == snapshot.nonce,
         "Watch owner changed; retry the command"
@@ -634,14 +655,14 @@ fn supervisor(root: &Path, project: &Path, nonce: String) -> Result<()> {
                                 save(root, &snapshot)?;
                                 if watching { child.start_kill()?; } else { input.write_all(b"stop\n").await?; }
                             }
-                            if matches!(request.verb.as_str(), "status" | "stop") { serde_json::to_writer(&mut stream, &snapshot)?; }
+                            if matches!(request.verb.as_str(), "status" | "stop") { write_control_reply(&mut stream, &snapshot)?; }
                         } else if request.token == engine_token && request.verb == "watching" {
                             if stopping { child.start_kill()?; } else {
                                 snapshot.state = State::Watching;
                                 snapshot.message = "Sourcemap Watch is running. Closing rproj leaves it running.".into();
                                 save(root, &snapshot)?;
                             }
-                            serde_json::to_writer(&mut stream, &snapshot)?;
+                            write_control_reply(&mut stream, &snapshot)?;
                         }
                     }
                 }
