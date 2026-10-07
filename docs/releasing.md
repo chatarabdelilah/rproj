@@ -9,8 +9,9 @@ are verified. See [release notes](release-notes-0.20.1.md),
 [audit evidence](release-audit.md), and [PR #80](https://github.com/chatarabdelilah/rproj/pull/80).
 The unpublished **0.20.2 alpha candidate** packages the Watch acknowledgment
 repair and terminal test-harness fixes. See [candidate notes](release-notes-0.20.2.md)
-and [audit evidence](release-audit.md). Preparation, review and CI gates must
-complete before owner publication; no 0.20.2 tag or GitHub release exists yet.
+and [audit evidence](release-audit.md). Local checks and clean locked packaging
+passed; final review and exact-head/main CI evidence are recorded in its candidate
+PR before owner publication. No 0.20.2 tag or GitHub release exists yet.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 

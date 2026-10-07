@@ -13,11 +13,25 @@ versions and runtime/test source are unchanged from verified main. Candidate
 notes and current-state documentation distinguish the unpublished candidate
 from immutable published 0.20.1.
 
-Candidate ordinary tests, strict Clippy, formatting, serial installed-tool Watch
-acceptance, clean locked packaging, local CodeRabbit and exact-head/main CI are
-pending. Ongoing owner approval covers tracked rproj review diffs and public
-repository context. Publication remains the owner's action; no 0.20.2 tag or
-GitHub release is created before registry/archive verification.
+The candidate passed `cargo build --locked`, all 481 ordinary locked tests,
+`cargo clippy --locked --all-targets -- -D warnings`, formatting and diff checks.
+Its 24 ignored tests remain a separate inventory. Both applicable installed-tool
+Watch acceptances passed serially with
+`cargo test --locked --bin rproj background_watch::windows::tests:: -- --ignored --test-threads=1`
+in 6.32 seconds, using Rojo 7.7.0 and Wally 0.3.2.
+
+Clean `cargo package --locked` at `a15099c` verified the crate builds from its
+tarball. All 105 packaged entries were inspected: source/tests, Cargo metadata,
+README/license and tracked root configuration are present; docs, GitHub workflows,
+CodeGraph/cache/target paths and local credentials are absent. The manifest and
+lockfile identify 0.20.2, and `.cargo_vcs_info.json` names the clean candidate
+commit. The rebuilt binary reports `rproj 0.20.2`.
+
+Local CodeRabbit iteration review reported zero findings across all seven files.
+Final branch review and exact-head/main CI evidence are recorded in the candidate
+PR before completion. Ongoing owner approval covers tracked rproj review diffs
+and public repository context. Publication remains the owner's action; no 0.20.2
+tag or GitHub release is created before registry/archive verification.
 
 Fresh-Windows/Open Cloud/platform Studio acceptance remains unverified. The
 owner's Hyper-V/VM deferral remains in force. Missing-Git recovery through a
