@@ -37,9 +37,19 @@ corrected. Final branch review found one remaining retired-workflow mention in
 Catalog documentation; that documentation-only correction was inspected directly,
 as required by the working agreement. No runtime findings remain. Locked packaging
 passed from clean commit `1639e77`: 105 files and verified compilation. The
-subsequent corrections affect excluded documentation only. Reviewed-head CI,
-merge and main CI remain pending. The focused official-Wally Linux compatibility
-CI job is retained.
+subsequent documentation corrections affect excluded files only.
+
+Initial head CI [37609989027](https://github.com/chatarabdelilah/rproj/actions/runs/37609989027)
+at `2659c10` passed Rust 1.89 (479/23), official-Wally Linux and packaging; Windows
+stable exposed a Saved Setup resize assertion comparing a partially cleared
+Actions pane after returning to composition. The existing terminal regression now
+derives its expected pane from TestBackend and waits for every physical row at
+initial scrolling, restored size, End and Back. It retains the same file, filter,
+selection, scroll and terminal assertions. The focused check, full 479/23 ordinary
+suite and strict Clippy passed locally after this test-only correction. Fresh final
+review/head CI, guarded merge and main CI remain delivery gates tracked in
+[PR #93](https://github.com/chatarabdelilah/rproj/pull/93). The focused official-Wally
+Linux compatibility CI job is retained.
 Version 0.20.4 is unchanged; release preparation and owner publication are separate
 work.
 

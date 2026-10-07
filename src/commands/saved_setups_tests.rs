@@ -467,7 +467,7 @@ fn pty_undersized_dirty_editor_can_cancel_and_confirm_back_and_home() {
 #[test]
 fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
     use super::common;
-    let (root, _app) = app();
+    let (root, mut expected_app) = app();
     let source = format!(
         "{SOURCE}{}",
         (0..40)
@@ -478,6 +478,32 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
         std::fs::write(root.path().join(format!("sample{n:02}.toml")), &source).unwrap();
     }
     std::fs::write(root.path().join("other.toml"), SOURCE).unwrap();
+    // ConPTY can deliver the end marker before clearing the previous Actions pane.
+    // Derive expected rows from TestBackend instead of capturing a partial frame.
+    expected_app.refresh(None);
+    for ch in "sample".chars() {
+        press(&mut expected_app, KeyCode::Char(ch));
+    }
+    press(&mut expected_app, KeyCode::End);
+    press(&mut expected_app, KeyCode::Tab);
+    expected_screen(&mut expected_app);
+    press(&mut expected_app, KeyCode::End);
+    let expected = expected_screen(&mut expected_app);
+    let details = tui::responsive_panes(ratatui::layout::Rect::new(0, 2, 120, 25), 40)[1];
+    let composition = |screen: &str| {
+        screen
+            .lines()
+            .skip(details.y as usize)
+            .take(details.height as usize)
+            .map(|line| {
+                line.chars()
+                    .skip(details.x as usize)
+                    .take(details.width as usize)
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+    };
+    let baseline = composition(&expected);
     let mut session = common::Session::start_program(
         &std::env::current_exe().unwrap(),
         root.path(),
@@ -504,19 +530,11 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
     session.send("\t");
     session.send("\x1b[F"); // End in composition details
     session.wait_for("Recovery detail 39");
+    wait_screen(&session, |screen| composition(screen) == baseline);
     let scrolled = session.text();
     assert!(!scrolled.contains("Future reuse only"), "{scrolled}");
     assert!(!scrolled.contains("other"), "{scrolled}");
     assert!(!scrolled.contains("sample00"), "{scrolled}");
-    let details = tui::responsive_panes(ratatui::layout::Rect::new(0, 2, 120, 25), 40)[1];
-    let composition = |screen: &vt100::Screen| {
-        screen
-            .rows(details.x, details.width)
-            .skip(details.y as usize)
-            .take(details.height as usize)
-            .collect::<Vec<_>>()
-    };
-    let baseline = composition(&session.screen());
 
     for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
         let checkpoint = session.output_checkpoint();
@@ -556,7 +574,7 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
     session.wait_for_output_since(checkpoint, "Recovery detail 39");
     let restored = session.text();
     // List offsets may adapt to the viewport; composition must return unchanged.
-    assert_eq!(composition(&session.screen()), baseline);
+    wait_screen(&session, |screen| composition(screen) == baseline);
     assert!(
         session
             .screen()
@@ -571,7 +589,7 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
     let checkpoint = session.output_checkpoint();
     session.send("\x1b[F");
     session.wait_for_output_since(checkpoint, "Recovery detail 39");
-    assert_eq!(composition(&session.screen()), baseline);
+    wait_screen(&session, |screen| composition(screen) == baseline);
     session.send("\t");
     session.send(common::ENTER);
     session.wait_for("Actions");
@@ -580,7 +598,7 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
     session.send(common::ESC);
     session.wait_for_output_since(checkpoint, "Filter: sample ");
     session.wait_for("Recovery detail 39");
-    assert_eq!(composition(&session.screen()), baseline);
+    wait_screen(&session, |screen| composition(screen) == baseline);
     session.send("\x03");
     session.wait_for("Manager returned");
     let outcome = session.finish();

@@ -26,6 +26,11 @@ without aliases, automatic conversion or migration tooling. The owner retains
 responsibility for older alpha projects. Ordinary Git initialization and missing-Git
 recovery remain; existing projects, templates, `.gitmodules` files and dependency
 directories are not deleted or rewritten. Published 0.20.4 stays unchanged.
+Implementation and delivery evidence are tracked in
+[PR #93](https://github.com/chatarabdelilah/rproj/pull/93). Serial installed-tool
+checks passed for all eight Rojo variants, Wally and None creation, gates and
+saved Wally replay. The complete ordinary inventory is now 479 passed/23 ignored;
+fresh-machine and authenticated Open Cloud acceptance remain separate gaps.
 
 **Shipped in 0.20.4: retire the Wally source-build workaround.** Official wally-package-types 1.7.0 contains the generic-default and `const` parser fixes previously supplied by a patched build. Generated CI uses the Rokit-installed release. Upgrade refuses managed Wally CI when the official stable project pin is older than 1.7.0, absent or unverifiable; it explains an explicit update and leaves every file unchanged. Tool pins remain owner-controlled, and changes during confirmation refuse the upgrade. Isolated official-binary compatibility checks passed on Windows and a focused Ubuntu CI runner, separately from fresh-machine/project acceptance. Historical machine caches remain untouched. [PR #90](https://github.com/chatarabdelilah/rproj/pull/90) implements the change; [PR #91](https://github.com/chatarabdelilah/rproj/pull/91) prepares the release. Cargo manifest and root lockfile are aligned at 0.20.4; previous shipped tags remain immutable.
 
