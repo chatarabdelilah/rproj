@@ -1390,6 +1390,7 @@ mod tests {
                     "commands::new::tests::capability_prompt_driver",
                     "--exact",
                     "--nocapture",
+                    "--test-threads=1",
                 ],
                 &[("RPROJ_CAPABILITY_PROMPT_WORKFLOW", workflow)],
             );

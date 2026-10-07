@@ -1,5 +1,40 @@
 # Release-Hardening Audit
 
+## October 7: remaining unit-test UI child output boundaries
+
+The editor repair merged in [PR #82](https://github.com/chatarabdelilah/rproj/pull/82)
+at `8e6a6ab`, after zero local CodeRabbit findings and first-attempt Windows
+stable, Rust 1.89 and package CI on both the reviewed head and merged main.
+
+CodeGraph exploration followed by a focused source inventory found nine PTY
+launch sites that run the unit-test executable: two project-creation launches,
+one editor launch, four Saved Setup launches, one capability-prompt launch and
+one shared Machine Setup launch. Five already selected a single child test
+thread. The other four exposed the same libtest parallel timer-output boundary
+reproduced in the editor investigation; each now passes `--test-threads=1`.
+Ordinary parent-suite parallelism, timeouts and UI assertions are unchanged.
+
+Projects' selected-path command driver and Watch's process fixtures run through
+ordinary subprocess paths, rather than a live libtest-hosted PTY UI. Captured
+execution fixtures likewise do not write directly into the UI screen. They were
+inspected and are outside this four-line repair.
+
+The existing affected tests pass: six Machine Setup checks (2.10 seconds), one
+capability-prompt check covering five workflows (1.28 seconds), and thirteen
+Saved Setup checks (2.09 seconds). The Saved Setup baseline also passed before
+the flag change; this audit does not claim a new ordinary-test failure or a new
+slow reproduction. PR #82's controlled 72.46-second proof records the shared
+child-runner mechanism.
+
+The full ordinary suite, strict Clippy, formatting and diff checks pass.
+Automatic approval review blocked the local CodeRabbit export because the
+previous consent did not clearly cover this changed five-file payload; that
+review command did not run. Payload approval and required local review/head/main
+CI remain pending; their final evidence belongs in the follow-up PR.
+This is test-only work; published 0.20.1, runtime behavior,
+dependencies and Cargo versions remain unchanged. Fresh-Windows/Open Cloud
+acceptance gaps remain unverified, and VM provisioning stays deferred.
+
 ## October 6: editor PTY paste and child-harness output isolation
 
 Investigation of PR #80's first stable-main failure initially considered lost
