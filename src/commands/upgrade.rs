@@ -119,6 +119,64 @@ fn read_optional(path: &Path) -> Result<Option<String>> {
     }
 }
 
+fn require_released_wpt(manifest: Option<&str>) -> Result<()> {
+    let install = "From this project directory run `rokit add wally-package-types`, verify rokit.toml pins the official release at 1.7.0 or newer, then run `rproj upgrade`. Nothing written.";
+    let update = "From this project directory run `rokit update wally-package-types`, verify the official stable version is 1.7.0 or newer, then run `rproj upgrade`. Nothing written.";
+    let Some(manifest) = manifest else {
+        bail!(
+            "Wally CI requires the official wally-package-types 1.7.0 or newer in rokit.toml. {install}"
+        );
+    };
+    let parsed: toml::Value = toml::from_str(manifest)
+        .context("failed to parse rokit.toml before Wally CI upgrade. Repair the manifest and re-run `rproj upgrade`. Nothing written.")?;
+    let Some(spec) = parsed
+        .get("tools")
+        .and_then(|tools| tools.get("wally-package-types"))
+    else {
+        bail!("Wally CI requires wally-package-types in rokit.toml. {install}");
+    };
+    let version = spec
+        .as_str()
+        .and_then(|spec| spec.rsplit_once('@'))
+        .filter(|(source, _)| source.eq_ignore_ascii_case("JohnnyMorganz/wally-package-types"))
+        .and_then(|(_, version)| stable_version(version));
+    ensure!(
+        version.is_some_and(|version| version >= [1, 7, 0]),
+        "Wally CI requires the official stable wally-package-types 1.7.0 or newer; rokit.toml has an older or unverifiable pin. {update}"
+    );
+    Ok(())
+}
+
+fn stable_version(version: &str) -> Option<[u64; 3]> {
+    let version = version.strip_prefix('v').unwrap_or(version);
+    let version = if let Some((version, metadata)) = version.split_once('+') {
+        if !metadata.split('.').all(|part| {
+            !part.is_empty()
+                && part
+                    .bytes()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == b'-')
+        }) {
+            return None;
+        }
+        version
+    } else {
+        version
+    };
+    if !version.split('.').all(|part| {
+        !part.is_empty()
+            && (part.len() == 1 || !part.starts_with('0'))
+            && part.bytes().all(|ch| ch.is_ascii_digit())
+    }) {
+        return None;
+    }
+    let parts = version
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<Vec<u64>, _>>()
+        .ok()?;
+    parts.try_into().ok()
+}
+
 pub fn run(assume_yes: bool) -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
     run_in(&project_dir, assume_yes)
@@ -218,6 +276,12 @@ fn plan(
     // was nothing to ask - upgrade rewrote whatever it could render.
     let planned = project.maintenance_plan();
     let wants = |key: &str| planned.iter().any(|p| p.key == key);
+
+    if workflow == PackageWorkflow::Wally && wants(".github/workflows/ci.yml") {
+        // The tool pin is an upgrade input even though upgrade never rewrites it.
+        let manifest = upgrade.read(project_dir, "rokit.toml")?;
+        require_released_wpt(manifest.as_deref())?;
+    }
 
     let testez_selected = runner == Some(TestRunner::TestEz);
     if wants("selene.toml") {

@@ -1,5 +1,48 @@
 # Release-Hardening Audit
 
+## Unreleased: official Wally type release replaces the source build
+
+Official wally-package-types 1.7.0 includes the upstream generic-default ordering
+and `const` parser fixes previously supplied by pinned commit `daf5c97`. Generated
+Wally CI now invokes the Rokit-installed release; its Cargo build/cache workaround
+and absolute Cargo binary path are removed. Shared/server/dev package arguments,
+sourcemap selection and installation-before-check ordering remain intact.
+
+Managed Wally CI upgrades validate the official stable project pin is at least
+1.7.0, reading `rokit.toml` through the existing review snapshot. Missing, malformed,
+older or unverifiable pins refuse all writes, including with `--yes`, and explain
+explicit installation/update and retry. Upgrade never rewrites tool pins;
+manifest changes during confirmation refuse the whole upgrade. Projects without
+managed Wally CI bypass the preflight. Host global manifests, patched caches and
+existing projects are untouched; Cargo remains 0.20.3 pending separate release
+preparation.
+
+All 22 focused upgrade tests and strict all-target Clippy passed. The explicit
+official Windows binary test passed both synthetic generic-default and `const`
+fixtures, preserving source bytes and restored exports. Its archive digest
+`33e833440402d70d928a104de7325c8014ac5b87772725711f0946ad8246bf5f`
+matches GitHub's release asset digest. A focused Ubuntu CI job verifies the pinned
+Linux asset digest and runs the same isolated test; it does not establish full
+fresh-Linux generated-project acceptance.
+
+The initial ordinary suite stopped at Home's machine-setup cancellation check:
+the owner's active background Watch intentionally prevents machine-wide setup.
+The isolated retry reproduced that host condition; the owner's Watch was not
+stopped. The subsequent run also reached the standalone setup cancellation check,
+which printed the same intentional Watch guard. With both named checks explicitly
+excluded, all 488 remaining unique ordinary tests passed; neither blocked check is
+counted as a local pass. The nested one-test child is not an additional unique
+test. The 25 ignored checks remain separate, including the explicitly invoked
+official-release compatibility test. Exact-head/main CI must run all 490 ordinary
+tests on their clean runners.
+
+Formatting, diff checks and locked packaging passed; the 106-file archive compiled
+from its tarball. CodeRabbit iteration review found zero issues across all eight
+changed files. Final branch review and exact-head/main CI remain required; their
+outcomes are recorded in the implementation PR as those gates finish. This repair
+is unreleased on the published 0.20.3 baseline; no host provisioning or package
+publication is part of this change.
+
 ## October 7: owner publication of 0.20.3 verified
 
 The owner published 0.20.3 after [PR #88](https://github.com/chatarabdelilah/rproj/pull/88)
