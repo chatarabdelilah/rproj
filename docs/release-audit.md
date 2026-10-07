@@ -1,5 +1,41 @@
 # Release-Hardening Audit
 
+## October 7: complete upgrade review implementation
+
+Work is on `codex/complete-upgrade-review` from clean main `69a02e6`, after
+published 0.21.0. The housekeeping-only PTY regression failed on the original
+runtime: it reported already up to date, wrote `.gitignore` and `.luaurc`, and
+never offered confirmation. Upgrade now plans these files and TestEZ's scoped
+`tests/.luaurc` before confirmation, using shared pure content planners also
+called by creation. All targets and inputs participate in conflict checking and
+staged replacements; post-apply merge writes are removed.
+
+`cargo test --locked --offline --test upgrade` passes **28 tests**. The seven
+new regressions cover housekeeping-only review and rejection/Esc/Ctrl+C,
+interactive and `--yes` saves with custom values and byte-preserving reruns,
+edited/deleted/new targets during confirmation, unreadable targets, unparseable
+documents, and a later housekeeping staging failure preserving earlier targets.
+The latter fixture provides parent directories in advance: existing staging
+semantics may leave newly created empty directories on preparation failure.
+
+`cargo test --locked --offline` passes **485 ordinary tests, 23 ignored**,
+excluding nested child-test summaries. Formatting and strict all-target Clippy
+pass. Local CodeRabbit iteration review reports zero findings across all nine
+files. Clean `cargo package --locked --offline` at `ee94fe4` builds successfully
+from its 105-file archive. Subsequent evidence edits affect excluded docs only.
+Final `cr review --agent --base main` at `2a71f16` also reports zero findings
+across the nine-file branch diff. [PR #96](https://github.com/chatarabdelilah/rproj/pull/96)'s
+implementation-head CI [37643776338](https://github.com/chatarabdelilah/rproj/actions/runs/37643776338)
+passes all four required jobs at `f4575ad5ddd26a344b7b7959160f685cffc0263c`.
+The final evidence/inventory correction changes excluded documentation only;
+runtime, tests, dependency resolution and CI remain unchanged from that head.
+Final reviewed-head CI is required before merge, and merged-main CI before
+branch cleanup; the corresponding run identities and outcome are recorded in
+the PR's verification section.
+This is an unreleased runtime correction; no version bump, publication,
+or tag is part of this PR. Fresh-machine and authenticated Open Cloud acceptance
+remain separate gaps; no host applications or user projects were changed.
+
 ## October 7: 0.21.0 publication verified
 
 The owner published 0.21.0 at `2026-10-07T12:15:35.090245Z`. Crates.io confirms

@@ -53,6 +53,7 @@ struct Rewrite {
 struct UpgradePlan {
     rewrites: Vec<Rewrite>,
     originals: BTreeMap<String, Option<String>>,
+    skipped: Vec<&'static str>,
 }
 
 impl UpgradePlan {
@@ -215,10 +216,17 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
     }
     let upgrade = plan(project_dir, &project, &packages, workflow, runner, upgrade)?;
     let rewrites = &upgrade.rewrites;
+    for note in &upgrade.skipped {
+        ui::skip(note);
+    }
 
     if rewrites.is_empty() {
         upgrade.verify(project_dir)?;
-        ui::ok("already up to date - every generated file matches this version of rproj");
+        if upgrade.skipped.is_empty() {
+            ui::ok("already up to date - no upgrade changes needed");
+        } else {
+            ui::skip("no applicable upgrade changes; skipped files were left unchanged");
+        }
     } else {
         println!("\nThese generated files would change:\n");
         for rewrite in rewrites {
@@ -250,13 +258,6 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
         upgrade.apply(project_dir)?;
     }
 
-    // These merge rather than replace and are no-ops when nothing is
-    // missing, so they run either way rather than being planned.
-    gitignore::ensure_entries(project_dir)?;
-    quality::ensure_luaurc(project_dir)?;
-    if runner == Some(TestRunner::TestEz) {
-        testez::ensure_tests_luaurc(project_dir)?;
-    }
     Ok(())
 }
 
@@ -402,7 +403,55 @@ fn plan(
         )?;
     }
 
+    // Preserve existing housekeeping eligibility, but review and protect these
+    // merges exactly like the composition-derived replacements above.
+    let original = upgrade.read(project_dir, ".gitignore")?;
+    if let Some(contents) = gitignore::planned_entries(original.as_deref().unwrap_or("")) {
+        push(
+            &mut upgrade,
+            project_dir,
+            ".gitignore",
+            contents,
+            "missing generated-output ignore entries; your existing entries are kept",
+        )?;
+    }
+    let original = upgrade.read(project_dir, ".luaurc")?;
+    let update = quality::planned_luaurc(original.as_deref())?;
+    plan_luaurc(&mut upgrade, project_dir, ".luaurc", update)?;
+    if testez_selected {
+        let original = upgrade.read(project_dir, "tests/.luaurc")?;
+        let update = testez::planned_tests_luaurc(original.as_deref())?;
+        plan_luaurc(&mut upgrade, project_dir, "tests/.luaurc", update)?;
+    }
     Ok(upgrade)
+}
+
+fn plan_luaurc(
+    upgrade: &mut UpgradePlan,
+    project_dir: &Path,
+    relative: &'static str,
+    update: quality::LuaurcUpdate,
+) -> Result<()> {
+    match update {
+        quality::LuaurcUpdate::Unchanged => {}
+        quality::LuaurcUpdate::Unparseable => upgrade.skipped.push(if relative == ".luaurc" {
+            ".luaurc exists but couldn't be parsed, leaving it alone"
+        } else {
+            "tests/.luaurc exists but couldn't be parsed, leaving it alone"
+        }),
+        quality::LuaurcUpdate::Write(contents) => push(
+            upgrade,
+            project_dir,
+            relative,
+            contents,
+            if relative == ".luaurc" {
+                "strict language mode when absent; your aliases and other settings are kept"
+            } else {
+                "TestEZ globals when absent; your other settings are kept"
+            },
+        )?,
+    }
+    Ok(())
 }
 
 /// `selene.toml` with only the composition-derived keys updated.

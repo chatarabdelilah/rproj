@@ -33,6 +33,198 @@ fn snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
     files
 }
 
+fn housekeeping_fixture(label: &str) -> TempProject {
+    let project = TempProject::new(label);
+    project.write("default.project.json", "{}\n");
+    project.write("rproj.toml", "mode='expert'\npackage_workflow='none'\n");
+    project
+}
+
+fn housekeeping_testez_fixture(label: &str) -> TempProject {
+    let project = housekeeping_fixture(label);
+    project.write(
+        "rproj.toml",
+        "mode='expert'\npackage_workflow='none'\n[capabilities]\ntest='testez'\n",
+    );
+    project
+}
+
+#[test]
+fn housekeeping_only_upgrade_is_reviewed_and_cancellable() {
+    for answer in ["n\r", common::ESC, "\u{3}"] {
+        let project = housekeeping_fixture("housekeeping-review");
+        let before = snapshot(project.path());
+        let mut session = Session::start(project.path(), &["upgrade"]);
+        session.wait_for("Apply these changes?");
+        assert_eq!(snapshot(project.path()), before);
+        session.send(answer);
+        let outcome = session.finish();
+        outcome.assert_contains("create .gitignore");
+        outcome.assert_contains("create .luaurc");
+        outcome.assert_lacks("already up to date");
+        outcome.assert_lacks("wrote ");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn housekeeping_upgrade_preserves_custom_values_and_second_run_is_a_noop() {
+    for args in [&["upgrade"][..], &["upgrade", "--yes"][..]] {
+        let project = housekeeping_testez_fixture("housekeeping-preserve");
+        let prepared = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        assert_eq!(prepared.code, 0, "{}", prepared.text);
+        project.write(".gitignore", "# custom\r\ncustom-output/");
+        project.write(".luaurc", "{\"aliases\":{\"custom\":\"./custom\"}}\n");
+        project.write("tests/.luaurc", "{\"aliases\":{\"test\":\"./helpers\"}}\n");
+        project.write("src/custom.luau", "return 'keep'\r\n");
+        let mut before = snapshot(project.path());
+        let mut session = Session::start(project.path(), args);
+        if args.len() == 1 {
+            session.wait_for("Apply these changes?");
+            assert_eq!(snapshot(project.path()), before);
+            session.send(ENTER);
+        }
+        let outcome = session.finish();
+        assert_eq!(outcome.code, 0, "{}", outcome.text);
+        for relative in [".gitignore", ".luaurc", "tests/.luaurc"] {
+            outcome.assert_contains(&format!("update {relative}"));
+            before.remove(Path::new(relative));
+        }
+        let mut after = snapshot(project.path());
+        for relative in [".gitignore", ".luaurc", "tests/.luaurc"] {
+            after.remove(Path::new(relative));
+        }
+        assert_eq!(
+            after.keys().collect::<Vec<_>>(),
+            before.keys().collect::<Vec<_>>()
+        );
+        for (relative, contents) in before {
+            assert_eq!(after[&relative], contents, "{} changed", relative.display());
+        }
+        assert!(
+            project
+                .read(".gitignore")
+                .starts_with("# custom\r\ncustom-output/\n")
+        );
+        let config: serde_json::Value = serde_json::from_str(&project.read(".luaurc")).unwrap();
+        assert_eq!(config["languageMode"], "strict");
+        assert_eq!(config["aliases"]["custom"], "./custom");
+        let tests: serde_json::Value =
+            serde_json::from_str(&project.read("tests/.luaurc")).unwrap();
+        assert_eq!(tests["aliases"]["test"], "./helpers");
+        assert!(
+            tests["globals"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("describe"))
+        );
+        // Existing choices, including whitespace, must remain byte-identical.
+        project.write(
+            ".luaurc",
+            "{ \"languageMode\": \"nonstrict\", \"aliases\": {} }\r\n",
+        );
+        project.write("tests/.luaurc", "{ \"globals\": [\"custom\"] }\r\n");
+        let before = snapshot(project.path());
+        let outcome = Session::start(project.path(), &["upgrade"]).finish();
+        assert_eq!(outcome.code, 0, "{}", outcome.text);
+        outcome.assert_contains("already up to date");
+        outcome.assert_lacks("Apply these changes?");
+        outcome.assert_lacks("wrote ");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn housekeeping_conflicts_refuse_every_write() {
+    for relative in [".gitignore", ".luaurc", "tests/.luaurc"] {
+        for mode in ["edit", "delete", "create"] {
+            let project = fixture("housekeeping-conflict", "\"testez\"");
+            if mode != "create" {
+                project.write(
+                    relative,
+                    if relative == ".gitignore" {
+                        "custom/\n"
+                    } else {
+                        "{}\n"
+                    },
+                );
+            }
+            let mut session = Session::start(project.path(), &["upgrade"]);
+            session.wait_for("Apply these changes?");
+            if mode == "delete" {
+                fs::remove_file(project.path().join(relative)).unwrap();
+            } else {
+                project.write(relative, "external edit\n");
+            }
+            let before = snapshot(project.path());
+            session.send(ENTER);
+            let outcome = session.finish();
+            assert_eq!(outcome.code, 1, "{}", outcome.text);
+            outcome.assert_contains("changed while upgrade was being reviewed");
+            outcome.assert_contains("Nothing written");
+            assert_eq!(snapshot(project.path()), before);
+        }
+    }
+}
+
+#[test]
+fn unreadable_housekeeping_refuses_before_confirmation() {
+    for relative in [".gitignore", ".luaurc", "tests/.luaurc"] {
+        let project = fixture("housekeeping-unreadable", "\"testez\"");
+        fs::create_dir_all(project.path().join(relative)).unwrap();
+        let before = snapshot(project.path());
+        let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        assert_eq!(outcome.code, 1, "{}", outcome.text);
+        outcome.assert_contains("failed to read");
+        outcome.assert_lacks("Apply these changes?");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn unparseable_luaurc_files_are_reported_and_preserved() {
+    for contents in ["// commented\n{}\n", "broken [", "[]\n"] {
+        let project = housekeeping_testez_fixture("housekeeping-unparseable");
+        let prepared = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        assert_eq!(prepared.code, 0, "{}", prepared.text);
+        for relative in [".luaurc", "tests/.luaurc"] {
+            project.write(relative, contents);
+        }
+        let before = snapshot(project.path());
+        let outcome = Session::start(project.path(), &["upgrade"]).finish();
+        assert_eq!(outcome.code, 0, "{}", outcome.text);
+        outcome.assert_contains(".luaurc exists but couldn't be parsed");
+        outcome.assert_contains("tests/.luaurc exists but couldn't be parsed");
+        outcome.assert_contains("no applicable upgrade changes");
+        outcome.assert_lacks("already up to date");
+        outcome.assert_lacks("Apply these changes?");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn later_housekeeping_staging_failure_preserves_earlier_targets() {
+    let project = fixture("housekeeping-readonly", "\"testez\"");
+    project.write("selene.toml", "std='roblox'\n");
+    project.write(".vscode/settings.json", "{}\n");
+    project.write("tests/.luaurc", "{}\n");
+    let before = snapshot(project.path());
+    let path = project.path().join("tests/.luaurc");
+    let original = fs::metadata(&path).unwrap().permissions();
+    let mut readonly = original.clone();
+    readonly.set_readonly(true);
+    let mut session = Session::start(project.path(), &["upgrade"]);
+    session.wait_for("Apply these changes?");
+    fs::set_permissions(&path, readonly).unwrap();
+    session.send(ENTER);
+    let outcome = session.finish();
+    fs::set_permissions(&path, original).unwrap();
+    assert_eq!(outcome.code, 1, "{}", outcome.text);
+    outcome.assert_contains("No upgrade targets replaced");
+    outcome.assert_lacks("wrote ");
+    assert_eq!(snapshot(project.path()), before);
+}
+
 fn wally_ci_fixture(pin: Option<&str>) -> TempProject {
     let project = fixture("released-wpt", "\"charm\", \"testez\"");
     project.write(

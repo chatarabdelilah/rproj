@@ -55,6 +55,16 @@ pub fn ensure_entries(project_dir: &Path) -> Result<()> {
         String::new()
     };
 
+    let Some(updated) = planned_entries(&content) else {
+        ui::ok(".gitignore already configured");
+        return Ok(());
+    };
+    fs::write(&path, updated)?;
+    ui::ok("updated .gitignore");
+    Ok(())
+}
+
+pub(crate) fn planned_entries(content: &str) -> Option<String> {
     let existing: std::collections::HashSet<&str> = content.lines().map(str::trim).collect();
     let missing: Vec<&str> = ENTRIES
         .iter()
@@ -63,11 +73,10 @@ pub fn ensure_entries(project_dir: &Path) -> Result<()> {
         .collect();
 
     if missing.is_empty() {
-        ui::ok(".gitignore already configured");
-        return Ok(());
+        return None;
     }
 
-    let mut updated = content.clone();
+    let mut updated = content.to_owned();
     if !updated.is_empty() && !updated.ends_with('\n') {
         updated.push('\n');
     }
@@ -75,9 +84,7 @@ pub fn ensure_entries(project_dir: &Path) -> Result<()> {
         updated.push_str(entry);
         updated.push('\n');
     }
-    fs::write(&path, updated)?;
-    ui::ok("updated .gitignore");
-    Ok(())
+    Some(updated)
 }
 
 #[cfg(test)]
