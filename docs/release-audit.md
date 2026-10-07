@@ -29,9 +29,12 @@ the rebuilt binary reports `rproj 0.20.3`.
 
 Local CodeRabbit iteration review found one minor release-notes state mismatch:
 wording implied pending checks were already recorded. That wording was corrected
-before completed local evidence was added. Final branch review and exact-head/
-main CI are required before publication; their outcomes are recorded in the
-candidate PR as gates complete. Ongoing owner consent covers tracked rproj review
+before completed local evidence was added. Final branch review at `3ca97c7`
+completed with zero findings across all seven files. This review-evidence update
+changes excluded documentation only; packaged source, tests, dependencies,
+manifest and README remain identical. Exact-head/main CI are required before
+publication; their outcomes are recorded in the candidate PR as gates complete.
+Ongoing owner consent covers tracked rproj review
 diffs and public context. Owner publication remains pending; no 0.20.3 tag or
 GitHub release precedes verified publication.
 
