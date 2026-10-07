@@ -671,6 +671,56 @@ fn a_second_run_reports_nothing_to_do() {
     );
 }
 
+#[test]
+fn recreating_selene_is_complete_after_one_upgrade() {
+    for (workflow, packages, std) in [
+        ("wally", "\"vide\"", "roblox"),
+        ("wally", "\"vide\", \"testez\"", "roblox+testez"),
+        ("none", "", "roblox"),
+    ] {
+        for args in [&["upgrade"][..], &["upgrade", "--yes"][..]] {
+            let project = fixture("selene-recreate", packages);
+            if workflow == "none" {
+                project.write(
+                    "rproj.toml",
+                    "mode='expert'\npackage_workflow='none'\n[capabilities]\nlint='selene'\n",
+                );
+            }
+            let before = snapshot(project.path());
+            let mut session = Session::start(project.path(), args);
+            if args.len() == 1 {
+                session.wait_for("Apply these changes?");
+                assert_eq!(snapshot(project.path()), before);
+                session.send(ENTER);
+            }
+            let first = session.finish();
+            assert_eq!(first.code, 0, "{}", first.text);
+            first.assert_contains("create selene.toml");
+            let selene: toml::Value = toml::from_str(&project.read("selene.toml")).unwrap();
+            assert_eq!(selene["std"].as_str(), Some(std));
+            let excludes = selene["exclude"].as_array().unwrap();
+            if workflow == "wally" {
+                assert_eq!(
+                    excludes
+                        .iter()
+                        .map(|value| value.as_str().unwrap())
+                        .collect::<Vec<_>>(),
+                    ["Packages/**", "ServerPackages/**", "DevPackages/**"]
+                );
+            } else {
+                assert!(excludes.is_empty());
+            }
+            let after_first = snapshot(project.path());
+            let second = Session::start(project.path(), args).finish();
+            assert_eq!(second.code, 0, "{}", second.text);
+            second.assert_contains("already up to date");
+            second.assert_lacks("Apply these changes?");
+            second.assert_lacks("wrote ");
+            assert_eq!(snapshot(project.path()), after_first);
+        }
+    }
+}
+
 /// Files the user owns are seeded once and then edited by hand; rewriting
 /// them from a template would throw away real work.
 #[test]
