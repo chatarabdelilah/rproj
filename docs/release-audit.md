@@ -27,9 +27,11 @@ output from contaminating its captured transcript.
 
 Focused creation and Git error-boundary checks pass. The 485-test ordinary
 locked suite, strict all-target Clippy, formatting and diff checks pass; the
-24 ignored checks remain separate. Local CodeRabbit iteration review reported
-zero findings across all four changed files. Final branch review and exact-head/
-main CI evidence are recorded in the repair PR before completion. This is an unreleased runtime
+24 ignored checks remain separate. Local CodeRabbit iteration and final branch
+reviews reported zero findings across all four changed files; final review was
+at `12401c7`. This evidence-only update changes no runtime or test content.
+Exact final-head/main CI evidence is recorded in the repair PR before completion.
+This is an unreleased runtime
 diagnostic repair on 0.20.2; Cargo versions and dependencies are unchanged.
 Successful installation/retry on fresh Windows and other deferred acceptance
 gaps remain unverified. No new feature milestone or host provisioning is added.
