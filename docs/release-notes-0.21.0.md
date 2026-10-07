@@ -1,6 +1,6 @@
 # rproj 0.21.0 — Wally or None
 
-Unreleased candidate prepared October 7, 2026. Public alpha.
+Published October 7, 2026. Public alpha.
 
 ## Breaking change
 
@@ -47,7 +47,7 @@ checks above and official 1.7.0 Windows compatibility passed again for the
 candidate. The 23 ignored checks remain separate; no ordinary checks were excluded.
 Clean locked packaging passed with 105 files and matching Git identity. Local
 CodeRabbit iteration and final branch reviews both completed with zero findings
-across all seven release files. Candidate head/main CI and delivery evidence are
+across all seven release files. Release-preparation head/main CI and delivery evidence are
 recorded in the [release audit](release-audit.md) and
 [release-preparation PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
 The official-Wally 1.7.0 Linux compatibility check remains intact. It verifies
@@ -57,9 +57,14 @@ Wally projects still have an explicit tool-update path.
 
 Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
 project execution, UI Labs Studio stories and Scribe Studio playtesting remain
-unverified. VM provisioning remains deferred. This is an alpha release candidate,
+unverified. VM provisioning remains deferred. This is a public alpha release,
 not a claim of beta readiness.
 
-Published 0.20.4 and earlier tags remain unchanged. Only the owner runs
-`cargo publish --locked` after the candidate gates pass. No `v0.21.0` tag or
-GitHub release is created until crates.io confirms the matching publication.
+The owner published 0.21.0 after all candidate gates passed. The official archive
+contains 105 files, all identical to a clean package from release commit
+`07dcf17fb8a841c2f842a3753f58ad10507f99e1`; its clean Git identity and manifest/
+root-lockfile versions match. Registry checksum:
+`40c69158d8c771dc62d3a9eda6d171f78f1a1d199bcf27e478e43b6dbc50c8d8`.
+The annotated `v0.21.0` tag and
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.0)
+identify that commit. Published 0.20.4 and earlier tags remain unchanged.
