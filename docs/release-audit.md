@@ -1,5 +1,26 @@
 # Release-Hardening Audit
 
+## October 7: 0.20.3 alpha candidate preparation
+
+The candidate starts from clean main `bdd2ab6`, after the missing-Git repair
+[PR #87](https://github.com/chatarabdelilah/rproj/pull/87) passed first-attempt
+final-head CI [37569022721](https://github.com/chatarabdelilah/rproj/actions/runs/37569022721)
+and exact-main CI [37569252616](https://github.com/chatarabdelilah/rproj/actions/runs/37569252616).
+`Cargo.toml` and the root `Cargo.lock` package are aligned at 0.20.3. Dependency
+versions and runtime/test source remain identical to verified main; notes and
+current-state docs distinguish this candidate from published 0.20.2.
+
+Candidate ordinary tests, strict Clippy, formatting, applicable serial live
+creation acceptance, clean locked packaging, local CodeRabbit and exact-head/
+main CI are pending. Ongoing owner consent covers tracked rproj review diffs
+and public repository context. Owner publication remains pending; no 0.20.3
+tag or GitHub release precedes verified publication.
+
+The live creation check uses already provisioned tools and uniquely named
+temporary project/setup fixtures. It does not install machine applications or
+replace existing projects. Fresh-Windows installation/retry and the deferred
+Open Cloud/platform Studio gaps remain unverified; VM provisioning stays deferred.
+
 ## October 7: missing-Git project-creation recovery
 
 The disposable audit exercised the same `new::execute_confirmed` execution

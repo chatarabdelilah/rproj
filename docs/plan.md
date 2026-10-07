@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.2, public alpha**, improving Windows background Watch acknowledgment handling and including terminal test-harness fixes. It retains missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `eaa0447`; no unpublished candidate is active. See [release notes](release-notes-0.20.2.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.20.2, public alpha**, improving Windows background Watch acknowledgment handling and including terminal test-harness fixes. It retains missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `eaa0447`. The unpublished **0.20.3 alpha candidate** packages the missing-Git creation guidance fix. See [candidate notes](release-notes-0.20.3.md), [published notes](release-notes-0.20.2.md) and [audit evidence](release-audit.md) for verification and limits.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -291,10 +291,13 @@ parent PATH, configuration and existing fixture files unchanged. Existing Git
 repositories still bypass initialization. See the release audit for scope and
 evidence; the repair is unreleased on the published 0.20.2 baseline.
 
-Finish this repair's review and exact-head/main CI before selecting another
-task. A future patch candidate must version the unreleased runtime change;
-there is no active candidate yet. Machine-wide provisioning remains deferred,
-and this targeted check does not close fresh-Windows installation acceptance.
+The repair merged in [PR #87](https://github.com/chatarabdelilah/rproj/pull/87) at
+`bdd2ab6`, after zero findings in both local CodeRabbit reviews and first-attempt
+final-head/main CI. The 0.20.3 alpha candidate is now being prepared; publication
+and registry/tag/release alignment follow its release gates. No additional code
+audit or feature is automatically queued. Machine-wide provisioning remains
+deferred, and this targeted check does not close fresh-Windows installation
+acceptance.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
