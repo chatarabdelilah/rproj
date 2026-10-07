@@ -796,6 +796,7 @@ mod tests {
                 "commands::machine_setup::tests::setup_pty_driver",
                 "--exact",
                 "--nocapture",
+                "--test-threads=1",
             ],
             &[
                 ("RPROJ_MACHINE_SETUP_FIXTURE", root.to_str().unwrap()),

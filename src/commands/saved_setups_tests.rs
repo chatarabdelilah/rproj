@@ -485,6 +485,7 @@ fn pty_resize_preserves_filtered_selection_scrolled_details_and_back() {
             "commands::saved_setups::tests::setup_pty_driver",
             "--exact",
             "--nocapture",
+            "--test-threads=1",
         ],
         &[
             ("RPROJ_SETUP_TEST_ROOT", root.path().to_str().unwrap()),
@@ -610,6 +611,7 @@ fn pty_repeated_save_exit_and_default_no_delete_restore_terminal() {
             "commands::saved_setups::tests::setup_pty_driver",
             "--exact",
             "--nocapture",
+            "--test-threads=1",
         ],
         &[("RPROJ_SETUP_TEST_ROOT", root.path().to_str().unwrap())],
     );

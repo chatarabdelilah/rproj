@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 6, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 7, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -257,8 +257,20 @@ final helper retains one intact paste and all file-protection assertions;
 timeouts and ordinary-suite parallelism are unchanged. This is a test-only
 repair, requiring no new package release. Local validation is recorded in the
 release audit; required CodeRabbit review and CI remain release-independent gates.
-After this repair is merged, inspect other unit-test UI drivers for the same
-libtest output boundary before adding new workflow coverage.
+The editor repair merged in [PR #82](https://github.com/chatarabdelilah/rproj/pull/82)
+with clean local review and first-attempt head/main CI. The October 7 follow-up
+inventoried all nine unit-test PTY launch sites. Five already isolated libtest's
+timer output; the remaining four now use the same single-thread child flag.
+Existing Machine Setup, capability-prompt and Saved Setup behavior checks pass.
+This closes the selected child-output audit; no new workflow matrix or package
+release is required. Review and CI evidence belong in the follow-up PR.
+
+Next, diagnose the recurring Watch control timeout observed in the follow-up's
+Rust 1.89 CI: the flood scenario's stop request returned Windows error 10060.
+The same lifecycle acceptance passed locally; the UI-child flag repair does not
+resolve this separate timing boundary. Missing-Git recovery during project
+creation follows that investigation, using a disposable child-PATH fixture.
+Machine-wide provisioning remains deferred.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
