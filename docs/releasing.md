@@ -16,7 +16,8 @@ and root lockfile are aligned at 0.21.1; runtime, tests, dependency resolution
 and CI remain unchanged from implementation main `9eea7eb`. See
 [candidate notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md).
 Local formatting, ordinary tests, strict Clippy and clean packaging pass;
-final CodeRabbit review, reviewed-head/main CI and owner publication are pending.
+both CodeRabbit reviews pass with zero findings. Reviewed-head/main CI must pass
+before owner publication; the release-preparation PR records final run identities.
 No 0.21.1 tag or GitHub
 release exists; these follow confirmed crates.io publication.
 Previous shipped tags remain immutable.

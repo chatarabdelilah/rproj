@@ -17,8 +17,11 @@ successfully: 105 archive files, all 95 source/test files byte-identical to the
 checkout, clean Git identity, and both manifests/root lockfile at 0.21.1. The
 dependency graph is unchanged except for the root package version; docs, CI,
 CodeGraph and build directories are excluded. Subsequent evidence changes
-affect excluded docs only. Final branch review (including the new release
-notes), reviewed-head CI and merged-main CI remain pending. Applicable
+affect excluded docs only. Final `cr review --agent --base main` at `d4a76e2`
+reports zero findings across all seven release files, including the new notes,
+after the service cooldown expired. Reviewed-head and merged-main CI must pass
+before owner publication; run identities and outcomes are recorded in the
+release-preparation PR's verification section. Applicable
 changed-path checks are ordinary fixture/PTY tests: upgrade is file planning and
 replacement without external tool execution, and creation shares the same pure
 merge rules. No ignored external-tool workflow is needed to validate this patch.
