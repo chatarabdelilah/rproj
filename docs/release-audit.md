@@ -21,7 +21,8 @@ affect excluded docs only. Final `cr review --agent --base main` at `d4a76e2`
 reports zero findings across all seven release files, including the new notes,
 after the service cooldown expired. Reviewed-head and merged-main CI must pass
 before owner publication; run identities and outcomes are recorded in the
-release-preparation PR's verification section. Applicable
+[release-preparation PR #97](https://github.com/chatarabdelilah/rproj/pull/97)'s
+verification section. Applicable
 changed-path checks are ordinary fixture/PTY tests: upgrade is file planning and
 replacement without external tool execution, and creation shares the same pure
 merge rules. No ignored external-tool workflow is needed to validate this patch.

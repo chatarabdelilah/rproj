@@ -17,7 +17,8 @@ and CI remain unchanged from implementation main `9eea7eb`. See
 [candidate notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md).
 Local formatting, ordinary tests, strict Clippy and clean packaging pass;
 both CodeRabbit reviews pass with zero findings. Reviewed-head/main CI must pass
-before owner publication; the release-preparation PR records final run identities.
+before owner publication; [release PR #97](https://github.com/chatarabdelilah/rproj/pull/97)
+records final run identities.
 No 0.21.1 tag or GitHub
 release exists; these follow confirmed crates.io publication.
 Previous shipped tags remain immutable.
