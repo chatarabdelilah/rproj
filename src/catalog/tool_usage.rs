@@ -360,7 +360,6 @@ pub const TOPICS: &[Usage] = &[
         ],
         notes: &[
             "The workflow installs the exact tool versions from rokit.toml, so CI matches your machine.",
-            "It checks out submodules too, since vendored packages are part of the build.",
             "It never rewrites your code: formatting is checked with --check, not applied.",
         ],
     },

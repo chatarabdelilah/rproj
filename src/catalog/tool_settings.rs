@@ -921,7 +921,7 @@ mod tests {
     #[test]
     fn inserted_keys_land_above_the_first_section() {
         let base = default_toml("selene", &[]).unwrap();
-        let with_exclude = insert_top_level(&base, r#"exclude = ["modules/submodules/**"]"#);
+        let with_exclude = insert_top_level(&base, r#"exclude = ["vendor/**"]"#);
         let first_header = with_exclude
             .find(
                 "

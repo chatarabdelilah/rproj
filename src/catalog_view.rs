@@ -151,26 +151,13 @@ pub fn lookup(key: &str) -> Option<CatalogDetail> {
                 guide.imports.join(", ")
             }
         );
-        let dependencies = guide.imports.iter().map(|key| (*key).to_owned()).collect();
         if guide.imports.is_empty() {
             placement = format!(
-                "{}\n\nSelect Testing with TestEZ. These specs work across Wally, Git submodules, and no-manager projects through rproj test; no direct package import is needed.",
+                "{}\n\nSelect Testing with TestEZ. These specs work across Wally and no-manager projects through rproj test; no direct package import is needed.",
                 guide.context
             );
-        } else if package.submodule.is_some()
-            && wally_packages::unvendorable_in_closure(&dependencies).is_empty()
-        {
-            placement.push_str("\n\nGit submodules: replace the Wally imports with:\n");
-            for dependency in guide.imports {
-                placement.push_str(&package_usage::import(
-                    wally_packages::find(dependency).expect("guide dependency"),
-                    true,
-                ));
-                placement.push('\n');
-            }
-            placement.push_str("Submodules track repository commits, not these Wally versions; verify the checked-out API. No-manager projects do not install this package.");
         } else {
-            placement.push_str("\n\nUse Wally: this example's dependency tree is not supported by rproj's submodule workflow. No-manager projects do not install it.");
+            placement.push_str("\n\nSelect Wally to install these dependencies. No-manager projects do not install packages.");
         }
         let body = detail_sections(vec![
             DetailSection {
@@ -205,6 +192,10 @@ pub fn lookup(key: &str) -> Option<CatalogDetail> {
             DetailSection {
                 heading: "Official documentation",
                 text: package.docs_url.into(),
+            },
+            DetailSection {
+                heading: "Upstream repository",
+                text: package.git_repo.into(),
             },
         ]);
         return Some(CatalogDetail {
@@ -362,7 +353,6 @@ pub fn cause_line(artifact: &Artifact) -> String {
     }
     match artifact.key {
         "wally.toml" => "when this project uses Wally".into(),
-        "modules" => "when this project vendors packages as git submodules".into(),
         "rokit.toml" => "when anything pins a tool version".into(),
         _ => "derived from your answers".into(),
     }

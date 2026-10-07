@@ -303,7 +303,7 @@ fn plan(
                 &project_dir.join(".vscode/settings.json"),
                 original.as_deref().unwrap_or(""),
             )?,
-            &vscode::project_settings(workflow),
+            &vscode::project_settings(),
         )?;
         push(
             &mut upgrade,
@@ -494,7 +494,6 @@ fn overrides(
 fn vendored_excludes(workflow: PackageWorkflow) -> &'static [&'static str] {
     match workflow {
         PackageWorkflow::Wally => &["Packages/**", "ServerPackages/**", "DevPackages/**"],
-        PackageWorkflow::GitSubmodules => &["modules/submodules/**"],
         PackageWorkflow::None => &[],
     }
 }

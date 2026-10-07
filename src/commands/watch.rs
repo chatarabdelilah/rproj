@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::config::project_file;
 use crate::graph::TestRunner;
-use crate::steps::{git, jest, rojo, toolchain, wally};
+use crate::steps::{jest, rojo, toolchain, wally};
 
 pub fn run() -> Result<()> {
     let project_dir = std::env::current_dir().context("failed to read current directory")?;
@@ -43,14 +43,6 @@ pub(crate) fn prepare_in(project_dir: &std::path::Path) -> Result<&'static str> 
     if project_dir.join("rokit.toml").exists() {
         toolchain::sync_installed_tools(project_dir)?;
     }
-    crate::interrupt::check()?;
-    // Both package workflows leave the vendored code out of the repo -
-    // Wally's `Packages/` is gitignored, and a submodule's directory is
-    // empty until it's fetched - so a fresh clone needs each workflow's
-    // own restore step before anything reads those paths. Only the Wally
-    // half was here, which made `rproj watch` work on a cloned Wally
-    // project and fail on a cloned submodule one.
-    git::sync_submodules(project_dir)?;
     crate::interrupt::check()?;
     // `sync`, never a bare `wally install`: an install rewrites every link
     // file in packages/ without the `export type` lines, so watching used

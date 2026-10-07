@@ -50,7 +50,7 @@ independent of picker ordering. Direct prompts still skip unmet requirements;
 Ratatui still asks for correction before changing the graph.
 
 Catalog and Ratatui parity tests were added before replacing the callers.
-They cover Wally/submodules/none, each capability and implementation, both Jest
+They now cover Wally/None, each capability and implementation, both Jest
 backends, and saved unknown values. A terminal regression exercises the direct
 prompts for both Jest backends, TestEZ-only workflows, and missing gate refusal.
 The configuration persistence boundary is also consolidated below.

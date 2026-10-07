@@ -30,7 +30,7 @@ fn new_project_starts_on_review_and_keeps_start_point_choices_available() {
 #[test]
 fn fresh_project_choices_are_empty_and_revision_keeps_explicit_choices() {
     for mode in ["guided", "expert"] {
-        for strategy in ["wally", "git", "none"] {
+        for strategy in ["wally", "none"] {
             let mut draft = draft();
             select(&mut draft, mode);
             select(&mut draft, strategy);
@@ -104,33 +104,29 @@ fn review_graph(graph: ProjectGraph) -> Draft {
 
 #[test]
 fn expert_filter_retains_checked_packages_and_matches_existing_graph() {
-    for (workflow, strategy) in [
-        (PackageWorkflow::Wally, "wally"),
-        (PackageWorkflow::GitSubmodules, "git"),
-    ] {
-        let mut draft = draft();
-        select(&mut draft, "expert");
-        select(&mut draft, strategy);
-        draft.paste("janitor");
-        key(&mut draft, KeyCode::Char(' '));
-        draft.picker.query = InputState::new("nothing-matches");
-        key(&mut draft, KeyCode::Enter);
-        assert_eq!(draft.step, Step::Capabilities);
-        draft.checked.clear();
-        key(&mut draft, KeyCode::Enter);
-        assert_eq!(draft.step, Step::Review);
-        let expected = ProjectGraph {
-            mode: "expert".into(),
-            package_workflow: workflow,
-            packages: vec!["janitor".into()],
-            ..Default::default()
-        };
-        assert_eq!(
-            graph_value(&draft),
-            serde_json::to_value(&expected).unwrap()
-        );
-        assert_eq!(draft.graph.plan(&[], &[]), expected.plan(&[], &[]));
-    }
+    let (workflow, strategy) = (PackageWorkflow::Wally, "wally");
+    let mut draft = draft();
+    select(&mut draft, "expert");
+    select(&mut draft, strategy);
+    draft.paste("janitor");
+    key(&mut draft, KeyCode::Char(' '));
+    draft.picker.query = InputState::new("nothing-matches");
+    key(&mut draft, KeyCode::Enter);
+    assert_eq!(draft.step, Step::Capabilities);
+    draft.checked.clear();
+    key(&mut draft, KeyCode::Enter);
+    assert_eq!(draft.step, Step::Review);
+    let expected = ProjectGraph {
+        mode: "expert".into(),
+        package_workflow: workflow,
+        packages: vec!["janitor".into()],
+        ..Default::default()
+    };
+    assert_eq!(
+        graph_value(&draft),
+        serde_json::to_value(&expected).unwrap()
+    );
+    assert_eq!(draft.graph.plan(&[], &[]), expected.plan(&[], &[]));
 }
 
 #[test]
@@ -176,7 +172,7 @@ fn no_dependencies_skips_packages_and_testing_stays_optional() {
 
 #[test]
 fn testing_implementations_are_sorted_and_explicit_with_broad_testez_fallback() {
-    for strategy in ["wally", "git", "none"] {
+    for strategy in ["wally", "none"] {
         let mut draft = draft();
         select(&mut draft, "expert");
         select(&mut draft, strategy);
@@ -294,11 +290,7 @@ fn saved_unknown_choices_survive_inspection_and_unrelated_choices_are_preserved(
 
 #[test]
 fn saved_setups_preserve_concrete_choices_and_dropped_files() {
-    for workflow in [
-        PackageWorkflow::Wally,
-        PackageWorkflow::GitSubmodules,
-        PackageWorkflow::None,
-    ] {
+    for workflow in [PackageWorkflow::Wally, PackageWorkflow::None] {
         let mut graph = ProjectGraph {
             package_workflow: workflow,
             dropped: vec!["test-examples".into()],
@@ -476,14 +468,10 @@ fn cancelling_a_revision_restores_the_whole_reviewed_graph() {
 }
 
 #[test]
-fn capability_requirements_and_unvendorable_packages_are_explicit_errors() {
+fn capability_requirements_are_explicit_errors() {
     let mut draft = draft();
     select(&mut draft, "expert");
-    select(&mut draft, "git");
-    draft.checked.insert("reactReflex".into());
-    key(&mut draft, KeyCode::Enter);
-    assert!(matches!(draft.step, Step::Packages(_)));
-    assert!(draft.status.contains("Cannot vendor"));
+    select(&mut draft, "wally");
     draft.checked.clear();
     key(&mut draft, KeyCode::Enter);
     draft.checked = ["ci".into()].into();
@@ -755,10 +743,7 @@ fn new_project_resize_preserves_capability_revision_through_jest_execution() {
 
 #[test]
 fn new_project_resize_preserves_strategy_revision_and_testing_repair() {
-    for (strategy, workflow) in [
-        ("none", PackageWorkflow::None),
-        ("git", PackageWorkflow::GitSubmodules),
-    ] {
+    for (strategy, workflow) in [("none", PackageWorkflow::None)] {
         for (repair, filter) in [("testez", "testez"), ("off", "disable")] {
             let mut graph = ProjectGraph {
                 mode: "expert".into(),
@@ -788,12 +773,7 @@ fn new_project_resize_preserves_strategy_revision_and_testing_repair() {
                 draft.paste(strategy);
                 resize_creation_revision_with_help(&mut draft, Step::Strategy);
                 key(&mut draft, KeyCode::Enter);
-                if workflow == PackageWorkflow::GitSubmodules {
-                    assert_eq!(draft.step, Step::Packages(None));
-                    assert!(draft.checked.is_empty());
-                    resize_creation_revision_with_help(&mut draft, Step::Packages(None));
-                    key(&mut draft, KeyCode::Enter);
-                }
+
                 assert_eq!(draft.step, Step::RepairTesting);
                 assert_eq!(draft.graph.package_workflow, workflow);
                 assert!(draft.graph.packages.is_empty());

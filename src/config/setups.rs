@@ -325,12 +325,7 @@ fn validate_changes(original: &ProjectGraph, graph: &ProjectGraph) -> Result<()>
     if graph.package_workflow == super::PackageWorkflow::None && !graph.packages.is_empty() {
         bail!("Dependency-free setups cannot contain packages");
     }
-    if graph.package_workflow == super::PackageWorkflow::GitSubmodules {
-        ensure!(
-            wally_packages::unvendorable_in_closure(&graph.package_set()).is_empty(),
-            "Some selected packages require Wally"
-        );
-    }
+
     Ok(())
 }
 

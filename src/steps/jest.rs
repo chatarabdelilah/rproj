@@ -529,10 +529,8 @@ mod tests {
         )
         .unwrap();
         ensure_test_tree(dir.path(), false).unwrap();
-        let mut spec = package_usage::import(
-            crate::catalog::wally_packages::find("jest-globals").unwrap(),
-            false,
-        );
+        let mut spec =
+            package_usage::import(crate::catalog::wally_packages::find("jest-globals").unwrap());
         for key in examples {
             let guide = package_usage::find(key).unwrap();
             spec.push_str(&format!(

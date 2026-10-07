@@ -20,7 +20,6 @@ pub enum Requirement {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Strategy {
     Wally,
-    GitSubmodules,
     /// No dependency manager at all. A tutorial project, or one that
     /// vendors by hand. Previously unrepresentable: with no packages the
     /// strategy silently became Wally, which then offered a `wally.toml`
@@ -35,7 +34,6 @@ impl Requirement {
             Requirement::Capability(key) => format!("the {key} capability"),
             Requirement::App(key) => format!("the {key} app"),
             Requirement::Strategy(Strategy::Wally) => "Wally".to_string(),
-            Requirement::Strategy(Strategy::GitSubmodules) => "git submodules".to_string(),
             Requirement::Strategy(Strategy::None) => "no dependency manager".to_string(),
         }
     }
@@ -156,14 +154,6 @@ pub const ARTIFACTS: &[Artifact] = &[
         description: "Wally manifest, split by realm",
         category: ArtifactCategory::Dependencies,
         also_requires: &[Requirement::Strategy(Strategy::Wally)],
-        housekeeping: false,
-        mandatory: false,
-    },
-    Artifact {
-        key: "modules",
-        description: "Vendored packages as git submodules, with generated link files",
-        category: ArtifactCategory::Dependencies,
-        also_requires: &[Requirement::Strategy(Strategy::GitSubmodules)],
         housekeeping: false,
         mandatory: false,
     },
@@ -388,9 +378,7 @@ impl Reason {
             Reason::Housekeeping => "written for every project".to_string(),
             Reason::Capability(key) => format!("you chose {key}"),
             Reason::Strategy(Strategy::Wally) => "this project uses Wally".to_string(),
-            Reason::Strategy(Strategy::GitSubmodules) => {
-                "this project vendors packages as git submodules".to_string()
-            }
+
             Reason::Strategy(Strategy::None) => "no dependency manager".to_string(),
             Reason::Pins(n) => {
                 format!(
@@ -495,10 +483,7 @@ fn capability_that_wrote(key: &str, chosen: &[String], derived: &[String]) -> Op
 }
 
 fn strategy_wants(key: &str, strategy: Strategy) -> bool {
-    matches!(
-        (key, strategy),
-        ("wally.toml", Strategy::Wally) | ("modules", Strategy::GitSubmodules)
-    )
+    matches!((key, strategy), ("wally.toml", Strategy::Wally))
 }
 
 #[cfg(test)]
@@ -581,7 +566,7 @@ mod tests {
     /// its own edges, so the check is data rather than a grep.
     #[test]
     fn every_artifact_is_reachable_from_something() {
-        let strategy_owned = ["wally.toml", "modules"];
+        let strategy_owned = ["wally.toml"];
         for artifact in ARTIFACTS {
             if artifact.mandatory || artifact.housekeeping {
                 continue;
@@ -742,18 +727,12 @@ mod tests {
     }
 
     #[test]
-    fn the_strategy_decides_between_wally_and_modules() {
-        for (strategy, expected, absent) in [
-            (Strategy::Wally, "wally.toml", "modules"),
-            (Strategy::GitSubmodules, "modules", "wally.toml"),
-        ] {
+    fn only_wally_generates_a_package_manifest() {
+        for strategy in [Strategy::Wally, Strategy::None] {
             let keys = keys_of(&plan_from(&[], strategy, &[], &[]));
-            assert!(keys.contains(&expected), "{strategy:?}: {keys:?}");
-            assert!(!keys.contains(&absent), "{strategy:?}: {keys:?}");
+            assert_eq!(keys.contains(&"wally.toml"), strategy == Strategy::Wally);
+            assert!(!keys.contains(&"modules"), "{strategy:?}: {keys:?}");
         }
-        let none = keys_of(&plan_from(&[], Strategy::None, &[], &[]));
-        assert!(!none.contains(&"wally.toml"), "{none:?}");
-        assert!(!none.contains(&"modules"), "{none:?}");
     }
 
     /// CI's body is the gate script, so turning the gate off must take the
@@ -783,7 +762,7 @@ mod tests {
                 .filter(|(i, _)| mask & (1 << i) != 0)
                 .map(|(_, k)| *k)
                 .collect();
-            for strategy in [Strategy::Wally, Strategy::GitSubmodules, Strategy::None] {
+            for strategy in [Strategy::Wally, Strategy::None] {
                 for apps in [vec![], vec!["vscode", "blender"]] {
                     let planned = plan_from(&chosen, strategy, &apps, &["testez-companion"]);
                     let keys = keys_of(&planned);

@@ -17,7 +17,15 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.4, public alpha**, replacing generated Wally CI's source build with the official released tool and validating older project pins before upgrade writes. It retains missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `1a04668`. No unpublished candidate is active. See [release notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.20.4, public alpha**, replacing generated Wally CI's source build with the official released tool and validating older project pins before upgrade writes. It retains missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `1a04668`. Git-submodule retirement is unreleased; release preparation remains a separate task. See [release notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md) for verification and limits.
+
+**Unreleased breaking alpha change: fully retire Git-submodule dependencies.**
+New projects and saved compositions support only Wally and None. Old
+`git-submodules` records are intentionally rejected through configuration errors,
+without aliases, automatic conversion or migration tooling. The owner retains
+responsibility for older alpha projects. Ordinary Git initialization and missing-Git
+recovery remain; existing projects, templates, `.gitmodules` files and dependency
+directories are not deleted or rewritten. Published 0.20.4 stays unchanged.
 
 **Shipped in 0.20.4: retire the Wally source-build workaround.** Official wally-package-types 1.7.0 contains the generic-default and `const` parser fixes previously supplied by a patched build. Generated CI uses the Rokit-installed release. Upgrade refuses managed Wally CI when the official stable project pin is older than 1.7.0, absent or unverifiable; it explains an explicit update and leaves every file unchanged. Tool pins remain owner-controlled, and changes during confirmation refuse the upgrade. Isolated official-binary compatibility checks passed on Windows and a focused Ubuntu CI runner, separately from fresh-machine/project acceptance. Historical machine caches remain untouched. [PR #90](https://github.com/chatarabdelilah/rproj/pull/90) implements the change; [PR #91](https://github.com/chatarabdelilah/rproj/pull/91) prepares the release. Cargo manifest and root lockfile are aligned at 0.20.4; previous shipped tags remain immutable.
 
@@ -65,7 +73,7 @@ manual plugin entry and confirmed global Rokit adds use `--force`.
 
 No new feature milestone is required first. Audit the baseline, fix concrete defects, and record evidence for workflows users already have.
 
-Automated **saved-setup replay** now verifies both Wally and Git submodules: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. Refusal checks now cover missing/malformed setups and Jest without Wally, including explicit `--reconfigure`, with no project creation or fixture/config mutation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.
+Automated **saved-setup replay** now verifies Wally: saved choices, generated files and tool pins, no repeated choice prompts, an unchanged source setup, and temporary-file cleanup. Refusal checks now cover missing/malformed setups and retired workflow values, including explicit `--reconfigure`, with no project creation or fixture/config mutation. Local Jest pass/fail execution is covered; Open Cloud and fresh-machine provisioning remain separate gaps.
 
 The October 2 live audit corrected stale Home navigation and saved-setup fixture
 names, and reproduced a test-preparation defect: retyping an already processed
@@ -149,11 +157,10 @@ bytes and terminal restoration. Home dispatch, preparation, confirmed creation
 and hosted execution remain separate checks.
 
 Strategy revisions now have TestBackend resize recovery for leaving Wally
-through None or Git submodules, including the intermediate Git package screen
-and Testing repair. Filters, selection, detail focus/scroll, warning and graph
+through None and Testing repair. Filters, selection, detail focus/scroll, warning and graph
 survive Help and the same resize sizes. Escape restores the complete reviewed
 Open Cloud composition; acceptance retains TestEZ or disabled Testing while
-preserving lint. Strategy-path PTY input gating remains a separate check.
+preserving lint. No additional terminal test is planned for the retired strategy.
 
 Template Explorer now captures the file it opens and refuses save/reset after
 external changes, creation or deletion. Disposable storage and terminal tests
@@ -181,7 +188,7 @@ remains unverified. See the October 3 audit.
 | Area | Required evidence |
 | --- | --- |
 | Machine setup | Deliberate installation prompts, useful missing-tool errors, and safe reruns. Use an explicitly provisioned test environment; ordinary tests must not install applications. |
-| Creation | Coherent minimal, Wally, and submodule output and pins; saved setups and revisions preserve choices. |
+| Creation | Coherent minimal and Wally output and pins; saved setups and revisions preserve choices. |
 | Template Explorer | Editing, validation, reset, repair, cancellation, and terminal restoration preserve the last valid template. |
 | Daily use | Dependency recovery in Watch, correct runner dispatch, and documented Copy/Catalog behavior. |
 | Upgrade/configure | Review and cancellation work; managed fields update without damaging source or unrelated configuration. |

@@ -2,7 +2,7 @@
 //!
 //! **Not part of `cargo test`.** Every test here is `#[ignore]`d because it
 //! scaffolds a genuine project: it installs rokit tools, resolves packages
-//! from a registry, clones repos, and runs the quality gate. That takes
+//! from a registry and runs the quality gate. That takes
 //! minutes and needs a working toolchain and network, which is the wrong
 //! trade for a suite meant to run on every edit.
 //!
@@ -17,7 +17,7 @@
 //! What this covers that nothing else can: every §7 landmine was found by
 //! running the real thing, and the four biggest gaps in §9 are all here —
 //! the shell-out steps, `rproj new`'s pickers, the generated check script,
-//! and §8.2's claim about how submodule packages resolve.
+//! and generated Wally package resolution.
 
 mod common;
 
@@ -151,6 +151,8 @@ fn hub_creation_confirm_hands_the_reviewed_graph_to_the_existing_executor() {
     assert!(project.exists("default.project.json"));
     assert!(!project.exists("wally.toml"));
     assert!(!project.exists("rokit.toml"));
+    assert!(!project.exists("modules"));
+    assert!(!project.exists(".gitmodules"));
     let saved = std::fs::read(&setup).unwrap();
     assert_eq!(
         saved,
@@ -181,7 +183,7 @@ impl LiveProject {
     /// Filtering rather than counting arrow presses: the catalog's order is
     /// not this test's business, and a test that breaks when a package is
     /// added is a test nobody keeps.
-    fn scaffold(name: &str, packages: &[&str], submodules: bool) -> Self {
+    fn scaffold(name: &str, packages: &[&str]) -> Self {
         let root = projects_root();
         let name = unique_name(name);
         let path = root.join(&name);
@@ -191,10 +193,7 @@ impl LiveProject {
         // **Dependency strategy first.** It used to come after the packages,
         // which is what let a React selection silently overrule it.
         session.wait_for("How should this project get its dependencies?");
-        if submodules {
-            session.send("git-submodules");
-            session.wait_for("git-submodules - ");
-        }
+
         session.send(ENTER);
 
         session.wait_for("How do you want to pick packages?");
@@ -221,7 +220,7 @@ impl LiveProject {
             session.send(&"\x7f".repeat(key.len()));
         }
         session.send(ENTER);
-        if packages.contains(&"testez") && !submodules {
+        if packages.contains(&"testez") {
             session.wait_for("test:");
             session.send("testez");
             session.wait_for("testez - ");
@@ -408,12 +407,12 @@ fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
             "selects Jest Roblox without Wally",
         ),
         (
-            "jest-with-submodules",
+            "retired-workflow",
             Some(
                 "package_workflow = 'git-submodules'\n[capabilities]\ntest = 'jest-roblox'\n"
                     .to_string(),
             ),
-            "selects Jest Roblox without Wally",
+            "unknown variant `git-submodules`",
         ),
     ] {
         let setup_path = tempfile::Builder::new()
@@ -489,8 +488,7 @@ fn invalid_saved_setups_refuse_before_reconfiguration_or_creation() {
 }
 
 /// Saving and replaying must preserve the complete composition, not just its
-/// packages. Exercise both dependency strategies so resetting to Wally cannot
-/// pass accidentally. This uses shared tool caches and a uniquely reserved
+/// packages. Exercise the supported Wally dependency workflow. This uses shared tool caches and a uniquely reserved
 /// setup file, but never replaces an existing user setup or machine config.
 #[test]
 #[ignore = "requires provisioned Rokit/Wally/Git, network and shared setup directory; run serially"]
@@ -500,184 +498,176 @@ fn saved_setup_replays_workflow_packages_capabilities_and_dropped_files() {
     let setups = dirs.config_dir().join("setups");
     std::fs::create_dir_all(&setups).expect("create setup directory");
 
-    for workflow in ["wally", "git-submodules"] {
-        let scratch = tempfile::Builder::new()
-            .prefix("rproj-replay-")
-            .tempdir_in(&root)
-            .expect("create unique replay scratch directory");
-        // Reserve the exact setup filename before the CLI writes it. TempPath
-        // releases the open handle and cleans up even if a later assertion fails.
-        let setup = tempfile::Builder::new()
-            .prefix("rproj-replay-")
-            .suffix(".toml")
-            .tempfile_in(&setups)
-            .expect("reserve unique saved setup")
-            .into_temp_path();
-        let setup_name = setup.file_stem().unwrap().to_str().unwrap();
-        let parent_name = scratch.path().file_name().unwrap().to_str().unwrap();
-        let original_name = format!("{parent_name}/original");
-        let replay_name = format!("{parent_name}/replayed");
-        let original = scratch.path().join("original");
-        let replayed = scratch.path().join("replayed");
-        let mut session =
-            Session::start(&root, &["new", &original_name, "--save-setup", setup_name]);
-        session.wait_for("How should this project get its dependencies?");
-        session.send(workflow);
-        session.wait_for(&format!("{workflow} - "));
-        session.send(ENTER);
-        session.wait_for("How do you want to pick packages?");
-        session.send(&format!("{DOWN}{ENTER}")); // expert
-        session.wait_for("Pick every package this project needs");
-        session.send(LEFT);
-        for key in ["charm", "promise"] {
-            session.send(key);
-            session.wait_for(&format!("{key} - "));
-            session.send(" ");
-            session.send(&"\x7f".repeat(key.len()));
-        }
-        session.send(ENTER);
-        session.wait_for("What should this project do?");
-        session.send(LEFT);
-        for key in ["format", "lint"] {
-            session.send(key);
-            session.wait_for(&format!("{key} - "));
-            session.send(" ");
-            session.send(&"\x7f".repeat(key.len()));
-        }
-        session.send(ENTER);
-        session.wait_for("Create it?");
-        session.send("customize");
-        session.wait_for("customize - ");
-        session.send(ENTER);
-        session.wait_for("Files to keep");
-        session.send(".gitignore");
-        session.wait_for(".gitignore - ");
-        session.send(&format!(" {ENTER}")); // drop only this housekeeping file
-        session.wait_for("Create it?");
-        session.send(ENTER);
-        session.wait_for("is ready");
-        let created = session.finish();
-        assert_eq!(created.code, 0, "{workflow}: {}", created.text);
-        created.assert_contains(&format!("saved setup `{setup_name}`"));
-
-        let read_toml = |path: &Path| -> toml::Value {
-            let text = std::fs::read_to_string(path)
-                .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
-            toml::from_str(&text).expect("valid generated TOML")
-        };
-        // Pin the intended answers before comparing two outputs: otherwise
-        // two equally incorrect scaffolds could satisfy the round trip.
-        let expected: toml::Value = toml::from_str(&format!(
-            "mode = 'expert'\npackage_workflow = '{workflow}'\n\
-             packages = ['charm', 'promise']\ndropped = ['.gitignore']\n\
-             [capabilities]\nformat = 'stylua'\nlint = 'selene'\n"
-        ))
-        .unwrap();
-        assert_eq!(read_toml(&original.join("rproj.toml")), expected);
-        assert_eq!(read_toml(&setup), expected);
-        let saved_bytes = std::fs::read(&setup).unwrap();
-
-        let mut session = Session::start(&root, &["new", &replay_name, "--like", setup_name]);
-        // No choice prompts are answered on this run. Re-asking any of them
-        // must fail, rather than silently repairing an incomplete replay.
-        session.wait_for("Create it?");
-        session.send(ENTER);
-        session.wait_for("is ready");
-        let replay = session.finish();
-        assert_eq!(replay.code, 0, "{workflow}: {}", replay.text);
-        replay.assert_contains(&format!("using saved setup `{setup_name}`"));
-        for prompt in [
-            "How should this project get its dependencies?",
-            "How do you want to pick packages?",
-            "Pick every package this project needs",
-            "What should this project do?",
-            "Files to keep",
-        ] {
-            replay.assert_lacks(prompt);
-        }
-        let mut expected_replay = expected;
-        expected_replay["mode"] = format!("like:{setup_name}").into();
-        assert_eq!(read_toml(&replayed.join("rproj.toml")), expected_replay);
-        assert_eq!(
-            std::fs::read(&setup).unwrap(),
-            saved_bytes,
-            "replay rewrote setup"
-        );
-
-        // The graph is not enough: the filesystem must honor those choices.
-        for project in [&original, &replayed] {
-            for kept in [
-                "default.project.json",
-                "stylua.toml",
-                ".gitattributes",
-                "selene.toml",
-            ] {
-                assert!(
-                    project.join(kept).is_file(),
-                    "missing {kept} in {project:?}"
-                );
-            }
-            for absent in [".gitignore", ".vscode/settings.json", ".lute/check.luau"] {
-                assert!(
-                    !project.join(absent).exists(),
-                    "unexpected {absent} in {project:?}"
-                );
-            }
-            if workflow == "wally" {
-                let manifest = read_toml(&project.join("wally.toml"));
-                let dependencies = manifest["dependencies"].as_table().unwrap();
-                assert_eq!(
-                    dependencies.keys().map(String::as_str).collect::<Vec<_>>(),
-                    ["charm", "promise"]
-                );
-                for key in ["charm", "promise"] {
-                    // Wally owns the generated link extension and casing.
-                    assert!(
-                        std::fs::read_dir(project.join("Packages"))
-                            .unwrap()
-                            .any(|entry| {
-                                let path = entry.unwrap().path();
-                                path.is_file()
-                                    && path
-                                        .file_stem()
-                                        .is_some_and(|stem| stem.eq_ignore_ascii_case(key))
-                            }),
-                        "missing installed Wally package {key} in {project:?}"
-                    );
-                }
-                assert!(!project.join("modules").exists());
-            } else {
-                for module in ["Charm", "Promise"] {
-                    assert!(project.join(format!("modules/{module}.luau")).is_file());
-                }
-                assert!(project.join(".gitmodules").is_file());
-                assert!(!project.join("wally.toml").exists());
-            }
-            let pins = read_toml(&project.join("rokit.toml"));
-            let tools = pins["tools"].as_table().expect("project-local tool pins");
-            for source in ["JohnnyMorganz/StyLua@", "Kampfkarren/selene@"] {
-                assert!(
-                    tools
-                        .values()
-                        .any(|pin| pin.as_str().is_some_and(|pin| pin.starts_with(source))),
-                    "missing selected {source} pin in {project:?}: {pins}"
-                );
-            }
-        }
-        assert_eq!(
-            read_toml(&original.join("rokit.toml"))["tools"],
-            read_toml(&replayed.join("rokit.toml"))["tools"],
-            "replay changed project-local tool pins"
-        );
-        let setup_path = setup.to_path_buf();
-        let scratch_path = scratch.path().to_path_buf();
-        setup.close().expect("remove temporary saved setup");
-        scratch
-            .close()
-            .expect("remove original and replayed scratch projects");
-        assert!(!setup_path.exists());
-        assert!(!scratch_path.exists());
+    let workflow = "wally";
+    let scratch = tempfile::Builder::new()
+        .prefix("rproj-replay-")
+        .tempdir_in(&root)
+        .expect("create unique replay scratch directory");
+    // Reserve the exact setup filename before the CLI writes it. TempPath
+    // releases the open handle and cleans up even if a later assertion fails.
+    let setup = tempfile::Builder::new()
+        .prefix("rproj-replay-")
+        .suffix(".toml")
+        .tempfile_in(&setups)
+        .expect("reserve unique saved setup")
+        .into_temp_path();
+    let setup_name = setup.file_stem().unwrap().to_str().unwrap();
+    let parent_name = scratch.path().file_name().unwrap().to_str().unwrap();
+    let original_name = format!("{parent_name}/original");
+    let replay_name = format!("{parent_name}/replayed");
+    let original = scratch.path().join("original");
+    let replayed = scratch.path().join("replayed");
+    let mut session = Session::start(&root, &["new", &original_name, "--save-setup", setup_name]);
+    session.wait_for("How should this project get its dependencies?");
+    session.send(workflow);
+    session.wait_for(&format!("{workflow} - "));
+    session.send(ENTER);
+    session.wait_for("How do you want to pick packages?");
+    session.send(&format!("{DOWN}{ENTER}")); // expert
+    session.wait_for("Pick every package this project needs");
+    session.send(LEFT);
+    for key in ["charm", "promise"] {
+        session.send(key);
+        session.wait_for(&format!("{key} - "));
+        session.send(" ");
+        session.send(&"\x7f".repeat(key.len()));
     }
+    session.send(ENTER);
+    session.wait_for("What should this project do?");
+    session.send(LEFT);
+    for key in ["format", "lint"] {
+        session.send(key);
+        session.wait_for(&format!("{key} - "));
+        session.send(" ");
+        session.send(&"\x7f".repeat(key.len()));
+    }
+    session.send(ENTER);
+    session.wait_for("Create it?");
+    session.send("customize");
+    session.wait_for("customize - ");
+    session.send(ENTER);
+    session.wait_for("Files to keep");
+    session.send(".gitignore");
+    session.wait_for(".gitignore - ");
+    session.send(&format!(" {ENTER}")); // drop only this housekeeping file
+    session.wait_for("Create it?");
+    session.send(ENTER);
+    session.wait_for("is ready");
+    let created = session.finish();
+    assert_eq!(created.code, 0, "{workflow}: {}", created.text);
+    created.assert_contains(&format!("saved setup `{setup_name}`"));
+
+    let read_toml = |path: &Path| -> toml::Value {
+        let text = std::fs::read_to_string(path)
+            .unwrap_or_else(|error| panic!("reading {}: {error}", path.display()));
+        toml::from_str(&text).expect("valid generated TOML")
+    };
+    // Pin the intended answers before comparing two outputs: otherwise
+    // two equally incorrect scaffolds could satisfy the round trip.
+    let expected: toml::Value = toml::from_str(&format!(
+        "mode = 'expert'\npackage_workflow = '{workflow}'\n\
+         packages = ['charm', 'promise']\ndropped = ['.gitignore']\n\
+         [capabilities]\nformat = 'stylua'\nlint = 'selene'\n"
+    ))
+    .unwrap();
+    assert_eq!(read_toml(&original.join("rproj.toml")), expected);
+    assert_eq!(read_toml(&setup), expected);
+    let saved_bytes = std::fs::read(&setup).unwrap();
+
+    let mut session = Session::start(&root, &["new", &replay_name, "--like", setup_name]);
+    // No choice prompts are answered on this run. Re-asking any of them
+    // must fail, rather than silently repairing an incomplete replay.
+    session.wait_for("Create it?");
+    session.send(ENTER);
+    session.wait_for("is ready");
+    let replay = session.finish();
+    assert_eq!(replay.code, 0, "{workflow}: {}", replay.text);
+    replay.assert_contains(&format!("using saved setup `{setup_name}`"));
+    for prompt in [
+        "How should this project get its dependencies?",
+        "How do you want to pick packages?",
+        "Pick every package this project needs",
+        "What should this project do?",
+        "Files to keep",
+    ] {
+        replay.assert_lacks(prompt);
+    }
+    let mut expected_replay = expected;
+    expected_replay["mode"] = format!("like:{setup_name}").into();
+    assert_eq!(read_toml(&replayed.join("rproj.toml")), expected_replay);
+    assert_eq!(
+        std::fs::read(&setup).unwrap(),
+        saved_bytes,
+        "replay rewrote setup"
+    );
+
+    // The graph is not enough: the filesystem must honor those choices.
+    for project in [&original, &replayed] {
+        for kept in [
+            "default.project.json",
+            "stylua.toml",
+            ".gitattributes",
+            "selene.toml",
+        ] {
+            assert!(
+                project.join(kept).is_file(),
+                "missing {kept} in {project:?}"
+            );
+        }
+        for absent in [".gitignore", ".vscode/settings.json", ".lute/check.luau"] {
+            assert!(
+                !project.join(absent).exists(),
+                "unexpected {absent} in {project:?}"
+            );
+        }
+        let manifest = read_toml(&project.join("wally.toml"));
+        let dependencies = manifest["dependencies"].as_table().unwrap();
+        assert_eq!(
+            dependencies.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["charm", "promise"]
+        );
+        for key in ["charm", "promise"] {
+            // Wally owns the generated link extension and casing.
+            assert!(
+                std::fs::read_dir(project.join("Packages"))
+                    .unwrap()
+                    .any(|entry| {
+                        let path = entry.unwrap().path();
+                        path.is_file()
+                            && path
+                                .file_stem()
+                                .is_some_and(|stem| stem.eq_ignore_ascii_case(key))
+                    }),
+                "missing installed Wally package {key} in {project:?}"
+            );
+        }
+        assert!(!project.join("modules").exists());
+        assert!(!project.join(".gitmodules").exists());
+
+        let pins = read_toml(&project.join("rokit.toml"));
+        let tools = pins["tools"].as_table().expect("project-local tool pins");
+        for source in ["JohnnyMorganz/StyLua@", "Kampfkarren/selene@"] {
+            assert!(
+                tools
+                    .values()
+                    .any(|pin| pin.as_str().is_some_and(|pin| pin.starts_with(source))),
+                "missing selected {source} pin in {project:?}: {pins}"
+            );
+        }
+    }
+    assert_eq!(
+        read_toml(&original.join("rokit.toml"))["tools"],
+        read_toml(&replayed.join("rokit.toml"))["tools"],
+        "replay changed project-local tool pins"
+    );
+    let setup_path = setup.to_path_buf();
+    let scratch_path = scratch.path().to_path_buf();
+    setup.close().expect("remove temporary saved setup");
+    scratch
+        .close()
+        .expect("remove original and replayed scratch projects");
+    assert!(!setup_path.exists());
+    assert!(!scratch_path.exists());
 }
 
 /// Exercises the released CLI boundary, including scaffolded pins/config,
@@ -1128,7 +1118,7 @@ fn changing_an_early_answer_reasks_only_what_it_invalidates() {
 #[test]
 #[ignore]
 fn a_wally_project_scaffolds_and_passes_its_own_gate() {
-    let project = LiveProject::scaffold("live-wally", &["charm", "testez"], false);
+    let project = LiveProject::scaffold("live-wally", &["charm", "testez"]);
 
     for file in [
         "rokit.toml",
@@ -1171,8 +1161,7 @@ fn a_wally_project_scaffolds_and_passes_its_own_gate() {
 
     // Case-insensitive on purpose. A Wally package is mounted under the
     // alias from `wally.toml`, so the instance is `charm`, not `Charm` -
-    // the casing is wally's business here. It is *not* in the submodule
-    // test below, where the mount name is load-bearing (§8.2).
+    // Wally owns the alias casing.
     let sourcemap = project.read("sourcemap.json").to_lowercase();
     assert!(
         sourcemap.contains("\"charm\""),
@@ -1186,46 +1175,12 @@ fn a_wally_project_scaffolds_and_passes_its_own_gate() {
     );
 }
 
-/// The §8.2 claim, which until now was only ever checked by hand: a
-/// submodule package resolves under *both* the name project code requires
-/// and the name the vendored source requires internally.
-#[test]
-#[ignore]
-fn submodule_packages_resolve_under_both_names_and_build() {
-    // charmSync pulls in charm, and both live in one upstream monorepo -
-    // the case where the mount name is load-bearing.
-    let project = LiveProject::scaffold("live-submodules", &["charmSync"], true);
-
-    assert!(project.exists("modules/Charm.luau"), "link file missing");
-    assert!(
-        project.exists("modules/CharmSync.luau"),
-        "link file missing"
-    );
-    assert!(project.exists("modules/submodules/default.project.json"));
-
-    let sourcemap = project.read("sourcemap.json");
-    for name in ["Charm", "CharmSync"] {
-        assert!(
-            sourcemap.contains(&format!("\"{name}\"")),
-            "{name} missing from the sourcemap"
-        );
-    }
-
-    // The real test of the mount: rojo refuses a `$path` it can't turn into
-    // an instance, so a build succeeding means every declared path resolved.
-    let (code, output) = run(project.path(), "rojo", &["build", "-o", "live-check.rbxlx"]);
-    assert_eq!(code, 0, "rojo build failed:\n{output}");
-    assert!(project.exists("live-check.rbxlx"));
-
-    assert_eq!(project.gate(), 0, "submodule project failed its own gate");
-}
-
 /// A gate that only ever passes proves nothing. Each of the three steps is
 /// broken in turn, and each has to take the gate from 0 to non-zero.
 #[test]
 #[ignore]
 fn the_generated_gate_rejects_bad_code_one_step_at_a_time() {
-    let project = LiveProject::scaffold("live-gate", &["testez"], false);
+    let project = LiveProject::scaffold("live-gate", &["testez"]);
     assert_eq!(project.gate(), 0, "should start green");
 
     let spec = project
@@ -1282,79 +1237,4 @@ fn the_generated_gate_rejects_bad_code_one_step_at_a_time() {
             "restoring should go green again ({what})"
         );
     }
-}
-
-/// A `git clone` records a submodule's commit and leaves its directory
-/// empty, and `rproj watch` is what repairs that. Verified by cloning
-/// without `--recurse-submodules`, which is what `git clone <url>` does.
-#[test]
-#[ignore]
-fn watch_restores_submodules_in_a_fresh_clone() {
-    let project = LiveProject::scaffold("live-clone", &["charm"], true);
-
-    let (code, output) = run(project.path(), "git", &["add", "-A"]);
-    assert_eq!(code, 0, "{output}");
-    let (code, output) = run(
-        project.path(),
-        "git",
-        &[
-            "-c",
-            "user.email=t@t",
-            "-c",
-            "user.name=t",
-            "commit",
-            "-qm",
-            "scaffold",
-        ],
-    );
-    assert_eq!(code, 0, "{output}");
-
-    let clone = projects_root().join(unique_name("clone-copy"));
-    let (code, output) = run(
-        projects_root().as_path(),
-        "git",
-        &[
-            "clone",
-            "-q",
-            &project.path().display().to_string(),
-            &clone.display().to_string(),
-        ],
-    );
-    assert_eq!(code, 0, "clone failed:\n{output}");
-    struct Cleanup(PathBuf);
-    impl Drop for Cleanup {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-    let _cleanup = Cleanup(clone.clone());
-
-    // The state a teammate actually gets: the directory exists and is empty.
-    let vendored = clone.join("modules").join("submodules").join("charm");
-    assert!(
-        std::fs::read_dir(&vendored)
-            .map(|mut d| d.next().is_none())
-            .unwrap_or(true),
-        "the clone already has submodule contents, so this proves nothing"
-    );
-
-    // `watch` never returns on its own; it repairs, then blocks on the
-    // sourcemap watcher. Getting as far as watching is the pass condition.
-    let session = Session::start(&clone, &["watch"]);
-    session.wait_for("submodules synced");
-    // "Watching for changes" prints *before* the watcher starts, so it
-    // proves nothing on its own; rojo's own line is the real signal.
-    session.wait_for("Created sourcemap");
-    drop(session);
-
-    assert!(
-        std::fs::read_dir(&vendored)
-            .map(|mut d| d.next().is_some())
-            .unwrap_or(false),
-        "watch did not fetch the submodule"
-    );
-    assert!(
-        clone.join("sourcemap.json").exists(),
-        "no sourcemap after watch"
-    );
 }

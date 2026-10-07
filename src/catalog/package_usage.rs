@@ -106,7 +106,7 @@ pub fn find(key: &str) -> Option<Guide> {
             "Server Script only.",
             &["profilestore"],
             "local store = ProfileStore.New(\"ExampleProfiles\", { Coins = 0 })\nprint(store.Name)",
-            "Store creation is not a complete player lifecycle. Handle StartSessionAsync failure, reconciliation, PlayerRemoving, and EndSession. Never expose profile data through shared submodules unintentionally.",
+            "Store creation is not a complete player lifecycle. Handle StartSessionAsync failure, reconciliation, PlayerRemoving, and EndSession. Never expose profile data through shared storage unintentionally.",
         ),
         "scribe" => (
             "Declare typed, replicated profile schemas.",
@@ -210,20 +210,13 @@ pub fn find(key: &str) -> Option<Guide> {
     })
 }
 
-pub fn import(package: &PackageSpec, submodules: bool) -> String {
-    let path = if submodules {
-        format!(
-            "game:GetService(\"ReplicatedStorage\").modules.{}",
-            package.module_name
-        )
-    } else {
-        let (service, mount) = match package.realm {
-            Realm::Shared => ("ReplicatedStorage", "packages"),
-            Realm::Server => ("ServerScriptService", "serverPackages"),
-            Realm::Dev => ("ReplicatedStorage", "devPackages"),
-        };
-        format!("game:GetService(\"{service}\").{mount}.{}", package.alias())
+pub fn import(package: &PackageSpec) -> String {
+    let (service, mount) = match package.realm {
+        Realm::Shared => ("ReplicatedStorage", "packages"),
+        Realm::Server => ("ServerScriptService", "serverPackages"),
+        Realm::Dev => ("ReplicatedStorage", "devPackages"),
     };
+    let path = format!("game:GetService(\"{service}\").{mount}.{}", package.alias());
     format!("local {} = require({path})", package.module_name)
 }
 
@@ -231,12 +224,7 @@ pub fn example(guide: &Guide) -> String {
     let mut lines: Vec<_> = guide
         .imports
         .iter()
-        .map(|key| {
-            import(
-                wally_packages::find(key).expect("guide import exists"),
-                false,
-            )
-        })
+        .map(|key| import(wally_packages::find(key).expect("guide import exists")))
         .collect();
     lines.push(guide.example.into());
     lines.join("\n")
@@ -258,13 +246,13 @@ mod tests {
             assert!(!example(&guide).is_empty());
         }
         assert!(
-            import(wally_packages::find("profilestore").unwrap(), false)
+            import(wally_packages::find("profilestore").unwrap())
                 .contains("ServerScriptService\").serverPackages.profilestore")
         );
         assert!(
-            import(wally_packages::find("jest-globals").unwrap(), false)
+            import(wally_packages::find("jest-globals").unwrap())
                 .contains("devPackages.JestGlobals")
         );
-        assert!(import(wally_packages::find("charm").unwrap(), true).contains("modules.Charm"));
+        assert!(import(wally_packages::find("charm").unwrap()).contains("packages.charm"));
     }
 }

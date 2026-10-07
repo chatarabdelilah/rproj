@@ -5,7 +5,6 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 
-use crate::config::PackageWorkflow;
 use crate::steps::probe;
 use crate::ui;
 
@@ -169,27 +168,15 @@ fn drop_superseded(settings: &mut serde_json::Map<String, Value>) {
     }
 }
 
-/// Globs the editor should treat as vendored third-party code.
-///
-/// luau-lsp already defaults both of these to `["**/_Index/**"]`, which is
-/// where *Wally* puts vendored packages - so the Wally workflow gets this
-/// behaviour for free and the git-submodule workflow got none of it. That
-/// asymmetry is the whole reason a submodule project showed hundreds of
-/// diagnostics from code it doesn't own, and offered every package twice
-/// in auto-import (`modules.Charm` and `modules.submodules.Charm`).
-/// Extending the defaults rather than replacing them keeps `_Index`
-/// covered for projects that use both.
-const VENDORED_GLOBS: &[&str] = &["**/_Index/**", "**/submodules/**"];
-
 /// Writes the editor settings a scaffolded project needs on top of the
 /// extension defaults.
-pub fn ensure_project_settings(project_dir: &Path, workflow: PackageWorkflow) -> Result<()> {
-    merge_settings(project_dir, &project_settings(workflow))
+pub fn ensure_project_settings(project_dir: &Path) -> Result<()> {
+    merge_settings(project_dir, &project_settings())
 }
 
 /// The editor settings a scaffolded project needs on top of the extension
 /// defaults. Split from the writer so the list itself is testable.
-pub fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)> {
+pub fn project_settings() -> Vec<(&'static str, Value)> {
     let mut entries: Vec<(&str, Value)> = vec![
         // The extension defaults this to *false*, which is the single
         // setting standing between a scaffolded project and knowing about
@@ -239,13 +226,6 @@ pub fn project_settings(workflow: PackageWorkflow) -> Vec<(&'static str, Value)>
     // `--config-path` only when the value is non-empty after trimming.
     entries.push(("stylua.configPath", json!("")));
 
-    if workflow == PackageWorkflow::GitSubmodules {
-        entries.push(("luau-lsp.ignoreGlobs", json!(VENDORED_GLOBS)));
-        entries.push((
-            "luau-lsp.completion.imports.ignoreGlobs",
-            json!(VENDORED_GLOBS),
-        ));
-    }
     entries
 }
 
@@ -264,38 +244,18 @@ fn rokit_tool_path(tool: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    /// luau-lsp's own defaults only cover Wally's `_Index`; dropping it
-    /// while adding `submodules` would regress projects using both.
-    #[test]
-    fn vendored_globs_extend_rather_than_replace_the_defaults() {
-        assert!(
-            VENDORED_GLOBS.contains(&"**/_Index/**"),
-            "must keep Wally's vendored dir"
-        );
-        assert!(
-            VENDORED_GLOBS.contains(&"**/submodules/**"),
-            "must add the submodule dir"
-        );
-    }
-
-    fn setting(workflow: PackageWorkflow, key: &str) -> Option<Value> {
-        project_settings(workflow)
+    fn setting(key: &str) -> Option<Value> {
+        project_settings()
             .into_iter()
             .find(|(k, _)| *k == key)
             .map(|(_, v)| v)
     }
 
-    /// This used to write nothing at all unless the project used git
-    /// submodules, so every Wally project - the common case - got whatever
-    /// the machine's global settings happened to say.
+    /// Both supported workflows receive project-local editor settings.
     #[test]
-    fn both_workflows_get_editor_settings() {
-        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            assert!(
-                !project_settings(workflow).is_empty(),
-                "{workflow:?} got nothing"
-            );
-        }
+
+    fn project_editor_settings_are_present() {
+        assert!(!project_settings().is_empty());
     }
 
     /// The extension defaults this to false, and with it off the editor
@@ -303,19 +263,13 @@ mod tests {
     /// nothing you create in Studio is ever known to autocomplete, with no
     /// error anywhere to say so.
     #[test]
+
     fn the_studio_plugin_bridge_is_turned_on() {
-        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
-            // The non-deprecated spelling: `luau-lsp.plugin.enabled` is
-            // deprecated in favour of this one.
-            assert_eq!(
-                setting(workflow, "luau-lsp.studioPlugin.enabled"),
-                Some(json!(true))
-            );
-            assert!(
-                setting(workflow, "luau-lsp.plugin.enabled").is_none(),
-                "deprecated spelling"
-            );
-        }
+        assert_eq!(setting("luau-lsp.studioPlugin.enabled"), Some(json!(true)));
+        assert!(
+            setting("luau-lsp.plugin.enabled").is_none(),
+            "deprecated spelling"
+        );
     }
 
     /// A user-level `stylua.configPath` is absolute and outranks every
@@ -324,10 +278,7 @@ mod tests {
     /// specified". An empty workspace value restores the normal lookup.
     #[test]
     fn a_stale_global_stylua_config_path_is_neutralised() {
-        assert_eq!(
-            setting(PackageWorkflow::Wally, "stylua.configPath"),
-            Some(json!(""))
-        );
+        assert_eq!(setting("stylua.configPath"), Some(json!("")));
     }
 
     /// Adding the replacement isn't enough: the deprecated key stays valid
@@ -363,10 +314,7 @@ mod tests {
     /// writes, or the guard never fires and the key is never cleaned up.
     #[test]
     fn every_replacement_is_a_setting_rproj_writes() {
-        let written: Vec<&str> = project_settings(PackageWorkflow::Wally)
-            .into_iter()
-            .map(|(k, _)| k)
-            .collect();
+        let written: Vec<&str> = project_settings().into_iter().map(|(k, _)| k).collect();
         for (old, replacement) in SUPERSEDED {
             assert!(
                 written.contains(replacement),
@@ -386,7 +334,7 @@ mod tests {
     #[test]
     fn new_files_are_created_with_unix_line_endings() {
         assert_eq!(
-            setting(PackageWorkflow::Wally, "files.eol"),
+            setting("files.eol"),
             Some(json!(
                 "
 "
@@ -398,11 +346,8 @@ mod tests {
     /// instead; setting both squiggles the file rproj just wrote.
     #[test]
     fn the_deprecated_roblox_types_switch_is_not_written() {
-        assert!(setting(PackageWorkflow::Wally, "luau-lsp.types.roblox").is_none());
-        assert_eq!(
-            setting(PackageWorkflow::Wally, "luau-lsp.platform.type"),
-            Some(json!("roblox"))
-        );
+        assert!(setting("luau-lsp.types.roblox").is_none());
+        assert_eq!(setting("luau-lsp.platform.type"), Some(json!("roblox")));
     }
 
     /// `rproj watch` runs `rojo sourcemap --watch`; letting the extension
@@ -410,16 +355,8 @@ mod tests {
     #[test]
     fn sourcemap_autogeneration_is_left_to_rproj_watch() {
         assert_eq!(
-            setting(PackageWorkflow::Wally, "luau-lsp.sourcemap.autogenerate"),
+            setting("luau-lsp.sourcemap.autogenerate"),
             Some(json!(false))
         );
-    }
-
-    /// The vendored globs are the one part that really is submodule-only:
-    /// luau-lsp already ignores Wally's `_Index` by default.
-    #[test]
-    fn vendored_globs_stay_submodule_only() {
-        assert!(setting(PackageWorkflow::Wally, "luau-lsp.ignoreGlobs").is_none());
-        assert!(setting(PackageWorkflow::GitSubmodules, "luau-lsp.ignoreGlobs").is_some());
     }
 }

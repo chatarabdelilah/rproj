@@ -69,9 +69,7 @@ local analyze = process.run({
 	"analyze",
 	"--sourcemap=sourcemap.json",
 	-- Vendored dependencies are third-party code; their type errors are
-	-- not this project's to fix, and submodules in particular are pinned
-	-- checkouts we don't control.
-	"--ignore=**/submodules/**",
+	-- not this project's to fix.
 	"--ignore=**/Packages/**",
 	"--ignore=**/ServerPackages/**",
 	"--ignore=**/DevPackages/**",
@@ -201,9 +199,6 @@ pub fn render_check(selected_tools: &[String], has_tests: bool) -> Option<String
 /// project from the moment it was written; it went unnoticed because
 /// Windows resolves the mapped `packages` to wally's `Packages` anyway and
 /// nobody had run the gate on the Linux runner.
-///
-/// Submodule projects need no equivalent - `submodules: true` on the
-/// checkout already brings their packages in.
 fn wally_ci_steps(has_server_packages: bool, runner: Option<TestRunner>) -> String {
     // Naming a directory that doesn't exist is an error, and ServerPackages/
     // only exists when something server-realm was selected.
@@ -254,7 +249,7 @@ pub fn ci_workflow(
         PackageWorkflow::Wally => wally_ci_steps(has_server_packages, runner),
         // Submodules arrive with the checkout, and a project with no
         // dependency manager has nothing to install in the first place.
-        PackageWorkflow::GitSubmodules | PackageWorkflow::None => String::new(),
+        PackageWorkflow::None => String::new(),
     };
     let tests = match runner {
         None => String::new(),
@@ -298,9 +293,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Packages vendored as git submodules are part of the build.
-          submodules: true
 
       # Installs every tool pinned in rokit.toml (rojo, luau-lsp, selene,
       # stylua, lute...) at the exact versions this project uses.
@@ -568,7 +560,7 @@ mod tests {
     /// without a tests script - `lute test` exits 0 when none are found.
     #[test]
     fn ci_workflow_runs_the_gate_and_tolerates_no_tests() {
-        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
+        for &workflow in PackageWorkflow::ALL {
             let ci = ci_workflow(
                 workflow,
                 false,
@@ -578,7 +570,7 @@ mod tests {
             assert!(ci.contains("lute run check"));
             assert!(ci.contains("lute test"));
             assert!(!ci.contains("lute run tests"));
-            assert!(ci.contains("submodules: true"));
+            assert!(!ci.contains("submodules:"), "{ci}");
         }
     }
 
@@ -632,16 +624,16 @@ mod tests {
             "packages must be installed before the gate runs:\n{ci}"
         );
 
-        // Submodule projects get their packages from `submodules: true` and
-        // don't pin wally at all - invoking it would fail on a missing
-        // binary.
-        let submodules = ci_workflow(
-            PackageWorkflow::GitSubmodules,
+        let without_dependencies = ci_workflow(
+            PackageWorkflow::None,
             false,
             Some(TestRunner::TestEz),
             crate::graph::JestBackend::OpenCloud,
         );
-        assert!(!submodules.contains("wally"), "{submodules}");
+        assert!(
+            !without_dependencies.contains("wally"),
+            "{without_dependencies}"
+        );
     }
 
     #[test]

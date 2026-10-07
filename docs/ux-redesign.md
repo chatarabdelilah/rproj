@@ -36,7 +36,7 @@ The graph records intent and derives coherent tools and artifacts:
 
 ```text
 Project
-|-- Dependency strategy: Wally, Git submodules, or none
+|-- Dependency strategy: Wally or none
 |-- Packages: code the project depends on
 |-- Capabilities: workflows the project supports
 |   `-- Compatible implementation, required tools, and artifacts

@@ -25,7 +25,7 @@ machine provisioning, Configure, Upgrade, or subprocess output into new screens.
 The flow is:
 
 1. Name and composition source: new guided/expert choices or an existing saved setup.
-2. Dependency strategy: Wally, Git submodules, or none.
+2. Dependency strategy: Wally or none.
 3. Packages: guided categories or the searchable expert multi-select.
 4. Capabilities: compatible implementations, with testing remaining optional.
 5. Review: graph choices and derived files, optional file removal, named setup save,
@@ -69,7 +69,7 @@ names and path separators. Paste is supported in the name inputs and search fiel
 - Pure state-transition tests for guided/expert parity, filtering, saved setup
   replay, dependency revisions, optional testing, and dropped artifacts.
 - Derived graph/plan parity against existing direct-command fixtures for none,
-  Wally, submodules, TestEZ, and Jest where compatible.
+  Wally, None, TestEZ, and Jest where compatible.
 - Render tests for wide/narrow/minimum size, help, validation errors, and Unicode.
 - PTY tests for cancellation, terminal restoration, confirmation boundaries,
   no premature directory creation, and a concurrent destination writer.
