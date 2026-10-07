@@ -84,6 +84,28 @@ jobs:
         if: matrix.toolchain == 'stable'
         run: cargo fmt --all --check
 
+  wpt-release:
+    name: released Wally types (Linux)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wpt-release-linux
+      - name: Verify official wally-package-types 1.7.0
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/wpt-release"
+          curl --fail --location --silent --show-error https://github.com/JohnnyMorganz/wally-package-types/releases/download/v1.7.0/wally-package-types-linux-x86_64.zip -o "$RUNNER_TEMP/wpt-release/release.zip"
+          echo "a8ce418b45a04dec8cce321a4f3583fe20b448e6c2c31c71aa453f590051911b  $RUNNER_TEMP/wpt-release/release.zip" | sha256sum --check
+          unzip "$RUNNER_TEMP/wpt-release/release.zip" -d "$RUNNER_TEMP/wpt-release"
+          chmod +x "$RUNNER_TEMP/wpt-release/wally-package-types"
+          echo "RPROJ_WPT_TEST_BIN=$RUNNER_TEMP/wpt-release/wally-package-types" >> "$GITHUB_ENV"
+      - name: Check generic-default and const compatibility
+        run: cargo test --locked --test wpt_release -- --ignored --exact released_wpt_preserves_valid_generic_types_and_parses_const
+
   package:
     name: package
     runs-on: windows-latest

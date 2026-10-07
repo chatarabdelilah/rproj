@@ -33,6 +33,125 @@ fn snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
     files
 }
 
+fn wally_ci_fixture(pin: Option<&str>) -> TempProject {
+    let project = fixture("released-wpt", "\"charm\", \"testez\"");
+    project.write(
+        "rproj.toml",
+        &format!(
+            "{}gate='lute'\nci='github-actions'\n",
+            project.read("rproj.toml")
+        ),
+    );
+    if let Some(pin) = pin {
+        project.write("rokit.toml", &format!("# owner choices\n[tools]\nwally-package-types='{pin}'\nwally='UpliftGames/wally@0.3.2'\n"));
+    }
+    project.write("src/custom.luau", "return 'keep'\n");
+    project
+}
+
+#[test]
+fn incompatible_wpt_pins_refuse_ci_upgrade_without_any_writes() {
+    for pin in [
+        None,
+        Some("JohnnyMorganz/wally-package-types@1.6.2"),
+        Some("JohnnyMorganz/wally-package-types@1.7.0-rc.1"),
+        Some("JohnnyMorganz/wally-package-types@latest"),
+        Some("Other/wally-package-types@1.7.0"),
+        Some("JohnnyMorganz/wally-package-types@1.7"),
+        Some("JohnnyMorganz/wally-package-types@1.7.0.1"),
+    ] {
+        for args in [&["upgrade"][..], &["upgrade", "--yes"][..]] {
+            let project = wally_ci_fixture(pin);
+            let before = snapshot(project.path());
+            let outcome = Session::start(project.path(), args).finish();
+            assert_eq!(outcome.code, 1, "{}", outcome.text);
+            outcome.assert_contains("wally-package-types");
+            outcome.assert_contains("1.7.0");
+            outcome.assert_contains(if pin.is_none() {
+                "rokit add wally-package-types"
+            } else {
+                "rokit update wally-package-types"
+            });
+            outcome.assert_lacks("Apply these changes?");
+            assert_eq!(snapshot(project.path()), before);
+        }
+    }
+}
+
+#[test]
+fn malformed_or_missing_wpt_entries_refuse_ci_upgrade_without_writes() {
+    for manifest in [
+        "invalid [toml",
+        "[tools]\nwally='UpliftGames/wally@0.3.2'\n",
+        "[tools]\nwally-package-types=17\n",
+    ] {
+        let project = wally_ci_fixture(None);
+        project.write("rokit.toml", manifest);
+        let before = snapshot(project.path());
+        let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        assert_eq!(outcome.code, 1, "{}", outcome.text);
+        outcome.assert_contains("rokit.toml");
+        outcome.assert_contains("Nothing written");
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn released_wpt_pins_allow_ci_upgrade_without_changing_tools() {
+    for version in ["1.7.0", "1.10.0", "2.0.0", "v1.7.0", "1.7.0+build.1"] {
+        let project = wally_ci_fixture(Some(&format!(
+            "JohnnyMorganz/wally-package-types@{version}"
+        )));
+        let manifest = project.read("rokit.toml");
+        let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+        assert_eq!(outcome.code, 0, "{}", outcome.text);
+        assert_eq!(project.read("rokit.toml"), manifest);
+        let ci = project.read(".github/workflows/ci.yml");
+        assert!(ci.contains("wally-package-types --sourcemap"), "{ci}");
+        assert!(!ci.contains("cargo install"), "{ci}");
+        assert_eq!(project.read("src/custom.luau"), "return 'keep'\n");
+    }
+}
+
+#[test]
+fn released_wpt_upgrade_cancel_and_changed_pin_preserve_every_file() {
+    for mode in ["cancel", "edit", "delete"] {
+        let project = wally_ci_fixture(Some("JohnnyMorganz/wally-package-types@1.7.0"));
+        let mut session = Session::start(project.path(), &["upgrade"]);
+        session.wait_for("Apply these changes?");
+        if mode == "edit" {
+            project.write(
+                "rokit.toml",
+                "[tools]\nwally-package-types='JohnnyMorganz/wally-package-types@1.6.2'\n",
+            );
+        } else if mode == "delete" {
+            fs::remove_file(project.path().join("rokit.toml")).unwrap();
+        }
+        let before = snapshot(project.path());
+        session.send(if mode == "cancel" { "n\r" } else { ENTER });
+        let outcome = session.finish();
+        assert_eq!(
+            outcome.code,
+            if mode == "cancel" { 0 } else { 1 },
+            "{}",
+            outcome.text
+        );
+        if mode != "cancel" {
+            outcome.assert_contains("changed while upgrade was being reviewed");
+        }
+        assert_eq!(snapshot(project.path()), before);
+    }
+}
+
+#[test]
+fn projects_without_managed_wally_ci_do_not_require_a_released_wpt_pin() {
+    let project = fixture("no-ci-wpt", "\"charm\"");
+    project.write("rokit.toml", "user owned\n");
+    let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(project.read("rokit.toml"), "user owned\n");
+}
+
 #[test]
 fn edits_during_upgrade_confirmation_are_refused_before_any_write() {
     for mode in ["edit", "create", "delete"] {
@@ -502,6 +621,10 @@ fn jest_upgrade_regenerates_owned_files_and_preserves_user_options() {
     project.write(
         "jest.config.json",
         "{\"backend\":\"wrong\",\"timeout\":123,\"test\":{\"projects\":[\"old\"],\"verbose\":true}}\n",
+    );
+    project.write(
+        "rokit.toml",
+        "[tools]\nwally-package-types='JohnnyMorganz/wally-package-types@1.7.0'\n",
     );
     let outcome = Session::start(project.path(), &["upgrade", "--yes"]).finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
