@@ -45,8 +45,9 @@ The isolated release-candidate binary reports `rproj 0.21.0`. Formatting, all
 479 ordinary locked tests, strict all-target Clippy, the serial installed-tool
 checks above and official 1.7.0 Windows compatibility passed again for the
 candidate. The 23 ignored checks remain separate; no ordinary checks were excluded.
-Final review, clean locked packaging and candidate head/main CI are preparation
-gates recorded in the [release audit](release-audit.md).
+Clean locked packaging passed with 105 files and matching Git identity. Final
+review and candidate head/main CI remain preparation gates recorded in the
+[release audit](release-audit.md).
 The official-Wally 1.7.0 Linux compatibility check remains intact. It verifies
 generic-default and `const` compatibility, separately from full project acceptance.
 The [0.20.4 Wally pin requirement](release-notes-0.20.4.md) is unchanged; older

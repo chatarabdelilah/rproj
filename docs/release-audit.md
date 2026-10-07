@@ -40,8 +40,12 @@ unverified.
 Preliminary locked packaging with `--allow-dirty` verified compilation and the
 105-file inventory while changes remained available for iteration review. All 95
 archived source/test files match the checkout; the retired generator and excluded
-documentation/CI/index/build directories are absent. Final clean-commit packaging
-remains required. CodeRabbit iteration initially hit its 28-minute service
+documentation/CI/index/build directories are absent. Final `cargo package --locked`
+passed from clean candidate commit `d44dc1e67bf46fef1cf4cef236c28cfa8f386151`:
+105 files, verified compilation, version 0.21.0 in both manifests and the root
+lockfile, and clean `.cargo_vcs_info.json` matching that commit. The subsequent
+evidence updates affect excluded documentation only. CodeRabbit iteration initially
+hit its 28-minute service
 cooldown. After the full wait, the single retry at 13:43 Brussels time completed
 with **zero findings across all seven release files**. Final review, reviewed-head
 CI, guarded merge, main CI and branch cleanup remain pending. Owner publication,
