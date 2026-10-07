@@ -1,5 +1,61 @@
 # Release-Hardening Audit
 
+## October 7: 0.21.0 alpha release preparation
+
+The owner requested continuation into release preparation after full Git-submodule
+retirement. Clean main is `63519bf432de2528e150aba2d183d695fa248807`; published
+0.20.4 remains the registry's latest version with official checksum
+`a626cfb6726474a925e8c88b0f0f43268227cc96978a544c02ffee43ab2d67ad`.
+Registry and remote-tag checks show 0.21.0 is available. The minor alpha version
+reflects the intentional unsupported workflow removal. Preparation is on
+`codex/release-0-21-0`; only the root package version changes in Cargo.toml and
+Cargo.lock. Runtime/test source, dependency resolution and CI remain unchanged
+from the reviewed retirement.
+
+Retirement [PR #93](https://github.com/chatarabdelilah/rproj/pull/93) passed
+final-head CI [37611026446](https://github.com/chatarabdelilah/rproj/actions/runs/37611026446)
+at `1d53ff3d3568372ba200d333c48e464c99ddb0b0` and main CI
+[37611420065](https://github.com/chatarabdelilah/rproj/actions/runs/37611420065)
+at `63519bf432de2528e150aba2d183d695fa248807`. Complete trees match. Each Windows
+toolchain passed 479 ordinary tests with 23 ignored on each run; all four required
+jobs passed, including official-Wally Linux and packaging. The retired branch's
+exact-lease remote deletion and local removal were verified after main CI.
+
+The isolated candidate binary reports `rproj 0.21.0`. Formatting, the complete
+locked offline ordinary suite (**479 passed, 23 ignored**, with nested child
+results excluded from totals) and strict all-target Clippy passed using
+`target/retire-submodules-target`. Runtime/test source and CI compare unchanged
+against `63519bf`; the only lockfile change is the root package version.
+
+Candidate installed-tool checks ran serially and passed in disposable fixtures:
+all eight Rojo variants, Wally creation/gate, deliberate gate failures, None Home
+creation, saved Wally replay and unsupported saved-record refusal. The separate
+official 1.7.0 Windows generic-default/const compatibility check also passed using
+the existing isolated release binary. Its `RPROJ_WPT_TEST_BIN` override was scoped
+to the command; the host's historical patched cache remains untouched. No
+machine-wide applications were provisioned. Ignored checks are not counted as
+ordinary passes; fresh-machine and authenticated Open Cloud acceptance remain
+unverified.
+
+Preliminary locked packaging with `--allow-dirty` verified compilation and the
+105-file inventory while changes remained available for iteration review. All 95
+archived source/test files match the checkout; the retired generator and excluded
+documentation/CI/index/build directories are absent. Final `cargo package --locked`
+passed from clean candidate commit `d44dc1e67bf46fef1cf4cef236c28cfa8f386151`:
+105 files, verified compilation, version 0.21.0 in both manifests and the root
+lockfile, and clean `.cargo_vcs_info.json` matching that commit. The subsequent
+evidence updates affect excluded documentation only. CodeRabbit iteration initially
+hit its 28-minute service
+cooldown. After the full wait, the single retry at 13:43 Brussels time completed
+with **zero findings across all seven release files**. Final branch review at
+`35bb05cebd083c28d842dedfae141d1ca335aee7` also completed with **zero findings
+across all seven files**, after waiting until the next included slot cleared at
+13:48 Brussels time. The final evidence correction affects excluded documentation
+only. Reviewed-head CI, guarded merge, main CI and branch cleanup are tracked in
+[release-preparation PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
+Owner publication, published archive identity, tag and matching GitHub
+alpha release are pending; no shipped identity is changed.
+
 ## October 7: unreleased Git-submodule retirement
 
 The owner approved full alpha-stage removal, without legacy support, automatic

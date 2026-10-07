@@ -17,9 +17,9 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.4, public alpha**, replacing generated Wally CI's source build with the official released tool and validating older project pins before upgrade writes. It retains missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `1a04668`. Git-submodule retirement is unreleased; release preparation remains a separate task. See [release notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.20.4, public alpha**, replacing generated Wally CI's source build with the official released tool and validating older project pins before upgrade writes. It retains missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `1a04668`. The active unreleased candidate is **0.21.0 alpha**, preparing Git-submodule retirement for owner publication. Cargo manifest and root lockfile are aligned at 0.21.0; no tag or publication is claimed. See [candidate notes](release-notes-0.21.0.md), [published notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md) for verification and limits.
 
-**Unreleased breaking alpha change: fully retire Git-submodule dependencies.**
+**0.21.0 alpha candidate: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
 `git-submodules` records are intentionally rejected through configuration errors,
 without aliases, automatic conversion or migration tooling. The owner retains
