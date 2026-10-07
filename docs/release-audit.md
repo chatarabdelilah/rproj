@@ -33,8 +33,13 @@ application was provisioned and no owner project/template/dependency folder was
 converted or removed. Rokit/Wally caches remain shared by these existing checks.
 
 CodeRabbit iteration reported two minor architecture-doc findings; both were
-corrected. Locked packaging, final review, reviewed-head CI, merge and main CI
-remain pending. The focused official-Wally Linux compatibility CI job is retained.
+corrected. Final branch review found one remaining retired-workflow mention in
+Catalog documentation; that documentation-only correction was inspected directly,
+as required by the working agreement. No runtime findings remain. Locked packaging
+passed from clean commit `1639e77`: 105 files and verified compilation. The
+subsequent corrections affect excluded documentation only. Reviewed-head CI,
+merge and main CI remain pending. The focused official-Wally Linux compatibility
+CI job is retained.
 Version 0.20.4 is unchanged; release preparation and owner publication are separate
 work.
 

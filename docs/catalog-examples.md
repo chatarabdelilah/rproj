@@ -57,7 +57,7 @@ execute without runtime errors and that Jest reports zero failures. It does not
 prove every semantic claim made by those upstream libraries.
 
 React mounting/hooks, Vide/Fusion lifecycles, replication transports, real data
-stores, theme activation, and every submodule checkout are not runtime-certified
+stores and theme activation are not runtime-certified
 by these examples. Data examples deliberately stop at schema/store declarations;
 the Catalog points readers to upstream lifecycle/security guidance. Use the
 release audit for current executions rather than treating test existence as a pass.
