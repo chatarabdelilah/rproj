@@ -7,7 +7,11 @@ Owner publication, archive checksum, annotated tag and
 [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.3)
 are verified. See [release notes](release-notes-0.20.3.md),
 [audit evidence](release-audit.md), and [PR #88](https://github.com/chatarabdelilah/rproj/pull/88).
-No unpublished release candidate is active.
+The unpublished **0.20.4 alpha candidate** packages the official Wally type-tool
+release and safe upgrade preflight from [PR #90](https://github.com/chatarabdelilah/rproj/pull/90).
+See [candidate notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md).
+Release checks and local review precede exact-head/main CI and owner publication;
+no 0.20.4 tag or GitHub release exists before publication is verified.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 

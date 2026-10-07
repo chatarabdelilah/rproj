@@ -1,5 +1,46 @@
 # Release-Hardening Audit
 
+## October 7: 0.20.4 alpha candidate preparation
+
+The candidate starts from clean reviewed main `adc56a3`, after [PR #90](https://github.com/chatarabdelilah/rproj/pull/90).
+Its exact-head CI [37593781968](https://github.com/chatarabdelilah/rproj/actions/runs/37593781968)
+and main CI [37594298177](https://github.com/chatarabdelilah/rproj/actions/runs/37594298177)
+passed all four required jobs on their first attempts: Windows stable, Rust 1.89,
+official Linux release compatibility and packaging. Both Windows jobs passed all
+490 unique ordinary tests, with 25 ignored checks separate. The full merged tree
+matched the checked head; both local CodeRabbit reviews reported zero issues.
+Fully merged implementation branches were verified and removed.
+
+Manifest and root lockfile versions are aligned at 0.20.4. Rust dependency versions,
+runtime, tests and CI remain identical to reviewed main. Candidate notes and
+current-state documentation distinguish this candidate from published 0.20.3;
+owner publication remains pending.
+
+The owner's existing background Watch remains active. It intentionally blocks
+the Home and standalone machine-setup cancellation checks locally; neither is
+counted as a local pass. It also holds the existing `target/debug/rproj.exe` open,
+so a default-target build failed with Windows error 5. Candidate build/testing
+uses a separate `target/release-0-20-4-target` directory without stopping Watch or
+changing installed tools. Current release evidence is recorded as gates finish;
+exact-head/main CI must execute the complete 490-test ordinary suite.
+
+The isolated locked build reports `rproj 0.20.4`, and all 488 available unique
+ordinary tests passed using that candidate target directory. The nested one-test
+child is not counted twice. Strict all-target Clippy, formatting and diff checks
+passed. The 25 ignored checks remain separate; only
+`cargo test --locked --test wpt_release -- --ignored --exact released_wpt_preserves_valid_generic_types_and_parses_const --test-threads=1`
+was explicitly invoked for the candidate, with the verified official Windows
+1.7.0 binary supplied through `RPROJ_WPT_TEST_BIN`. It passed both fixtures; the
+archive SHA-256 matched the official asset digest recorded below. No machine
+configuration, global Rokit manifest, historical patched cache or existing
+project was replaced.
+
+Local CodeRabbit iteration review found one minor stale roadmap statement saying
+no candidate was active. That contradiction was corrected in the current-state
+and next-milestone paragraphs. Clean locked packaging and final branch review
+remain release gates; their evidence and exact-head/main CI are recorded as they
+finish. Owner publication remains pending.
+
 ## Unreleased: official Wally type release replaces the source build
 
 Official wally-package-types 1.7.0 includes the upstream generic-default ordering
