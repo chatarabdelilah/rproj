@@ -1,5 +1,31 @@
 # Release-Hardening Audit
 
+## October 7: owner publication of 0.20.3 verified
+
+The owner published 0.20.3 after [PR #88](https://github.com/chatarabdelilah/rproj/pull/88)
+merged at `2932862af2cfc7a7670e54da06e133c799a53592`. Its exact final-head CI
+[37573835354](https://github.com/chatarabdelilah/rproj/actions/runs/37573835354)
+and merged-main CI [37574077034](https://github.com/chatarabdelilah/rproj/actions/runs/37574077034)
+passed on their first attempts. Fully merged candidate branches were removed
+after reviewed identities, ancestry and tree-equality checks; main was clean
+for owner publication.
+
+The official crates.io archive SHA-256 matches registry checksum
+`f2403a0d54155e7ec3c37dee9a9f99d9adfee66f0a242cdc2d98f4bfb3ea013c`.
+Archive manifest/root lockfile version is 0.20.3; `.cargo_vcs_info.json` identifies
+the clean reviewed release commit `2932862af2cfc7a7670e54da06e133c799a53592`.
+Annotated tag object `0c6c968f81ec1d11cd046629981e8575011bbb36` peels to that
+same commit locally and remotely. The matching [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.3)
+is an alpha prerelease. No shipped tag was moved.
+
+This publication-state update changes documentation only: Cargo versions,
+dependencies, runtime and tests remain identical to the shipped commit. The
+diff is directly inspected under AGENTS.md's documentation-only review exception;
+exact documentation-head/main CI outcomes are recorded in its PR before
+completion. Fresh-Windows installation/retry and deferred Open Cloud/platform
+Studio acceptance remain unverified. No further audit or feature is automatically
+queued; the next planning decision concerns remaining acceptance priorities.
+
 ## October 7: 0.20.3 alpha candidate preparation
 
 The candidate starts from clean main `bdd2ab6`, after the missing-Git repair

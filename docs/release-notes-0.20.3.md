@@ -1,6 +1,6 @@
 # rproj 0.20.3 — Missing-Git creation guidance
 
-Unpublished candidate prepared October 7, 2026. Public alpha.
+Published October 7, 2026. Public alpha.
 
 ## Changes
 
@@ -34,9 +34,11 @@ already configured PC. Its temporary fixtures were removed and machine
 configuration stayed unchanged. The 24 ignored tests remain separate; only
 that named live check was run explicitly for this candidate.
 
-[The release audit](release-audit.md) distinguishes completed checks from
-remaining gates. Final CodeRabbit review and exact-head/main CI must complete
-before owner publication; the candidate PR records their outcomes.
+[The release audit](release-audit.md) records package inspection and release
+gates. [Release PR #88](https://github.com/chatarabdelilah/rproj/pull/88) passed
+final CodeRabbit review with zero findings after correcting one minor notes
+state mismatch. Exact final-head and merged-main Windows stable, Rust 1.89 and
+package CI passed on their first attempts.
 
 Successful installation/retry on fresh Windows, authenticated Open Cloud,
 fresh Linux generated-project execution, UI Labs Studio stories and Scribe
@@ -44,6 +46,9 @@ Studio playtesting remain unverified. Ignored checks are separate acceptance
 evidence, not ordinary passes. Hyper-V/VM provisioning remains deferred; this
 patch does not claim beta readiness.
 
-The owner alone publishes with `cargo publish --locked`. Registry/archive
-identity verification, the annotated tag and GitHub alpha prerelease follow
-successful publication.
+The owner-published archive's SHA-256 matches crates.io checksum
+`f2403a0d54155e7ec3c37dee9a9f99d9adfee66f0a242cdc2d98f4bfb3ea013c`.
+Its manifest and lockfile are 0.20.3, and its clean Git identity matches reviewed
+release commit `2932862af2cfc7a7670e54da06e133c799a53592`. The annotated `v0.20.3`
+tag and [GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.3)
+point to that same immutable commit.

@@ -10,9 +10,7 @@
 
 ## What rproj does
 
-Published [0.20.2](docs/release-notes-0.20.2.md) improves Windows background Watch acknowledgment handling and includes terminal test-harness fixes. It retains 0.20.1's missing-Cargo and missing-WinGet recovery, persistent Watch with status/logs/stop controls, and UI Labs 2.4.2. rproj remains alpha software.
-
-The unpublished [0.20.3 alpha candidate](docs/release-notes-0.20.3.md) explains how to recover when Git is unavailable during project creation. Publication remains pending.
+Published [0.20.3](docs/release-notes-0.20.3.md) explains how to recover when Git is unavailable during project creation. It retains 0.20.2's background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch with status/logs/stop controls, and UI Labs 2.4.2. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 

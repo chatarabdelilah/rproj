@@ -2,20 +2,18 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.20.2**, at `eaa0447d73751f147c2138b106f1ceb263617e10`.
+The published baseline is **v0.20.3**, at `2932862af2cfc7a7670e54da06e133c799a53592`.
 Owner publication, archive checksum, annotated tag and
-[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.2)
-are verified. See [release notes](release-notes-0.20.2.md),
-[audit evidence](release-audit.md), and [PR #85](https://github.com/chatarabdelilah/rproj/pull/85).
-The unpublished **0.20.3 alpha candidate** packages the missing-Git creation
-guidance fix. See [candidate notes](release-notes-0.20.3.md) and
-[audit evidence](release-audit.md). Ordinary/local checks, applicable serial live
-creation and clean locked packaging passed. Final review and exact-head/main CI
-must complete before owner publication; no 0.20.3 tag or GitHub release exists yet.
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.3)
+are verified. See [release notes](release-notes-0.20.3.md),
+[audit evidence](release-audit.md), and [PR #88](https://github.com/chatarabdelilah/rproj/pull/88).
+No unpublished release candidate is active.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
 ## Maintainer preparation
+
+The owner published **0.20.3** on October 7, 2026, after [PR #88](https://github.com/chatarabdelilah/rproj/pull/88)'s first-attempt final-head and merged-main CI passed. Registry checksum `f2403a0d54155e7ec3c37dee9a9f99d9adfee66f0a242cdc2d98f4bfb3ea013c`, archive Git identity, annotated tag and GitHub alpha prerelease match clean release commit `2932862af2cfc7a7670e54da06e133c799a53592`. The merged candidate branch was verified and removed. Fresh-Windows installation/retry and deferred acceptance gaps remain unverified; VM provisioning stays deferred.
 
 The owner published **0.20.2** on October 7, 2026, after [PR #85](https://github.com/chatarabdelilah/rproj/pull/85)'s first-attempt final-head and merged-main CI passed. Registry checksum `260f61d5baa9b5e1ea422b4f85a4356d790bb2fd36c24fbc91a874f09c526745`, archive Git identity, annotated tag and GitHub alpha prerelease match clean release commit `eaa0447d73751f147c2138b106f1ceb263617e10`. The merged candidate branch was verified and removed. Fresh-machine/Open Cloud/platform Studio acceptance remains unverified; VM provisioning remains deferred.
 
