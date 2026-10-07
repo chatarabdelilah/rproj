@@ -461,14 +461,17 @@ fn selene_config(
     workflow: PackageWorkflow,
     testez_selected: bool,
 ) -> Result<String> {
-    let Some(existing) = existing else {
-        // No selene.toml at all: fall through to the full scaffolded file.
-        return tool_settings::default_toml("selene", &overrides(packages, testez_selected))
-            .map(|config| {
-                let exclude = vendored_exclude(workflow);
-                tool_settings::insert_top_level(&config, &exclude)
-            })
-            .context("selene missing from the catalog");
+    let scaffolded;
+    let existing = match existing {
+        Some(existing) => existing,
+        None => {
+            let config =
+                tool_settings::default_toml("selene", &overrides(packages, testez_selected))
+                    .context("selene missing from the catalog")?;
+            scaffolded = tool_settings::insert_top_level(&config, &vendored_exclude(workflow));
+            // Creation must use the same merge as later runs to avoid a second review.
+            &scaffolded
+        }
     };
 
     let tool = tool_settings::find("selene").context("selene missing from the catalog")?;

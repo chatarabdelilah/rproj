@@ -1,5 +1,33 @@
 # Release-Hardening Audit
 
+## October 7: recreated Selene configuration settles in one Upgrade
+
+The published 0.21.1 baseline recreates a missing Wally `selene.toml` with
+spaced exclusion arrays, then proposes another upgrade solely to compact those
+arrays. The new regression reproduced this by reaching an unexpected second
+confirmation. Upgrade now runs the recreated scaffold through its existing
+managed-field merge before the first review; shared Configure rendering is
+unchanged.
+
+On `codex/upgrade-selene-idempotence`, all 29 Upgrade integration tests passed.
+The new regression covers interactive approval and `--yes`, Wally with and
+without TestEZ, and None. It verifies the creation preview, no writes before
+approval, expected standard/exclusions, and byte-identical snapshots of every
+project file on the second run without another confirmation. Existing custom
+exclusion, cancellation, and file-protection coverage also passed.
+
+The complete locked offline ordinary suite passed **486 tests with 23 ignored**,
+excluding nested child-test summaries. Formatting, strict all-target Clippy,
+and locked offline packaging passed locally; packaging used `--allow-dirty`
+before the implementation commit. The local CodeRabbit iteration review covered
+both runtime and test changes with zero findings. Delivery also requires clean
+committed packaging, final branch review, and reviewed-head/merged-main CI.
+
+This is an unreleased compatible fix; Cargo remains at the published 0.21.1
+version until a patch candidate is prepared. Fresh-machine, authenticated
+Open Cloud, and manual Studio acceptance remain unverified; provisioning stays
+deferred. No host applications or user projects were changed.
+
 ## October 7: 0.21.1 publication verified
 
 The owner published 0.21.1 at 19:16 Brussels time on October 7, 2026. Crates.io
