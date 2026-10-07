@@ -45,10 +45,9 @@ links remain in each package's existing catalog entry.
 
 Wally imports derive from the same `PackageSpec::alias` as the manifest writer:
 `ReplicatedStorage.packages.<key>`, `ServerScriptService.serverPackages.<key>`,
-or `ReplicatedStorage.DevPackages.Jest/JestGlobals`. Submodule alternatives use
-`ReplicatedStorage.modules.<module_name>`, and appear only when that dependency
-closure is vendorable. Submodules track actual Git commits, not Wally versions;
-their API must be checked independently. No workflow or dependency pin changes
+or `ReplicatedStorage.devPackages.Jest/JestGlobals`. None projects do not install
+packages. Catalog details retain upstream repository links for information.
+No workflow or dependency pin changes
 are made by opening the Catalog.
 
 The ignored real-Jest stack test installs the exact catalogued Wally packages,
@@ -58,7 +57,7 @@ execute without runtime errors and that Jest reports zero failures. It does not
 prove every semantic claim made by those upstream libraries.
 
 React mounting/hooks, Vide/Fusion lifecycles, replication transports, real data
-stores, theme activation, and every submodule checkout are not runtime-certified
+stores and theme activation are not runtime-certified
 by these examples. Data examples deliberately stop at schema/store declarations;
 the Catalog points readers to upstream lifecycle/security guidance. Use the
 release audit for current executions rather than treating test existence as a pass.

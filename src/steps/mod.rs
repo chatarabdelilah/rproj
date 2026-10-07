@@ -10,7 +10,6 @@ pub mod git;
 pub mod gitattributes;
 pub mod gitignore;
 pub mod jest;
-pub mod modules;
 pub mod notify;
 pub mod quality;
 pub mod rojo;

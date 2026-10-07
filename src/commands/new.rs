@@ -13,8 +13,8 @@ use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file, project_template};
 use crate::graph::{Node, ProjectGraph, TestRunner};
 use crate::steps::{
-    asphalt, blender, figma, git, gitattributes, gitignore, jest, modules, quality, rojo,
-    studio_plugin, testez, toolchain, tungsten, vscode, wally,
+    asphalt, blender, figma, git, gitattributes, gitignore, jest, quality, rojo, studio_plugin,
+    testez, toolchain, tungsten, vscode, wally,
 };
 use crate::ui;
 
@@ -311,7 +311,7 @@ fn ask_for_graph() -> Result<ProjectGraph> {
 /// Asks one node and clears whatever that makes stale.
 ///
 /// The invalidation is the whole reason revision is tractable: re-answering
-/// the strategy clears the packages (some may no longer be vendorable) and
+/// the strategy clears the packages (the manager may be disabled) and
 /// the file list, and leaves the capabilities alone. Nothing here decides
 /// *what* goes stale - `Node::invalidates` does, in four rows.
 fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
@@ -346,12 +346,8 @@ fn ask_node(graph: &mut ProjectGraph, node: Node) -> Result<()> {
                 PackageWorkflow::None => ("none", BTreeSet::new()),
                 workflow => pick_composition(workflow)?,
             };
-            let (workflow, packages) = reconcile_strategy(graph.package_workflow, packages)?;
             graph.mode = mode.to_string();
-            graph.package_workflow = workflow;
-            graph.packages = resolve_dependencies(workflow, packages)
-                .into_iter()
-                .collect();
+            graph.packages = packages.into_iter().collect();
         }
         Node::Capabilities => {
             graph.capabilities.clear();
@@ -424,7 +420,6 @@ fn describe_node(graph: &ProjectGraph, node: Node) -> String {
     match node {
         Node::Strategy => match graph.package_workflow {
             PackageWorkflow::Wally => "Wally".to_string(),
-            PackageWorkflow::GitSubmodules => "git submodules".to_string(),
             PackageWorkflow::None => "none".to_string(),
         },
         Node::Packages => {
@@ -445,28 +440,6 @@ fn describe_node(graph: &ProjectGraph, node: Node) -> String {
     }
 }
 
-/// Git submodules have no dependency resolution: the scaffold clones exactly
-/// the list it is given. Wally does its own, so its manifest is left as the
-/// user picked it.
-fn resolve_dependencies(workflow: PackageWorkflow, packages: BTreeSet<String>) -> BTreeSet<String> {
-    if workflow != PackageWorkflow::GitSubmodules {
-        return packages;
-    }
-    let resolved = wally_packages::with_dependencies(&packages);
-    let added: Vec<&str> = resolved
-        .iter()
-        .filter(|k| !packages.contains(*k))
-        .map(String::as_str)
-        .collect();
-    if !added.is_empty() {
-        ui::ok(&format!(
-            "added required dependencies: {}",
-            added.join(", ")
-        ));
-    }
-    resolved
-}
-
 /// How this project's dependencies arrive.
 ///
 /// **Asked first, and deliberately still asked at all.** Hiding it behind a
@@ -476,15 +449,12 @@ fn resolve_dependencies(workflow: PackageWorkflow, packages: BTreeSet<String>) -
 /// this is the only place a newcomer meets the concept. A default does not
 /// make a question fake.
 ///
-/// It comes before packages because it decides which packages can be
-/// vendored at all. Asked after, as it used to be, selecting React silently
-/// overruled the answer.
+/// It comes before packages because None skips package selection.
 fn pick_strategy() -> Result<PackageWorkflow> {
     let choice = Select::new(
         "How should this project get its dependencies?",
         owned(&[
             "wally - Roblox's package manager. Recommended for almost every project.",
-            "git-submodules - vendor each package's own repo into the project.",
             "none - no dependency manager. A tutorial project, or one you'll wire up yourself.",
         ]),
     )
@@ -492,7 +462,6 @@ fn pick_strategy() -> Result<PackageWorkflow> {
     .prompt()?;
 
     Ok(match ui::option_key(&choice) {
-        "git-submodules" => PackageWorkflow::GitSubmodules,
         "none" => PackageWorkflow::None,
         _ => PackageWorkflow::Wally,
     })
@@ -598,17 +567,6 @@ fn pick_capabilities(workflow: PackageWorkflow) -> Result<Vec<(String, Option<St
 }
 
 fn pick_composition(workflow: PackageWorkflow) -> Result<(&'static str, BTreeSet<String>)> {
-    // Said *before* the picker rather than after the selection. Under git
-    // submodules the react family cannot be vendored at all, and silently
-    // omitting them is how a user ends up wondering where React went.
-    let unavailable = unvendorable_keys();
-    if workflow == PackageWorkflow::GitSubmodules && !unavailable.is_empty() {
-        ui::detail(&format!(
-            "Not listed: {}.\nUpstream ships these only through an npm install step, which git\nsubmodules can't reproduce.",
-            unavailable.join(", ")
-        ));
-    }
-
     let mode = Select::new(
         "How do you want to pick packages?",
         owned(&[
@@ -649,21 +607,11 @@ pub(super) fn apply_derived_packages(graph: &mut ProjectGraph) {
     graph.packages.sort();
 }
 
-/// Keys with no vendorable source, for the note above the package picker.
-fn unvendorable_keys() -> Vec<&'static str> {
-    wally_packages::PACKAGES
-        .iter()
-        .filter(|p| p.submodule.is_none() && !capability_owned(p.key))
-        .map(|p| p.key)
-        .collect()
-}
-
 /// Whether a package may be offered at all, given the strategy already
 /// chosen. Offering one that cannot be installed is offering a broken
 /// project.
 pub(super) fn offerable_package(spec: &PackageSpec, workflow: PackageWorkflow) -> bool {
-    !capability_owned(spec.key)
-        && (workflow != PackageWorkflow::GitSubmodules || spec.submodule.is_some())
+    workflow == PackageWorkflow::Wally && !capability_owned(spec.key)
 }
 
 /// The summary, and the last chance to back out.
@@ -783,7 +731,6 @@ pub(super) fn summary_lines(
 
     let strategy = match graph.package_workflow {
         PackageWorkflow::Wally => "Wally",
-        PackageWorkflow::GitSubmodules => "git submodules",
         PackageWorkflow::None => "none",
     };
     lines.push(format!("  {:<14}{strategy}", "Dependencies"));
@@ -858,83 +805,6 @@ pub(super) fn summary_lines(
         ));
     }
     lines
-}
-
-/// The strategy the project ends up with, after checking the chosen packages
-/// against it.
-///
-/// Some packages (the react-lua family) only ship a working module through an
-/// npm/pnpm install step upstream, so raw git submodules cannot vendor them
-/// at all. Checked over the **transitive closure**, not just what was picked:
-/// `reactReflex` is vendorable itself and reaches for React, which is not, and
-/// before this it scaffolded happily and failed at runtime in Studio with no
-/// build error anywhere.
-///
-/// This used to run *before* the strategy was chosen and silently force
-/// Wally. Now the user has already said what they want, so the conflict is
-/// put to them as a **forward correction** - the same fact, offered as a
-/// revision of a decision they made knowingly rather than an override
-/// announced after the fact.
-fn reconcile_strategy(
-    workflow: PackageWorkflow,
-    packages: BTreeSet<String>,
-) -> Result<(PackageWorkflow, BTreeSet<String>)> {
-    if workflow != PackageWorkflow::GitSubmodules || packages.is_empty() {
-        return Ok((workflow, packages));
-    }
-    let blocked = wally_packages::unvendorable_in_closure(&packages);
-    if blocked.is_empty() {
-        return Ok((workflow, packages));
-    }
-
-    for (key, pulled_in_by) in &blocked {
-        match pulled_in_by {
-            // Names the dependent, not just the blocker: someone who never
-            // picked react has no way to connect the two otherwise.
-            Some(dependent) => ui::warn(&format!(
-                "{dependent} requires {key}, which upstream only ships through an npm install \
-                 step - git submodules can't reproduce that"
-            )),
-            None => ui::warn(&format!(
-                "{key} only ships through an npm install step upstream, which git submodules \
-                 can't reproduce"
-            )),
-        }
-    }
-
-    let choice = Select::new(
-        "So this selection can't be vendored. What now?",
-        owned(&[
-            "wally - switch this project to Wally, which handles every catalog package",
-            "drop - keep git submodules and remove the packages that can't be vendored",
-        ]),
-    )
-    .with_formatter(&ui::compact_select_answer)
-    .prompt()?;
-
-    if ui::option_key(&choice) != "drop" {
-        return Ok((PackageWorkflow::Wally, packages));
-    }
-    // Keep submodules, and actually remove what cannot be vendored - both
-    // the blockers and anything that reaches them, or the project scaffolds
-    // around a package whose dependency is missing.
-    let removed: Vec<String> = blocked
-        .iter()
-        .flat_map(|(key, via)| [Some((*key).to_string()), via.map(|d| d.to_string())])
-        .flatten()
-        .collect();
-    let kept: BTreeSet<String> = packages
-        .iter()
-        .filter(|k| !removed.contains(k))
-        .cloned()
-        .collect();
-    ui::skip(&format!("removed: {}", {
-        let mut names: Vec<&str> = removed.iter().map(String::as_str).collect();
-        names.sort_unstable();
-        names.dedup();
-        names.join(", ")
-    }));
-    Ok((PackageWorkflow::GitSubmodules, kept))
 }
 
 fn pick_guided(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
@@ -1101,8 +971,6 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
     }
 
     let testez_selected = test_runner == Some(TestRunner::TestEz);
-    // Only the Wally workflow has realms at all - a submodule checkout is
-    // just files, mounted wholesale under modules/ regardless.
     let has_server_packages =
         package_workflow == PackageWorkflow::Wally && wally_packages::has_server_realm(packages);
     rojo::scaffold_project_json(
@@ -1131,7 +999,7 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
         jest::ensure_config(project_dir, jest_backend)?;
     }
 
-    // default.project.json maps a $path (packages/ or modules/) that has to
+    // default.project.json maps a package $path that has to
     // exist before rojo will touch it at all - generating a sourcemap while
     // that folder is missing fails outright ("could not be turned into a
     // Roblox Instance"), not just incompletely. So the package install has
@@ -1157,30 +1025,7 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
             };
             wally::sync_for_project(project_dir, sourcemap_project)?;
         }
-        PackageWorkflow::GitSubmodules if writes("modules") => {
-            // Dedupe by target directory, not by package: monorepos like
-            // littensy/charm back several catalog entries (charm,
-            // charmSync, videCharm) from one clone.
-            let mut cloned = BTreeSet::new();
-            for spec in modules::vendorable(packages) {
-                let sub = spec.submodule.expect("vendorable() filtered to Some");
-                if cloned.insert(sub.dir) {
-                    git::add_submodule(project_dir, spec.git_repo, sub.dir)?;
-                }
-            }
-            // Both of these have to exist before the sourcemap runs below:
-            // the nested project file is what stops Rojo from walking into
-            // the vendored repos' own project files, and the link files are
-            // what project code actually requires.
-            modules::write_submodules_project(project_dir, packages)?;
-            modules::write_link_files(project_dir, packages)?;
-            // Now that modules/ exists, an initial sourcemap.json for
-            // luau-lsp. (The Wally branch got its own inside `wally::sync`,
-            // which needs it for wally-package-types.)
-            if writes("sourcemap.json") {
-                rojo::generate_sourcemap(project_dir)?;
-            }
-        }
+
         // Declined the dependency manifest, so there is nothing to install.
         // A project can legitimately want the tree and manage packages by
         // hand.
@@ -1205,11 +1050,8 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
         testez::ensure_companion_config(project_dir)?;
     }
 
-    // Tells the editor which folders are vendored third-party code. Only
-    // needed for the submodule workflow - luau-lsp already ignores Wally's
-    // `_Index` by default, which is why that workflow never showed this.
     if writes(".vscode/settings.json") {
-        vscode::ensure_project_settings(project_dir, package_workflow)?;
+        vscode::ensure_project_settings(project_dir)?;
     }
 
     if writes(".luaurc") {
@@ -1282,11 +1124,7 @@ fn slugify(name: &str) -> String {
 /// than a bare "not found" - the names are user-chosen, so a typo is the
 /// likely cause and the correction is right there.
 ///
-/// Also re-applies the workflow guard that `pick_package_workflow` would
-/// have applied interactively. A saved setup records an answer given at
-/// some earlier point; a package can stop being vendorable since (or the
-/// file can be edited by hand), and scaffolding a submodule project around
-/// a package that has no vendorable source produces a broken tree.
+/// Rejects incompatible testing choices before any provisioning or creation.
 fn load_setup(name: &str) -> Result<(String, ProjectGraph)> {
     let (setup, warnings) = read_setup(name)?;
     for warning in warnings {
@@ -1303,26 +1141,6 @@ pub(super) fn read_setup(name: &str) -> Result<(ProjectGraph, Vec<String>)> {
                 "saved setup `{name}` selects Jest Roblox without Wally; edit or replace the setup before using it"
             );
         }
-        // Same transitive check as the interactive path: a saved setup can
-        // name only vendorable packages and still be unbuildable because one
-        // of them requires something that isn't.
-        let selected: BTreeSet<String> = setup.packages.iter().cloned().collect();
-        let blocked = wally_packages::unvendorable_in_closure(&selected);
-        if setup.package_workflow == PackageWorkflow::GitSubmodules && !blocked.is_empty() {
-            let reasons: Vec<String> = blocked
-                .iter()
-                .map(|(key, via)| match via {
-                    Some(dependent) => format!("{key} (required by {dependent})"),
-                    None => (*key).to_string(),
-                })
-                .collect();
-            warnings.push(format!(
-                "setup `{name}` asks for git submodules, but {} can't be vendored that way - using Wally",
-                reasons.join(", ")
-            ));
-            setup.package_workflow = PackageWorkflow::Wally;
-        }
-
         let unknown: Vec<&str> = setup
             .packages
             .iter()
@@ -1465,7 +1283,7 @@ mod tests {
         for (workflow, capability, backend, expected) in [
             ("wally", "test", "local", "jest-roblox"),
             ("wally", "test", "cloud", "jest-roblox-open-cloud"),
-            ("git-submodules", "test", "", "testez"),
+            ("none", "test", "", "testez"),
             ("none", "test", "", "testez"),
             ("wally", "ci", "", ""),
         ] {
@@ -1559,19 +1377,10 @@ mod tests {
     use super::*;
 
     /// **Every package the picker offers is one the strategy can install.**
-    /// Under submodules that excludes the react family, which upstream ships
-    /// only through an npm step - offering them would be offering a project
-    /// that breaks at runtime in Studio with no build error anywhere.
     #[test]
     fn the_package_picker_never_offers_what_the_strategy_cannot_install() {
         for spec in wally_packages::PACKAGES {
-            if offerable_package(spec, PackageWorkflow::GitSubmodules) {
-                assert!(
-                    spec.submodule.is_some(),
-                    "{} has no vendorable source but is offered under submodules",
-                    spec.key
-                );
-            }
+            assert!(!offerable_package(spec, PackageWorkflow::None));
             // Wally installs everything, so only capability-owned entries
             // are held back there.
             assert_eq!(
@@ -1593,7 +1402,7 @@ mod tests {
             "the test capability must own it"
         );
         let testez = wally_packages::find("testez").expect("in the catalog");
-        for workflow in [PackageWorkflow::Wally, PackageWorkflow::GitSubmodules] {
+        for &workflow in PackageWorkflow::ALL {
             assert!(!offerable_package(testez, workflow));
         }
     }
@@ -1740,8 +1549,8 @@ mod tests {
     /// which answer?" is answerable without remembering what was said.
     #[test]
     fn the_revision_menu_describes_the_current_answers() {
-        let graph = graph_of(PackageWorkflow::GitSubmodules, &["charm"], &["lint"]);
-        assert_eq!(describe_node(&graph, Node::Strategy), "git submodules");
+        let graph = graph_of(PackageWorkflow::Wally, &["charm"], &["lint"]);
+        assert_eq!(describe_node(&graph, Node::Strategy), "Wally");
         assert_eq!(describe_node(&graph, Node::Packages), "charm");
         assert_eq!(describe_node(&graph, Node::Capabilities), "lint");
 

@@ -8,10 +8,6 @@ use anyhow::Result;
 // committed so everyone building the project resolves the same package
 // versions. Only the regenerable Packages folder and build artifacts go here.
 //
-// modules/ is likewise NOT ignored: under the git-submodule workflow it
-// holds the generated link files and the submodules project file, which
-// are project source and must be committed (the submodule *contents*
-// are tracked by git as submodule pointers, not as ignorable files).
 const ENTRIES: &[&str] = &[
     // Capitalised because that's the folder wally actually creates. Git on
     // a case-sensitive filesystem wouldn't ignore it under any other
@@ -32,10 +28,7 @@ const ENTRIES: &[&str] = &[
     ".env",
     ".env.*",
     "!.env.example",
-    // Local editor state. Note the tradeoff: rproj writes luau-lsp's
-    // ignoreGlobs here for submodule projects, so a teammate cloning the
-    // repo won't inherit them and will see the vendored modules/ folder
-    // linted until they run rproj themselves.
+    // Local editor state.
     ".vscode/",
     // Records how *this* checkout was scaffolded (mode, packages, the tools
     // present at creation). Useful locally, but it's a snapshot of one
@@ -123,7 +116,7 @@ mod tests {
             ("wally.lock", false),
             ("rokit.toml", false),
             ("assets/model.rbxm", false),
-            ("modules/example.luau", false),
+            ("custom-source/example.luau", false),
             (".lute/check.luau", false),
             ("jest.config.json", false),
         ] {

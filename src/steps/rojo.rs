@@ -15,7 +15,7 @@ use crate::ui;
 /// patching) with the conventional server/client/shared split, and creates
 /// the matching `src/` folders. The packages folder mapped into
 /// `ReplicatedStorage` depends on which package workflow this project uses:
-/// Wally's `packages/` or git submodules' `modules/`.
+/// Wally package mounts.
 /// Starter files, one per source folder.
 ///
 /// These are named `hello.*`, never `init.*`: Rojo turns a directory
@@ -50,7 +50,6 @@ const ALWAYS_CREATED_TEMPLATE_PATHS: &[&str] = &["src/shared", "src/server", "sr
 
 const RESERVED_DYNAMIC_PATHS: &[&[&str]] = &[
     &["tree", "ReplicatedStorage", "packages"],
-    &["tree", "ReplicatedStorage", "modules"],
     &["tree", "ReplicatedStorage", "test"],
     &["tree", "ReplicatedStorage", "DevPackages"],
     &["tree", "ReplicatedStorage", "devPackages"],
@@ -182,9 +181,7 @@ fn apply_dynamic_mounts(
         PackageWorkflow::Wally => {
             replicated_storage.insert("packages".into(), json!({ "$path": "Packages" }));
         }
-        PackageWorkflow::GitSubmodules => {
-            replicated_storage.insert("modules".into(), json!({ "$path": "modules" }));
-        }
+
         PackageWorkflow::None => {}
     }
     if testez_selected {
@@ -347,13 +344,6 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         ("wally-server", PackageWorkflow::Wally, false, true),
         ("wally-tests", PackageWorkflow::Wally, true, false),
         ("wally-tests-server", PackageWorkflow::Wally, true, true),
-        ("submodules", PackageWorkflow::GitSubmodules, false, false),
-        (
-            "submodules-tests",
-            PackageWorkflow::GitSubmodules,
-            true,
-            false,
-        ),
     ] {
         let dir = workspace.path.join(label);
         materialize_validation_project(&dir, workflow, tests, server_packages)?;
@@ -440,7 +430,6 @@ fn materialize_validation_project(
     }
     match workflow {
         PackageWorkflow::Wally => materialize_validation_path(dir, "Packages")?,
-        PackageWorkflow::GitSubmodules => materialize_validation_path(dir, "modules")?,
         PackageWorkflow::None => {}
     }
     if tests {
@@ -577,6 +566,10 @@ mod tests {
     fn custom_nodes_and_top_level_settings_survive_generation() {
         let mut template = builtin_project_template();
         template["servePort"] = json!(40000);
+        template["tree"]["ReplicatedStorage"]["modules"] = json!({
+            "$className": "Folder",
+            "$properties": { "Archivable": false }
+        });
         template["tree"]["Workspace"] = json!({
             "$className": "Workspace",
             "$properties": { "Gravity": 100 }
@@ -593,6 +586,10 @@ mod tests {
 
         assert_eq!(project["name"], "CustomGame");
         assert_eq!(project["servePort"], 40000);
+        assert_eq!(
+            project["tree"]["ReplicatedStorage"]["modules"],
+            template["tree"]["ReplicatedStorage"]["modules"]
+        );
         assert_eq!(project["tree"]["Workspace"]["$properties"]["Gravity"], 100);
         assert_eq!(
             project["tree"]["ReplicatedStorage"]["packages"]["$path"],
@@ -653,7 +650,6 @@ mod tests {
         for path in [
             "Packages",
             "ServerPackages",
-            "modules",
             "tests/shared",
             "tests/server",
             "tests/client",
@@ -671,29 +667,15 @@ mod tests {
 
     #[test]
     fn each_dependency_workflow_gets_only_its_own_mount() {
-        let wally = project_document("WallyGame", PackageWorkflow::Wally, false, false, None)
-            .expect("wally project");
-        let modules = project_document(
-            "ModuleGame",
-            PackageWorkflow::GitSubmodules,
-            false,
-            false,
-            None,
-        )
-        .expect("submodule project");
-
-        assert!(wally["tree"]["ReplicatedStorage"].get("packages").is_some());
-        assert!(wally["tree"]["ReplicatedStorage"].get("modules").is_none());
-        assert!(
-            modules["tree"]["ReplicatedStorage"]
-                .get("modules")
-                .is_some()
-        );
-        assert!(
-            modules["tree"]["ReplicatedStorage"]
-                .get("packages")
-                .is_none()
-        );
+        for workflow in PackageWorkflow::ALL {
+            let project = project_document("Game", *workflow, false, false, None).unwrap();
+            let storage = &project["tree"]["ReplicatedStorage"];
+            assert_eq!(
+                storage.get("packages").is_some(),
+                *workflow == PackageWorkflow::Wally
+            );
+            assert!(storage.get("modules").is_none());
+        }
     }
 
     #[test]

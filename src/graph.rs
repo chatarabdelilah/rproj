@@ -62,12 +62,11 @@ impl Node {
     /// What re-answering this node makes stale.
     ///
     /// **The whole invalidation model, and it is four rows.** Changing the
-    /// strategy can make a chosen package unvendorable, so the packages go;
+    /// strategy can stop managing packages, so the package selection goes;
     /// anything upstream of the file list makes the file list stale. What is
     /// *absent* matters as much: the strategy does not touch capabilities
     /// (linting does not care where packages come from), and packages do not
-    /// touch the strategy, which is what stopped React silently switching a
-    /// project to Wally.
+    /// touch the strategy; choosing dependencies remains an explicit decision.
     pub fn invalidates(&self) -> &'static [Node] {
         match self {
             Node::Strategy => &[Node::Packages, Node::Files],
@@ -215,7 +214,6 @@ impl ProjectGraph {
     pub fn strategy(&self) -> artifacts::Strategy {
         match self.package_workflow {
             PackageWorkflow::Wally => artifacts::Strategy::Wally,
-            PackageWorkflow::GitSubmodules => artifacts::Strategy::GitSubmodules,
             PackageWorkflow::None => artifacts::Strategy::None,
         }
     }
@@ -282,8 +280,7 @@ impl ProjectGraph {
 /// package silently degrades to `any`.
 ///
 /// Empty with no packages: a manifest with nothing in it needs no installer.
-/// Empty under submodules: there is no `wally.toml` to install from and no
-/// thunks to retype, so pinning either would be noise in `rokit.toml`.
+/// A dependency-free project needs neither tool.
 pub fn strategy_tools(workflow: PackageWorkflow, no_packages: bool) -> &'static [&'static str] {
     match workflow {
         PackageWorkflow::Wally if !no_packages => &["wally", "wally-package-types"],
@@ -413,16 +410,6 @@ mod tests {
         assert!(g.tools().is_empty(), "{:?}", g.tools());
     }
 
-    #[test]
-    fn submodule_projects_never_pin_wally() {
-        let g = graph(PackageWorkflow::GitSubmodules, &["charm"], &["lint"]);
-        assert!(
-            !g.tools().iter().any(|t| t.starts_with("wally")),
-            "{:?}",
-            g.tools()
-        );
-    }
-
     /// The bare project, from the graph rather than from the command.
     #[test]
     fn an_empty_graph_plans_only_the_basics_and_housekeeping() {
@@ -464,7 +451,7 @@ mod tests {
     #[test]
     fn the_graph_round_trips_through_toml() {
         let mut g = graph(
-            PackageWorkflow::GitSubmodules,
+            PackageWorkflow::Wally,
             &["charm", "vide"],
             &["lint", "test"],
         );
@@ -472,7 +459,7 @@ mod tests {
 
         let text = toml::to_string_pretty(&g).expect("serialise");
         let back: ProjectGraph = toml::from_str(&text).expect("parse back");
-        assert_eq!(back.package_workflow, PackageWorkflow::GitSubmodules);
+        assert_eq!(back.package_workflow, PackageWorkflow::Wally);
         assert_eq!(back.packages, ["charm", "vide"]);
         assert_eq!(back.dropped, [".gitignore"]);
         assert_eq!(back.capability_keys(), ["lint", "test"]);

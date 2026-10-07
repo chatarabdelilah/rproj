@@ -1,5 +1,62 @@
 # Release-Hardening Audit
 
+## October 7: unreleased Git-submodule retirement
+
+The owner approved full alpha-stage removal, without legacy support, automatic
+conversion or migration tooling. New projects, direct prompts, saved compositions
+and Catalog guidance now offer Wally or None. Persisted `git-submodules` values
+are rejected through existing configuration-error handling before creation or
+composition. Ordinary Git initialization and missing-Git recovery remain.
+
+Generation and restoration, source-layout metadata, manual dependency closure,
+the modules artifact/mount, vendoring guards, special exclusions and generated CI
+submodule checkout are removed. Upstream URLs, canonical module names, Wally
+aliases, realms and testing remain. Existing repositories, templates, `.gitmodules`
+files and dependency folders are not deleted or converted. Historical sections
+below describe earlier releases and are retained as evidence.
+
+Local verification passed on `codex/retire-git-submodules`, based on clean main
+`33b184a`: formatting, the complete locked offline ordinary suite (**479 passed,
+23 ignored**, excluding the nested child result from totals), and strict locked
+all-target Clippy. No setup-cancellation checks were excluded: the owner profile
+reported Watch stopped. The isolated build directory is
+`target/retire-submodules-target`. The initial sandbox run denied PTY/process
+access; the complete Windows-access run passed after correcting two obsolete
+test selections. Removed tests reduce the former 490/25 ordinary inventory.
+
+Installed-tool checks ran serially and passed in disposable fixtures: all eight
+Rojo template variants, Wally creation and quality gate, deliberate gate failures,
+None creation through Home, Wally saved-setup replay and unsupported saved-record
+refusal before reconfiguration/creation. Existing custom-template fields,
+including an owner-controlled `modules` node, remain preserved. No machine-wide
+application was provisioned and no owner project/template/dependency folder was
+converted or removed. Rokit/Wally caches remain shared by these existing checks.
+
+CodeRabbit iteration reported two minor architecture-doc findings; both were
+corrected. Final branch review found one remaining retired-workflow mention in
+Catalog documentation; that documentation-only correction was inspected directly,
+as required by the working agreement. No runtime findings remain. Locked packaging
+passed from clean commit `1639e77`: 105 files and verified compilation. The
+subsequent documentation corrections affect excluded files only.
+
+Initial head CI [37609989027](https://github.com/chatarabdelilah/rproj/actions/runs/37609989027)
+at `2659c10` passed Rust 1.89 (479/23), official-Wally Linux and packaging; Windows
+stable exposed a Saved Setup resize assertion comparing a partially cleared
+Actions pane after returning to composition. The existing terminal regression now
+derives its expected pane from TestBackend and waits for every physical row at
+initial scrolling, restored size, End and Back. It retains the same file, filter,
+selection, scroll and terminal assertions. The focused check, full 479/23 ordinary
+suite and strict Clippy passed locally after this test-only correction. Locked
+packaging passed again from clean code commit `987b9ad` (105 files). Final local
+CodeRabbit branch review reported no runtime/test findings and one documentation
+correction: Jest's DataModel mount is lower-case `devPackages`, while its disk
+directory is `DevPackages`. That correction and the last template-review wording
+were inspected directly. Final-head CI, guarded merge, main CI and branch cleanup
+are tracked in [PR #93](https://github.com/chatarabdelilah/rproj/pull/93). The focused
+official-Wally Linux compatibility CI job is retained.
+Version 0.20.4 is unchanged; release preparation and owner publication are separate
+work.
+
 ## October 7: 0.20.4 publication and release alignment
 
 The owner published 0.20.4 with `cargo publish --locked`. Crates.io records

@@ -7,7 +7,7 @@ use super::creation::ProjectEdit;
 use crate::catalog::wally_packages;
 use crate::config::{PackageWorkflow, project_file};
 use crate::graph::TestRunner;
-use crate::steps::{git, jest, modules, rojo, testez, toolchain, wally};
+use crate::steps::{jest, rojo, testez, toolchain, wally};
 use crate::ui;
 
 pub fn apply(project_dir: &Path, edit: ProjectEdit) -> Result<()> {
@@ -72,7 +72,7 @@ pub fn apply(project_dir: &Path, edit: ProjectEdit) -> Result<()> {
                     record_path.display()
                 )
             })?;
-            return Err(error.context("project files were not fully updated; restored the original rproj.toml. Review git status/diff for partial changes to default.project.json, test files, rokit.toml, wally.toml, or modules/ before retrying"));
+            return Err(error.context("project files were not fully updated; restored the original rproj.toml. Review git status/diff for partial changes to default.project.json, test files, rokit.toml, or wally.toml before retrying"));
         }
         return Err(error.context(
             "project files were not fully updated; rproj.toml changed again, so it was not restored",
@@ -114,17 +114,7 @@ fn apply_recorded(project_dir: &Path, updated: &crate::graph::ProjectGraph) -> R
         PackageWorkflow::Wally => {
             wally::merge_selected(project_dir, &updated.packages)?;
         }
-        PackageWorkflow::GitSubmodules => {
-            let mut cloned = BTreeSet::new();
-            for spec in modules::vendorable(&packages) {
-                let submodule = spec.submodule.expect("vendorable package has a submodule");
-                if cloned.insert(submodule.dir) {
-                    git::add_submodule(project_dir, spec.git_repo, submodule.dir)?;
-                }
-            }
-            modules::write_submodules_project(project_dir, &packages)?;
-            modules::write_link_files(project_dir, &packages)?;
-        }
+
         PackageWorkflow::None => {}
     }
 
@@ -139,7 +129,7 @@ fn apply_recorded(project_dir: &Path, updated: &crate::graph::ProjectGraph) -> R
             };
             wally::sync_for_project(project_dir, project_file)?;
         }
-        PackageWorkflow::GitSubmodules | PackageWorkflow::None => {
+        PackageWorkflow::None => {
             rojo::generate_sourcemap(project_dir)?;
         }
     }

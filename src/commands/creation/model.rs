@@ -196,11 +196,6 @@ impl Draft {
                     "Wally",
                     "Package manager; supports every catalog package",
                 ),
-                item(
-                    "git",
-                    "Git submodules",
-                    "Vendor supported dependencies as source",
-                ),
                 item("none", "None", "No dependency manager"),
             ],
             Step::Packages(category) => {
@@ -363,7 +358,6 @@ impl Draft {
         let selected = match step {
             Step::Strategy => Some(match self.graph.package_workflow {
                 PackageWorkflow::Wally => "wally",
-                PackageWorkflow::GitSubmodules => "git",
                 PackageWorkflow::None => "none",
             }),
             Step::Implementation("test")
@@ -449,22 +443,7 @@ impl Draft {
         if self.guided {
             new::add_companions(&mut packages);
         }
-        if self.graph.package_workflow == PackageWorkflow::GitSubmodules {
-            let blocked = wally_packages::unvendorable_in_closure(&packages);
-            if !blocked.is_empty() {
-                self.status = format!(
-                    "Cannot vendor {} with Git submodules. Revise packages or choose Wally.",
-                    blocked
-                        .iter()
-                        .map(|(k, via)| via.unwrap_or(k))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                );
-                self.open(Step::Packages(None));
-                return;
-            }
-            packages = wally_packages::with_dependencies(&packages);
-        }
+
         self.graph.packages = packages.into_iter().collect();
         if !self.graph.testing_is_compatible() {
             self.status = "Jest Roblox requires Wally. Other capabilities are unchanged.".into();
@@ -598,7 +577,6 @@ impl Draft {
             }
             Step::Strategy => {
                 let workflow = match value.as_str() {
-                    "git" => PackageWorkflow::GitSubmodules,
                     "none" => PackageWorkflow::None,
                     _ => PackageWorkflow::Wally,
                 };

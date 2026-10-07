@@ -55,7 +55,7 @@ Detected external edits require leaving the editor and refreshing; there is no f
 | --- | --- |
 | Windows applications | Git, VS Code, Roblox Studio, Blender, Figma, and related prerequisites |
 | CLI toolchain | Rokit plus pinned tools such as Rojo, Wally, Selene, StyLua, luau-lsp, Lute, jest-roblox, Asphalt, and Tungsten |
-| Packages | Wally packages or Git submodules, including UI, state, networking, data, testing, and ECS libraries |
+| Packages | Wally packages or no package manager, including UI, state, networking, data, testing, and ECS libraries |
 | Roblox Studio | Development plugins selected during machine setup |
 | VS Code | Recommended extensions and project-scoped settings |
 | Generated project | Rojo mapping, source tree, dependency manifests, lint/format/type configuration, tests, CI, and asset configuration |
@@ -134,7 +134,7 @@ Background states are Preparing, Watching, Stopping, Stopped, Failed, and Unresp
 
 Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and descendants. Project-template editing and Saved Setups belong to their own Home destinations, not Catalog.
 
-Rows show names only; explanations appear in Overview or Details. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select entries; Page Up/Down and Ctrl+Home/End scroll details without changing focus. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally/submodule import differences; they are starting points, not complete production systems.
+Rows show names only; explanations appear in Overview or Details. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select entries; Page Up/Down and Ctrl+Home/End scroll details without changing focus. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally imports and package realms; they are starting points, not complete production systems.
 
 ### New Project in the hub
 
@@ -183,7 +183,7 @@ my-first-game/
 
 ## Testing
 
-Testing is optional. Wally projects can choose either **Jest Roblox** or **TestEZ**; git-submodule and dependency-free projects use TestEZ because Jest Roblox is distributed as Wally development packages. The choice is written explicitly to `rproj.toml`, and `rproj upgrade` never migrates one runner to the other.
+Testing is optional. Wally projects can choose either **Jest Roblox** or **TestEZ**; dependency-free projects use TestEZ because Jest Roblox is distributed as Wally development packages. The choice is written explicitly to `rproj.toml`, and `rproj upgrade` never migrates one runner to the other.
 
 Run the selected runner through:
 
@@ -208,7 +208,7 @@ Run `rproj configure project` to customize the `default.project.json` used by pr
 
 Use the arrow keys to navigate, Enter to edit, Tab to switch panes, and type in searchable class and property pickers. `A` adds an instance, `F2` renames, `D` duplicates, `M` reparents, Delete removes, and Ctrl+Z/Ctrl+Y undo and redo. The Inspector provides typed controls for common Roblox properties and attributes plus common project settings. Ctrl+E opens the complete JSON in rproj's internal text editor for uncommon Rojo values and advanced settings. Press `?` in the editor for the full key list.
 
-Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain, Wally, and git-submodule mount combination with Rojo before atomically saving it under the rproj configuration directory. Rojo must resolve from the current project or Rokit's global manifest; `rokit add --global rojo` installs the global fallback. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
+Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain and Wally mount combination with Rojo before atomically saving it under the rproj configuration directory. Rojo must resolve from the current project or Rokit's global manifest; `rokit add --global rojo` installs the global fallback. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
 
 Saving does **not** close the editor, including standalone `rproj configure project`. Selection, editing mode, and undo history remain intact. Undoing a saved change makes the draft unsaved again. Esc keeps local Back behavior; leaving Explorer or pressing Ctrl+C confirms discarding changes since the last successful save. Confirmed reset removes only the custom template and returns to Home (or ends the standalone command). Failed validation/writes keep the draft and show a scrollable error.
 

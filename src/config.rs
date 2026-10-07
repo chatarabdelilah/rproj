@@ -116,20 +116,7 @@ fn dirs_documents() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join("Documents"))
 }
 
-/// How a project's packages get pulled in. Wally is the default; git
-/// submodules clone each selected package's repo into `modules/submodules/`
-/// instead of writing a `wally.toml`. See `steps::modules`.
-///
-/// `None` is a real answer, not the absence of one. Before it existed, a
-/// project with no packages silently became a Wally project - and was then
-/// offered a `wally.toml` for dependencies it did not have. A tutorial
-/// project, or one that vendors by hand, genuinely has no dependency
-/// manager, and saying so is what stops the scaffold pretending otherwise.
-///
-/// Adding the variant is deliberately *not* modelled as `Option<..>`: it is
-/// a third case for the code that mounts package folders, and an `Option`
-/// would only move the exhaustiveness check somewhere the compiler cannot
-/// help.
+/// How a project gets dependencies: Wally, or no dependency manager.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PackageWorkflow {
@@ -137,12 +124,11 @@ pub enum PackageWorkflow {
     /// gets is always an explicit answer, never this.
     #[default]
     Wally,
-    GitSubmodules,
     None,
 }
 
 impl PackageWorkflow {
-    pub const ALL: &'static [Self] = &[Self::Wally, Self::GitSubmodules, Self::None];
+    pub const ALL: &'static [Self] = &[Self::Wally, Self::None];
 }
 
 /// Reading and writing `rproj.toml`, the per-project record.
@@ -607,23 +593,39 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 
-    /// The on-disk spelling is a compatibility promise; the Rust spelling
-    /// is not. A rename in Rust must not silently change the file format.
+    /// Supported workflow values round-trip through project records.
     #[test]
     fn the_workflow_enum_is_written_in_kebab_case() {
-        let text = toml::to_string_pretty(&crate::graph::ProjectGraph {
-            mode: "guided".into(),
-            package_workflow: PackageWorkflow::GitSubmodules,
-            ..Default::default()
-        })
-        .expect("serialise");
-        assert!(
-            text.contains("package_workflow = \"git-submodules\""),
-            "{text}"
-        );
-        assert!(!text.contains("GitSubmodules"), "{text}");
+        for (workflow, spelling) in [
+            (PackageWorkflow::Wally, "wally"),
+            (PackageWorkflow::None, "none"),
+        ] {
+            let graph = crate::graph::ProjectGraph {
+                package_workflow: workflow,
+                ..Default::default()
+            };
+            let text = toml::to_string_pretty(&graph).expect("serialise");
+            assert!(
+                text.contains(&format!("package_workflow = \"{spelling}\"")),
+                "{text}"
+            );
+            let decoded: crate::graph::ProjectGraph = toml::from_str(&text).expect("deserialise");
+            assert_eq!(decoded.package_workflow, workflow);
+        }
     }
 
+    #[test]
+    fn retired_workflow_is_rejected_without_defaulting_to_wally() {
+        let error =
+            toml::from_str::<crate::graph::ProjectGraph>("package_workflow = 'git-submodules'")
+                .unwrap_err()
+                .to_string();
+        assert!(
+            error.contains("unknown variant `git-submodules`"),
+            "{error}"
+        );
+        assert!(error.contains("wally") && error.contains("none"), "{error}");
+    }
     #[test]
     fn project_template_round_trips_in_an_injected_location() {
         let dir =

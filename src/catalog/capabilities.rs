@@ -416,11 +416,10 @@ mod tests {
     fn jest_is_only_available_with_wally() {
         let testing = find("test").unwrap();
         assert_eq!(testing.implementations_for(PackageWorkflow::Wally).len(), 3);
-        for workflow in [PackageWorkflow::GitSubmodules, PackageWorkflow::None] {
-            let implementations = testing.implementations_for(workflow);
-            assert_eq!(implementations.len(), 1);
-            assert_eq!(implementations[0].key, "testez");
-        }
+        let workflow = PackageWorkflow::None;
+        let implementations = testing.implementations_for(workflow);
+        assert_eq!(implementations.len(), 1);
+        assert_eq!(implementations[0].key, "testez");
     }
 
     #[test]

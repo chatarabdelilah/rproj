@@ -26,7 +26,6 @@ const LOCKED_MOUNTS: &[&[&str]] = &[
 
 const RESERVED_CHILDREN: &[(&[&str], &str)] = &[
     (&["ReplicatedStorage"], "packages"),
-    (&["ReplicatedStorage"], "modules"),
     (&["ReplicatedStorage"], "test"),
     (&["ServerScriptService"], "serverPackages"),
     (&["ServerScriptService"], "test"),
@@ -635,6 +634,11 @@ mod tests {
             model
                 .add(&["ReplicatedStorage".into()], "packages", false)
                 .is_err()
+        );
+        assert!(
+            model
+                .add(&["ReplicatedStorage".into()], "modules", false)
+                .is_ok()
         );
     }
 

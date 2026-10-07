@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use crate::catalog::tool_catalog::SYSTEM_APPS;
 use crate::config::{PackageWorkflow, project_file};
 use crate::graph::TestRunner;
-use crate::steps::{bootstrap, git, jest, studio_plugin, toolchain, wally};
+use crate::steps::{bootstrap, jest, studio_plugin, toolchain, wally};
 use crate::ui;
 
 #[derive(Debug)]
@@ -54,7 +54,6 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
     if project_dir.join("rokit.toml").exists() {
         toolchain::sync_installed_tools(project_dir)?;
     }
-    git::sync_submodules(project_dir)?;
 
     match runner {
         TestRunner::TestEz => {
