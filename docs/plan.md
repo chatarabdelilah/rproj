@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.1, public alpha**, improving missing-Cargo and missing-WinGet recovery. It retains persistent Windows background Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `07634cc`. The unpublished **0.20.2 alpha candidate** packages the Watch acknowledgment repair and terminal test-harness fixes. See [candidate notes](release-notes-0.20.2.md), [published notes](release-notes-0.20.1.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.20.2, public alpha**, improving Windows background Watch acknowledgment handling and including terminal test-harness fixes. It retains missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `eaa0447`; no unpublished candidate is active. See [release notes](release-notes-0.20.2.md) and [audit evidence](release-audit.md) for verification and limits.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -275,11 +275,19 @@ host's precise timing remains unmeasured, with phase-specific errors now availab
 See the release audit for evidence and limits.
 
 The Watch runtime repair merged in [PR #84](https://github.com/chatarabdelilah/rproj/pull/84)
-at `481e33b`, with first-attempt final-head and main CI passing. The 0.20.2 alpha
-candidate is now being prepared; published 0.20.1 stays immutable. After owner
-publication and registry/tag/release alignment, audit missing-Git recovery during
-project creation using a disposable child-PATH fixture. Machine-wide provisioning
-remains deferred.
+at `481e33b`, with first-attempt final-head and main CI passing. The owner published
+0.20.2 alpha after [PR #85](https://github.com/chatarabdelilah/rproj/pull/85)'s verified
+release gates; registry/archive identity, annotated tag and GitHub alpha release
+match `eaa0447`. Published versions stay immutable.
+
+The next bounded development audit is missing-Git recovery during project
+creation. rproj initializes Git for generated projects; the audit checks whether
+an unavailable Git executable produces a clear recovery message. A disposable
+fixture means a temporary project and a test child whose PATH hides Git, leaving
+the owner's installation and PATH untouched. This is an unverified workflow,
+not a confirmed defect or a required new feature. Close the audit if behavior
+is already sufficient; repair only a demonstrated failure. Machine-wide
+provisioning remains deferred.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
