@@ -21,7 +21,9 @@ semantics may leave newly created empty directories on preparation failure.
 `cargo test --locked --offline` passes **485 ordinary tests, 23 ignored**,
 excluding nested child-test summaries. Formatting and strict all-target Clippy
 pass. Local CodeRabbit iteration review reports zero findings across all nine
-files. Packaging, final branch review, and reviewed-head/main CI remain pending.
+files. Clean `cargo package --locked --offline` at `ee94fe4` builds successfully
+from its 105-file archive. Subsequent evidence edits affect excluded docs only.
+Final branch review and reviewed-head/main CI remain pending.
 This is an unreleased runtime correction; no version bump, publication,
 or tag is part of this PR. Fresh-machine and authenticated Open Cloud acceptance
 remain separate gaps; no host applications or user projects were changed.
