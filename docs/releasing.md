@@ -13,6 +13,8 @@ The active unreleased candidate is **0.21.0 alpha**, containing the intentional
 Git-submodule retirement from [PR #93](https://github.com/chatarabdelilah/rproj/pull/93).
 Cargo manifest and root lockfile are aligned at 0.21.0. See
 [candidate notes](release-notes-0.21.0.md) and [audit evidence](release-audit.md).
+Release preparation and final head/main CI are tracked in
+[PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
 Owner publication, the candidate tag and matching GitHub release are pending.
 Previous shipped tags remain immutable.
 

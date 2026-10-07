@@ -51,8 +51,9 @@ with **zero findings across all seven release files**. Final branch review at
 `35bb05cebd083c28d842dedfae141d1ca335aee7` also completed with **zero findings
 across all seven files**, after waiting until the next included slot cleared at
 13:48 Brussels time. The final evidence correction affects excluded documentation
-only. Reviewed-head CI, guarded merge, main CI and branch cleanup remain delivery
-gates. Owner publication, published archive identity, tag and matching GitHub
+only. Reviewed-head CI, guarded merge, main CI and branch cleanup are tracked in
+[release-preparation PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
+Owner publication, published archive identity, tag and matching GitHub
 alpha release are pending; no shipped identity is changed.
 
 ## October 7: unreleased Git-submodule retirement
