@@ -1,5 +1,29 @@
 # Release-Hardening Audit
 
+## October 7: owner publication of 0.20.2 verified
+
+The owner published 0.20.2 after [PR #85](https://github.com/chatarabdelilah/rproj/pull/85)
+merged at `eaa0447d73751f147c2138b106f1ceb263617e10`. Its final-head CI
+[37564015631](https://github.com/chatarabdelilah/rproj/actions/runs/37564015631)
+and exact-main CI [37564268978](https://github.com/chatarabdelilah/rproj/actions/runs/37564268978)
+passed on their first attempts. Fully merged candidate branches were removed
+after identity, ancestry and tree-equality checks; main was clean for publication.
+
+The official crates.io archive SHA-256 matches registry checksum
+`260f61d5baa9b5e1ea422b4f85a4356d790bb2fd36c24fbc91a874f09c526745`.
+Archive manifest/root lockfile version is 0.20.2; `.cargo_vcs_info.json` names
+the clean reviewed commit `eaa0447d73751f147c2138b106f1ceb263617e10`. Annotated
+tag object `a51104a601c7305c600c357dbd3a34c5c26acf1a` peels to that commit
+locally and remotely. The matching [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.2)
+is an alpha prerelease. No shipped tag was moved.
+
+This publication-state documentation update does not change Cargo versions,
+dependencies, runtime or tests. It is directly inspected under AGENTS.md's
+documentation-only review exception; exact final-head/main CI evidence is
+recorded in its documentation PR. Fresh-Windows/Open Cloud/platform Studio
+acceptance remains unverified. Missing-Git recovery is a proposed bounded audit,
+not a confirmed bug; its temporary child-PATH fixture leaves host Git untouched.
+
 ## October 7: 0.20.2 alpha candidate preparation
 
 The candidate is based on clean main `481e33b`, after [PR #84](https://github.com/chatarabdelilah/rproj/pull/84)

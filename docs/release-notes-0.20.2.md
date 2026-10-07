@@ -1,6 +1,6 @@
 # rproj 0.20.2 — Watch acknowledgment reliability
 
-Unpublished candidate prepared October 7, 2026. Public alpha.
+Published October 7, 2026. Public alpha.
 
 ## Changes
 
@@ -40,6 +40,11 @@ not ordinary passes. The owner deferred Hyper-V/VM provisioning. This patch
 retains [0.20.0's Watch and platform limits](release-notes-0.20.0.md) and does not
 claim beta readiness.
 
-The owner alone publishes with `cargo publish --locked`. Registry/archive
-identity verification, the annotated tag and GitHub alpha prerelease follow
-successful publication.
+The owner-published archive's SHA-256 matches crates.io checksum
+`260f61d5baa9b5e1ea422b4f85a4356d790bb2fd36c24fbc91a874f09c526745`.
+Its manifest and lockfile are 0.20.2, and its clean Git identity matches reviewed
+release commit `eaa0447d73751f147c2138b106f1ceb263617e10`. The annotated `v0.20.2`
+tag and [GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.2)
+point to that same immutable commit. [Release PR #85](https://github.com/chatarabdelilah/rproj/pull/85)
+passed both local CodeRabbit reviews with zero findings and first-attempt final-head
+and merged-main Windows stable, Rust 1.89 and package CI.
