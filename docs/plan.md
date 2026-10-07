@@ -265,9 +265,12 @@ Existing Machine Setup, capability-prompt and Saved Setup behavior checks pass.
 This closes the selected child-output audit; no new workflow matrix or package
 release is required. Review and CI evidence belong in the follow-up PR.
 
-Next, check missing-Git recovery during project creation with a disposable
-child-PATH fixture. Inspect the existing Git initialization and error paths
-before choosing a change; machine-wide provisioning remains deferred.
+Next, diagnose the recurring Watch control timeout observed in the follow-up's
+Rust 1.89 CI: the flood scenario's stop request returned Windows error 10060.
+The same lifecycle acceptance passed locally; the UI-child flag repair does not
+resolve this separate timing boundary. Missing-Git recovery during project
+creation follows that investigation, using a disposable child-PATH fixture.
+Machine-wide provisioning remains deferred.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three

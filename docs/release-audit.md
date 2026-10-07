@@ -27,6 +27,14 @@ slow reproduction. PR #82's controlled 72.46-second proof records the shared
 child-runner mechanism.
 
 The full ordinary suite, strict Clippy, formatting and diff checks pass.
+The first reviewed-head CI attempt passed Windows stable and packaging, but
+Rust 1.89 failed in the unchanged Watch flood scenario's stop request at
+`src/background_watch/tests.rs:544` with Windows error 10060. Watch source and
+fixture have no diff in this repair. The exact lifecycle acceptance passed
+locally in 6.83 seconds; only the failed job was requested for retry on the same
+reviewed head. This recurring Watch control timeout remains unresolved and is
+the next development priority; final retry/main evidence belongs in the PR.
+
 Automatic approval review blocked the local CodeRabbit export because the
 previous consent did not clearly cover this changed five-file payload; that
 review command did not run. The owner subsequently explicitly authorized the
