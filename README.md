@@ -10,6 +10,10 @@
 
 ## What rproj does
 
+The [0.21.2 patch candidate](docs/release-notes-0.21.2.md) makes recreated Selene
+configuration complete after one Upgrade, eliminating a spacing-only second
+review. It is not yet published; crates.io remains at 0.21.1.
+
 Published [0.21.1](docs/release-notes-0.21.1.md) makes upgrade review cover every
 file write, including `.gitignore`, `.luaurc`, and TestEZ's `tests/.luaurc`.
 Housekeeping-only repairs require confirmation; cancellation writes nothing,

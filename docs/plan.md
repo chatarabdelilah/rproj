@@ -17,13 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.21.1, public alpha**, making upgrade review cover every planned write, including housekeeping files. It retains 0.21.0's Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `f9d300f`. Cargo manifest and root lockfile are aligned at 0.21.1; there is no active release candidate. See [published notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.21.1, public alpha**, making upgrade review cover every planned write, including housekeeping files. It retains 0.21.0's Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `f9d300f`. Cargo manifest and root lockfile are aligned at 0.21.2 for the current unpublished patch candidate; crates.io remains at 0.21.1. See [published notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md) for verification and limits.
 
-**Unreleased maintenance fix:** recreating a missing Selene configuration now
+**Prepared 0.21.2 patch candidate:** recreating a missing Selene configuration now
 uses Upgrade's existing merge before review, eliminating a spacing-only change
 on the next run. Regression coverage requires every project file to remain
 byte-identical on that second run. See the [audit](release-audit.md) for evidence;
-this fix needs a patch candidate before publication.
+see the [candidate notes](release-notes-0.21.2.md) for its release scope and limits.
 
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
