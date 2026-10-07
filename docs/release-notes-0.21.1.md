@@ -48,7 +48,7 @@ report zero findings, including all seven files in the final branch review.
 Release-preparation reviewed-head and merged-main CI must pass before owner
 publication; [release PR #97](https://github.com/chatarabdelilah/rproj/pull/97)
 and [the release audit](release-audit.md)
-records their outcomes and package inspection. Source, tests, dependencies and CI are
+record their outcomes and package inspection. Source, tests, dependencies and CI are
 unchanged from the reviewed implementation; only the package version and release
 documentation change.
 
