@@ -113,7 +113,7 @@ On Windows, `rproj watch start` runs that sourcemap Watch in the background afte
 | `rproj setup <tool>` | Set up one supported tool for the current project |
 | `rproj configure [key]` | Configure a project tool, or choose what to configure |
 | `rproj configure project` | Edit or reset the global Rojo tree inherited by future projects |
-| `rproj upgrade` | Re-render maintained files from the current `rproj.toml` decisions |
+| `rproj upgrade` | Review every maintained-file change, then apply the current `rproj.toml` decisions |
 | `rproj watch` | Restore dependencies and start the Rojo development loop |
 | `rproj watch start` | Start persistent background sourcemap Watch on Windows |
 | `rproj watch status / logs / stop` | Inspect or stop the single background Watch from any directory |

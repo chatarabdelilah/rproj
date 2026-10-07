@@ -22,7 +22,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use serde_json::{Value, json};
+use serde_json::json;
 
 use crate::ui;
 
@@ -228,39 +228,28 @@ const TESTEZ_GLOBALS: &[&str] = &[
 /// halves of that verified with `luau-lsp analyze`.)
 pub fn ensure_tests_luaurc(project_dir: &Path) -> Result<()> {
     let path = project_dir.join("tests").join(".luaurc");
-
-    let mut config = if path.exists() {
-        let text = fs::read_to_string(&path)?;
-        match serde_json::from_str::<Value>(&text) {
-            Ok(Value::Object(map)) => map,
-            // .luaurc allows comments, which serde_json rejects - leave a
-            // file we can't parse alone rather than discarding it.
-            _ => {
-                ui::skip("tests/.luaurc exists but couldn't be parsed, leaving it alone");
-                return Ok(());
-            }
-        }
+    let original = if path.exists() {
+        Some(fs::read_to_string(&path)?)
     } else {
-        serde_json::Map::new()
+        None
     };
-
-    if config.contains_key("globals") {
-        ui::ok("tests/.luaurc already configured");
-        return Ok(());
+    match planned_tests_luaurc(original.as_deref())? {
+        super::quality::LuaurcUpdate::Unchanged => ui::ok("tests/.luaurc already configured"),
+        super::quality::LuaurcUpdate::Unparseable => {
+            ui::skip("tests/.luaurc exists but couldn't be parsed, leaving it alone");
+        }
+        super::quality::LuaurcUpdate::Write(contents) => {
+            fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
+            fs::write(&path, contents)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            ui::ok("wrote tests/.luaurc (TestEZ globals)");
+        }
     }
-    config.insert("globals".to_string(), json!(TESTEZ_GLOBALS));
-
-    fs::create_dir_all(path.parent().expect("joined path has a parent"))?;
-    fs::write(
-        &path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&Value::Object(config))?
-        ),
-    )
-    .with_context(|| format!("failed to write {}", path.display()))?;
-    ui::ok("wrote tests/.luaurc (TestEZ globals)");
     Ok(())
+}
+
+pub(crate) fn planned_tests_luaurc(original: Option<&str>) -> Result<super::quality::LuaurcUpdate> {
+    super::quality::planned_luaurc_setting(original, "globals", json!(TESTEZ_GLOBALS))
 }
 
 pub fn ensure_companion_config(project_dir: &Path) -> Result<()> {

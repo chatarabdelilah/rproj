@@ -725,15 +725,21 @@ replacements are not rolled back; this is not a crash-durability guarantee.
 Symbolic-link targets are refused during preparation with instructions to use
 a regular project file or edit the linked configuration directly. The link and
 shared file are not replaced.
-The later `.gitignore`, `.luaurc`, and `tests/.luaurc` merge helpers read current
-files separately and are not part of this reviewed-plan conflict check.
+Housekeeping merges for `.gitignore`, `.luaurc`, and TestEZ's `tests/.luaurc`
+are part of the same reviewed plan, snapshots, and staged replacements.
 
 - **Only files rproj generates.** `stylua.toml`, `default.project.json`, `wally.toml`, `rokit.toml` and everything under `src/` are seeded once and then edited by hand, so rewriting them would throw away real work. A test asserts they survive.
 - **`selene.toml` is merged, not replaced**, and only for the keys whose correct value *follows from the project's composition*: `std` from TestEZ, `mixed_table` from the UI library, `exclude` from the package workflow. Lint levels the user chose are theirs. This reuses `tool_settings::merge_toml` by passing it a **subset** of the catalog's settings — it only rewrites lines whose key and section match something in that subset, so everything else in the file is untouched by construction.
 
 Deprecated editor settings are a special case: adding the replacement is not enough, since the old key stays valid and stays flagged. `vscode::drop_superseded` removes it — but **only once its replacement is present in the merged result**. Without that guard, `rproj configure stylua-vscode` on an older project would strip `luau-lsp.plugin.enabled` while writing nothing in its place, silently switching the Studio DataModel bridge back off, which is the exact failure §7 documents.
 
-`.gitignore`, `.luaurc` and `tests/.luaurc` merge rather than replace and are no-ops when nothing is missing, so they run unconditionally rather than being planned.
+The shared pure housekeeping planners append missing ignore entries, add root
+`languageMode` only when absent, and add TestEZ globals only when absent. Existing
+values and no-op bytes survive. Unparseable `.luaurc` documents are reported and
+left alone, including JSON with comments. A housekeeping-only upgrade still
+requires confirmation; an empty complete plan writes nothing and does not prompt.
+If files were skipped, the result says so rather than claiming everything is
+up to date. Existing housekeeping eligibility is unchanged.
 
 Jest upgrades are runner-aware. `jest.project.json` is regenerated from the current, user-owned production project; `jest.config.json` is merge-managed, restoring rproj's backend and path fields while preserving unknown options. Test source, `wally.toml`, and `rokit.toml` remain untouched. Production `default.project.json` preserves user content while ensuring Jest's compatible `devPackages` mount. Existing TestEZ graphs and older package-only TestEZ manifests stay on TestEZ.
 

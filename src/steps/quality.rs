@@ -26,38 +26,56 @@ use crate::ui;
 /// already carry aliases (from a previous `lute setup`) worth keeping.
 pub fn ensure_luaurc(project_dir: &Path) -> Result<()> {
     let path = project_dir.join(".luaurc");
-
-    let mut config = if path.exists() {
-        let text = fs::read_to_string(&path)?;
-        match serde_json::from_str::<Value>(&text) {
-            Ok(Value::Object(map)) => map,
-            // Don't discard a file we can't parse - .luaurc allows
-            // comments that serde_json rejects.
-            _ => {
-                ui::skip(".luaurc exists but couldn't be parsed, leaving it alone");
-                return Ok(());
-            }
-        }
+    let original = if path.exists() {
+        Some(fs::read_to_string(&path)?)
     } else {
-        serde_json::Map::new()
+        None
     };
-
-    if config.contains_key("languageMode") {
-        ui::ok(".luaurc already configured");
-        return Ok(());
+    match planned_luaurc(original.as_deref())? {
+        LuaurcUpdate::Unchanged => ui::ok(".luaurc already configured"),
+        LuaurcUpdate::Unparseable => {
+            ui::skip(".luaurc exists but couldn't be parsed, leaving it alone");
+        }
+        LuaurcUpdate::Write(contents) => {
+            fs::write(&path, contents)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            ui::ok("wrote .luaurc");
+        }
     }
-    config.insert("languageMode".to_string(), json!("strict"));
-
-    fs::write(
-        &path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&Value::Object(config))?
-        ),
-    )
-    .with_context(|| format!("failed to write {}", path.display()))?;
-    ui::ok("wrote .luaurc");
     Ok(())
+}
+
+pub(crate) enum LuaurcUpdate {
+    Unchanged,
+    Unparseable,
+    Write(String),
+}
+
+pub(crate) fn planned_luaurc(original: Option<&str>) -> Result<LuaurcUpdate> {
+    planned_luaurc_setting(original, "languageMode", json!("strict"))
+}
+
+pub(super) fn planned_luaurc_setting(
+    original: Option<&str>,
+    key: &str,
+    value: Value,
+) -> Result<LuaurcUpdate> {
+    let mut config = match original {
+        Some(text) => match serde_json::from_str::<Value>(text) {
+            Ok(Value::Object(map)) => map,
+            // .luaurc permits comments; preserve documents we cannot interpret.
+            _ => return Ok(LuaurcUpdate::Unparseable),
+        },
+        None => serde_json::Map::new(),
+    };
+    if config.contains_key(key) {
+        return Ok(LuaurcUpdate::Unchanged);
+    }
+    config.insert(key.to_owned(), value);
+    Ok(LuaurcUpdate::Write(format!(
+        "{}\n",
+        serde_json::to_string_pretty(&Value::Object(config))?
+    )))
 }
 
 /// Writes `.lute/check.luau` from the selected tools. No-op when the
