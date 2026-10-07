@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.1, public alpha**, improving missing-Cargo and missing-WinGet recovery. It retains persistent Windows background Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `07634cc`; no later candidate is prepared. See [release notes](release-notes-0.20.1.md) and [audit evidence](release-audit.md) for behavior, verification and limits.
+The published baseline is **v0.20.1, public alpha**, improving missing-Cargo and missing-WinGet recovery. It retains persistent Windows background Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `07634cc`. The unpublished **0.20.2 alpha candidate** packages the Watch acknowledgment repair and terminal test-harness fixes. See [candidate notes](release-notes-0.20.2.md), [published notes](release-notes-0.20.1.md) and [audit evidence](release-audit.md) for verification and limits.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -274,10 +274,12 @@ regressions and both installed-tool Watch acceptances pass; the historic CI
 host's precise timing remains unmeasured, with phase-specific errors now available.
 See the release audit for evidence and limits.
 
-After this runtime repair is reviewed, merged and verified on main, prepare a
-0.20.2 alpha candidate. No new candidate is active yet; published 0.20.1 stays
-immutable. Missing-Git recovery during project creation follows release alignment,
-using a disposable child-PATH fixture. Machine-wide provisioning remains deferred.
+The Watch runtime repair merged in [PR #84](https://github.com/chatarabdelilah/rproj/pull/84)
+at `481e33b`, with first-attempt final-head and main CI passing. The 0.20.2 alpha
+candidate is now being prepared; published 0.20.1 stays immutable. After owner
+publication and registry/tag/release alignment, audit missing-Git recovery during
+project creation using a disposable child-PATH fixture. Machine-wide provisioning
+remains deferred.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three

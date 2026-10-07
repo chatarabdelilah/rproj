@@ -1,5 +1,29 @@
 # Release-Hardening Audit
 
+## October 7: 0.20.2 alpha candidate preparation
+
+The candidate is based on clean main `481e33b`, after [PR #84](https://github.com/chatarabdelilah/rproj/pull/84)
+passed exact final-head CI [37562556726](https://github.com/chatarabdelilah/rproj/actions/runs/37562556726)
+and merged-main CI [37562809134](https://github.com/chatarabdelilah/rproj/actions/runs/37562809134)
+on their first attempts. It packages the Watch acknowledgment runtime repair,
+Template Explorer PTY synchronization and remaining UI child-output isolation.
+
+`Cargo.toml` and the root `Cargo.lock` package are aligned at 0.20.2. Dependency
+versions and runtime/test source are unchanged from verified main. Candidate
+notes and current-state documentation distinguish the unpublished candidate
+from immutable published 0.20.1.
+
+Candidate ordinary tests, strict Clippy, formatting, serial installed-tool Watch
+acceptance, clean locked packaging, local CodeRabbit and exact-head/main CI are
+pending. Ongoing owner approval covers tracked rproj review diffs and public
+repository context. Publication remains the owner's action; no 0.20.2 tag or
+GitHub release is created before registry/archive verification.
+
+Fresh-Windows/Open Cloud/platform Studio acceptance remains unverified. The
+owner's Hyper-V/VM deferral remains in force. Missing-Git recovery through a
+disposable child-PATH fixture is the next development audit after publication
+alignment.
+
 ## October 7: Watch acknowledgement budgets and peer failure isolation
 
 The follow-up to [PR #83](https://github.com/chatarabdelilah/rproj/pull/83) inspected
