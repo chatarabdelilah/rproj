@@ -1,9 +1,39 @@
 # Release-Hardening Audit
 
+## October 7: 0.21.1 alpha release preparation
+
+The owner requested continuation into patch-release preparation after complete
+upgrade review. Clean main is `9eea7eb912e291ef1ebf48d6a979dc053e13b68e`;
+crates.io still reports 0.21.0 as latest, and registry/remote-tag checks show
+0.21.1 is available. Preparation is on `codex/release-0-21-1`; the only package
+version changes are the Cargo manifest and root lockfile. Runtime/test source,
+dependency resolution and CI remain unchanged from the reviewed implementation.
+
+The candidate binary reports `rproj 0.21.1`. Formatting, the complete locked
+offline ordinary suite (**485 passed, 23 ignored**, excluding nested child
+summaries), and strict all-target Clippy pass. CodeRabbit iteration review has
+zero findings. Clean `cargo package --locked --offline` at `1b0a7c1` builds
+successfully: 105 archive files, all 95 source/test files byte-identical to the
+checkout, clean Git identity, and both manifests/root lockfile at 0.21.1. The
+dependency graph is unchanged except for the root package version; docs, CI,
+CodeGraph and build directories are excluded. Subsequent evidence changes
+affect excluded docs only. Final `cr review --agent --base main` at `d4a76e2`
+reports zero findings across all seven release files, including the new notes,
+after the service cooldown expired. Reviewed-head and merged-main CI must pass
+before owner publication; run identities and outcomes are recorded in the
+[release-preparation PR #97](https://github.com/chatarabdelilah/rproj/pull/97)'s
+verification section. Applicable
+changed-path checks are ordinary fixture/PTY tests: upgrade is file planning and
+replacement without external tool execution, and creation shares the same pure
+merge rules. No ignored external-tool workflow is needed to validate this patch.
+Fresh-Windows installation/retry, authenticated Open Cloud, fresh-Linux project
+execution and manual Studio checks remain unverified. VM provisioning stays
+deferred. Owner publication is pending; no tag or GitHub release is created.
+
 ## October 7: complete upgrade review implementation
 
-Work is on `codex/complete-upgrade-review` from clean main `69a02e6`, after
-published 0.21.0. The housekeeping-only PTY regression failed on the original
+The implementation began on `codex/complete-upgrade-review` from clean main
+`69a02e6`, after published 0.21.0. The housekeeping-only PTY regression failed on the original
 runtime: it reported already up to date, wrote `.gitignore` and `.luaurc`, and
 never offered confirmation. Upgrade now plans these files and TestEZ's scoped
 `tests/.luaurc` before confirmation, using shared pure content planners also
@@ -29,11 +59,13 @@ implementation-head CI [37643776338](https://github.com/chatarabdelilah/rproj/ac
 passes all four required jobs at `f4575ad5ddd26a344b7b7959160f685cffc0263c`.
 The final evidence/inventory correction changes excluded documentation only;
 runtime, tests, dependency resolution and CI remain unchanged from that head.
-Final reviewed-head CI is required before merge, and merged-main CI before
-branch cleanup; the corresponding run identities and outcome are recorded in
-the PR's verification section.
-This is an unreleased runtime correction; no version bump, publication,
-or tag is part of this PR. Fresh-machine and authenticated Open Cloud acceptance
+Final-head CI [37644381844](https://github.com/chatarabdelilah/rproj/actions/runs/37644381844)
+passed all four required jobs at `658db1a34bbb633bd2c7d5a7f8b759757c14d586`.
+Merged-main CI [37644816485](https://github.com/chatarabdelilah/rproj/actions/runs/37644816485)
+passed all four jobs at `9eea7eb912e291ef1ebf48d6a979dc053e13b68e`. Their
+complete trees match; the merged local and remote branch was removed after
+verification. The runtime correction is included in candidate 0.21.1; the
+implementation PR itself did not bump or publish a version. Fresh-machine and authenticated Open Cloud acceptance
 remain separate gaps; no host applications or user projects were changed.
 
 ## October 7: 0.21.0 publication verified
