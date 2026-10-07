@@ -1,8 +1,42 @@
 # Release-Hardening Audit
 
+## October 7: 0.21.1 publication verified
+
+The owner published 0.21.1 at 19:16 Brussels time on October 7, 2026. Crates.io
+confirms the version is not yanked and gives checksum
+`7d58dab4175ddfd4c4b0fd2eca32976c66bdc01df5f2b769e5bae74c388b1031`.
+The downloaded official archive matches that checksum. Its 105 files are all
+byte-identical to a clean locked package rebuilt from release commit
+`f9d300ff2539033852d51926488b05bf3840cb29`. Both manifests and the root
+lockfile identify 0.21.1; `.cargo_vcs_info.json` is clean and identifies that
+commit. All 95 source/test files match the checkout. Docs, CI, CodeGraph and
+build directories are excluded.
+
+Release [PR #97](https://github.com/chatarabdelilah/rproj/pull/97) passed
+final-head CI [37652067928](https://github.com/chatarabdelilah/rproj/actions/runs/37652067928)
+at `88aaa29402899fc3ca0ef62dd57bd847011f6bd8` and merged-main CI
+[37652606591](https://github.com/chatarabdelilah/rproj/actions/runs/37652606591)
+at `f9d300ff2539033852d51926488b05bf3840cb29`. Complete trees match. All four
+required jobs passed, including Windows stable and Rust 1.89, official Wally
+compatibility on Linux, and packaging. The ordinary suite passed 485 tests
+with 23 ignored, excluding nested child-test summaries. Local CodeRabbit
+iteration/final reviews had zero findings; the final review covered all seven
+release files. The release-preparation branch was removed after main verification.
+
+The annotated `v0.21.1` tag peels to the published archive commit. The matching
+[GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.1)
+is not a draft and uses the dedicated published notes. Earlier shipped tags
+remain unchanged. Publication alignment changes documentation only; runtime,
+tests, dependency resolution and CI remain identical to the reviewed release.
+Its documentation PR must pass reviewed-head and main CI before branch cleanup.
+
+Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
+project execution and manual Studio checks remain unverified. VM provisioning
+stays deferred; no host applications or user projects were changed.
+
 ## October 7: 0.21.1 alpha release preparation
 
-The owner requested continuation into patch-release preparation after complete
+The following records the prepublication candidate preparation. The owner requested continuation into patch-release preparation after complete
 upgrade review. Clean main is `9eea7eb912e291ef1ebf48d6a979dc053e13b68e`;
 crates.io still reports 0.21.0 as latest, and registry/remote-tag checks show
 0.21.1 is available. Preparation is on `codex/release-0-21-1`; the only package
@@ -28,7 +62,8 @@ replacement without external tool execution, and creation shares the same pure
 merge rules. No ignored external-tool workflow is needed to validate this patch.
 Fresh-Windows installation/retry, authenticated Open Cloud, fresh-Linux project
 execution and manual Studio checks remain unverified. VM provisioning stays
-deferred. Owner publication is pending; no tag or GitHub release is created.
+deferred. Owner publication subsequently completed as recorded above; the tag
+and GitHub prerelease were created only after archive verification.
 
 ## October 7: complete upgrade review implementation
 

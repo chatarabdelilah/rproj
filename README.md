@@ -10,10 +10,10 @@
 
 ## What rproj does
 
-Candidate [0.21.1](docs/release-notes-0.21.1.md) makes upgrade review cover every
+Published [0.21.1](docs/release-notes-0.21.1.md) makes upgrade review cover every
 file write, including `.gitignore`, `.luaurc`, and TestEZ's `tests/.luaurc`.
 Housekeeping-only repairs require confirmation; cancellation writes nothing,
-and skipped files are reported clearly. Owner publication is pending.
+and skipped files are reported clearly.
 
 Published [0.21.0](docs/release-notes-0.21.0.md) removes Git-submodule dependencies. New projects and saved compositions support Wally or None. Old `git-submodules` records are unsupported; there is no compatibility layer, automatic conversion or migration tooling. Existing repositories, templates and dependency folders are not deleted or converted.
 
