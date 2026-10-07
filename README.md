@@ -10,6 +10,11 @@
 
 ## What rproj does
 
+Candidate [0.21.1](docs/release-notes-0.21.1.md) makes upgrade review cover every
+file write, including `.gitignore`, `.luaurc`, and TestEZ's `tests/.luaurc`.
+Housekeeping-only repairs require confirmation; cancellation writes nothing,
+and skipped files are reported clearly. Owner publication is pending.
+
 Published [0.21.0](docs/release-notes-0.21.0.md) removes Git-submodule dependencies. New projects and saved compositions support Wally or None. Old `git-submodules` records are unsupported; there is no compatibility layer, automatic conversion or migration tooling. Existing repositories, templates and dependency folders are not deleted or converted.
 
 It retains [0.20.4's official Wally tool requirement](docs/release-notes-0.20.4.md): older projects must explicitly update their tool pin before upgrading managed Wally CI; upgrade explains the requirement and preserves files. Missing-Git guidance, background Watch improvements, missing-Cargo and missing-WinGet recovery, and UI Labs 2.4.2 remain. rproj remains alpha software.

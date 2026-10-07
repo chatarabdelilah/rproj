@@ -10,9 +10,13 @@ are verified. See [release notes](release-notes-0.21.0.md),
 This release packages the intentional Git-submodule retirement from
 [PR #93](https://github.com/chatarabdelilah/rproj/pull/93), while preserving the
 official Wally type-tool requirement shipped in 0.20.4.
-Cargo manifest and root lockfile are aligned at 0.21.0; there is no active candidate.
-Release preparation and final head/main CI are tracked in
-[PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
+The active candidate is **0.21.1 alpha**, packaging the complete upgrade review
+from [PR #96](https://github.com/chatarabdelilah/rproj/pull/96). Cargo manifest
+and root lockfile are aligned at 0.21.1; runtime, tests, dependency resolution
+and CI remain unchanged from implementation main `9eea7eb`. See
+[candidate notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md).
+Candidate gates and owner publication are pending. No 0.21.1 tag or GitHub
+release exists; these follow confirmed crates.io publication.
 Previous shipped tags remain immutable.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
