@@ -22,6 +22,22 @@ and locked offline packaging passed locally; packaging used `--allow-dirty`
 before the implementation commit. The local CodeRabbit iteration review covered
 both runtime and test changes with zero findings. Delivery also requires clean
 committed packaging, final branch review, and reviewed-head/merged-main CI.
+Clean `cargo package --locked --offline` subsequently passed at implementation
+commit `559c254` (105 files). Final `cr review --agent --base main` covered all
+five changed files and reported two minor documentation findings: the per-file
+Upgrade test count and missing command/version evidence. Both were corrected
+and inspected directly; runtime and test code are unchanged from that review.
+
+Commands were `cargo test --locked --offline --test upgrade` (29 passed),
+`cargo test --locked --offline` (486 passed, 23 ignored),
+`cargo fmt --all -- --check`,
+`cargo clippy --locked --offline --all-targets -- -D warnings`, and
+`cargo package --locked --offline --allow-dirty`, followed by the clean package
+command above. This Windows run used rustc 1.94.0, Cargo 1.94.0,
+Clippy 0.1.94, rustfmt 1.8.0-stable, and CodeRabbit CLI 0.7.6. Offline Cargo
+checks used the existing dependency cache; PTY tests used disposable fixtures
+and required no Studio, Open Cloud credentials, or project tools. CodeRabbit
+reviews required the existing authenticated account and service access.
 
 This is an unreleased compatible fix; Cargo remains at the published 0.21.1
 version until a patch candidate is prepared. Fresh-machine, authenticated
