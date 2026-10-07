@@ -1,5 +1,41 @@
 # Release-Hardening Audit
 
+## October 7: missing-Git project-creation recovery
+
+The disposable audit exercised the same `new::execute_confirmed` execution
+boundary used after New Project confirmation, with a temporary destination and
+a child process whose PATH contains only an empty fixture directory. Before
+creation, the child proved that `git --version` fails with `NotFound`. It did
+not change the parent process or Windows PATH, uninstall Git, provision tools
+or run a network-dependent scaffold.
+
+On the published 0.20.2 behavior the regression failed: creation returned only
+`failed to spawn git: program not found`. The executor also warned that the
+newly claimed destination remains and will not be overwritten. The repair now
+names Git's prerequisite, links to `https://git-scm.com/install/`, asks for PATH
+and new-terminal verification with `git --version`, and instructs a retry in a
+new destination after inspecting the failed attempt's folder.
+
+The error chain retains the original OS error. Guidance applies only to
+`NotFound` while the working directory still exists; permission failures,
+nonzero Git commands and missing working directories retain their diagnostics.
+The regression now passes, verifies unchanged configuration and existing
+fixture bytes, and leaves the failed destination empty. A separate fixture
+with `.git` still bypasses initialization even without Git on PATH. Parent
+PATH remains unchanged. The test child runs serially to prevent libtest warning
+output from contaminating its captured transcript.
+
+Focused creation and Git error-boundary checks pass. The 485-test ordinary
+locked suite, strict all-target Clippy, formatting and diff checks pass; the
+24 ignored checks remain separate. Local CodeRabbit iteration and final branch
+reviews reported zero findings across all four changed files; final review was
+at `12401c7`. This evidence-only update changes no runtime or test content.
+Exact final-head/main CI evidence is recorded in the repair PR before completion.
+This is an unreleased runtime
+diagnostic repair on 0.20.2; Cargo versions and dependencies are unchanged.
+Successful installation/retry on fresh Windows and other deferred acceptance
+gaps remain unverified. No new feature milestone or host provisioning is added.
+
 ## October 7: owner publication of 0.20.2 verified
 
 The owner published 0.20.2 after [PR #85](https://github.com/chatarabdelilah/rproj/pull/85)

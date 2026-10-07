@@ -1355,6 +1355,93 @@ pub(super) fn read_setup(name: &str) -> Result<(ProjectGraph, Vec<String>)> {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn missing_git_creation_driver() {
+        let Some(project_dir) = std::env::var_os("RPROJ_MISSING_GIT_PROJECT") else {
+            return;
+        };
+        let project_dir = std::path::PathBuf::from(project_dir);
+        let missing = std::process::Command::new("git")
+            .arg("--version")
+            .output()
+            .unwrap_err();
+        assert_eq!(missing.kind(), std::io::ErrorKind::NotFound);
+
+        let graph = super::ProjectGraph::default();
+        let planned = graph.plan(&[], &[]);
+        let mut config = super::GlobalConfig::default();
+        let before = serde_json::to_value(&config).unwrap();
+        let error = super::execute_confirmed(
+            "missing-git",
+            &project_dir,
+            &graph,
+            &planned,
+            None,
+            &mut config,
+            None,
+        )
+        .unwrap_err();
+        let message = format!("{error:#}");
+        println!("GIT_CREATION_ERROR {message}");
+        assert!(
+            message.contains("https://git-scm.com/install/"),
+            "{message}"
+        );
+        assert!(message.contains("PATH"), "{message}");
+        assert!(message.contains("new terminal"), "{message}");
+        assert!(message.contains("git --version"), "{message}");
+        assert!(message.contains("new destination"), "{message}");
+        assert!(message.contains("failed to spawn `git`"), "{message}");
+        assert_eq!(
+            error.downcast_ref::<std::io::Error>().unwrap().kind(),
+            std::io::ErrorKind::NotFound
+        );
+        assert_eq!(serde_json::to_value(&config).unwrap(), before);
+        assert_eq!(std::fs::read_dir(&project_dir).unwrap().count(), 0);
+        let existing = project_dir.with_file_name("existing-git");
+        std::fs::create_dir(&existing).unwrap();
+        std::fs::create_dir(existing.join(".git")).unwrap();
+        super::git::ensure_repo_init(&existing).unwrap();
+    }
+
+    #[test]
+    fn missing_git_creation_explains_safe_recovery() {
+        let root = tempfile::tempdir().unwrap();
+        let tools = root.path().join("empty-path");
+        std::fs::create_dir(&tools).unwrap();
+        let project = root.path().join("missing-git");
+        let marker = root.path().join("existing.txt");
+        std::fs::write(&marker, "preserve existing work").unwrap();
+        let parent_path = std::env::var_os("PATH");
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "commands::new::tests::missing_git_creation_driver",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .current_dir(root.path())
+            .env("PATH", &tools)
+            .env("RPROJ_MISSING_GIT_PROJECT", &project)
+            .env("RPROJ_NO_LOG", "1")
+            .output()
+            .unwrap();
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(output.status.success(), "{text}");
+        assert!(text.contains("GIT_CREATION_ERROR"), "{text}");
+        assert!(text.contains("rproj will not overwrite it"), "{text}");
+        assert_eq!(
+            std::fs::read_to_string(marker).unwrap(),
+            "preserve existing work"
+        );
+        assert_eq!(std::env::var_os("PATH"), parent_path);
+        assert_eq!(std::fs::read_dir(project).unwrap().count(), 0);
+    }
+
+    #[test]
     fn capability_prompt_driver() {
         let Ok(workflow) = std::env::var("RPROJ_CAPABILITY_PROMPT_WORKFLOW") else {
             return;

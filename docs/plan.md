@@ -280,14 +280,21 @@ at `481e33b`, with first-attempt final-head and main CI passing. The owner publi
 release gates; registry/archive identity, annotated tag and GitHub alpha release
 match `eaa0447`. Published versions stay immutable.
 
-The next bounded development audit is missing-Git recovery during project
-creation. rproj initializes Git for generated projects; the audit checks whether
-an unavailable Git executable produces a clear recovery message. A disposable
-fixture means a temporary project and a test child whose PATH hides Git, leaving
-the owner's installation and PATH untouched. This is an unverified workflow,
-not a confirmed defect or a required new feature. Close the audit if behavior
-is already sufficient; repair only a demonstrated failure. Machine-wide
-provisioning remains deferred.
+The bounded missing-Git creation audit reproduced a guidance defect: the
+confirmed creation executor returned only `failed to spawn git: program not found`
+and left an empty destination. The repair adds the official Git installation
+link, PATH/new-terminal verification and a safe retry in a new destination.
+The original OS error and permission/command failures remain intact; an absent
+working directory is not misreported as missing Git. A disposable project and
+child-only PATH regression passed after failing on the original behavior, with
+parent PATH, configuration and existing fixture files unchanged. Existing Git
+repositories still bypass initialization. See the release audit for scope and
+evidence; the repair is unreleased on the published 0.20.2 baseline.
+
+Finish this repair's review and exact-head/main CI before selecting another
+task. A future patch candidate must version the unreleased runtime change;
+there is no active candidate yet. Machine-wide provisioning remains deferred,
+and this targeted check does not close fresh-Windows installation acceptance.
 
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
