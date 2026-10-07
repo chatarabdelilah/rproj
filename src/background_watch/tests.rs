@@ -1,5 +1,91 @@
 use super::*;
 
+fn delayed_control_acknowledgment(verb: &str) -> Result<Snapshot> {
+    let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "delayed-ack-fixture".into(),
+        project: "fixture".into(),
+        state: if verb == "stop" {
+            State::Stopping
+        } else {
+            State::Watching
+        },
+        message: String::new(),
+        address: listener.local_addr().unwrap(),
+        token: "fixture-token".into(),
+        supervisor: std::process::id(),
+    };
+    let reply = snapshot.clone();
+    let expected_verb = verb.to_owned();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut line = String::new();
+        BufReader::new(&stream).read_line(&mut line).unwrap();
+        let incoming: Request = serde_json::from_str(&line).unwrap();
+        assert_eq!(incoming.version, PROTOCOL);
+        assert_eq!(incoming.token, reply.token);
+        assert_eq!(incoming.verb, expected_verb);
+        // Model a durable session-state flush beyond the fast status-probe budget.
+        std::thread::sleep(Duration::from_millis(750));
+        let _ = stream.write_all(&serde_json::to_vec(&reply).unwrap());
+    });
+    let response = request(&snapshot, &snapshot.token, verb);
+    server.join().unwrap();
+    response
+}
+
+#[test]
+fn mutation_acknowledgments_allow_durable_state_latency() {
+    for verb in ["stop", "watching"] {
+        let response = delayed_control_acknowledgment(verb).unwrap();
+        assert_eq!(response.nonce, "delayed-ack-fixture");
+        assert_eq!(
+            response.state,
+            if verb == "stop" {
+                State::Stopping
+            } else {
+                State::Watching
+            }
+        );
+    }
+}
+
+#[test]
+fn status_probe_keeps_its_short_deadline() {
+    let error = delayed_control_acknowledgment("status").unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("Watch control did not return an acknowledgment")
+    );
+}
+
+#[test]
+fn lost_control_reply_does_not_fail_the_supervisor() {
+    struct AbortedPeer;
+    impl Write for AbortedPeer {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::ErrorKind::ConnectionAborted.into())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "aborted-peer-fixture".into(),
+        project: "fixture".into(),
+        state: State::Watching,
+        message: String::new(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        token: "fixture-token".into(),
+        supervisor: std::process::id(),
+    };
+    write_control_reply(&mut AbortedPeer, &snapshot).unwrap();
+    assert_eq!(snapshot.state, State::Watching);
+}
+
 fn exe() -> PathBuf {
     std::env::current_exe()
         .unwrap()

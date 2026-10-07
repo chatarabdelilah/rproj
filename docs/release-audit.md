@@ -1,5 +1,48 @@
 # Release-Hardening Audit
 
+## October 7: Watch acknowledgement budgets and peer failure isolation
+
+The follow-up to [PR #83](https://github.com/chatarabdelilah/rproj/pull/83) inspected
+the first head-CI failure: the flood scenario's Stop request returned Windows
+error 10060, while the supervisor log ended with an aborted connection (10053).
+Source inspection found that Stop and engine-ready acknowledgements follow a
+durable session-state flush but shared the 300 ms status-probe read deadline.
+An acknowledgement write error also escaped the control loop and tore down the
+owned engine rather than remaining a failed exchange with that peer.
+
+Three stalled/fragmented-peer probes passed on the original code and are not
+retained as regressions. A separate Windows socket probe observed immediate
+WouldBlock on incomplete accepted peers; these checks do not support a server
+concurrency rewrite. Their scratch source, patch and logs remain under ignored
+`target/watch-control-*` paths.
+
+Two targeted regressions failed before the repair: an authenticated Stop reply
+delayed by 750 ms produced 10060, and a connection-aborted reply escaped as a
+supervisor failure. Stop and engine-ready replies now have a two-second read
+budget; status, connect, send, lock and ordinary-test deadlines remain unchanged.
+Requests and replies serialize into one buffer before writing. Serialization,
+state-persistence and ownership errors still propagate; a peer's reply-delivery
+failure is logged without killing the engine. Version/nonce and token checks,
+state-before-ack ordering, and process-tree cleanup remain intact.
+
+Connection, send and acknowledgement failures now carry separate context. The
+controlled tests prove the repaired response policies; they do not identify the
+historic runner's exact disk/scheduler timing. A future timeout can therefore
+be assigned to its actual phase rather than assumed to be a stopped owner.
+
+All ten runnable Watch checks pass against the rebuilt supervisor (7.83 seconds).
+The two ignored installed-tool acceptances pass explicitly (7.30 seconds): live
+Rojo detachment/update/stop and Wally/Jest background recovery, using installed
+Rojo 7.7.0 and Wally 0.3.2. The 481-test ordinary suite, strict Clippy, formatting
+and diff checks pass; the 24 ignored checks remain a separate inventory.
+Automatic approval review rejected the local CodeRabbit export because previous
+consent named a different five-file payload; that command did not run. Explicit
+review authorization and exact reviewed-head/main CI remain pending.
+
+This is an unreleased runtime fix on the 0.20.1 baseline; Cargo versions and
+dependencies are unchanged. Prepare 0.20.2 only after the runtime PR is complete.
+Fresh-Windows/Open Cloud gaps remain unverified; VM provisioning stays deferred.
+
 ## October 7: remaining unit-test UI child output boundaries
 
 The editor repair merged in [PR #82](https://github.com/chatarabdelilah/rproj/pull/82)
