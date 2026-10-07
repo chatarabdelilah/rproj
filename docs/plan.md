@@ -237,14 +237,15 @@ T3 introduced Projects, New Project, Edit Project Template, Machine Setup, and C
 
 ## Next Milestones
 
-Complete upgrade review is implemented on `codex/complete-upgrade-review`:
+Complete upgrade review is implemented in [PR #96](https://github.com/chatarabdelilah/rproj/pull/96):
 housekeeping changes now join the same preview, confirmation, snapshots, and
 staged replacements as other generated files. Cancellation writes nothing and
 an empty plan is a no-op; unparseable `.luaurc` files remain explicitly skipped.
 All 28 upgrade tests, the ordinary suite (485 passed, 23 ignored), formatting,
 strict Clippy, clean locked packaging, and both CodeRabbit reviews (zero
-findings) pass. Reviewed-head/main CI remain pending; this runtime
-change is unreleased after published 0.21.0.
+findings) pass, along with implementation-head CI. Final reviewed-head/main
+verification is tracked in the PR and release audit; this runtime change is
+unreleased after published 0.21.0.
 
 **Shipped in 0.20.0 alpha: persistent background Watch v1 on Windows.** It supports
 one project per user, manual startup, sourcemap Watch after rproj closes,
