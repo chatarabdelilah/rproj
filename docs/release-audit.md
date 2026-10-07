@@ -40,8 +40,8 @@ consent named a different five-file payload; that command did not run. Explicit
 ongoing owner approval now covers tracked rproj review diffs and public repository
 context. Local CodeRabbit review completed with zero findings at `f1ba499` across
 all four changed files. This review-evidence update is documentation-only; runtime
-and test content remain identical to that reviewed head. Exact final-head and
-merged-main CI remain pending.
+and test content remain identical to that reviewed head. [PR #84](https://github.com/chatarabdelilah/rproj/pull/84)
+records exact final-head and merged-main CI evidence as those gates complete.
 
 This is an unreleased runtime fix on the 0.20.1 baseline; Cargo versions and
 dependencies are unchanged. Prepare 0.20.2 only after the runtime PR is complete.
