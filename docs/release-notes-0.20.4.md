@@ -1,6 +1,6 @@
 # rproj 0.20.4 — Official Wally types and safe CI upgrades
 
-Unpublished candidate prepared October 7, 2026. Public alpha.
+Published October 7, 2026. Public alpha.
 
 ## Changes
 
@@ -38,13 +38,16 @@ Rust dependencies and runtime/test source are unchanged from reviewed PR #90.
 The isolated build reports `rproj 0.20.4`. All 488 locally available ordinary
 locked tests passed, alongside strict all-target Clippy and formatting. Two
 machine-setup cancellation checks are blocked locally by the owner's active
-background Watch; it remains running. Complete 490-test Windows stable/Rust 1.89
-CI is required. The 25 ignored checks remain separate; the named official 1.7.0
+background Watch; it remains running. Complete Windows stable/Rust 1.89 CI passed
+all 490 ordinary tests on both reviewed head and merged main. The 25 ignored
+checks remain separate; the named official 1.7.0
 Windows generic-default/`const` compatibility test passed explicitly and serially.
 
-The [release audit](release-audit.md) and candidate PR record clean locked
-packaging, local CodeRabbit review and exact-head/main CI as those gates finish.
-The focused Ubuntu CI job runs the same official-binary compatibility check.
+The [release audit](release-audit.md) and [PR #91](https://github.com/chatarabdelilah/rproj/pull/91)
+record clean locked packaging, a final local CodeRabbit review with zero findings,
+and passing exact-head/main CI. The focused Ubuntu CI job passed the same
+official-binary compatibility check. The published archive contains 106 files and
+records clean Git identity `1a046683275faa0e9c9214b030bc183aadf3722c`.
 
 First-time Windows installation/retry, authenticated Open Cloud, full fresh-Linux
 generated-project execution, UI Labs Studio stories and Scribe Studio playtesting
@@ -52,6 +55,6 @@ remain unverified. The focused Linux type-tool test does not close full project
 acceptance. Hyper-V/VM provisioning remains deferred; this patch does not claim
 beta readiness.
 
-The owner alone publishes with `cargo publish --locked`. Registry/archive identity
-verification, the annotated tag and GitHub alpha prerelease follow successful
-publication.
+The owner published with `cargo publish --locked`. The official archive checksum
+and Git identity are verified; the annotated `v0.20.4` tag identifies that exact
+commit. The matching GitHub release remains an alpha prerelease.

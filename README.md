@@ -10,9 +10,7 @@
 
 ## What rproj does
 
-Published [0.20.3](docs/release-notes-0.20.3.md) explains how to recover when Git is unavailable during project creation. It retains 0.20.2's background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch with status/logs/stop controls, and UI Labs 2.4.2. rproj remains alpha software.
-
-The unpublished [0.20.4 alpha candidate](docs/release-notes-0.20.4.md) replaces generated Wally CI's custom source build with the official tool release. Older projects must explicitly update their tool pin before upgrading managed Wally CI; upgrade explains the requirement and preserves files. Publication remains pending.
+Published [0.20.4](docs/release-notes-0.20.4.md) replaces generated Wally CI's custom source build with the official tool release. Older projects must explicitly update their tool pin before upgrading managed Wally CI; upgrade explains the requirement and preserves files. It retains 0.20.3's missing-Git guidance, background Watch improvements, missing-Cargo and missing-WinGet recovery, and UI Labs 2.4.2. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 

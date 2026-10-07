@@ -1,5 +1,40 @@
 # Release-Hardening Audit
 
+## October 7: 0.20.4 publication and release alignment
+
+The owner published 0.20.4 with `cargo publish --locked`. Crates.io records
+`2026-10-07T09:46:49.376034Z`; the official archive checksum is
+`a626cfb6726474a925e8c88b0f0f43268227cc96978a544c02ffee43ab2d67ad`.
+Downloaded registry metadata and archive agree. The published manifest/root
+lockfile are 0.20.4; `.cargo_vcs_info.json` identifies clean release commit
+`1a046683275faa0e9c9214b030bc183aadf3722c`. All 106 archived files match the
+verified clean-main package byte for byte. The compressed archive checksum
+differs from the earlier local archive; its file contents and Git identity match.
+
+Release preparation [PR #91](https://github.com/chatarabdelilah/rproj/pull/91)
+passed final local CodeRabbit review with zero findings across all seven files.
+The review's 24-minute service cooldown was respected before a single retry.
+Exact-head CI [37600658551](https://github.com/chatarabdelilah/rproj/actions/runs/37600658551)
+at `2c1c920d08e4ce58d8281360bf1e17a3b0a6f8c0` and merged-main CI
+[37601126414](https://github.com/chatarabdelilah/rproj/actions/runs/37601126414)
+passed all four required jobs on first attempt. Each Windows toolchain passed all
+490 ordinary tests, with 25 ignored checks separate; the two locally blocked
+setup checks passed in CI. Official Linux Wally compatibility and packaging also
+passed. Reviewed/merged full trees matched, and the fully merged local/remote
+release branch was removed with a verified remote lease. Clean-main locked
+packaging compiled and the isolated binary reported 0.20.4.
+
+The annotated `v0.20.4` tag identifies the published commit. The matching
+[GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.4)
+uses the dedicated notes. Current publication documentation is corrected through
+a documentation-only PR; runtime, tests, CI and Cargo versions remain unchanged.
+No additional local CodeRabbit review is required for this status correction.
+
+No known broken items. Fresh Windows, authenticated Open Cloud, full fresh-Linux,
+UI Labs and Scribe Studio acceptance remain unverified. VM provisioning remains
+deferred by the owner. No global manifest, historical patched cache, existing
+project or active Watch was changed.
+
 ## October 7: 0.20.4 alpha candidate preparation
 
 The candidate starts from clean reviewed main `adc56a3`, after [PR #90](https://github.com/chatarabdelilah/rproj/pull/90).
@@ -51,7 +86,7 @@ Final branch review and exact-head/main CI remain required; their outcomes are
 recorded in the candidate PR before owner publication. Publication is pending;
 no 0.20.4 tag or GitHub release precedes archive verification.
 
-## Unreleased: official Wally type release replaces the source build
+## October 7 implementation, shipped in 0.20.4: official Wally type release
 
 Official wally-package-types 1.7.0 includes the upstream generic-default ordering
 and `const` parser fixes previously supplied by pinned commit `daf5c97`. Generated

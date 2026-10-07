@@ -2,16 +2,14 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.20.3**, at `2932862af2cfc7a7670e54da06e133c799a53592`.
+The published baseline is **v0.20.4**, at `1a046683275faa0e9c9214b030bc183aadf3722c`.
 Owner publication, archive checksum, annotated tag and
-[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.3)
-are verified. See [release notes](release-notes-0.20.3.md),
-[audit evidence](release-audit.md), and [PR #88](https://github.com/chatarabdelilah/rproj/pull/88).
-The unpublished **0.20.4 alpha candidate** packages the official Wally type-tool
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.4)
+are verified. See [release notes](release-notes-0.20.4.md),
+[audit evidence](release-audit.md), and [PR #91](https://github.com/chatarabdelilah/rproj/pull/91).
+This release packages the official Wally type-tool
 release and safe upgrade preflight from [PR #90](https://github.com/chatarabdelilah/rproj/pull/90).
-See [candidate notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md).
-Release checks and local review precede exact-head/main CI and owner publication;
-no 0.20.4 tag or GitHub release exists before publication is verified.
+No unpublished candidate is active. Previous shipped tags remain immutable.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
