@@ -26,9 +26,17 @@ is unavailable, checks the recovery message and preserves configuration,
 existing fixture files and the parent process's PATH. This check failed before
 the fix and passes afterward. Git is never uninstalled from the host.
 
-Candidate release checks are in progress. [The release audit](release-audit.md)
-distinguishes completed checks from pending gates; final review and exact-head/
-main CI must complete before owner publication.
+The candidate passed 485 ordinary locked Windows tests, strict all-target
+Clippy, formatting and clean locked packaging. One applicable ignored New
+Project check passed serially with Git 2.52.0.windows.1, Rokit 1.2.0 and Rojo
+7.7.0, confirming creation and saved-composition replay/cancellation on the
+already configured PC. Its temporary fixtures were removed and machine
+configuration stayed unchanged. The 24 ignored tests remain separate; only
+that named live check was run explicitly for this candidate.
+
+[The release audit](release-audit.md) distinguishes completed checks from
+remaining gates. Final CodeRabbit review and exact-head/main CI must complete
+before owner publication; the candidate PR records their outcomes.
 
 Successful installation/retry on fresh Windows, authenticated Open Cloud,
 fresh Linux generated-project execution, UI Labs Studio stories and Scribe

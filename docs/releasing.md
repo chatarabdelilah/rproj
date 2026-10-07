@@ -9,7 +9,8 @@ are verified. See [release notes](release-notes-0.20.2.md),
 [audit evidence](release-audit.md), and [PR #85](https://github.com/chatarabdelilah/rproj/pull/85).
 The unpublished **0.20.3 alpha candidate** packages the missing-Git creation
 guidance fix. See [candidate notes](release-notes-0.20.3.md) and
-[audit evidence](release-audit.md). Release checks, review and exact-head/main CI
+[audit evidence](release-audit.md). Ordinary/local checks, applicable serial live
+creation and clean locked packaging passed. Final review and exact-head/main CI
 must complete before owner publication; no 0.20.3 tag or GitHub release exists yet.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.

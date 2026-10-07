@@ -10,11 +10,30 @@ and exact-main CI [37569252616](https://github.com/chatarabdelilah/rproj/actions
 versions and runtime/test source remain identical to verified main; notes and
 current-state docs distinguish this candidate from published 0.20.2.
 
-Candidate ordinary tests, strict Clippy, formatting, applicable serial live
-creation acceptance, clean locked packaging, local CodeRabbit and exact-head/
-main CI are pending. Ongoing owner consent covers tracked rproj review diffs
-and public repository context. Owner publication remains pending; no 0.20.3
-tag or GitHub release precedes verified publication.
+The candidate passed `cargo build --locked`, all 485 ordinary locked tests,
+strict all-target Clippy, formatting and diff checks. Its 24 ignored tests
+remain a separate inventory. The applicable live creation check passed serially
+in 11.31 seconds with
+`cargo test --locked --test live hub_creation_confirm_hands_the_reviewed_graph_to_the_existing_executor -- --ignored --exact --test-threads=1`,
+using Git 2.52.0.windows.1, Rokit 1.2.0 and Rojo 7.7.0. It confirms creation,
+saved-composition consistency and cancelled replay on an already configured PC.
+The machine configuration hash was unchanged, and unique project/setup fixture
+inventories returned to their baseline after the test.
+
+Clean `cargo package --locked` at `a7491aa` verified the crate builds from its
+tarball. All 105 package paths match the previously inspected manifest; required
+source/tests, Cargo metadata, README/license and tracked root configuration are
+present, while docs/workflows/CodeGraph/target caches and local credentials are
+absent. Manifest/root lockfile version and clean archive Git identity were checked;
+the rebuilt binary reports `rproj 0.20.3`.
+
+Local CodeRabbit iteration review found one minor release-notes state mismatch:
+wording implied pending checks were already recorded. That wording was corrected
+before completed local evidence was added. Final branch review and exact-head/
+main CI are required before publication; their outcomes are recorded in the
+candidate PR as gates complete. Ongoing owner consent covers tracked rproj review
+diffs and public context. Owner publication remains pending; no 0.20.3 tag or
+GitHub release precedes verified publication.
 
 The live creation check uses already provisioned tools and uniquely named
 temporary project/setup fixtures. It does not install machine applications or
