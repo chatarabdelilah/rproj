@@ -45,7 +45,7 @@ links remain in each package's existing catalog entry.
 
 Wally imports derive from the same `PackageSpec::alias` as the manifest writer:
 `ReplicatedStorage.packages.<key>`, `ServerScriptService.serverPackages.<key>`,
-or `ReplicatedStorage.DevPackages.Jest/JestGlobals`. None projects do not install
+or `ReplicatedStorage.devPackages.Jest/JestGlobals`. None projects do not install
 packages. Catalog details retain upstream repository links for information.
 No workflow or dependency pin changes
 are made by opening the Catalog.

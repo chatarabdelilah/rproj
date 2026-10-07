@@ -46,10 +46,14 @@ Actions pane after returning to composition. The existing terminal regression no
 derives its expected pane from TestBackend and waits for every physical row at
 initial scrolling, restored size, End and Back. It retains the same file, filter,
 selection, scroll and terminal assertions. The focused check, full 479/23 ordinary
-suite and strict Clippy passed locally after this test-only correction. Fresh final
-review/head CI, guarded merge and main CI remain delivery gates tracked in
-[PR #93](https://github.com/chatarabdelilah/rproj/pull/93). The focused official-Wally
-Linux compatibility CI job is retained.
+suite and strict Clippy passed locally after this test-only correction. Locked
+packaging passed again from clean code commit `987b9ad` (105 files). Final local
+CodeRabbit branch review reported no runtime/test findings and one documentation
+correction: Jest's DataModel mount is lower-case `devPackages`, while its disk
+directory is `DevPackages`. That correction and the last template-review wording
+were inspected directly. Final-head CI, guarded merge, main CI and branch cleanup
+are tracked in [PR #93](https://github.com/chatarabdelilah/rproj/pull/93). The focused
+official-Wally Linux compatibility CI job is retained.
 Version 0.20.4 is unchanged; release preparation and owner publication are separate
 work.
 

@@ -21,7 +21,7 @@ The ignore audit adds generated place builds, Studio place locks, coverage, and
 local environment files, with an exception for `.env.example`. It retains the
 existing package-directory, sourcemap, editor-state, temporary type-definition,
 asset-tool debug, and Blender-backup exclusions. `wally.lock`, tool manifests,
-Rojo projects, `.lute/check.luau`, Jest configuration, submodule pointers/link
+Rojo projects, `.lute/check.luau`, Jest configuration, custom source
 files, and model assets remain trackable. Existing local `.vscode/` and
 `rproj.toml` exclusions are unchanged. Custom build/report output names may need
 project-specific rules; there is no safe wildcard for every possible output.
