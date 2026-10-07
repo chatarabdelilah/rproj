@@ -2,20 +2,17 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.20.4**, at `1a046683275faa0e9c9214b030bc183aadf3722c`.
+The published baseline is **v0.21.0**, at `07dcf17fb8a841c2f842a3753f58ad10507f99e1`.
 Owner publication, archive checksum, annotated tag and
-[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.20.4)
-are verified. See [release notes](release-notes-0.20.4.md),
-[audit evidence](release-audit.md), and [PR #91](https://github.com/chatarabdelilah/rproj/pull/91).
-This release packages the official Wally type-tool
-release and safe upgrade preflight from [PR #90](https://github.com/chatarabdelilah/rproj/pull/90).
-The active unreleased candidate is **0.21.0 alpha**, containing the intentional
-Git-submodule retirement from [PR #93](https://github.com/chatarabdelilah/rproj/pull/93).
-Cargo manifest and root lockfile are aligned at 0.21.0. See
-[candidate notes](release-notes-0.21.0.md) and [audit evidence](release-audit.md).
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.0)
+are verified. See [release notes](release-notes-0.21.0.md),
+[audit evidence](release-audit.md), and [PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
+This release packages the intentional Git-submodule retirement from
+[PR #93](https://github.com/chatarabdelilah/rproj/pull/93), while preserving the
+official Wally type-tool requirement shipped in 0.20.4.
+Cargo manifest and root lockfile are aligned at 0.21.0; there is no active candidate.
 Release preparation and final head/main CI are tracked in
 [PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
-Owner publication, the candidate tag and matching GitHub release are pending.
 Previous shipped tags remain immutable.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.

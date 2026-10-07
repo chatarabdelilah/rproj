@@ -1,5 +1,41 @@
 # Release-Hardening Audit
 
+## October 7: 0.21.0 publication verified
+
+The owner published 0.21.0 at `2026-10-07T12:15:35.090245Z`. Crates.io confirms
+the version is not yanked and gives checksum
+`40c69158d8c771dc62d3a9eda6d171f78f1a1d199bcf27e478e43b6dbc50c8d8`.
+The downloaded official archive matches that checksum. Its 105 files are all
+byte-identical to a clean locked package rebuilt from release commit
+`07dcf17fb8a841c2f842a3753f58ad10507f99e1`. Both manifests and the root lockfile
+identify 0.21.0; `.cargo_vcs_info.json` is clean and identifies that commit.
+All 95 source/test files also match the checkout. The retired submodule generator
+and excluded docs, CI, CodeGraph and build directories are absent.
+
+Release preparation [PR #94](https://github.com/chatarabdelilah/rproj/pull/94)
+passed reviewed-head CI
+[37617082282](https://github.com/chatarabdelilah/rproj/actions/runs/37617082282)
+at `b8d473bfd0fc66e60fe1c8a2628cc603f9b4ac22` and merged-main CI
+[37617634582](https://github.com/chatarabdelilah/rproj/actions/runs/37617634582)
+at `07dcf17fb8a841c2f842a3753f58ad10507f99e1`. Complete trees match.
+All four required jobs passed; each Windows toolchain passed **479 ordinary
+tests, 23 ignored**. Local CodeRabbit iteration and final review had zero findings
+across all seven release files. The release-preparation branch was removed only
+after main CI and merged-state verification.
+
+The annotated `v0.21.0` tag peels to the official archive commit. The matching
+[GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.0)
+is not a draft and uses the dedicated release notes. Earlier shipped tags remain
+unchanged. Publication alignment changes documentation only; runtime/test source,
+dependency resolution and CI remain identical to the reviewed release. The prior
+local gates remain applicable; publication-docs reviewed-head and main CI must
+also pass before its branch is removed.
+
+Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
+project execution and manual Studio checks remain unverified. VM provisioning
+is still deferred; no host applications, global tool pins, historical patched
+Wally caches or existing projects were changed.
+
 ## October 7: 0.21.0 alpha release preparation
 
 The owner requested continuation into release preparation after full Git-submodule

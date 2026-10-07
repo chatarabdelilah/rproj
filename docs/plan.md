@@ -17,22 +17,22 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.20.4, public alpha**, replacing generated Wally CI's source build with the official released tool and validating older project pins before upgrade writes. It retains missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `1a04668`. The active unreleased candidate is **0.21.0 alpha**, preparing Git-submodule retirement for owner publication. Cargo manifest and root lockfile are aligned at 0.21.0; no tag or publication is claimed. See [candidate notes](release-notes-0.21.0.md), [published notes](release-notes-0.20.4.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.21.0, public alpha**, removing Git-submodule dependencies so new projects and saved compositions use Wally or None. It retains the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `07dcf17`. Cargo manifest and root lockfile are aligned at 0.21.0; there is no active release candidate. See [published notes](release-notes-0.21.0.md) and [audit evidence](release-audit.md) for verification and limits.
 
-**0.21.0 alpha candidate: fully retire Git-submodule dependencies.**
+**Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
 `git-submodules` records are intentionally rejected through configuration errors,
 without aliases, automatic conversion or migration tooling. The owner retains
 responsibility for older alpha projects. Ordinary Git initialization and missing-Git
 recovery remain; existing projects, templates, `.gitmodules` files and dependency
-directories are not deleted or rewritten. Published 0.20.4 stays unchanged.
+directories are not deleted or rewritten. Previous shipped tags stay unchanged.
 Implementation and delivery evidence are tracked in
 [PR #93](https://github.com/chatarabdelilah/rproj/pull/93). Serial installed-tool
 checks passed for all eight Rojo variants, Wally and None creation, gates and
 saved Wally replay. The complete ordinary inventory is now 479 passed/23 ignored;
 fresh-machine and authenticated Open Cloud acceptance remain separate gaps.
 
-**Shipped in 0.20.4: retire the Wally source-build workaround.** Official wally-package-types 1.7.0 contains the generic-default and `const` parser fixes previously supplied by a patched build. Generated CI uses the Rokit-installed release. Upgrade refuses managed Wally CI when the official stable project pin is older than 1.7.0, absent or unverifiable; it explains an explicit update and leaves every file unchanged. Tool pins remain owner-controlled, and changes during confirmation refuse the upgrade. Isolated official-binary compatibility checks passed on Windows and a focused Ubuntu CI runner, separately from fresh-machine/project acceptance. Historical machine caches remain untouched. [PR #90](https://github.com/chatarabdelilah/rproj/pull/90) implements the change; [PR #91](https://github.com/chatarabdelilah/rproj/pull/91) prepares the release. Cargo manifest and root lockfile are aligned at 0.20.4; previous shipped tags remain immutable.
+**Shipped in 0.20.4: retire the Wally source-build workaround.** Official wally-package-types 1.7.0 contains the generic-default and `const` parser fixes previously supplied by a patched build. Generated CI uses the Rokit-installed release. Upgrade refuses managed Wally CI when the official stable project pin is older than 1.7.0, absent or unverifiable; it explains an explicit update and leaves every file unchanged. Tool pins remain owner-controlled, and changes during confirmation refuse the upgrade. Isolated official-binary compatibility checks passed on Windows and a focused Ubuntu CI runner, separately from fresh-machine/project acceptance. Historical machine caches remain untouched. [PR #90](https://github.com/chatarabdelilah/rproj/pull/90) implements the change; [PR #91](https://github.com/chatarabdelilah/rproj/pull/91) prepared that release. Previous shipped tags remain immutable.
 
 The automated live Jest regression is merged on main in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), after the 0.12.2 publication. It verifies three passing generated starter specs and a deliberate assertion failure through `rproj test`. Review and post-merge CI passed; this test-only change requires no package release.
 
@@ -311,7 +311,10 @@ final-head/main CI. The owner published 0.20.3 after [PR #88](https://github.com
 release gates passed; registry/archive identity, annotated tag and GitHub alpha
 release match `2932862`. The Wally repair shipped in 0.20.4 after [PR #91](https://github.com/chatarabdelilah/rproj/pull/91)'s
 release gates passed; registry/archive identity, annotated tag and GitHub alpha
-release match `1a04668`. No additional code audit or
+release match `1a04668`. Git-submodule retirement shipped in 0.21.0 after
+[PR #94](https://github.com/chatarabdelilah/rproj/pull/94)'s release gates passed;
+registry/archive identity, annotated tag and GitHub alpha release match `07dcf17`.
+No additional code audit or
 feature is automatically queued. The next planning decision is to prioritize the
 remaining workflow acceptance gaps using the coverage table above, current
 evidence and available environments. Machine-wide provisioning remains deferred;
