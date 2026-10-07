@@ -37,9 +37,19 @@ project was replaced.
 
 Local CodeRabbit iteration review found one minor stale roadmap statement saying
 no candidate was active. That contradiction was corrected in the current-state
-and next-milestone paragraphs. Clean locked packaging and final branch review
-remain release gates; their evidence and exact-head/main CI are recorded as they
-finish. Owner publication remains pending.
+and next-milestone paragraphs.
+
+Clean `cargo package --locked --target-dir target/release-0-20-4-target` at
+`af69bfd67d3696ae2b9a4419474657d21ece6a29` compiled the crate from its tarball.
+The inspected archive has 106 paths: the published 0.20.3 inventory plus only
+`tests/wpt_release.rs`. Manifest/root lockfile versions are 0.20.4, and
+`.cargo_vcs_info.json` records that clean commit. Source/tests, README/license,
+Cargo metadata and tracked root configuration are present; docs/workflows,
+CodeGraph, target artifacts and credentials are absent. This evidence-only
+update changes excluded documentation; packaged files remain identical.
+Final branch review and exact-head/main CI remain required; their outcomes are
+recorded in the candidate PR before owner publication. Publication is pending;
+no 0.20.4 tag or GitHub release precedes archive verification.
 
 ## Unreleased: official Wally type release replaces the source build
 
