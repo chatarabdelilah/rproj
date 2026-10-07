@@ -37,7 +37,8 @@ Rojo 7.7.0 and Wally 0.3.2. The 481-test ordinary suite, strict Clippy, formatti
 and diff checks pass; the 24 ignored checks remain a separate inventory.
 Automatic approval review rejected the local CodeRabbit export because previous
 consent named a different five-file payload; that command did not run. Explicit
-review authorization and exact reviewed-head/main CI remain pending.
+ongoing owner approval now covers tracked rproj review diffs and public repository
+context. Local review and exact reviewed-head/main CI remain pending.
 
 This is an unreleased runtime fix on the 0.20.1 baseline; Cargo versions and
 dependencies are unchanged. Prepare 0.20.2 only after the runtime PR is complete.
