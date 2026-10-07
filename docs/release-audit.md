@@ -29,8 +29,9 @@ child-runner mechanism.
 The full ordinary suite, strict Clippy, formatting and diff checks pass.
 Automatic approval review blocked the local CodeRabbit export because the
 previous consent did not clearly cover this changed five-file payload; that
-review command did not run. Payload approval and required local review/head/main
-CI remain pending; their final evidence belongs in the follow-up PR.
+review command did not run. The owner subsequently explicitly authorized the
+five-file payload. Required local review/head/main CI evidence belongs in the
+follow-up PR.
 This is test-only work; published 0.20.1, runtime behavior,
 dependencies and Cargo versions remain unchanged. Fresh-Windows/Open Cloud
 acceptance gaps remain unverified, and VM provisioning stays deferred.
