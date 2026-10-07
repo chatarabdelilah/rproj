@@ -1,5 +1,40 @@
 # Release-Hardening Audit
 
+## October 7: 0.21.2 alpha patch preparation
+
+The owner requested continuation into patch-release preparation after the
+Selene Upgrade fix. Clean main was `ebfaf7f128051fbc98537a0f0de69b20811d6bdc`;
+its four required CI jobs passed in
+[37663937990](https://github.com/chatarabdelilah/rproj/actions/runs/37663937990).
+Crates.io still reports 0.21.1 as latest, 0.21.2 is absent, and no remote 0.21.2
+tag exists. Preparation is on `codex/release-0-21-2`; only the package version
+changes in the Cargo manifest and root lockfile. Runtime, tests, dependencies
+and CI remain identical to the verified implementation.
+
+The candidate binary reports `rproj 0.21.2`. `cargo fmt --all -- --check`,
+`cargo test --locked --offline` (**486 passed, 23 ignored**, excluding nested
+child-test summaries), and
+`cargo clippy --locked --offline --all-targets -- -D warnings` passed. The 29
+Upgrade integration tests passed within the ordinary suite. Precommit
+`cargo package --locked --offline --allow-dirty` built and verified 105 files.
+The local `cr review --agent --uncommitted` review reported zero findings on
+the six tracked release files; the new candidate notes are included in the
+committed final branch review. Tools were rustc/Cargo 1.94.0, Clippy 0.1.94,
+rustfmt 1.8.0-stable and CodeRabbit CLI 0.7.6 on Windows. Offline checks used
+existing dependency caches; review used the existing authenticated account.
+No new project tools or external credentials were needed for these checks.
+
+Clean committed package inspection, `cr review --agent --base main`, final-head
+CI and merged-main CI are required before delivery. Record exact commit and
+run identities in the release PR; source/test/dependency identity must remain
+unchanged from the baseline above. Crates.io publication remains owner-only;
+no tag or GitHub release is created before publication and official archive
+identity verification.
+
+Fresh-machine installation/retry, authenticated Open Cloud, full fresh-Linux
+project execution and manual Studio acceptance remain unverified. No host
+applications, user projects, tool pins or VM configuration are changed.
+
 ## October 7: recreated Selene configuration settles in one Upgrade
 
 The published 0.21.1 baseline recreates a missing Wally `selene.toml` with
