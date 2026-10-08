@@ -2,20 +2,20 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.21.1**, at
-`f9d300ff2539033852d51926488b05bf3840cb29`. Owner publication, archive
-checksum, annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.1)
-are verified. Previous shipped tags remain immutable.
+The published baseline is **v0.21.2**, at
+`287b7b60de9247ac85ce7b575a31c547bb9fec3c`. Owner publication, archive
+checksum, annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.2)
+are verified. See [published notes](release-notes-0.21.2.md),
+[audit evidence](release-audit.md), and [release PR #100](https://github.com/chatarabdelilah/rproj/pull/100).
 
-The current unpublished patch candidate is **v0.21.2**. Cargo manifest and root
-lockfile are aligned at 0.21.2. It packages the Selene Upgrade idempotence fix
-from [PR #99](https://github.com/chatarabdelilah/rproj/pull/99), retaining
-0.21.1's complete upgrade review and the existing Wally-or-None workflows.
-See [candidate notes](release-notes-0.21.2.md) and [audit evidence](release-audit.md)
-for verification and residual acceptance gaps. The owner publishes only after
-preparation, local review, final-head CI and merged-main CI pass. No 0.21.2 tag
-or GitHub release is created before registry publication and archive identity
-verification.
+This release packages the Selene Upgrade idempotence fix from
+[PR #99](https://github.com/chatarabdelilah/rproj/pull/99), retaining 0.21.1's
+complete upgrade review and the existing Wally-or-None workflows. Cargo
+manifest and root lockfile are aligned at 0.21.2; no active candidate remains.
+Formatting, ordinary tests, strict Clippy, clean packaging, both local CodeRabbit
+reviews, final-head CI and merged-main CI passed. The release branch was removed
+after main verification. The official archive matches the clean locked rebuild
+at the reviewed release commit above. Previous shipped tags remain immutable.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
