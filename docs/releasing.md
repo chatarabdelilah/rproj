@@ -8,14 +8,20 @@ checksum, annotated tag and [GitHub alpha release](https://github.com/chatarabde
 are verified. See [published notes](release-notes-0.21.2.md),
 [audit evidence](release-audit.md), and [release PR #100](https://github.com/chatarabdelilah/rproj/pull/100).
 
-This release packages the Selene Upgrade idempotence fix from
+The published 0.21.2 release packages the Selene Upgrade idempotence fix from
 [PR #99](https://github.com/chatarabdelilah/rproj/pull/99), retaining 0.21.1's
-complete upgrade review and the existing Wally-or-None workflows. Cargo
-manifest and root lockfile are aligned at 0.21.2; no active candidate remains.
-Formatting, ordinary tests, strict Clippy, clean packaging, both local CodeRabbit
-reviews, final-head CI and merged-main CI passed. The release branch was removed
-after main verification. The official archive matches the clean locked rebuild
-at the reviewed release commit above. Previous shipped tags remain immutable.
+complete upgrade review and existing Wally-or-None workflows. Its reviewed
+release gates, archive identity and immutable tag are recorded in the audit.
+
+The active **0.22.0 alpha candidate is unpublished**. It includes the semantic
+Selene preservation fix and Ratatui Upgrade file-diff review with default-No
+Apply-all confirmation from [PR #102](https://github.com/chatarabdelilah/rproj/pull/102)
+and [PR #103](https://github.com/chatarabdelilah/rproj/pull/103). A minor version
+reflects the intentional interactive behavior change. Cargo manifest and root
+lockfile identify 0.22.0; source, tests, dependencies and CI are unchanged from
+reviewed main `7a5d3cd`. See [candidate notes](release-notes-0.22.0.md) and
+[release-preparation evidence](release-audit.md). Owner publication is pending;
+no 0.22.0 tag or GitHub release is created before crates.io accepts the package.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 

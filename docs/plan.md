@@ -17,23 +17,24 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.21.2, public alpha**, making a recreated Selene configuration complete after one Upgrade without a spacing-only second review. It retains 0.21.1's complete upgrade review, Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `287b7b6`. Cargo manifest and root lockfile are aligned at 0.21.2; there is no active release candidate. See [published notes](release-notes-0.21.2.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.21.2, public alpha**, making a recreated Selene configuration complete after one Upgrade without a spacing-only second review. It retains 0.21.1's complete upgrade review, Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `287b7b6`. Cargo manifest and root lockfile are aligned at the unpublished 0.22.0 candidate; crates.io remains at 0.21.2. See [published notes](release-notes-0.21.2.md) and [audit evidence](release-audit.md) for verification and limits.
 
-**Unreleased preservation fix:** Upgrade now shares Configure's semantic TOML
-merge guard and refuses unsafe Selene layouts before confirmation or writes.
-The published 0.21.2 line writer can mistake managed-looking text inside a
-multiline string for a setting. The fix preserves unrelated values or gives
-manual-edit/retry guidance; Cargo stays at 0.21.2 until patch preparation.
-See the [audit](release-audit.md) for regression and verification evidence.
+**0.22.0 alpha candidate:** includes the shared semantic TOML preservation
+guard and Ratatui Upgrade review from [PR #102](https://github.com/chatarabdelilah/rproj/pull/102)
+and [PR #103](https://github.com/chatarabdelilah/rproj/pull/103). Unsafe Selene
+merges refuse before confirmation or writes; published 0.21.2 can alter
+managed-looking content inside unrelated multiline strings. The viewer shows
+actual changes and uses default-No Apply-all confirmation, while `--yes`
+remains plain. Source, tests, dependencies and CI match reviewed main
+`7a5d3cd`; the release preparation changes version metadata and documentation.
+See [candidate notes](release-notes-0.22.0.md), [release rules](releasing.md)
+and [audit evidence](release-audit.md). Owner publication is pending.
 
-**Unreleased Upgrade review:** interactive CLI and Home project actions now
-show actual file diffs in Ratatui, with one Apply-all action and default-No
-confirmation. Home borrows its terminal for review and restores ordinary
-output before execution; `--yes` remains plain. Selection and diff scrolling
-survive resize and Help, and undersized terminals block Apply. The existing
+**Candidate interaction:** Home borrows its terminal for Upgrade review and
+restores ordinary output before execution. Selection and diff scrolling
+survive resize and Help; undersized terminals block Apply. The existing
 planner, preservation guard, snapshots and staged writer remain authoritative.
-See the [audit](release-audit.md) for disposable-fixture verification. No new
-dependency or version bump is included; release preparation is separate.
+No new dependency or host provisioning is included.
 
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
