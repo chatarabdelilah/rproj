@@ -1,5 +1,47 @@
 # Release-Hardening Audit
 
+## October 8: 0.22.0 alpha candidate preparation
+
+The owner requested continuation into release preparation after Upgrade review
+delivery. Clean main was `7a5d3cd0d0fb1aaf061760d5fd5ae79705734c74`; all four
+required jobs passed in [37749255883](https://github.com/chatarabdelilah/rproj/actions/runs/37749255883).
+Fresh crates.io metadata reports 0.21.2 as latest and 0.22.0 absent (HTTP 404).
+The existing annotated 0.21.2 tag still points at its verified published commit;
+there is no 0.22.0 tag or preexisting release branch. Candidate work is on
+`codex/release-0-22-0`.
+
+Version 0.22.0 is a minor alpha for the intentional Ratatui Upgrade review and
+default-No interaction changes, also including the semantic Selene preservation
+fix. Only package-version metadata and current documentation change in this
+preparation; source, tests, dependency graph and CI remain identical to reviewed
+main. The published baseline and old tags remain unchanged. See
+[candidate notes](release-notes-0.22.0.md) for user-visible behavior.
+
+The candidate binary reports `rproj 0.22.0`. `cargo fmt --all -- --check`,
+`cargo test --locked --offline` (**503 passed, 23 ignored**, nested child
+summaries excluded), and
+`cargo clippy --locked --offline --all-targets -- -D warnings` passed.
+All 34 Upgrade integration tests passed within the ordinary suite. Tool versions
+remain rustc/Cargo 1.94.0, Clippy 0.1.94, rustfmt 1.8.0-stable and CodeRabbit
+CLI 0.7.6; offline Cargo uses existing caches. Precommit
+`cargo package --locked --offline --allow-dirty` built and verified 107 files.
+The local `cr review --agent --uncommitted` review covered all seven candidate
+files and reported zero findings. Final branch review, clean committed package
+inspection, final-head and merged-main CI remain delivery gates.
+Exact completed commit/run evidence is recorded in the
+release PR before requesting owner publication. No tag or GitHub release is
+created before crates.io confirms publication.
+
+The changed workflows use ordinary disposable-file and real-terminal tests:
+Upgrade preservation/review, Home borrowing, resize/Help/input gating, selected
+directory, staged writes and raw-mode restoration. No changed path requires
+machine installation, Studio or cloud credentials. Unrelated ignored external
+tool matrices are not rerun merely for version/documentation changes, and their
+historical passes are not claimed as fresh candidate evidence. Fresh-Windows
+installation/retry, authenticated Open Cloud, full fresh-Linux project execution
+and manual Studio acceptance remain unverified. VM provisioning stays deferred;
+no global configuration, host applications or user projects are changed.
+
 ## October 8: Ratatui Upgrade file-diff review
 
 The owner requested implementation of the bounded viewer plan after the
@@ -50,12 +92,17 @@ The local `cr review --agent --uncommitted` review found one minor test
 synchronization issue: the small-screen Apply probe checked its snapshot
 before acknowledging input. The test now opens Help after the blocked keys
 and waits for that frame before checking the snapshot. The iteration review
-covered nine tracked files; the final committed review must include the two
-new viewer modules and completed architecture update. Clean committed package
-verification and exact final-head/merged-main CI remain delivery gates, with
-completed evidence to be recorded in the implementation PR. Fresh-machine, authenticated Open Cloud,
-full fresh-Linux execution and manual Studio acceptance remain unverified;
-machine-wide provisioning stays deferred.
+covered nine tracked files; the final committed review covered all twelve,
+including both new modules, the architecture update and corrected test, with
+zero findings. Clean locked packaging verified 107 files and all 97 source/test
+files against the reviewed commit. [PR #103](https://github.com/chatarabdelilah/rproj/pull/103)
+passed final-head CI [37748837668](https://github.com/chatarabdelilah/rproj/actions/runs/37748837668)
+at `bcf5b2b70894ef250e3d63a56fc5b50c108b795b` and merged-main CI
+[37749255883](https://github.com/chatarabdelilah/rproj/actions/runs/37749255883)
+at `7a5d3cd0d0fb1aaf061760d5fd5ae79705734c74`. All four required jobs passed,
+complete trees matched and the fully merged branches were removed. Fresh-machine,
+authenticated Open Cloud, full fresh-Linux execution and manual Studio acceptance
+remain unverified; machine-wide provisioning stays deferred.
 
 ## October 8: Upgrade refuses unsafe Selene TOML merges
 
