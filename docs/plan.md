@@ -19,6 +19,18 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 The published baseline is **v0.21.2, public alpha**, making a recreated Selene configuration complete after one Upgrade without a spacing-only second review. It retains 0.21.1's complete upgrade review, Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `287b7b6`. Cargo manifest and root lockfile are aligned at 0.21.2; there is no active release candidate. See [published notes](release-notes-0.21.2.md) and [audit evidence](release-audit.md) for verification and limits.
 
+**Unreleased preservation fix:** Upgrade now shares Configure's semantic TOML
+merge guard and refuses unsafe Selene layouts before confirmation or writes.
+The published 0.21.2 line writer can mistake managed-looking text inside a
+multiline string for a setting. The fix preserves unrelated values or gives
+manual-edit/retry guidance; Cargo stays at 0.21.2 until patch preparation.
+See the [audit](release-audit.md) for regression and verification evidence.
+
+**Owner-chosen follow-up:** inspect actual Upgrade file changes in Ratatui for
+interactive CLI and Home project actions, with one Apply-all action and a
+default-No confirmation. Keep `--yes` plain. Preservation takes priority; that
+viewer is not implemented by this fix.
+
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
 `git-submodules` records are intentionally rejected through configuration errors,
