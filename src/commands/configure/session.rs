@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, ensure};
 use serde_json::Value;
 
-use super::{checked_toml_merge, target_description};
+use super::target_description;
 use crate::catalog::tool_settings::{self, ConfigTarget, ConfigurableTool};
 use crate::steps::vscode;
 
@@ -108,7 +108,7 @@ impl EditSession {
             .collect();
         let text = self.baseline.as_deref().unwrap_or("");
         let merged = match self.tool.target {
-            ConfigTarget::ProjectToml { .. } => checked_toml_merge(text, &answers)?,
+            ConfigTarget::ProjectToml { .. } => tool_settings::checked_toml_merge(text, &answers)?,
             ConfigTarget::VsCodeSettings => vscode::merge_settings_values(
                 vscode::parse_settings(&self.path, text)?,
                 &answers

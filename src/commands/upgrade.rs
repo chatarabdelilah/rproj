@@ -287,7 +287,13 @@ fn plan(
     let testez_selected = runner == Some(TestRunner::TestEz);
     if wants("selene.toml") {
         let original = upgrade.read(project_dir, "selene.toml")?;
-        let contents = selene_config(original.as_deref(), packages, workflow, testez_selected)?;
+        let contents = selene_config(original.as_deref(), packages, workflow, testez_selected)
+            .with_context(|| {
+                format!(
+                    "cannot upgrade {}; edit the file manually and re-run `rproj upgrade`",
+                    project_dir.join("selene.toml").display()
+                )
+            })?;
         push(
             &mut upgrade,
             project_dir,
@@ -485,7 +491,7 @@ fn selene_config(
         })
         .collect();
 
-    let mut updated = tool_settings::merge_toml(existing, &managed);
+    let mut updated = tool_settings::checked_toml_merge(existing, &managed)?;
     let required = vendored_excludes(workflow);
     if !required.is_empty() {
         let parsed: toml::Value =
@@ -518,7 +524,7 @@ fn selene_config(
             section: None,
             kind: SettingKind::Bool { default: false },
         };
-        updated = tool_settings::merge_toml(&updated, &[(&exclude, json!(excludes))]);
+        updated = tool_settings::checked_toml_merge(&updated, &[(&exclude, json!(excludes))])?;
     }
     Ok(updated)
 }

@@ -551,6 +551,134 @@ fn fixture(label: &str, packages: &str) -> TempProject {
     project
 }
 
+#[test]
+fn unsafe_multiline_selene_merges_refuse_without_any_writes() {
+    for (workflow, packages, source) in [
+        (
+            "none",
+            "",
+            "std = \"roblox\"\nnotes = '''\nstd = \"example\"\n'''\n",
+        ),
+        (
+            "wally",
+            "\"vide\", \"testez\"",
+            "std = \"roblox\"\nnotes = '''\nstd = \"example\"\n'''\n",
+        ),
+        (
+            "wally",
+            "\"vide\"",
+            "std = \"roblox\"\n[rules]\nmixed_table = \"warn\"\nnotes = '''\nmixed_table = \"example\"\n'''\n",
+        ),
+        (
+            "wally",
+            "\"charm\"",
+            "std = \"roblox\"\nnotes = '''\nexclude = [\"custom/**\"]\n'''\n",
+        ),
+        (
+            "wally",
+            "\"vide\"",
+            "std = \"roblox\"\nnotes = '''\n[rules]\n'''\n",
+        ),
+        ("none", "", "std = \"\"\"\nroblox\n\"\"\"\n"),
+    ] {
+        assert!(toml::from_str::<toml::Table>(source).is_ok());
+        for args in [&["upgrade", "--yes"][..], &["upgrade"][..]] {
+            let project = fixture("selene-unsafe-multiline", packages);
+            if workflow == "none" {
+                project.write(
+                    "rproj.toml",
+                    "mode='expert'\npackage_workflow='none'\n[capabilities]\nlint='selene'\n",
+                );
+            }
+            project.write("selene.toml", source);
+            project.write(".gitignore", "# custom\ncustom-output/\n");
+            project.write(".luaurc", "{\"aliases\":{\"custom\":\"./custom\"}}\n");
+            project.write("src/custom.luau", "return 'keep'\r\n");
+            let before = snapshot(project.path());
+            let outcome = Session::start(project.path(), args).finish();
+            assert_eq!(outcome.code, 1, "{}", outcome.text);
+            outcome.assert_contains("selene.toml");
+            outcome.assert_contains("cannot safely edit this TOML layout");
+            outcome.assert_contains("edit the file manually");
+            outcome.assert_contains("re-run `rproj upgrade`");
+            outcome.assert_lacks("Apply these changes?");
+            outcome.assert_lacks("wrote ");
+            assert_eq!(snapshot(project.path()), before);
+        }
+    }
+}
+
+#[test]
+fn safe_multiline_selene_merges_preserve_values_and_settle_after_one_run() {
+    let source = "# project note\nstd = \"custom\"\nnotes = '''\ncustom = \"keep\"\n'''\nexclude = [\"custom/**\"]\n\n[rules]\nmixed_table = \"warn\"\nshadowing = \"deny\"\n\n[owner]\nvalue = 42\n";
+    let original: toml::Table = toml::from_str(source).unwrap();
+    for workflow in ["none", "wally"] {
+        for args in [&["upgrade", "--yes"][..], &["upgrade"][..]] {
+            let project = fixture("selene-safe-multiline", "\"vide\", \"testez\"");
+            if workflow == "none" {
+                project.write(
+                    "rproj.toml",
+                    "mode='expert'\npackage_workflow='none'\n[capabilities]\nlint='selene'\n",
+                );
+            }
+            project.write("selene.toml", source);
+            project.write("src/custom.luau", "return 'keep'\r\n");
+            let before = snapshot(project.path());
+            let mut session = Session::start(project.path(), args);
+            if args.len() == 1 {
+                session.wait_for("Apply these changes?");
+                assert_eq!(snapshot(project.path()), before);
+                session.send(ENTER);
+            }
+            let first = session.finish();
+            assert_eq!(first.code, 0, "{}", first.text);
+            let text = project.read("selene.toml");
+            let actual: toml::Table = toml::from_str(&text).unwrap();
+            assert_eq!(actual["notes"], original["notes"]);
+            assert_eq!(actual["owner"], original["owner"]);
+            assert_eq!(actual["rules"]["shadowing"], original["rules"]["shadowing"]);
+            assert!(text.contains("# project note\n"));
+            assert_eq!(project.read("src/custom.luau"), "return 'keep'\r\n");
+            assert_eq!(
+                actual["std"].as_str(),
+                Some(if workflow == "wally" {
+                    "roblox+testez"
+                } else {
+                    "roblox"
+                })
+            );
+            assert_eq!(
+                actual["rules"]["mixed_table"].as_str(),
+                Some(if workflow == "wally" { "allow" } else { "warn" })
+            );
+            let expected = if workflow == "wally" {
+                vec![
+                    "custom/**",
+                    "Packages/**",
+                    "ServerPackages/**",
+                    "DevPackages/**",
+                ]
+            } else {
+                vec!["custom/**"]
+            };
+            assert_eq!(
+                actual["exclude"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|entry| entry.as_str().unwrap())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            let after = snapshot(project.path());
+            let second = Session::start(project.path(), args).finish();
+            assert_eq!(second.code, 0, "{}", second.text);
+            second.assert_contains("already up to date");
+            assert_eq!(snapshot(project.path()), after);
+        }
+    }
+}
+
 /// A project scaffolded before the Vide fix keeps `mixed_table = "warn"`,
 /// which fails its own quality gate on every UI file.
 #[test]

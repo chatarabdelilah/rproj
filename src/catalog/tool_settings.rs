@@ -11,6 +11,7 @@
 //! docs, the luau-lsp extension's own `package.json` contributions), not
 //! from memory.
 
+use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 
 /// One accepted value of a `Choice` setting, with what picking it does.
@@ -703,6 +704,34 @@ pub fn merge_toml(existing: &str, answers: &[(&SettingSpec, Value)]) -> String {
         };
     }
     out
+}
+
+pub(crate) fn checked_toml_merge(
+    existing: &str,
+    answers: &[(&SettingSpec, Value)],
+) -> Result<String> {
+    let mut expected = toml::from_str::<toml::Table>(existing)
+        .context("could not parse current TOML; edit the file manually and try again")?;
+    for (setting, value) in answers {
+        let table = match setting.section {
+            Some(section) => expected
+                .entry(section)
+                .or_insert_with(|| toml::Value::Table(toml::Table::new()))
+                .as_table_mut()
+                .with_context(|| format!("{section} is not a TOML table"))?,
+            None => &mut expected,
+        };
+        table.insert(setting.key.into(), toml::Value::try_from(value)?);
+    }
+    let merged = merge_toml(existing, answers);
+    let actual = toml::from_str::<toml::Table>(&merged)
+        .context("cannot safely edit this TOML layout; edit the file manually")?;
+    // The line writer must not change content inside multiline values or other tables.
+    ensure!(
+        actual == expected,
+        "cannot safely edit this TOML layout without changing other values; edit the file manually"
+    );
+    Ok(merged)
 }
 
 /// Adds `line` directly under `[section]`, creating the table at the end of

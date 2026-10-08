@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result};
 use inquire::{Confirm, CustomType, Select};
 use serde_json::{Value, json};
 
@@ -184,31 +184,6 @@ fn can_prompt(kind: &SettingKind, value: &Value) -> bool {
     }
 }
 
-fn checked_toml_merge(existing: &str, answers: &[(&SettingSpec, Value)]) -> Result<String> {
-    let mut expected = toml::from_str::<toml::Table>(existing)
-        .context("could not parse current TOML; fix it and re-run configure")?;
-    for (setting, value) in answers {
-        let table = match setting.section {
-            Some(section) => expected
-                .entry(section)
-                .or_insert_with(|| toml::Value::Table(toml::Table::new()))
-                .as_table_mut()
-                .with_context(|| format!("{section} is not a TOML table"))?,
-            None => &mut expected,
-        };
-        table.insert(setting.key.into(), toml::Value::try_from(value)?);
-    }
-    let merged = tool_settings::merge_toml(existing, answers);
-    let actual = toml::from_str::<toml::Table>(&merged)
-        .context("cannot safely edit this TOML layout; edit the file manually")?;
-    // The legacy line writer must not change content inside multiline values or other tables.
-    ensure!(
-        actual == expected,
-        "cannot safely edit this TOML layout without changing other values; edit the file manually"
-    );
-    Ok(merged)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,7 +218,7 @@ mod tests {
         let answers = [(setting, json!("roblox+testez"))];
         let unchecked = tool_settings::merge_toml(existing, &answers);
         assert!(toml::from_str::<toml::Table>(&unchecked).is_ok());
-        assert!(checked_toml_merge(existing, &answers).is_err());
-        assert!(checked_toml_merge("std = \"roblox\"\n", &answers).is_ok());
+        assert!(tool_settings::checked_toml_merge(existing, &answers).is_err());
+        assert!(tool_settings::checked_toml_merge("std = \"roblox\"\n", &answers).is_ok());
     }
 }

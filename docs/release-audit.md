@@ -1,5 +1,52 @@
 # Release-Hardening Audit
 
+## October 8: Upgrade refuses unsafe Selene TOML merges
+
+A disposable-fixture probe against published 0.21.2 showed `upgrade --yes`
+returning success while changing an unrelated multiline TOML string from
+`std = "example"` to `std = "roblox"`. The line writer had mistaken a line
+inside the string for a managed setting. The new end-to-end regression failed
+on that baseline with exit code 0 and writes to Selene and housekeeping files.
+
+On `codex/upgrade-toml-preservation`, Configure's existing semantic merge guard
+is shared through the tool-settings catalog. Both Upgrade Selene merge passes
+(managed settings and package exclusions), including recreated configurations,
+use it. The rendered TOML must equal the original parsed document plus only the
+requested setting changes. Unparseable results or unrelated value changes
+refuse the whole plan before confirmation or writes, naming `selene.toml` and
+manual-edit/retry guidance. Shared errors are command-neutral. No dependency,
+version, public flag, eligibility, staging, or conflict-check changes are made.
+
+`cargo test --locked --offline --test upgrade` passed all **31 tests**. The new
+refusal regression covers None and Wally/TestEZ, managed names inside multiline
+strings (`std`, `mixed_table`, `exclude`), embedded table headers, and a multiline
+managed value whose rewrite would produce invalid TOML. Interactive and `--yes`
+refusals preserve complete project snapshots, including pending housekeeping
+repairs and user source. The safe-merge regression preserves multiline values,
+comments, custom exclusions, owner tables, lint choices and source, then verifies
+every project file is byte-identical on a second run. Existing recreated-file,
+confirmation/cancellation and staging/conflict regressions remain passing.
+
+`cargo test --locked --offline commands::configure` passed 16 Configure unit
+tests. The complete `cargo test --locked --offline` suite passed **488 ordinary
+tests with 23 ignored**, including all 17 Configure integration tests; nested
+child-test summaries are excluded. `cargo fmt --all -- --check`,
+`cargo clippy --locked --offline --all-targets -- -D warnings`, and precommit
+`cargo package --locked --offline --allow-dirty` passed. Tools on Windows were
+rustc/Cargo 1.94.0, Clippy 0.1.94, rustfmt 1.8.0-stable and CodeRabbit CLI 0.7.6.
+Offline Cargo used existing caches; disposable tests needed no project tools,
+Studio or cloud credentials. `cr review --agent --uncommitted` covered all five
+code/test files and reported zero findings. Clean committed packaging, final
+branch review and final-head/merged-main CI remain delivery gates, with exact
+commit/run evidence recorded in the implementation PR.
+
+This compatible safety fix is unreleased; Cargo remains at published 0.21.2
+until a patch candidate is requested. The owner chose preservation first and
+retained a Ratatui Upgrade diff viewer with default-No Apply-all confirmation
+as the follow-up. That UI is not implemented here. Fresh-machine, authenticated
+Open Cloud and manual Studio acceptance remain unverified; provisioning stays
+deferred. No host applications or user projects were changed.
+
 ## October 8: 0.21.2 publication verified
 
 The owner published 0.21.2 on October 8, 2026. Crates.io confirms the version
