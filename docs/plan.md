@@ -26,10 +26,14 @@ multiline string for a setting. The fix preserves unrelated values or gives
 manual-edit/retry guidance; Cargo stays at 0.21.2 until patch preparation.
 See the [audit](release-audit.md) for regression and verification evidence.
 
-**Owner-chosen follow-up:** inspect actual Upgrade file changes in Ratatui for
-interactive CLI and Home project actions, with one Apply-all action and a
-default-No confirmation. Keep `--yes` plain. Preservation takes priority; that
-viewer is not implemented by this fix.
+**Unreleased Upgrade review:** interactive CLI and Home project actions now
+show actual file diffs in Ratatui, with one Apply-all action and default-No
+confirmation. Home borrows its terminal for review and restores ordinary
+output before execution; `--yes` remains plain. Selection and diff scrolling
+survive resize and Help, and undersized terminals block Apply. The existing
+planner, preservation guard, snapshots and staged writer remain authoritative.
+See the [audit](release-audit.md) for disposable-fixture verification. No new
+dependency or version bump is included; release preparation is separate.
 
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old

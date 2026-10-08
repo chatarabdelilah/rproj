@@ -1,5 +1,62 @@
 # Release-Hardening Audit
 
+## October 8: Ratatui Upgrade file-diff review
+
+The owner requested implementation of the bounded viewer plan after the
+preservation fix merged. Work is on `codex/upgrade-review-viewer`, based on
+clean main `d5abb5f85e7ce186a22200ab5111fa1246befc7c`. Its four required CI
+jobs passed in [37738500535](https://github.com/chatarabdelilah/rproj/actions/runs/37738500535).
+Published 0.21.2 remains unchanged; this interface and the preservation fix
+are unreleased. No dependency, package version or CI changes are included.
+
+The first regression failed against the original default-Yes prompt: pressing
+Enter wrote `.gitignore` and `.luaurc`, changing the whole-project snapshot.
+Interactive Upgrade now reviews actual file diffs, reasons and skipped-file
+warnings in Ratatui. One Apply-all action uses default-No confirmation; Enter
+returns to review and only Y approves. CLI owns a scoped terminal; Home
+borrows its existing session, restoring ordinary output before the unchanged
+writer and acknowledgement. The same captured path and plan reach execution;
+there is no replanning or per-file application policy.
+
+Exact-line hunks retain three context lines and expose CRLF/missing final
+newlines. Terminal controls are escaped. A 1,000,000-cell limit bounds LCS;
+larger regions remain visible as full removal/addition blocks. File selection,
+per-file vertical/horizontal scrolling, focus, Help and confirmation survive
+wide/narrow/minimum/undersized resize. Apply is blocked below 60 x 16, including
+pending confirmations; Help and cancellation remain available. Empty plans
+bypass the viewer; `--yes` remains plain and retains safety checks. Redirected
+Upgrade with pending changes refuses with explicit `--yes` guidance.
+
+Ten Upgrade unit tests passed, including an isolated PTY driver verifying
+selected-project review/write when launched elsewhere and raw-mode restoration
+after borrowed-session cancellation and execution. All **34 Upgrade integration
+tests** passed: existing unsafe merge, custom values, staging, conflict and
+one-run/no-op regressions remain intact; new coverage verifies default-No whole
+snapshots, real-terminal scroll/Help/resize recovery and small-screen pending
+confirmation blocking, redirected refusal and plain `--yes`/no-op behavior.
+Two Home Upgrade terminal tests passed, exercising both cancellation routes,
+single-session borrowing, confirmed execution, conflict refusal, no-op and
+return to the retained project action. Fixture projects and logs are disposable;
+no global configuration or project tools were provisioned.
+
+`cargo test --locked --offline` passed **503 ordinary tests, 23 ignored**:
+432 unit tests and 94 integration tests discovered, excluding nested child
+summaries. `cargo fmt --all -- --check`,
+`cargo clippy --locked --offline --all-targets -- -D warnings`, and precommit
+`cargo package --locked --offline --allow-dirty` passed. Tools remain rustc/Cargo
+1.94.0, Clippy 0.1.94, rustfmt 1.8.0-stable and CodeRabbit CLI 0.7.6. Offline
+Cargo uses existing caches; terminal fixtures need no Studio/cloud credentials.
+The local `cr review --agent --uncommitted` review found one minor test
+synchronization issue: the small-screen Apply probe checked its snapshot
+before acknowledging input. The test now opens Help after the blocked keys
+and waits for that frame before checking the snapshot. The iteration review
+covered nine tracked files; the final committed review must include the two
+new viewer modules and completed architecture update. Clean committed package
+verification and exact final-head/merged-main CI remain delivery gates, with
+completed evidence to be recorded in the implementation PR. Fresh-machine, authenticated Open Cloud,
+full fresh-Linux execution and manual Studio acceptance remain unverified;
+machine-wide provisioning stays deferred.
+
 ## October 8: Upgrade refuses unsafe Selene TOML merges
 
 A disposable-fixture probe against published 0.21.2 showed `upgrade --yes`

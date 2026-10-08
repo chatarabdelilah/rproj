@@ -36,6 +36,28 @@ pub const DOWN: &str = "\x1b[B";
 pub const LEFT: &str = "\x1b[D";
 pub const ESC: &str = "\x1b";
 
+pub fn project_snapshot(root: &Path) -> std::collections::BTreeMap<PathBuf, Option<Vec<u8>>> {
+    fn visit(
+        root: &Path,
+        directory: &Path,
+        files: &mut std::collections::BTreeMap<PathBuf, Option<Vec<u8>>>,
+    ) {
+        for entry in std::fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            let relative = path.strip_prefix(root).unwrap().to_owned();
+            if path.is_dir() {
+                files.insert(relative, None);
+                visit(root, &path, files);
+            } else {
+                files.insert(relative, Some(std::fs::read(path).unwrap()));
+            }
+        }
+    }
+    let mut files = std::collections::BTreeMap::new();
+    visit(root, root, &mut files);
+    files
+}
+
 pub fn screen_rows(screen: &vt100::Screen) -> String {
     // ConPTY redraws can change soft-wrap flags without changing visible rows.
     screen

@@ -73,7 +73,7 @@ The Catalog excludes Place Template, which belongs to the dedicated Explorer. It
 
 Rows contain names only. Group descriptions and entry explanations live in the details pane. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select rows; Page Up/Down, Ctrl+Home/End, and the mouse wheel scroll details without changing focus. Esc unwinds the group navigation stack. Ctrl+C leaves Catalog for Home, or exits standalone Catalog. Named lookups and redirected listings remain plain.
 
-Edit Packages & Capabilities, Configure Tools, Upgrade, background Watch, Test, and Copy Source live on the project screen, with unavailable reasons. The composition editor adds choices while preserving existing ones and applies generated wiring only after Save. Each action revalidates its selected directory. Configure Tools borrows the current Ratatui session and reviews saves/discards. Other actions run outside the alternate screen and return after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Start background Watch is the default Watch action on Windows; Watch Status, Watch Logs, Stop Watch, and Watch in Foreground are explicit project actions. Home refreshes Watch state every second; quitting leaves it running. Stop acknowledges Stopping while recovery finishes its active command, then reports Stopped only after owned work exits. Foreground Watch awaits the active child before returning.
+Edit Packages & Capabilities, Configure Tools, Upgrade, background Watch, Test, and Copy Source live on the project screen, with unavailable reasons. The composition editor adds choices while preserving existing ones and applies generated wiring only after Save. Each action revalidates its selected directory. Configure Tools borrows the current Ratatui session and reviews saves/discards. Upgrade also borrows that session for file-diff review, then restores ordinary output for execution and acknowledgement. Other actions run outside the alternate screen and return after acknowledgement. Esc returns to Projects; Ctrl+C returns Home. Successful creation opens the new project and selects it in the refreshed browser. Setup and cancelled/failed creation keep Home recovery. Start background Watch is the default Watch action on Windows; Watch Status, Watch Logs, Stop Watch, and Watch in Foreground are explicit project actions. Home refreshes Watch state every second; quitting leaves it running. Stop acknowledges Stopping while recovery finishes its active command, then reports Stopped only after owned work exits. Foreground Watch awaits the active child before returning.
 
 ## Template Explorer
 
@@ -98,6 +98,32 @@ Configure and upgrade preserve unrelated user-owned content and refuse data they
 The 0.13.1 `configure` fix keeps existing values outside the guided catalog behind a default-No replacement confirmation. Existing answers that remain unchanged are not written; missing settings still receive prompted defaults. Unsafe TOML layouts produce a refusal with manual-edit guidance, not a damaged file. This safety correction retains inquire; further Ratatui configuration screens are not implemented by this change.
 
 Errors identify the operation and an actionable recovery step. A missing executable is not a lint failure; a test failure is not permission to switch runners.
+
+## Upgrade Review
+
+This interface is unreleased on main. Interactive `rproj upgrade` owns a
+terminal; Home's Upgrade Project borrows Home's terminal. Planning and unsafe
+merge refusal precede the viewer. Changed files show Create/Update, reasons
+and unified diffs from captured original/replacement contents. Skipped-file
+warnings are read-only and remain outside Apply all.
+
+Wide screens use adjacent panes; narrow screens stack them. Tab changes
+focus; arrows/Home/End select files or scroll the focused diff. Page Up/Down
+and Ctrl+Home/End scroll the diff; Left/Right pan long lines. Each file keeps
+its scroll position through selection, Help and resize. Diff markers provide
+meaning without relying on color; CRLF and missing final newlines are marked,
+and terminal controls are escaped.
+
+A opens one Apply-all confirmation. Enter/Esc/N return to review; only Y
+approves. Esc from review cancels to the project, while Ctrl+C returns Home
+or exits standalone Upgrade. Below 60 x 16, Help and cancellation remain
+available, and pending confirmations cannot apply. Successful review uses
+the exact captured plan and existing conflict/staging checks, after terminal
+restoration. There is no per-file selection or editing in this screen.
+
+Empty plans bypass the viewer. `--yes` remains plain and uses the same safety
+checks. Redirected Upgrade with changes requires `--yes`; refusal writes
+nothing. Terminal failures restore modes through the existing session guard.
 
 ## Ratatui Creation
 

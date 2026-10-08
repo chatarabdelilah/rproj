@@ -703,7 +703,27 @@ are ignored by ordinary CI and must be executed explicitly.
 
 Every `ensure_*` step in the scaffold skips a file that already exists. That is correct for `rproj new` — running it twice must not clobber your work — and it strands existing projects: when a scaffold default changes, a project made yesterday keeps the old version forever and nothing says so. Three of §7's fixes landed in one day and none of them could reach a project already on disk.
 
-`upgrade` re-derives the generated files from `rproj.toml`'s recorded package list and workflow, shows what would change, and writes only after confirmation (`--yes` skips the prompt). Two rules keep it from being destructive:
+`upgrade` re-derives the generated files from `rproj.toml`'s recorded package list and workflow, reviews actual file changes, and writes only after explicit confirmation (`--yes` skips the viewer).
+
+The unreleased Ratatui viewer uses the same `PreparedUpgrade` for standalone
+CLI and Home. `prepare` reads and validates the whole plan before entering
+review. Home's `open_in` revalidates the selected project and borrows its
+`TerminalSession`; Apply/UpToDate return the prepared path and plan to the
+existing suspension/acknowledgement boundary. Cancellation stays inside the
+borrowed terminal. Standalone review owns a scoped session, dropped before
+execution. `--yes` and empty plans retain plain output; redirected review
+with pending changes is refused with explicit `--yes` guidance.
+
+`upgrade::diff` matches exact lines including endings, trims common prefix
+and suffix, and produces unified hunks with three context lines. Its LCS
+table is capped at 1,000,000 cells; larger changed regions fall back to a
+complete removal/addition block rather than hiding changes. Control bytes
+are escaped, CRLF and absent final newlines are visible, and Unicode-width
+cropping keeps long lines horizontally navigable. The review controller
+retains per-file scroll, focus, Help and confirmation through resize. Shared
+responsive panes and default-No confirmation are reused. Only Y applies,
+and Apply remains blocked below 60 x 16, including an already-open dialog.
+There is no new dependency or individual-file apply policy.
 
 The plan retains one content snapshot per recorded rewrite target and input, including
 `rproj.toml` and `default.project.json`. Merges use those same snapshots. After
@@ -728,8 +748,15 @@ shared file are not replaced.
 Housekeeping merges for `.gitignore`, `.luaurc`, and TestEZ's `tests/.luaurc`
 are part of the same reviewed plan, snapshots, and staged replacements.
 
+Two ownership rules keep Upgrade bounded:
+
 - **Only files rproj generates.** `stylua.toml`, `default.project.json`, `wally.toml`, `rokit.toml` and everything under `src/` are seeded once and then edited by hand, so rewriting them would throw away real work. A test asserts they survive.
-- **`selene.toml` is merged, not replaced**, and only for the keys whose correct value *follows from the project's composition*: `std` from TestEZ, `mixed_table` from the UI library, `exclude` from the package workflow. Lint levels the user chose are theirs. This reuses `tool_settings::merge_toml` by passing it a **subset** of the catalog's settings — it only rewrites lines whose key and section match something in that subset, so everything else in the file is untouched by construction.
+- **`selene.toml` is merged, not replaced**, and only for composition-managed
+  `std`, `mixed_table` and package exclusions. Both merge passes reuse
+  `tool_settings::checked_toml_merge`. Parsed rendered TOML must equal the
+  original plus only the requested settings; unsafe layouts are refused
+  before confirmation or writes, naming `selene.toml` and manual-edit/retry
+  guidance. Configure uses the same command-neutral guard.
 
 Deprecated editor settings are a special case: adding the replacement is not enough, since the old key stays valid and stays flagged. `vscode::drop_superseded` removes it — but **only once its replacement is present in the merged result**. Without that guard, `rproj configure stylua-vscode` on an older project would strip `luau-lsp.plugin.enabled` while writing nothing in its place, silently switching the Studio DataModel bridge back off, which is the exact failure §7 documents.
 
@@ -989,8 +1016,9 @@ with code indentation retained and remain scrollable. Source checks and runtime
 limits are recorded in [Catalog example evidence](catalog-examples.md).
 
 Home is a small explicit session loop, not a router/framework. One
-`TerminalSession` is borrowed by Projects, Catalog, creation questions, and
-Template Explorer. External commands suspend it, await their child, and
+`TerminalSession` is borrowed by Projects, Catalog, creation questions,
+Template Explorer, Configure Tools, and Upgrade review. External commands
+suspend it, await their child, and
 acknowledge their outcome before resuming the calling project or Home.
 Terminal I/O failures remain fatal.
 
@@ -1229,7 +1257,12 @@ Dated observations below retain earlier validation history. Generated CI now use
 
 T5's `commands::machine_setup` selection/worker/TUI tests and `steps::execution` process-adapter tests use temporary storage and harmless fixture executables. They cover recorded-empty/unknown selections, no-op cancellation, explicit confirmation, success/failure/save failure, returning through Review after completion, cooperative cancellation awaiting the child, output saturation, worker panic, Unicode/ANSI/CRLF handling, and concurrent stdout/stderr. `tests/setup.rs` covers redirected refusal and standalone terminal restoration. Windows configuration tests verify complete replacement and preservation on sharing violations.
 
-As of October 7, 2026, `cargo test` discovers 511 tests on Windows: 422 unit tests and 89 integration tests. Twenty-three prerequisite-dependent tests are ignored in the ordinary suite, leaving 488 ordinary tests (nested child-test summaries are excluded). T5 added selection/preservation checks, fixture worker/process tests, configuration replacement checks, responsive renders, and setup/Home PTY coverage. Windows stable and Rust 1.89 CI run the locked suite; stable also runs clippy and formatting, and the package job builds the crate archive. Execution evidence and limitations are recorded in [the release audit](release-audit.md).
+As of October 8, 2026, `cargo test` discovers 526 tests on Windows: 432 unit
+tests and 94 integration tests. Twenty-three prerequisite-dependent tests
+are ignored in the ordinary suite, leaving 503 ordinary tests (nested child
+summaries excluded). Windows stable and Rust 1.89 CI run the locked suite;
+stable also runs strict Clippy and formatting, and packaging builds the crate
+archive. Current evidence and limitations are in [the audit](release-audit.md).
 
 Catalog resize recovery has two unit regressions for filtered selection, list
 viewport visibility, detail scroll/render preservation and Back history. A
@@ -1299,9 +1332,10 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | `src/steps/vscode.rs` | Shared editor settings, Studio bridge, StyLua configuration, sourcemap ownership, Unix line endings and preservation of unrelated settings. |
 | `src/ui.rs` | Option matching uses the full `key -` prefix, including its trailing space; marker icons are single scalars without variation selectors; and truncation preserves the key and maintenance badge within terminal width. Tallies wrap while retaining every item, and multi-select summaries list keys instead of repeating descriptions. |
 | `tests/live.rs` (12 ignored tests) | Real Wally scaffolding and gates, None creation through Home, saved Wally setup replay, refusal of unsupported records, prompt revisions, destination safety and Jest execution. Temporary projects are cleaned; installed tools and package caches are shared. |
-| `tests/upgrade.rs` (31 Windows tests) | `rproj upgrade` against hand-built fixture projects without network. Covers merge, idempotence, ownership, refusal, real confirmation/cancellation, external target edit/create/delete, changed inputs, read errors, later read-only preparation failure, and locked replacement failure/retry. Unsafe Selene TOML merges are refused before confirmation or writes through the shared Configure semantic guard; multiline-key/table-header refusals preserve complete snapshots, while safe multiline merges retain custom values. Missing Selene configuration settles in one run for Wally/TestEZ and None, with every project file unchanged on the second run. Housekeeping-only review, Ctrl+C, custom values, malformed-file skipping, conflict refusal, and staging protection are covered. Jest regenerates its test project and CI, restores owned config fields, and preserves user options and compatible production mounts. |
+| `src/commands/upgrade` (10 tests) | Exact-line unified diffs cover creation, replacement, separated hunks, LF/CRLF/final-newline changes, controls and bounded large-region fallback. Review state covers default-No/explicit approval, per-file scroll and Help/resize preservation, undersized pending-confirmation blocking, warnings and Unicode. An isolated PTY driver verifies selected-project review/write when launched elsewhere and raw-mode restoration after borrowed-session cancellation and execution. |
+| `tests/upgrade.rs` (34 Windows tests) | Disposable project fixtures cover merges, idempotence, managed fields and user-owned content, unsafe multiline Selene refusal, recreated Selene one-run stability, housekeeping, skipped malformed documents, input/target conflicts and staged replacement failures/retry. Viewer regressions verify default-No whole-project preservation, real-terminal scroll/Help/resize recovery and undersized confirmation blocking, plus plain redirected --yes and no-op behavior. Jest generation and options/production mount preservation remain covered. |
 | `tests/test_workflow.rs` (2 tests, 1 ignored) | Fixture CLI regression: TestEZ/Jest complete-tree reuse for typed and bare links, repeated testing, missing-package recovery, package-byte preservation, and command ordering. An ignored installed-Jest check exercises missing credentials through `rproj test`, including standard/prefixed environment variables and exit-code preservation; preparation tools are fixtures and the cloud endpoint is loopback. |
-| `tests/hub.rs` (11 Windows tests) | Bare `rproj` opens and exits without terminal damage; Catalog opens inside the hub and returns; unavailable project actions explain the missing prerequisite without dispatching; redirected execution remains plain text without escape sequences. |
+| `tests/hub.rs` (14 Windows tests) | Real Home terminal tests cover Configure and Upgrade borrowing, Upgrade cancellation snapshots, Apply/conflict/no-op acknowledgement and selected-action return, existing Watch/tool interruption recovery, Projects resize/navigation, Catalog/Saved Setups/Template return paths, disabled actions and redirected plain output. |
 | `tests/info.rs` (4 tests) | `rproj info` end to end. The Catalog is driven through a pty: filter to a section, filter to an entry, land on its detail page, read the explanation, then Esc through every level and confirm exit 0. Resize recovery preserves filtered/scrolled details through small screens and Help, then verifies scrolling and exit. Redirected output remains flat and a named lookup prints one entry rather than the Catalog. |
 | `src/commands/configure.rs` (2 tests), `tests/configure.rs` (14 tests) | Typed prompt support, presence of unsupported TOML values, and rejection of semantically destructive multiline merges. Real binary/prompt/file checks cover redirected template refusal, no-op configuration (including handwritten CRLF/quoted TOML), custom/structured value preservation, explicit replacement, single-setting changes, early and late parse failure, unsafe-layout refusal, unknown-key guidance, picker discoverability, JSON merging, and remembered defaults. |
 | `src/commands/new.rs` (12 tests) | Workflow-compatible package and runner presentation, graph-derived files/tools, machine setup boundaries, summary parity, and exclusive destination creation after confirmation. The minimal-project property remains: choosing nothing yields exactly `src`, `default.project.json`, and the two housekeeping entries. |

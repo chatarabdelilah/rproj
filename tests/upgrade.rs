@@ -8,30 +8,8 @@
 
 mod common;
 
-use common::{ENTER, Session, TempProject};
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::{Path, PathBuf},
-};
-
-fn snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
-    fn visit(root: &Path, directory: &Path, files: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
-        for entry in fs::read_dir(directory).unwrap() {
-            let path = entry.unwrap().path();
-            let relative = path.strip_prefix(root).unwrap().to_owned();
-            if path.is_dir() {
-                files.insert(relative, None);
-                visit(root, &path, files);
-            } else {
-                files.insert(relative, Some(fs::read(path).unwrap()));
-            }
-        }
-    }
-    let mut files = BTreeMap::new();
-    visit(root, root, &mut files);
-    files
-}
+use common::{ENTER, Session, TempProject, project_snapshot as snapshot};
+use std::{fs, path::Path};
 
 fn housekeeping_fixture(label: &str) -> TempProject {
     let project = TempProject::new(label);
@@ -49,15 +27,167 @@ fn housekeeping_testez_fixture(label: &str) -> TempProject {
     project
 }
 
+fn open_confirmation(session: &mut Session) {
+    session.wait_for("Upgrade review");
+    session.send("a");
+    session.wait_for("Apply these changes?");
+}
+
+fn dismiss_confirmation(session: &mut Session, answer: &str) {
+    session.send(answer);
+    session.wait_for_screen("confirmation dismissed", |screen| {
+        let text = screen.contents();
+        text.contains("Upgrade review") && !text.contains("Apply these changes?")
+    });
+    session.send(common::ESC);
+}
+
+#[test]
+fn upgrade_confirmation_defaults_to_no_and_preserves_the_project() {
+    let project = housekeeping_fixture("upgrade-default-no");
+    project.write("src/custom.luau", "return 'keep'\r\n");
+    let before = snapshot(project.path());
+    let mut session = Session::start(project.path(), &["upgrade"]);
+    open_confirmation(&mut session);
+    session.send(ENTER);
+    session.wait_for_screen("default-No returned to review", |screen| {
+        let text = screen.contents();
+        text.contains("Upgrade review") && !text.contains("Apply these changes?")
+    });
+    assert_eq!(snapshot(project.path()), before);
+    session.send(common::ESC);
+    let outcome = session.finish();
+    assert_eq!(outcome.code, 0, "{}", outcome.text);
+    assert_eq!(snapshot(project.path()), before);
+    outcome.assert_lacks("wrote ");
+}
+
+#[test]
+fn upgrade_review_resize_recovers_scrolled_diff_and_blocks_small_screen_apply() {
+    let project = fixture("upgrade-viewer-resize", "\"vide\"");
+    project.write(
+        ".vscode/settings.json",
+        &serde_json::json!({
+            "custom": {"rows": (0..70).map(|n| format!("row{n:02} 東京")).collect::<Vec<_>>()}
+        })
+        .to_string(),
+    );
+    let before = snapshot(project.path());
+    let mut session = Session::start(project.path(), &["upgrade"]);
+    session.wait_for("Upgrade review");
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "Upgrade review");
+    session.send(common::DOWN);
+    session.wait_for_screen("settings diff selected", |screen| {
+        screen.contents().contains(".vscode/settings.json — diff")
+    });
+    session.send("\t");
+    session.send("\x1b[F");
+    session.wait_for("row69 東京");
+    let scrolled = common::screen_rows(&session.screen());
+    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
+        let checkpoint = session.output_checkpoint();
+        session.resize(rows, cols);
+        session.wait_for_output_since(
+            checkpoint,
+            if cols < 60 {
+                "Resize to at least 60 x 16"
+            } else {
+                "Upgrade review"
+            },
+        );
+        session.send("?");
+        session.wait_for("Help");
+        session.send(common::ESC);
+        session.wait_for_screen("Help dismissed", |screen| {
+            !screen.contents().contains("Help")
+        });
+        if cols < 60 {
+            session.send("ay?");
+            session.wait_for("Help");
+            assert_eq!(snapshot(project.path()), before);
+            session.send(common::ESC);
+            session.wait_for_screen("small-screen Apply probe acknowledged", |screen| {
+                !screen.contents().contains("Help")
+            });
+        }
+    }
+    let checkpoint = session.output_checkpoint();
+    session.resize(30, 120);
+    session.wait_for_output_since(checkpoint, "row69 東京");
+    session.wait_screen(&scrolled);
+    session.send("\x1b[H");
+    session.wait_for("LF unless marked");
+    session.send("a");
+    session.wait_for("Apply these changes?");
+    let checkpoint = session.output_checkpoint();
+    session.resize(10, 40);
+    session.wait_for_output_since(checkpoint, "[No]");
+    session.send("y?");
+    session.wait_for("Help");
+    assert_eq!(snapshot(project.path()), before);
+    session.send(common::ESC);
+    session.wait_for_screen("confirmation retained below minimum", |screen| {
+        screen.contents().contains("[No]") && !screen.contents().contains("Help")
+    });
+    session.send(ENTER);
+    session.wait_for("Resize to at least 60 x 16");
+    session.send(common::ESC);
+    let result = session.finish();
+    assert_eq!(result.code, 0, "{}", result.text);
+    assert_eq!(snapshot(project.path()), before);
+}
+
+#[test]
+fn redirected_upgrade_refuses_review_and_yes_remains_plain() {
+    use std::process::Command;
+    let project = housekeeping_fixture("upgrade-redirected");
+    let before = snapshot(project.path());
+    let run = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_rproj"))
+            .current_dir(project.path())
+            .args(args)
+            .env("RPROJ_NO_LOG", "1")
+            .output()
+            .unwrap()
+    };
+    let refused = run(&["upgrade"]);
+    assert!(!refused.status.success());
+    let error = String::from_utf8_lossy(&refused.stderr);
+    assert!(error.contains("interactive terminal"), "{error}");
+    assert!(error.contains("--yes"), "{error}");
+    assert_eq!(snapshot(project.path()), before);
+    let applied = run(&["upgrade", "--yes"]);
+    assert!(
+        applied.status.success(),
+        "{}",
+        String::from_utf8_lossy(&applied.stderr)
+    );
+    let text = String::from_utf8_lossy(&applied.stdout);
+    assert!(text.contains("wrote .gitignore"), "{text}");
+    assert!(!text.contains("Upgrade review"));
+    assert!(!text.contains("\x1b[?1049"));
+    let after = snapshot(project.path());
+    let noop = run(&["upgrade"]);
+    assert!(noop.status.success());
+    assert!(String::from_utf8_lossy(&noop.stdout).contains("already up to date"));
+    assert_eq!(snapshot(project.path()), after);
+}
+
 #[test]
 fn housekeeping_only_upgrade_is_reviewed_and_cancellable() {
-    for answer in ["n\r", common::ESC, "\u{3}"] {
+    for answer in ["n", common::ESC, "\u{3}"] {
         let project = housekeeping_fixture("housekeeping-review");
         let before = snapshot(project.path());
         let mut session = Session::start(project.path(), &["upgrade"]);
-        session.wait_for("Apply these changes?");
+        open_confirmation(&mut session);
         assert_eq!(snapshot(project.path()), before);
-        session.send(answer);
+        if answer == "\u{3}" {
+            session.send(answer);
+        } else {
+            dismiss_confirmation(&mut session, answer);
+        }
         let outcome = session.finish();
         outcome.assert_contains("create .gitignore");
         outcome.assert_contains("create .luaurc");
@@ -80,9 +210,9 @@ fn housekeeping_upgrade_preserves_custom_values_and_second_run_is_a_noop() {
         let mut before = snapshot(project.path());
         let mut session = Session::start(project.path(), args);
         if args.len() == 1 {
-            session.wait_for("Apply these changes?");
+            open_confirmation(&mut session);
             assert_eq!(snapshot(project.path()), before);
-            session.send(ENTER);
+            session.send("y");
         }
         let outcome = session.finish();
         assert_eq!(outcome.code, 0, "{}", outcome.text);
@@ -150,14 +280,14 @@ fn housekeeping_conflicts_refuse_every_write() {
                 );
             }
             let mut session = Session::start(project.path(), &["upgrade"]);
-            session.wait_for("Apply these changes?");
+            open_confirmation(&mut session);
             if mode == "delete" {
                 fs::remove_file(project.path().join(relative)).unwrap();
             } else {
                 project.write(relative, "external edit\n");
             }
             let before = snapshot(project.path());
-            session.send(ENTER);
+            session.send("y");
             let outcome = session.finish();
             assert_eq!(outcome.code, 1, "{}", outcome.text);
             outcome.assert_contains("changed while upgrade was being reviewed");
@@ -214,9 +344,9 @@ fn later_housekeeping_staging_failure_preserves_earlier_targets() {
     let mut readonly = original.clone();
     readonly.set_readonly(true);
     let mut session = Session::start(project.path(), &["upgrade"]);
-    session.wait_for("Apply these changes?");
+    open_confirmation(&mut session);
     fs::set_permissions(&path, readonly).unwrap();
-    session.send(ENTER);
+    session.send("y");
     let outcome = session.finish();
     fs::set_permissions(&path, original).unwrap();
     assert_eq!(outcome.code, 1, "{}", outcome.text);
@@ -310,7 +440,7 @@ fn released_wpt_upgrade_cancel_and_changed_pin_preserve_every_file() {
     for mode in ["cancel", "edit", "delete"] {
         let project = wally_ci_fixture(Some("JohnnyMorganz/wally-package-types@1.7.0"));
         let mut session = Session::start(project.path(), &["upgrade"]);
-        session.wait_for("Apply these changes?");
+        open_confirmation(&mut session);
         if mode == "edit" {
             project.write(
                 "rokit.toml",
@@ -320,7 +450,11 @@ fn released_wpt_upgrade_cancel_and_changed_pin_preserve_every_file() {
             fs::remove_file(project.path().join("rokit.toml")).unwrap();
         }
         let before = snapshot(project.path());
-        session.send(if mode == "cancel" { "n\r" } else { ENTER });
+        if mode == "cancel" {
+            dismiss_confirmation(&mut session, "n");
+        } else {
+            session.send("y");
+        }
         let outcome = session.finish();
         assert_eq!(
             outcome.code,
@@ -354,7 +488,7 @@ fn edits_during_upgrade_confirmation_are_refused_before_any_write() {
             project.write(".vscode/settings.json", "{\"editor.rulers\":[100]}\n");
         }
         let mut session = Session::start(project.path(), &["upgrade"]);
-        session.wait_for("Apply these changes?");
+        open_confirmation(&mut session);
         let external = "{\"editor.rulers\":[80],\"custom\":{\"keep\":true}}\n";
         if mode == "delete" {
             fs::remove_file(project.path().join(".vscode/settings.json")).unwrap();
@@ -362,7 +496,7 @@ fn edits_during_upgrade_confirmation_are_refused_before_any_write() {
             project.write(".vscode/settings.json", external);
         }
         let before = snapshot(project.path());
-        session.send(ENTER);
+        session.send("y");
         let outcome = session.finish();
         assert_eq!(outcome.code, 1, "{}", outcome.text);
         outcome.assert_contains("changed while upgrade was being reviewed");
@@ -378,10 +512,10 @@ fn changed_upgrade_inputs_are_refused_even_when_they_are_not_rewritten() {
     for relative in ["rproj.toml", "default.project.json"] {
         let project = fixture("upgrade-input-conflict", "\"vide\"");
         let mut session = Session::start(project.path(), &["upgrade"]);
-        session.wait_for("Apply these changes?");
+        open_confirmation(&mut session);
         project.write(relative, &format!("{}\n", project.read(relative)));
         let before = snapshot(project.path());
-        session.send(ENTER);
+        session.send("y");
         let outcome = session.finish();
         assert_eq!(outcome.code, 1, "{}", outcome.text);
         outcome.assert_contains("changed while upgrade was being reviewed");
@@ -391,7 +525,7 @@ fn changed_upgrade_inputs_are_refused_even_when_they_are_not_rewritten() {
 
 #[test]
 fn rejecting_or_cancelling_upgrade_keeps_every_file_and_directory_unchanged() {
-    for answer in ["n\r", common::ESC] {
+    for answer in ["n", common::ESC] {
         let project = fixture("upgrade-cancel", "\"vide\", \"testez\"");
         project.write(
             "selene.toml",
@@ -401,10 +535,10 @@ fn rejecting_or_cancelling_upgrade_keeps_every_file_and_directory_unchanged() {
         project.write("src/custom.luau", "return 'keep'\n");
         let before = snapshot(project.path());
         let mut session = Session::start(project.path(), &["upgrade"]);
-        session.wait_for("Apply these changes?");
-        session.send(answer);
+        open_confirmation(&mut session);
+        dismiss_confirmation(&mut session, answer);
         let outcome = session.finish();
-        if answer == "n\r" {
+        if answer == "n" {
             assert_eq!(outcome.code, 0, "{}", outcome.text);
             outcome.assert_contains("nothing written");
         }
@@ -430,8 +564,8 @@ fn confirmed_upgrade_preserves_custom_settings_and_user_owned_files() {
     let record = project.read("rproj.toml");
     let production = project.read("default.project.json");
     let mut session = Session::start(project.path(), &["upgrade"]);
-    session.wait_for("Apply these changes?");
-    session.send(ENTER);
+    open_confirmation(&mut session);
+    session.send("y");
     let outcome = session.finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     let selene: toml::Value = toml::from_str(&project.read("selene.toml")).unwrap();
@@ -475,9 +609,9 @@ fn a_later_read_only_target_does_not_leave_earlier_files_upgraded() {
     let mut readonly = original.clone();
     readonly.set_readonly(true);
     let mut session = Session::start(project.path(), &["upgrade"]);
-    session.wait_for("Apply these changes?");
+    open_confirmation(&mut session);
     fs::set_permissions(&path, readonly).unwrap();
-    session.send(ENTER);
+    session.send("y");
     let outcome = session.finish();
     fs::set_permissions(&path, original).unwrap();
     assert_eq!(outcome.code, 1, "{}", outcome.text);
@@ -626,9 +760,9 @@ fn safe_multiline_selene_merges_preserve_values_and_settle_after_one_run() {
             let before = snapshot(project.path());
             let mut session = Session::start(project.path(), args);
             if args.len() == 1 {
-                session.wait_for("Apply these changes?");
+                open_confirmation(&mut session);
                 assert_eq!(snapshot(project.path()), before);
-                session.send(ENTER);
+                session.send("y");
             }
             let first = session.finish();
             assert_eq!(first.code, 0, "{}", first.text);
@@ -817,9 +951,9 @@ fn recreating_selene_is_complete_after_one_upgrade() {
             let before = snapshot(project.path());
             let mut session = Session::start(project.path(), args);
             if args.len() == 1 {
-                session.wait_for("Apply these changes?");
+                open_confirmation(&mut session);
                 assert_eq!(snapshot(project.path()), before);
-                session.send(ENTER);
+                session.send("y");
             }
             let first = session.finish();
             assert_eq!(first.code, 0, "{}", first.text);
