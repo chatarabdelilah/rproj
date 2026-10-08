@@ -1,5 +1,46 @@
 # Release-Hardening Audit
 
+## October 8: 0.22.0 publication verified
+
+The owner reported publication after [release PR #104](https://github.com/chatarabdelilah/rproj/pull/104)
+merged. The official crates.io API reports 0.22.0 as latest, not yanked,
+created at `2026-10-08T09:28:35.313047Z`. The downloaded official archive's
+SHA-256 matches registry checksum
+`ffd6fec0ba897f85a7614dab0ef72dce1cf4183c129b454cc1ac44da674b85a3`.
+Its `.cargo_vcs_info.json` identifies clean published commit
+`9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. All 107 packaged files were
+inspected; all 97 source/test files and other original packaged files match
+that commit byte-for-byte. Both manifests and the root lockfile identify
+0.22.0. Documentation, CI, indexes and local build artifacts are excluded.
+
+Release preparation passed 503 ordinary tests with 23 ignored, all 34 Upgrade
+integration tests, formatting, strict all-target Clippy and clean locked
+packaging. Both required local CodeRabbit reviews covered all seven files
+with zero findings; the final review completed after its stated quota cooldown.
+The reviewed head was `9a592979f3876001a918fee329efd89dd224d9b8`, with all
+four required jobs passing in
+[37755312886](https://github.com/chatarabdelilah/rproj/actions/runs/37755312886).
+Merged main `9dfc1a4cc7f13ac94839b84d601adc72bf00c927` passed all four in
+[37755706645](https://github.com/chatarabdelilah/rproj/actions/runs/37755706645).
+Both have complete tree `2a2858605720c271dad722a3aec517685152e9fb`.
+Local and remote `codex/release-0-22-0` were removed after checking exact
+heads, complete-tree equality and clean main, with expected-head deletion guards.
+
+After registry acceptance and archive verification, annotated tag `v0.22.0`
+was created with object `a50f0eed8753e42879669edcf3bf3c5349cb7d44` and pushed.
+Local and remote tags peel to the published commit. The matching
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.22.0)
+was created at `2026-10-08T09:31:23Z`; it is a prerelease, not a draft,
+and resolves through that verified tag. Earlier shipped tags remain unchanged.
+Cargo publication was performed by the owner. No active candidate remains.
+
+This publication closes release alignment, not the remaining acceptance gaps.
+Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
+project execution and manual Studio acceptance remain unverified. Ignored
+tests are not passes; no host provisioning or user-project changes were made.
+The next planning decision is to prioritize those gaps using roadmap workflow
+coverage and available environments, with machine-wide provisioning deferred.
+
 ## October 8: 0.22.0 alpha candidate preparation
 
 The owner requested continuation into release preparation after Upgrade review

@@ -17,24 +17,32 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.21.2, public alpha**, making a recreated Selene configuration complete after one Upgrade without a spacing-only second review. It retains 0.21.1's complete upgrade review, Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `287b7b6`. Cargo manifest and root lockfile are aligned at the unpublished 0.22.0 candidate; crates.io remains at 0.21.2. See [published notes](release-notes-0.21.2.md) and [audit evidence](release-audit.md) for verification and limits.
+The published baseline is **v0.22.0, public alpha**. Interactive Upgrade
+shows actual file diffs in Ratatui and uses default-No Apply-all confirmation;
+`--yes` remains plain. Both Selene merge passes refuse unsafe semantic changes
+before confirmation or writes, preserving unrelated multiline TOML values.
+The release retains complete upgrade review, one-run recreated-Selene
+idempotence, Wally-or-None workflows, the official Wally tool requirement,
+missing-prerequisite recovery, persistent Watch, Template Explorer file
+protection, UI Labs 2.4.2 and shared creation/configuration behavior.
 
-**0.22.0 alpha candidate:** includes the shared semantic TOML preservation
-guard and Ratatui Upgrade review from [PR #102](https://github.com/chatarabdelilah/rproj/pull/102)
-and [PR #103](https://github.com/chatarabdelilah/rproj/pull/103). Unsafe Selene
-merges refuse before confirmation or writes; published 0.21.2 can alter
-managed-looking content inside unrelated multiline strings. The viewer shows
-actual changes and uses default-No Apply-all confirmation, while `--yes`
-remains plain. Source, tests, dependencies and CI match reviewed main
-`7a5d3cd`; the release preparation changes version metadata and documentation.
-See [candidate notes](release-notes-0.22.0.md), [release rules](releasing.md)
-and [audit evidence](release-audit.md). Owner publication is pending.
+Owner publication, official archive checksum and clean Git identity,
+annotated tag and GitHub alpha release match
+`9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. Cargo manifest and root lockfile
+identify 0.22.0; crates.io reports it as current. No active release candidate
+is pending. See [published notes](release-notes-0.22.0.md),
+[release rules](releasing.md) and [audit evidence](release-audit.md).
 
-**Candidate interaction:** Home borrows its terminal for Upgrade review and
-restores ordinary output before execution. Selection and diff scrolling
-survive resize and Help; undersized terminals block Apply. The existing
-planner, preservation guard, snapshots and staged writer remain authoritative.
-No new dependency or host provisioning is included.
+**Shipped in 0.22.0:** the shared semantic TOML guard and Ratatui Upgrade
+review from [PR #102](https://github.com/chatarabdelilah/rproj/pull/102) and
+[PR #103](https://github.com/chatarabdelilah/rproj/pull/103). Home borrows its
+terminal for review and restores ordinary output before execution. Selection
+and diff scrolling survive resize and Help; undersized terminals block Apply.
+The planner, preservation guard, snapshots and staged writer remain
+authoritative. [Release PR #104](https://github.com/chatarabdelilah/rproj/pull/104)
+passed both local reviews and all four final-head/merged-main CI jobs.
+No dependency or host provisioning was added. Published 0.21.2 remains
+immutable and retains its confirmed multiline TOML preservation defect.
 
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
