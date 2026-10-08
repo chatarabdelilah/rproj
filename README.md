@@ -10,9 +10,9 @@
 
 ## What rproj does
 
-Candidate [0.22.0](docs/release-notes-0.22.0.md) adds Ratatui Upgrade file-diff
+Published [0.22.0](docs/release-notes-0.22.0.md) adds Ratatui Upgrade file-diff
 review with default-No Apply-all confirmation and refuses unsafe Selene TOML
-merges before writes. It is unpublished; crates.io remains at 0.21.2.
+merges before writes. It remains public alpha.
 
 Published [0.21.2](docs/release-notes-0.21.2.md) makes recreated Selene
 configuration complete after one Upgrade, eliminating a spacing-only second
@@ -141,7 +141,7 @@ Projects lists recognized folders directly beneath the configured projects root,
 
 Type to filter by name or path; use arrows and Enter to open a project, F5 to refresh, Tab to focus details, and `?` for help. Esc returns to the list with its filter, selection, and scroll intact; Ctrl+C returns Home. Selection lasts only for this session.
 
-The project screen offers Configure Tools, Upgrade Project, Start background Watch, Test Project, Copy Source, Watch Status, Watch Logs, Stop Watch, and Watch in Foreground. Home shows background Watch's project and state; quitting leaves it running. Actions target the selected directory. Stop Watch before changing the watched project's composition, tools, or configuration, and before Machine Setup. Tests can coexist with Watching but are blocked during Preparing/Stopping. Configure Tools stays inside Ratatui with setting details, pending changes, default-No save/discard confirmation, and preservation of unrelated values. The 0.22.0 candidate's Upgrade review also borrows this terminal; execution restores ordinary output and waits for acknowledgement before returning to the project. Other commands retain their output acknowledgement. Foreground Watch retains Ctrl+C stopping and failure reporting. Successful creation opens the new project's screen; Back selects it in the refreshed Projects list.
+The project screen offers Configure Tools, Upgrade Project, Start background Watch, Test Project, Copy Source, Watch Status, Watch Logs, Stop Watch, and Watch in Foreground. Home shows background Watch's project and state; quitting leaves it running. Actions target the selected directory. Stop Watch before changing the watched project's composition, tools, or configuration, and before Machine Setup. Tests can coexist with Watching but are blocked during Preparing/Stopping. Configure Tools stays inside Ratatui with setting details, pending changes, default-No save/discard confirmation, and preservation of unrelated values. Upgrade review also borrows this terminal; execution restores ordinary output and waits for acknowledgement before returning to the project. Other commands retain their output acknowledgement. Foreground Watch retains Ctrl+C stopping and failure reporting. Successful creation opens the new project's screen; Back selects it in the refreshed Projects list.
 
 Background states are Preparing, Watching, Stopping, Stopped, Failed, and Unresponsive. Start acknowledges Preparing; Watching requires successful recovery, initial sourcemap generation, and a spawned watcher. If the launcher prohibits process detachment, start from a normal Windows terminal. Unresponsive ownership blocks a replacement; rproj never kills a process using a cached PID. Watch logs retain two files of at most 1 MiB each under the user's local rproj data directory. Review tool output and local paths before sharing logs.
 
@@ -165,7 +165,7 @@ Only confirmed **Create** writes the project and saves the optional setup. The t
 
 Run `rproj configure selene`, `stylua`, `luau-lsp`, or `stylua-vscode` in the project directory. Existing settings are the prompt defaults; missing settings use catalog defaults. An unlisted or unsupported existing value is kept unless you explicitly agree to replace it. Keeping all existing settings unchanged avoids rewriting the file. TOML layouts the writer cannot safely modify are refused without saving; edit those files manually.
 
-### Upgrade review (0.22.0 candidate)
+### Upgrade review (0.22.0)
 
 Run `rproj upgrade` in an interactive terminal, or select **Upgrade Project**
 in Home. Select a changed file to inspect its reason and scrollable diff;

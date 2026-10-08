@@ -1,6 +1,6 @@
 # rproj 0.22.0 — Review Upgrade file changes before applying
 
-Unpublished release candidate. Public alpha.
+Published October 8, 2026. Public alpha.
 
 ## Changes
 
@@ -24,7 +24,7 @@ pending changes requires `--yes`; refusal writes nothing. The exact captured
 plan reaches the existing conflict checks and staged writer, without replanning
 or applying an independently chosen subset of files.
 
-This candidate also fixes a confirmed preservation defect in published
+This release also fixes a confirmed preservation defect in published
 0.21.2: Selene merges could change unrelated multiline TOML string content
 that resembled managed settings. Both managed-setting and package-exclusion
 passes now share Configure's semantic guard, including recreated configuration.
@@ -50,15 +50,16 @@ behavior, resize/Help recovery, selected-project execution, Home borrowing and
 raw-mode restoration. Source, tests, dependencies and CI are unchanged from
 the reviewed viewer implementation in this release preparation.
 
-Candidate verification and exact review/CI evidence are recorded in
-[the release audit](release-audit.md). Publication remains the owner's action;
-no 0.22.0 tag or GitHub release is created before crates.io confirms it.
+Release verification and exact review/CI evidence are recorded in
+[the release audit](release-audit.md) and
+[release PR #104](https://github.com/chatarabdelilah/rproj/pull/104).
+The owner published from clean commit
+`9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. The official archive's checksum
+and Git identity match that reviewed release, including all 97 source/test files.
 
-The candidate binary reports `rproj 0.22.0`. Candidate formatting, the ordinary
-locked suite (503 passed, 23 ignored), and strict all-target Clippy passed.
-Clean committed packaging, both local reviews and reviewed-head/merged-main CI
-are required before publication; their completed evidence is recorded in the
-release PR and audit.
+The binary reports `rproj 0.22.0`. Formatting, the ordinary locked suite
+(503 passed, 23 ignored), strict all-target Clippy, clean committed packaging,
+both local reviews, and all four required reviewed-head/merged-main CI jobs passed.
 
 Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
 project execution and manual Studio acceptance remain unverified. VM

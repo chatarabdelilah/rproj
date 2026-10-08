@@ -2,26 +2,24 @@
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
-The published baseline is **v0.21.2**, at
-`287b7b60de9247ac85ce7b575a31c547bb9fec3c`. Owner publication, archive
-checksum, annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.2)
-are verified. See [published notes](release-notes-0.21.2.md),
-[audit evidence](release-audit.md), and [release PR #100](https://github.com/chatarabdelilah/rproj/pull/100).
+The published baseline is **v0.22.0, public alpha**, at
+`9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. Owner publication, the official
+archive checksum and clean Git identity, annotated tag and
+[GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.22.0)
+are verified. Cargo manifest and root lockfile identify 0.22.0. See
+[published notes](release-notes-0.22.0.md), [audit evidence](release-audit.md),
+and [release PR #104](https://github.com/chatarabdelilah/rproj/pull/104).
 
-The published 0.21.2 release packages the Selene Upgrade idempotence fix from
-[PR #99](https://github.com/chatarabdelilah/rproj/pull/99), retaining 0.21.1's
-complete upgrade review and existing Wally-or-None workflows. Its reviewed
-release gates, archive identity and immutable tag are recorded in the audit.
-
-The active **0.22.0 alpha candidate is unpublished**. It includes the semantic
-Selene preservation fix and Ratatui Upgrade file-diff review with default-No
-Apply-all confirmation from [PR #102](https://github.com/chatarabdelilah/rproj/pull/102)
-and [PR #103](https://github.com/chatarabdelilah/rproj/pull/103). A minor version
-reflects the intentional interactive behavior change. Cargo manifest and root
-lockfile identify 0.22.0; source, tests, dependencies and CI are unchanged from
-reviewed main `7a5d3cd`. See [candidate notes](release-notes-0.22.0.md) and
-[release-preparation evidence](release-audit.md). Owner publication is pending;
-no 0.22.0 tag or GitHub release is created before crates.io accepts the package.
+The release includes the semantic Selene preservation fix and Ratatui Upgrade
+file-diff review with default-No Apply-all confirmation from
+[PR #102](https://github.com/chatarabdelilah/rproj/pull/102) and
+[PR #103](https://github.com/chatarabdelilah/rproj/pull/103). A minor version
+reflects the intentional interactive behavior change. The release preparation
+changed only root version metadata and documentation; source, tests,
+dependencies and CI matched reviewed main `7a5d3cd`. Both required local
+reviews and all four final-head/merged-main CI jobs passed before publication.
+The release branches were verified and removed. Existing shipped tags remain
+unchanged; no active release candidate is pending.
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
