@@ -135,6 +135,126 @@ fn project_configure_saves_and_returns_without_a_terminal_handoff() {
 }
 
 #[test]
+fn project_upgrade_cancel_borrows_home_terminal_and_preserves_every_file() {
+    for cancel in [ESC, "\x03"] {
+        let project = TempProject::new("home-upgrade-cancel");
+        project.write("default.project.json", "{}\n");
+        project.write("rproj.toml", "package_workflow='none'\n");
+        project.write("src/custom.luau", "return 'keep'\r\n");
+        let before = common::project_snapshot(project.path());
+        let logs = TempProject::new("home-upgrade-cancel-logs");
+        let mut session = Session::start_with_env(
+            project.path(),
+            &[],
+            &[
+                ("RPROJ_LOG_DIR", logs.path().to_str().unwrap()),
+                ("RPROJ_NO_LOG", "0"),
+            ],
+        );
+        session.wait_for("Tasks");
+        open_project(&mut session, &project);
+        session.send(common::DOWN);
+        session.send(common::DOWN);
+        session.send(ENTER);
+        session.wait_for("Upgrade review");
+        assert_eq!(common::project_snapshot(project.path()), before);
+        session.send(cancel);
+        session.wait_for("Cancelled. No project changes were made.");
+        if cancel == ESC {
+            session.wait_for("Project actions");
+            session.send("\x03");
+        }
+        session.wait_for("Tasks");
+        session.send(ESC);
+        let result = session.finish();
+        assert_eq!(result.code, 0, "{}", result.text);
+        assert_eq!(common::project_snapshot(project.path()), before);
+        let path = std::fs::read_dir(logs.path())
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let log = std::fs::read_to_string(path).unwrap();
+        assert_eq!(log.matches("[tui.enter]").count(), 1);
+        assert_eq!(log.matches("[tui.leave]").count(), 1);
+        assert!(!log.contains("[tui.suspend]"), "{log}");
+    }
+}
+
+#[test]
+fn project_upgrade_applies_reviewed_plan_and_refuses_conflicts_before_returning() {
+    for conflict in [false, true] {
+        let project = TempProject::new("home-upgrade-apply");
+        project.write("default.project.json", "{}\n");
+        project.write("rproj.toml", "package_workflow='none'\n");
+        project.write("src/custom.luau", "return 'keep'\r\n");
+        let logs = TempProject::new("home-upgrade-apply-logs");
+        let mut session = Session::start_with_env(
+            project.path(),
+            &[],
+            &[
+                ("RPROJ_LOG_DIR", logs.path().to_str().unwrap()),
+                ("RPROJ_NO_LOG", "0"),
+            ],
+        );
+        session.wait_for("Tasks");
+        open_project(&mut session, &project);
+        session.send(common::DOWN);
+        session.send(common::DOWN);
+        session.send(ENTER);
+        session.wait_for("Upgrade review");
+        session.send("a");
+        session.wait_for("Apply these changes?");
+        if conflict {
+            project.write(".gitignore", "external edit\n");
+        }
+        let before = common::project_snapshot(project.path());
+        session.send("y");
+        session.wait_for(if conflict {
+            "changed while upgrade was being reviewed"
+        } else {
+            "wrote .luaurc"
+        });
+        session.wait_for("Press Enter to return");
+        if conflict {
+            assert_eq!(common::project_snapshot(project.path()), before);
+        } else {
+            assert!(project.exists(".gitignore"));
+            assert!(project.exists(".luaurc"));
+            assert_eq!(project.read("src/custom.luau"), "return 'keep'\r\n");
+        }
+        session.send(ENTER);
+        session.wait_for("Project actions");
+        if !conflict {
+            // Upgrade remains selected, and an empty plan bypasses the viewer.
+            session.send(ENTER);
+            session.wait_for("already up to date");
+            session.wait_for("Press Enter to return");
+            session.send(ENTER);
+            session.wait_for("Project actions");
+        }
+        session.send("\x03");
+        session.wait_for("Tasks");
+        session.send(ESC);
+        let result = session.finish();
+        assert_eq!(result.code, 0, "{}", result.text);
+        let path = std::fs::read_dir(logs.path())
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let log = std::fs::read_to_string(path).unwrap();
+        let expected_handoffs = if conflict { 1 } else { 2 };
+        assert_eq!(log.matches("[tui.enter]").count(), 1);
+        assert_eq!(log.matches("[tui.leave]").count(), 1);
+        assert_eq!(log.matches("[tui.suspend]").count(), expected_handoffs);
+        assert_eq!(log.matches("[tui.resume]").count(), expected_handoffs);
+    }
+}
+
+#[test]
 fn saved_setups_returns_home_without_a_terminal_handoff() {
     let project = TempProject::new("home-saved-setups");
     let logs = project.path().join("logs");

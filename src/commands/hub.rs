@@ -570,6 +570,28 @@ pub fn run() -> Result<()> {
                         acknowledged = true;
                         super::configure::open_in(&mut terminal, &path)
                     }
+                    HubOutcome::Project {
+                        path,
+                        action: ProjectAction::Upgrade,
+                    } => match super::upgrade::open_in(&mut terminal, &path) {
+                        Ok(super::upgrade::ReviewOutcome::Apply(prepared))
+                        | Ok(super::upgrade::ReviewOutcome::UpToDate(prepared)) => {
+                            terminal.suspend()?;
+                            let result = prepared.execute();
+                            acknowledge(&result, false, true)?;
+                            acknowledged = true;
+                            terminal.resume()?;
+                            result
+                        }
+                        Ok(super::upgrade::ReviewOutcome::Cancelled { home }) => {
+                            cancelled = true;
+                            if home {
+                                app.screen = Screen::Hub;
+                            }
+                            Ok(())
+                        }
+                        Err(error) => Err(error),
+                    },
                     HubOutcome::SetupMachine => {
                         acknowledged = true;
                         match super::machine_setup::open_in(&mut terminal) {

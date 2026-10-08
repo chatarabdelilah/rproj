@@ -19,18 +19,17 @@
 //!    whose correct value follows from the project's composition (`std`
 //!    from TestEZ, `mixed_table` from the UI library, `exclude` from the
 //!    package workflow). Lint levels you chose yourself are left alone.
-//!    See `catalog::tool_settings::merge_toml`.
+//!    See `catalog::tool_settings::checked_toml_merge`.
 //!
 //! Nothing is written until the list of changes has been shown and
 //! confirmed.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::io::ErrorKind;
-use std::path::Path;
+use std::io::{self, ErrorKind, IsTerminal};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail, ensure};
-use inquire::Confirm;
 use serde_json::json;
 
 use crate::catalog::quality_checks::{ci_workflow, render_check};
@@ -40,6 +39,58 @@ use crate::config::PackageWorkflow;
 use crate::graph::{ProjectGraph, TestRunner};
 use crate::steps::{gitignore, jest, quality, testez, vscode};
 use crate::ui;
+
+mod diff;
+mod review;
+
+pub(super) enum ReviewOutcome {
+    Apply(PreparedUpgrade),
+    Cancelled { home: bool },
+    UpToDate(PreparedUpgrade),
+}
+
+pub(super) struct PreparedUpgrade {
+    project_dir: PathBuf,
+    plan: UpgradePlan,
+}
+
+impl PreparedUpgrade {
+    pub(super) fn execute(self) -> Result<()> {
+        self.summary();
+        if self.plan.rewrites.is_empty() {
+            self.plan.verify(&self.project_dir)?;
+            if self.plan.skipped.is_empty() {
+                ui::ok("already up to date - no upgrade changes needed");
+            } else {
+                ui::skip("no applicable upgrade changes; skipped files were left unchanged");
+            }
+            Ok(())
+        } else {
+            self.plan.apply(&self.project_dir)
+        }
+    }
+
+    fn summary(&self) {
+        for note in &self.plan.skipped {
+            ui::skip(note);
+        }
+        if self.plan.rewrites.is_empty() {
+            return;
+        }
+        println!("\nThese generated files would change:\n");
+        for rewrite in &self.plan.rewrites {
+            let verb = if rewrite.creating { "create" } else { "update" };
+            println!("  {verb} {}", rewrite.relative);
+            ui::detail(rewrite.reason);
+        }
+        println!(
+            "\nNot touched: stylua.toml, wally.toml, rokit.toml, src/.\n\
+             Jest projects add only the devPackages mount to default.project.json.\n\
+             Existing test imports must use ReplicatedStorage.devPackages.\n\
+             Your own selene lint levels are kept; only std, mixed_table and exclude are set.\n"
+        );
+    }
+}
 
 /// One file that would change, with the reason and its new contents.
 struct Rewrite {
@@ -184,6 +235,73 @@ pub fn run(assume_yes: bool) -> Result<()> {
 }
 
 pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
+    let prepared = prepare(project_dir)?;
+    if assume_yes || prepared.plan.rewrites.is_empty() {
+        if !prepared.plan.rewrites.is_empty() {
+            record_choice(true, true);
+        }
+        return prepared.execute();
+    }
+    ensure!(
+        io::stdin().is_terminal() && io::stdout().is_terminal(),
+        "Upgrade review requires an interactive terminal; use `rproj upgrade --yes` to apply without the viewer. Nothing written."
+    );
+    let decision = {
+        let mut terminal = crate::tui::TerminalSession::enter()?;
+        review::run(&mut terminal, &prepared.project_dir, &prepared.plan)?
+    };
+    match decision {
+        review::Decision::Apply => {
+            record_choice(true, false);
+            prepared.execute()
+        }
+        review::Decision::Cancel { .. } => {
+            record_choice(false, false);
+            prepared.summary();
+            ui::skip("nothing written");
+            Ok(())
+        }
+    }
+}
+
+pub(super) fn open_in(
+    terminal: &mut crate::tui::TerminalSession,
+    project_dir: &Path,
+) -> Result<ReviewOutcome> {
+    crate::interrupt::check()?;
+    let context = super::projects::ProjectContext::load(project_dir.to_owned());
+    if let Err(reason) = context.availability(super::projects::ProjectAction::Upgrade) {
+        bail!("{}: {reason}", project_dir.display());
+    }
+    crate::diagnostics::event(
+        "project.action",
+        format!("Upgrade: {}", project_dir.display()),
+    );
+    let prepared = prepare(project_dir)?;
+    if prepared.plan.rewrites.is_empty() {
+        prepared.plan.verify(project_dir)?;
+        return Ok(ReviewOutcome::UpToDate(prepared));
+    }
+    match review::run(terminal, project_dir, &prepared.plan)? {
+        review::Decision::Apply => {
+            record_choice(true, false);
+            Ok(ReviewOutcome::Apply(prepared))
+        }
+        review::Decision::Cancel { home } => {
+            record_choice(false, false);
+            Ok(ReviewOutcome::Cancelled { home })
+        }
+    }
+}
+
+fn record_choice(apply: bool, assumed: bool) {
+    crate::diagnostics::event(
+        "choice.upgrade",
+        format!("apply={apply}; assumed={assumed}"),
+    );
+}
+
+fn prepare(project_dir: &Path) -> Result<PreparedUpgrade> {
     let mut upgrade = UpgradePlan::default();
     if upgrade.read(project_dir, "default.project.json")?.is_none() {
         bail!(
@@ -215,50 +333,10 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
         );
     }
     let upgrade = plan(project_dir, &project, &packages, workflow, runner, upgrade)?;
-    let rewrites = &upgrade.rewrites;
-    for note in &upgrade.skipped {
-        ui::skip(note);
-    }
-
-    if rewrites.is_empty() {
-        upgrade.verify(project_dir)?;
-        if upgrade.skipped.is_empty() {
-            ui::ok("already up to date - no upgrade changes needed");
-        } else {
-            ui::skip("no applicable upgrade changes; skipped files were left unchanged");
-        }
-    } else {
-        println!("\nThese generated files would change:\n");
-        for rewrite in rewrites {
-            let verb = if rewrite.creating { "create" } else { "update" };
-            println!("  {verb} {}", rewrite.relative);
-            ui::detail(rewrite.reason);
-        }
-        println!(
-            "\nNot touched: stylua.toml, wally.toml, rokit.toml, src/.\n\
-             Jest projects add only the devPackages mount to default.project.json.\n\
-             Existing test imports must use ReplicatedStorage.devPackages.\n\
-             Your own selene lint levels are kept; only std, mixed_table and exclude are set.\n"
-        );
-
-        crate::diagnostics::event("prompt", "Apply upgrade changes?");
-        let apply = assume_yes
-            || Confirm::new("Apply these changes?")
-                .with_default(true)
-                .prompt()?;
-        crate::diagnostics::event(
-            "choice.upgrade",
-            format!("apply={apply}; assumed={assume_yes}"),
-        );
-        if !apply {
-            ui::skip("nothing written");
-            return Ok(());
-        }
-
-        upgrade.apply(project_dir)?;
-    }
-
-    Ok(())
+    Ok(PreparedUpgrade {
+        project_dir: project_dir.to_owned(),
+        plan: upgrade,
+    })
 }
 
 fn plan(
