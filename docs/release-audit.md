@@ -1,6 +1,41 @@
 # Release-Hardening Audit
 
+## October 8: 0.21.2 publication verified
+
+The owner published 0.21.2 on October 8, 2026. Crates.io confirms the version
+is not yanked and gives checksum
+`c067c17f5f92a963246f13efc6724d07028b5ace87fd932b069f054b8200481c`.
+The downloaded official archive matches that checksum. All 105 archive files
+are byte-identical to a clean locked rebuild at release commit
+`287b7b60de9247ac85ce7b575a31c547bb9fec3c`; its Git identity is clean, both
+manifests and root lockfile identify 0.21.2, and all 95 source/test files match
+the checkout. Docs, CI, CodeGraph and build directories are excluded.
+
+Release [PR #100](https://github.com/chatarabdelilah/rproj/pull/100) passed
+final-head CI [37670562536](https://github.com/chatarabdelilah/rproj/actions/runs/37670562536)
+at `7741b4f16e0a4dbd0188b50148e586c0fdff5ba9` and merged-main CI
+[37671032045](https://github.com/chatarabdelilah/rproj/actions/runs/37671032045)
+at the published commit above. Complete trees match. All four required jobs
+passed: Windows stable, Rust 1.89, official Wally compatibility on Linux, and
+packaging. Formatting, 486 ordinary tests with 23 ignored, strict Clippy and
+clean packaging passed locally. Both local CodeRabbit reviews reported zero
+findings; the final review covered all seven release files. The release branch
+was removed after main verification.
+
+The annotated `v0.21.2` tag peels to the published archive commit. Its matching
+[GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.21.2)
+uses the dedicated published notes and is not a draft. Earlier shipped tags
+remain unchanged. This publication alignment changes documentation only;
+runtime, tests, dependencies and CI remain identical to the verified release.
+The documentation PR must pass final-head and merged-main CI before cleanup.
+
+Fresh-Windows installation/retry, authenticated Open Cloud, full fresh-Linux
+project execution and manual Studio checks remain unverified. VM provisioning
+stays deferred; no host applications or user projects were changed.
+
 ## October 7: 0.21.2 alpha patch preparation
+
+This section records prepublication preparation.
 
 The owner requested continuation into patch-release preparation after the
 Selene Upgrade fix. Clean main was `ebfaf7f128051fbc98537a0f0de69b20811d6bdc`;

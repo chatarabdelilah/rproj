@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 7, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 8, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,13 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-The published baseline is **v0.21.1, public alpha**, making upgrade review cover every planned write, including housekeeping files. It retains 0.21.0's Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `f9d300f`. Cargo manifest and root lockfile are aligned at 0.21.2 for the current unpublished patch candidate; crates.io remains at 0.21.1. See [published notes](release-notes-0.21.1.md) and [audit evidence](release-audit.md) for verification and limits.
-
-**Prepared 0.21.2 patch candidate:** recreating a missing Selene configuration now
-uses Upgrade's existing merge before review, eliminating a spacing-only change
-on the next run. Regression coverage requires every project file to remain
-byte-identical on that second run. See the [audit](release-audit.md) for evidence;
-see the [candidate notes](release-notes-0.21.2.md) for its release scope and limits.
+The published baseline is **v0.21.2, public alpha**, making a recreated Selene configuration complete after one Upgrade without a spacing-only second review. It retains 0.21.1's complete upgrade review, Wally-or-None workflows, the official Wally tool requirement, missing-Git guidance, background Watch acknowledgment improvements, missing-Cargo and missing-WinGet recovery, persistent Watch, Template Explorer recovery and file protection, UI Labs 2.4.2, shared creation/configuration behavior, safer saves and Wally package preservation during tests. Crates.io publication, archive identity, annotated tag and GitHub alpha release are verified at `287b7b6`. Cargo manifest and root lockfile are aligned at 0.21.2; there is no active release candidate. See [published notes](release-notes-0.21.2.md) and [audit evidence](release-audit.md) for verification and limits.
 
 **Shipped in 0.21.0: fully retire Git-submodule dependencies.**
 New projects and saved compositions support only Wally and None. Old
