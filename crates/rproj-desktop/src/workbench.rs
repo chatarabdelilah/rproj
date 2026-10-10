@@ -543,8 +543,11 @@ fn load_preferences(override_path: Option<PathBuf>) -> Result<(DesktopState, Pat
             None => DesktopState::path()?,
         };
         let mut state = DesktopState::load(&path)?;
-        state.desktop_executable = std::env::current_exe().ok();
-        state.save(&path)?;
+        let executable = std::env::current_exe()?;
+        if state.desktop_executable.as_ref() != Some(&executable) {
+            state.desktop_executable = Some(executable);
+            state.save(&path)?;
+        }
         Ok((state, path))
     })()
     .map_err(|error| format!("{error:#}"))
@@ -552,11 +555,54 @@ fn load_preferences(override_path: Option<PathBuf>) -> Result<(DesktopState, Pat
 
 #[cfg(test)]
 mod tests {
-    use super::{Activity, Event, Section, Workbench};
+    use super::{Activity, DesktopState, Event, Section, Workbench, load_preferences};
     use gpui_kit::test::TestWindowExt;
     use gpui_kit::{
         AppContext, Bounds, Point, TestAppContext, WindowBounds, WindowOptions, px, size,
     };
+
+    #[test]
+    fn matching_registration_preserves_preferences_bytes() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("desktop.json");
+        let executable = std::env::current_exe().unwrap();
+        let text = format!(
+            "{{\n  \"schema_version\": 1, \"appearance\": \"dark\",\n  \"recent_projects\": [],\n  \"desktop_executable\": {},\n  \"extra_metadata\": {{\"retained\": true}}\n}}\n",
+            serde_json::to_string(&executable).unwrap()
+        );
+        std::fs::write(&path, &text).unwrap();
+
+        let (loaded, loaded_path) = load_preferences(Some(path.clone())).unwrap();
+
+        assert_eq!(loaded_path, path);
+        assert_eq!(loaded.desktop_executable, Some(executable));
+        assert_eq!(std::fs::read(path).unwrap(), text.as_bytes());
+    }
+
+    #[test]
+    fn moved_registration_updates_preferences() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("desktop.json");
+        let previous = DesktopState {
+            desktop_executable: Some(directory.path().join("previous-desktop.exe")),
+            appearance: super::Appearance::Dark,
+            recent_projects: vec![directory.path().join("project")],
+            ..DesktopState::default()
+        };
+        previous.save(&path).unwrap();
+
+        let (loaded, _) = load_preferences(Some(path.clone())).unwrap();
+        let saved = DesktopState::load(&path).unwrap();
+
+        assert_eq!(
+            loaded.desktop_executable,
+            Some(std::env::current_exe().unwrap())
+        );
+        assert_eq!(saved.desktop_executable, loaded.desktop_executable);
+        assert_eq!(saved.appearance, previous.appearance);
+        assert_eq!(saved.recent_projects, previous.recent_projects);
+    }
+
     #[test]
     fn output_stays_bounded_and_retains_recent_lines() {
         let mut output = Activity::default();

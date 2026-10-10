@@ -68,7 +68,6 @@ try {
     foreach ($binary in @('rproj.exe', 'rproj-desktop.exe')) {
         Copy-Item -LiteralPath (Join-Path $release $binary) -Destination (Join-Path $bundle $binary)
     }
-    $runtimeImports = [ordered]@{ verification = 'dumpbin unavailable'; binaries = @() }
     $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
     if (-not $dumpbin -and (Test-Path -LiteralPath $vswhere)) {
@@ -80,17 +79,17 @@ try {
             } | Select-Object -First 1
         }
     }
-    if ($dumpbin) {
-        $runtimeImports.verification = 'dumpbin /DEPENDENTS'
-        foreach ($binary in @('rproj.exe', 'rproj-desktop.exe')) {
-            $imports = & $dumpbin /DEPENDENTS (Join-Path $bundle $binary)
-            if ($LASTEXITCODE -ne 0) { throw "Cannot inspect runtime imports for $binary" }
-            $dlls = @($imports | ForEach-Object { if ($_ -match '^\s+([a-zA-Z0-9_.-]+\.dll)\s*$') { $Matches[1] } })
-            if (@($dlls | Where-Object { $_ -match '^(VCRUNTIME|MSVCP|CONCRT)[0-9].*\.dll$' }).Count -gt 0) {
-                throw "Portable $binary still requires an external Visual C++ runtime DLL."
-            }
-            $runtimeImports.binaries += [ordered]@{ name = $binary; imports = $dlls }
+    if (-not $dumpbin) { throw 'dumpbin is required to verify portable runtime dependencies. Install the Visual C++ build tools before packaging.' }
+    $runtimeImports = [ordered]@{ verification = 'dumpbin /DEPENDENTS'; binaries = @() }
+    foreach ($binary in @('rproj.exe', 'rproj-desktop.exe')) {
+        $imports = & $dumpbin /DEPENDENTS (Join-Path $bundle $binary)
+        if ($LASTEXITCODE -ne 0) { throw "Cannot inspect runtime imports for $binary" }
+        $dlls = @($imports | ForEach-Object { if ($_ -match '^\s+([a-zA-Z0-9_.-]+\.dll)\s*$') { $Matches[1] } })
+        if ($dlls.Count -eq 0) { throw "No runtime imports were returned for $binary" }
+        if (@($dlls | Where-Object { $_ -match '^(VCRUNTIME|MSVCP|CONCRT)[0-9].*\.dll$' }).Count -gt 0) {
+            throw "Portable $binary still requires an external Visual C++ runtime DLL."
         }
+        $runtimeImports.binaries += [ordered]@{ name = $binary; imports = $dlls }
     }
     Copy-Item -LiteralPath (Join-Path $repository 'LICENSE') -Destination (Join-Path $bundle 'LICENSE')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'portable-desktop-README.txt') -Destination (Join-Path $bundle 'README.txt')

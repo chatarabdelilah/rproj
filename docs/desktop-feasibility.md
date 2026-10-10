@@ -69,12 +69,15 @@ serialized preferences writer, and semantic theme controls. The sidebar keeps
 recent projects scrollable independently of the appearance controls. Package
 presence labels describe the alias module and package index checked by core.
 
-On October 10, 2026, all four desktop tests passed without ignored tests. They
+On October 10, 2026, all six desktop tests passed without ignored tests. They
 cover bounded output retention, stdout/stderr chunk joining, complete retention
 of 40,000-character streamed lines, and a headless GPUI interaction test. The
 interaction test verifies recovery after an unavailable project becomes readable
 with the same snapshot, initial Tab focus, dependency selection, unavailable
-check/test actions, and preservation of a preference error. Workspace formatting
+check/test actions, and preservation of a preference error. Registration tests
+verify that an already matching executable leaves preference bytes and unknown
+fields intact, while a changed executable updates the saved registration.
+Workspace formatting
 and desktop Clippy with `--all-targets -- -D warnings` passed using Rust 1.99.0.
 
 Portable Windows packaging passed matching CLI/desktop version checks, the

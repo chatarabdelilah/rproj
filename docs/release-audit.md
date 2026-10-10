@@ -43,10 +43,12 @@ entries and 26 verified notice supplements. Original notice text remains unavail
 for three legacy dependencies; [the provenance record](../third-party/README.md)
 states those limits. It is not a public release or proof of notice completeness.
 
-Four desktop tests passed, including GPUI keyboard focus and dependency selection,
+Six desktop tests passed, including GPUI keyboard focus and dependency selection,
 unavailable-action behavior, recovery after a transient inspection error, retained
 preference errors, bounded output, and reconstruction across stdout/stderr chunks.
 Strict all-target desktop Clippy and workspace formatting passed on Rust 1.99.0.
+Two preference regressions verify byte-for-byte preservation when registration
+is unchanged and successful registration after moving the desktop executable.
 An additional review correction prevents long ASCII lines losing data when a
 stream segment reaches its bound. Initial native launch preceded isolated
 preferences and may have registered the development executable in normal desktop
@@ -62,7 +64,10 @@ reported one major inspection-recovery issue, also found independently: a failed
 inspection retained the previous fingerprint and could skip an identical successful
 retry. The fix is covered by the desktop regression. Final branch review and
 reviewed-head/merged-main CI remain delivery gates. The earlier partial tracked-file
-review is not counted as complete.
+review is not counted as complete. The complete branch review at `9537c28` covered
+92 files and found two minor improvements: preserve unchanged preferences and
+require DLL-import inspection during packaging. Both are corrected; a final
+follow-up review is pending.
 Linux/macOS core CI and a separate Windows desktop build/package job are added;
 unexecuted remote checks and ignored prerequisites are not passes. No machine-wide
 applications, user projects, or publication state were changed for this audit.
