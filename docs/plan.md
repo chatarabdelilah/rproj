@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 8, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 10, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -8,7 +8,7 @@ Updated October 8, 2026. This describes current priorities, not every idea consi
 
 rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
 
-- Ratatui remains the interactive interface: the workspace hub, project creation, Catalog, and Template Explorer.
+- Desktop is the approved future primary human interface. Follow the [desktop transition](desktop-transition.md), beginning with correctness fixes and a GPUI feasibility gate. Retain Ratatui during migration and direct commands permanently; reuse existing graphs, catalogs, and execution.
 - Direct commands remain available for automation and normal subprocess output.
 - Rojo owns model loading, builds, synchronization, and sourcemaps.
 - Selene owns linting, StyLua owns formatting, and luau-lsp owns type analysis.
@@ -16,6 +16,12 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+The approved [desktop transition](desktop-transition.md) is under implementation:
+shared read-only inspection, manifest-based Watch summaries, Blender repair,
+and a native Windows workbench backed by the existing CLI. Complete native
+acceptance, final review, and PR/CI delivery before treating it as available to
+users. The [audit](release-audit.md) records completed checks and remaining gates.
 
 The published baseline is **v0.22.0, public alpha**. Interactive Upgrade
 shows actual file diffs in Ratatui and uses default-No Apply-all confirmation;
@@ -79,7 +85,7 @@ repairs the test harness without changing Projects behavior or the release.
 | Embedded Selene or StyLua | Removed. Working external tools do not need internal replacements. |
 | Full Moon | Removed. No approved standalone Lua/Luau parsing requirement exists. |
 | M6 / M7a + M6a: static model-to-template conversion | Permanently dropped. The owner requested deletion of the experiment and its branch; it will not be reintroduced. |
-| Tauri GUI and GUI-driven core-library extraction | Dropped, not deferred. Ratatui is the selected interface direction. |
+| Tauri GUI | Dropped. The approved native GPUI feasibility gate and incremental shared core are tracked in the desktop transition; Ratatui stays supported during migration. |
 | R4: additional project types | Uncommitted backlog, requiring a concrete use case and working build targets. |
 | M8: rproj Studio plugin | Uncommitted backlog. No new plugin is needed to release the existing product. |
 

@@ -1,5 +1,72 @@
 # Release-Hardening Audit
 
+## October 10: shared core and Windows desktop implementation
+
+The approved [desktop transition](desktop-transition.md) is being implemented on
+`codex/desktop-alpha` from `17b7ef4db0a4248e8f36ce8b3941ec909edca4db`.
+Published 0.22.0 and its tags remain unchanged; this is development work, not a
+release candidate. Ratatui and direct commands remain available.
+
+Read-only `rproj-core` inspection and `rproj inspect --json` now distinguish Wally
+declarations, lock resolutions, alias/index presence, malformed inputs, and saved
+composition. Watch summaries use the actual manifest. Inspection of the owner's
+`scarywormtower` found 13 aliases (including manual additions) and 11 saved keys,
+without changing that project. Blender creation no longer depends on an old
+machine-selection record; fixtures and an explicitly executed installed-Blender
+temporary-scene test verify creation, failure handling, and preservation.
+
+`cargo test --locked -p rproj -p rproj-core` passed **557 tests**, with **24 ignored**
+(nested child summaries excluded). Strict all-target CLI/core Clippy and formatting
+passed. Both CLI/core archives built from their tarballs with the final dependency
+graph using locked offline packaging in a fresh target directory. Reusing Cargo's
+local registry at an unchanged development version had selected an older cached
+core source; CI now uses a distinct registry path per run. Core tests cover
+diagnostic redaction, bounded reads, missing lock targets,
+invalid tool pins, both process output streams, failed exits, and Windows process
+tree cancellation. Existing persistent-Watch ownership and stop acknowledgement
+remain authoritative; the desktop calls the matching CLI through typed messages.
+Three real-CLI integration tests verify matching worker/catalog identity, refusal
+of a different version, and Check prerequisite failure/events without fixture
+changes. A focused Watch run exposed an accepted-socket race in its test server;
+explicitly restoring blocking mode before the timed read fixed it. Seventeen
+focused boundary tests passed. Successful real-worker Check/Test with isolated
+global Watch storage remains a separate acceptance gap.
+
+The native GPUI Kit 0.7.1 workbench builds with repository-local Rust 1.99.0;
+CLI/core retain MSRV 1.89. The initial portable ZIP passed extracted-copy version,
+matching-worker and read-only inspection checks. Static CRT linking was verified
+against executable imports, removing the separate Visual C++ runtime requirement.
+Dependency notices and exact-source supplements are included. Real-window and
+final-package acceptance are recorded in [the framework record](desktop-feasibility.md).
+The current development ZIP passes the extracted-copy checks with 589 dependency
+entries and 26 verified notice supplements. Original notice text remains unavailable
+for three legacy dependencies; [the provenance record](../third-party/README.md)
+states those limits. It is not a public release or proof of notice completeness.
+
+Four desktop tests passed, including GPUI keyboard focus and dependency selection,
+unavailable-action behavior, recovery after a transient inspection error, retained
+preference errors, bounded output, and reconstruction across stdout/stderr chunks.
+Strict all-target desktop Clippy and workspace formatting passed on Rust 1.99.0.
+An additional review correction prevents long ASCII lines losing data when a
+stream segment reaches its bound. Initial native launch preceded isolated
+preferences and may have registered the development executable in normal desktop
+preferences; subsequent acceptance uses an explicit disposable preferences path.
+The extracted portable workbench exposes a native window, but two Computer Use
+state-capture attempts stalled without returning an image. Native visual, resize,
+theme, and scaling acceptance therefore remains unverified; this cannot be inferred
+from the successful prototype capture or headless interaction tests. Delivery stays
+in draft until the remaining native gate is confirmed.
+
+The complete local `cr review --agent --uncommitted` covered the new files and
+reported one major inspection-recovery issue, also found independently: a failed
+inspection retained the previous fingerprint and could skip an identical successful
+retry. The fix is covered by the desktop regression. Final branch review and
+reviewed-head/merged-main CI remain delivery gates. The earlier partial tracked-file
+review is not counted as complete.
+Linux/macOS core CI and a separate Windows desktop build/package job are added;
+unexecuted remote checks and ignored prerequisites are not passes. No machine-wide
+applications, user projects, or publication state were changed for this audit.
+
 ## October 8: 0.22.0 publication verified
 
 The owner reported publication after [release PR #104](https://github.com/chatarabdelilah/rproj/pull/104)

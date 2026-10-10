@@ -10,7 +10,8 @@ mod windows;
 pub(crate) use windows::with_unresponsive_fixture;
 #[cfg(windows)]
 pub(crate) use windows::{
-    internal_entry, mutation_guard, show_logs, show_status, start_in, stop, summary,
+    internal_entry, mutation_guard, show_logs, show_status, start_in, stop, stop_and_wait,
+    structured_status, summary,
 };
 
 #[cfg(not(windows))]
@@ -35,6 +36,20 @@ pub(crate) fn start_in(_: &Path) -> Result<()> {
 #[cfg(not(windows))]
 pub(crate) fn stop() -> Result<()> {
     unsupported()
+}
+#[cfg(not(windows))]
+pub(crate) fn stop_and_wait() -> Result<()> {
+    unsupported()
+}
+#[cfg(not(windows))]
+pub(crate) fn structured_status() -> Result<rproj_core::operations::WatchStatus> {
+    Ok(rproj_core::operations::WatchStatus {
+        supported: false,
+        project: None,
+        state: rproj_core::operations::WatchState::Unknown,
+        message: "Background Watch requires Windows; foreground `rproj watch` remains available."
+            .into(),
+    })
 }
 #[cfg(not(windows))]
 pub(crate) fn show_logs() -> Result<()> {

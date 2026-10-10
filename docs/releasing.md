@@ -39,10 +39,15 @@ The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
 3. Run `cargo fmt --all --check`, `cargo test --locked`, and `cargo clippy --locked --all-targets -- -D warnings`.
 4. Run applicable ignored/live tests serially on a deliberately provisioned environment. Record commands, tool versions, outcomes, and missing prerequisites. Skipped tests are not passes; follow [the roadmap's workflow coverage](plan.md).
-5. Run `cargo package --locked` and inspect the packaged file list.
+5. Run `cargo package --locked -p rproj-core -p rproj` and inspect both packaged file lists. Cargo verifies the interdependent archives using its local registry overlay; no publication is needed for this check.
 6. Push a pull request, inspect CodeRabbit findings, and verify Windows stable, Rust 1.89, and package CI. Address findings or document why they do not apply.
 7. Merge into `main`, push, and verify main CI. Remove merged local and remote branches only after checking their work is preserved. Do not delete unmerged experiments as if they were merged.
 8. Request publication only with a ready candidate, clean checkout, and recorded residual risks. The repository owner performs Cargo publication, not the agent.
+
+During development, repeated multi-crate packaging at the same version can reuse
+Cargo's cached local-registry source from an earlier archive. Use a fresh
+`--target-dir target/package-check-<unique-name>` when rechecking changed archives;
+CI uses its run identity. This does not require publishing or changing versions.
 
 ## Proportionate verification
 
@@ -67,13 +72,21 @@ documentation-only correction unless the wording changes a technical guarantee.
 
 ## Cargo publication
 
-The repository owner publishes from a clean `main` checkout:
+The repository owner publishes from a clean `main` checkout after a coordinated
+release candidate is prepared. The workspace's new shared library must be
+available before the CLI that depends on it:
 
 ```powershell
-cargo publish --locked
+cargo publish --locked -p rproj-core
+# After crates.io confirms the matching core version:
+cargo publish --locked -p rproj
 ```
 
 `--locked` requires Cargo to use the exact dependency versions in `Cargo.lock`; publication fails instead of silently resolving a newer dependency graph than the one tested.
+
+Do not run these commands on the transition branch at the published 0.22.0
+baseline. Prepare the next coordinated version first. Desktop ZIP distribution
+is separate from Cargo CLI installation; the owner still performs publication.
 
 Do not create the version tag before crates.io accepts the package. A failed publication must leave no public tag claiming that the version shipped.
 

@@ -29,10 +29,13 @@ not just context from an earlier chat.
 - Read `docs/plan.md` and `docs/release-audit.md` for current priorities and
   evidence. Consult architecture/UX sections relevant to the change, not every
   document in full. Verify Git/PR state rather than trusting an old chat summary.
-- Ratatui is the UI direction. Reuse existing project graph, catalogs, and
-  scaffolding. Keep direct commands and external Rojo, Selene, StyLua, luau-lsp,
-  Rokit, Wally, Git, Lute, and test-runner boundaries.
-- Tauri, embedded lint/format/parser migrations, and model-to-template import are
+- Follow the approved desktop transition in `docs/desktop-transition.md`.
+  Desktop becomes the primary human interface after verified workflow parity;
+  preserve Ratatui during migration and direct commands permanently. Extract
+  reusable behavior incrementally into rproj-core in this repository. Keep
+  external Rojo, Selene, StyLua, luau-lsp, Rokit, Wally, Git, Lute, and test-runner
+  boundaries. GPUI must pass its feasibility gate before broad GUI work.
+- Tauri, embedded lint/format/parser migrations, and model-to-template import remain
   dropped. The owner permanently retired the model-import experiment on September
   9, 2026; its branch was deleted. Do not restore or plan it as future work.
 - Keep comments for non-obvious invariants. Put broader rationale in docs;
@@ -41,6 +44,9 @@ not just context from an earlier chat.
   machine-wide applications or replace user data merely to complete an audit.
 - When `.codegraph/` exists, use CodeGraph before searching unfamiliar code.
   Fall back to focused source reads if its results are missing or stale.
+- For routine CodeGraph lookups, name the crate/file and specific symbols and
+  start with `maxFiles: 2` to `4` (`--max-files` in the CLI). Avoid broad names
+  such as `run` alone; expand only when the returned call path requires it.
 
 ## Communication
 

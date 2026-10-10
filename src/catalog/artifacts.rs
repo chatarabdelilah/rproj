@@ -277,7 +277,7 @@ pub const ARTIFACTS: &[Artifact] = &[
         key: "blender",
         description: "Starter .blend scene at Roblox's unit scale (1 stud = 0.28 m)",
         category: ArtifactCategory::Assets,
-        also_requires: &[Requirement::App("blender")],
+        also_requires: &[],
         housekeeping: false,
         mandatory: false,
     },
@@ -718,12 +718,13 @@ mod tests {
     }
 
     #[test]
-    fn the_blender_scene_needs_blender_installed() {
+    fn the_blender_scene_follows_project_intent_not_machine_preferences() {
         let without = plan_from(&["assets-3d"], Strategy::None, &[], &[]);
-        assert!(!keys_of(&without).contains(&"blender"));
+        assert!(keys_of(&without).contains(&"blender"));
 
         let with = plan_from(&["assets-3d"], Strategy::None, &["blender"], &[]);
         assert!(keys_of(&with).contains(&"blender"));
+        assert!(!keys_of(&plan_from(&[], Strategy::None, &["blender"], &[])).contains(&"blender"));
     }
 
     #[test]

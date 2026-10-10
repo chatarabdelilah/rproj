@@ -33,9 +33,7 @@ pub(crate) fn prepare_in(project_dir: &std::path::Path) -> Result<&'static str> 
     let jest =
         project.as_ref().and_then(|graph| graph.test_runner()) == Some(TestRunner::JestRoblox);
     validate_jest_project(project.as_ref(), project_dir.join("wally.toml").exists())?;
-    if let Some(project) = &project {
-        println!("Packages: {}", project.packages.join(", "));
-    }
+    println!("{}", package_summary(project_dir)?);
 
     // Same idempotent steps whether this is a fresh `git clone` (tools/packages
     // not yet installed locally) or a project already being worked on - both
@@ -82,6 +80,40 @@ fn validate_jest_project(
     Ok(())
 }
 
+fn package_summary(project_dir: &std::path::Path) -> Result<String> {
+    let snapshot = rproj_core::inspect(project_dir)?;
+    match snapshot.files.wally.state {
+        rproj_core::FileState::Missing => Ok("Packages: no wally.toml".into()),
+        rproj_core::FileState::Invalid | rproj_core::FileState::Unreadable => {
+            let detail = snapshot
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.path == snapshot.files.wally.path)
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>()
+                .join("; ");
+            bail!("cannot read Wally dependency inventory: {detail}")
+        }
+        rproj_core::FileState::Ready if snapshot.packages.is_empty() => {
+            Ok("Packages: none declared in wally.toml".into())
+        }
+        rproj_core::FileState::Ready => Ok(format!(
+            "Packages: {}",
+            snapshot
+                .packages
+                .iter()
+                .map(|package| format!(
+                    "{} [{}] ({})",
+                    package.alias,
+                    package.realm.section(),
+                    package.declaration
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,5 +131,40 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("missing wally.toml"), "{error}");
+    }
+
+    #[test]
+    fn package_summary_reads_all_wally_realms_without_rewriting_saved_choices() {
+        let directory = tempfile::tempdir().unwrap();
+        let saved = "packages = ['old-selection']\n";
+        std::fs::write(directory.path().join("rproj.toml"), saved).unwrap();
+        std::fs::write(directory.path().join("wally.toml"), "[package]\nname = 'owner/game'\nversion = '0.1.0'\nrealm = 'shared'\n[dependencies]\nCustom = 'owner/custom@1'\n[server-dependencies]\nStorage = 'owner/storage@2'\n[dev-dependencies]\nJest = 'roblox/jest@3.20.1'\n").unwrap();
+        let summary = package_summary(directory.path()).unwrap();
+        assert!(
+            summary.contains("Custom [dependencies] (owner/custom@1)"),
+            "{summary}"
+        );
+        assert!(
+            summary.contains("Storage [server-dependencies]"),
+            "{summary}"
+        );
+        assert!(summary.contains("Jest [dev-dependencies]"), "{summary}");
+        assert!(!summary.contains("old-selection"), "{summary}");
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("rproj.toml")).unwrap(),
+            saved
+        );
+    }
+
+    #[test]
+    fn malformed_manifest_is_not_reported_as_no_dependencies() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("wally.toml"), "[dependencies").unwrap();
+        assert!(
+            package_summary(directory.path())
+                .unwrap_err()
+                .to_string()
+                .contains("Wally dependency inventory")
+        );
     }
 }

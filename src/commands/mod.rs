@@ -1,9 +1,11 @@
+pub mod app;
 pub mod catalog_browser;
 pub mod configure;
 pub mod copy;
 pub mod creation;
 pub mod hub;
 pub mod info;
+pub mod inspect;
 pub mod machine_setup;
 pub mod new;
 pub mod project_composition;

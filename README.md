@@ -10,6 +10,25 @@
 
 ## What rproj does
 
+The unreleased desktop transition introduces shared, read-only project inspection:
+`rproj inspect [path] --json` reports schema-versioned declarations, lockfile
+resolutions, package-file presence, tool pins, diagnostics, and configured actions.
+It does not install tools or change project files. Human output is the default.
+Watch now lists actual `wally.toml` aliases from every realm; `rproj.toml` retains
+your saved composition choices. Watch restores dependencies but does not
+automatically upgrade package requirements or tool pins.
+
+Assets 3D checks the installed Blender executable independently of old machine
+setup selections. In an existing project, `rproj setup blender` creates a missing
+`blender/scene.blend` and preserves an existing scene. Missing Blender is reported
+before project creation; ordinary Upgrade does not generate binary asset files.
+
+The [desktop transition](docs/desktop-transition.md) keeps the terminal interface
+and CLI. `rproj app [path]` locates a sibling or previously registered desktop
+executable; installing the CLI with Cargo does not download the GUI. Desktop
+distribution and acceptance evidence are tracked in the
+[feasibility record](docs/desktop-feasibility.md).
+
 Published [0.22.0](docs/release-notes-0.22.0.md) adds Ratatui Upgrade file-diff
 review with default-No Apply-all confirmation and refuses unsafe Selene TOML
 merges before writes. It remains public alpha.
@@ -276,10 +295,27 @@ for location, limits, and opt-out.
 ### Checks
 
 ```powershell
-cargo test
-cargo clippy --all-targets -- -D warnings
-cargo package
+cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
+cargo package --locked -p rproj-core -p rproj
 ```
+
+### Desktop development (Windows)
+
+CLI/core retain Rust 1.89 support. The pinned GPUI dependencies use a separate
+Rust 1.99.0 build; default workspace commands build CLI/core. With that toolchain
+available, build the matching pair and open an existing project:
+
+```powershell
+cargo +1.99.0 build --locked -p rproj -p rproj-desktop
+./target/debug/rproj.exe app "C:/path/to/project"
+pwsh -File scripts/package-desktop.ps1
+```
+
+The portable script builds with a static MSVC runtime, bundles dependency
+notices, and verifies the extracted executables. Its archive is a development
+build until a coordinated release is prepared. Native acceptance and remaining
+distribution checks are recorded in [the framework record](docs/desktop-feasibility.md).
 
 The codebase separates CLI dispatch, decision modeling, catalogs, command orchestration, and filesystem/process steps. See [Architecture](https://github.com/chatarabdelilah/rproj/blob/main/docs/architecture.md), [Development plan](https://github.com/chatarabdelilah/rproj/blob/main/docs/plan.md), [UX redesign](https://github.com/chatarabdelilah/rproj/blob/main/docs/ux-redesign.md), and [Release process](https://github.com/chatarabdelilah/rproj/blob/main/docs/releasing.md).
 

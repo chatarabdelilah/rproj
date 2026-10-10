@@ -18,6 +18,19 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Open the desktop workbench, optionally at a project directory
+    App {
+        /// Project directory to open in the desktop
+        path: Option<std::path::PathBuf>,
+    },
+    /// Inspect this project's actual configuration without changing files or running tools
+    Inspect {
+        /// Project directory. Defaults to the current directory.
+        path: Option<std::path::PathBuf>,
+        /// Emit a versioned JSON snapshot for automation
+        #[arg(long)]
+        json: bool,
+    },
     /// Install and configure every tool rproj knows about (Git, VS Code, Roblox Studio,
     /// Blender, Rojo, Wally, Selene, StyLua, Studio plugins, editor extensions...)
     ///

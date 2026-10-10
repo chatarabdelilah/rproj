@@ -7,7 +7,7 @@ use super::creation::ProjectEdit;
 use crate::catalog::wally_packages;
 use crate::config::{PackageWorkflow, project_file};
 use crate::graph::TestRunner;
-use crate::steps::{jest, rojo, testez, toolchain, wally};
+use crate::steps::{blender, jest, rojo, testez, toolchain, wally};
 use crate::ui;
 
 pub fn apply(project_dir: &Path, edit: ProjectEdit) -> Result<()> {
@@ -53,12 +53,21 @@ pub fn apply(project_dir: &Path, edit: ProjectEdit) -> Result<()> {
         bail!("Wally project is missing wally.toml; restore it before adding packages");
     }
 
+    let create_blender = newly_requested_blender(&edit);
+    if create_blender {
+        blender::preflight_starter_scene(project_dir)?;
+    }
     project_file::save_to(&edit.updated, project_dir)?;
     ui::ok("updated rproj.toml");
 
     let saved_source = std::fs::read_to_string(&record_path)
         .with_context(|| format!("failed to read saved {}", record_path.display()))?;
-    if let Err(error) = apply_recorded(project_dir, &edit.updated) {
+    if let Err(error) = apply_recorded(project_dir, &edit.updated).and_then(|()| {
+        if create_blender {
+            blender::scaffold_starter_scene(project_dir)?;
+        }
+        Ok(())
+    }) {
         let current_source = std::fs::read_to_string(&record_path).with_context(|| {
             format!(
                 "failed to inspect {} after apply failure",
@@ -79,6 +88,16 @@ pub fn apply(project_dir: &Path, edit: ProjectEdit) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn newly_requested_blender(edit: &ProjectEdit) -> bool {
+    let requests_blender = |graph: &crate::graph::ProjectGraph| {
+        graph
+            .plan(&[], &[])
+            .iter()
+            .any(|artifact| artifact.key == "blender")
+    };
+    requests_blender(&edit.updated) && !requests_blender(&edit.original)
 }
 
 fn apply_recorded(project_dir: &Path, updated: &crate::graph::ProjectGraph) -> Result<()> {
@@ -140,6 +159,27 @@ fn apply_recorded(project_dir: &Path, updated: &crate::graph::ProjectGraph) -> R
 mod tests {
     use super::*;
     use crate::graph::ProjectGraph;
+
+    #[test]
+    fn blender_runs_only_when_the_scene_is_newly_requested() {
+        let original = ProjectGraph::default();
+        let mut updated = original.clone();
+        updated.choose("assets-3d", Some("blender"));
+        let mut edit = ProjectEdit {
+            source: String::new(),
+            original,
+            updated,
+        };
+        assert!(newly_requested_blender(&edit));
+        edit.updated.dropped.push("blender".into());
+        assert!(!newly_requested_blender(&edit));
+        edit.original = edit.updated.clone();
+        edit.updated.dropped.clear();
+        assert!(newly_requested_blender(&edit));
+        edit.original = edit.updated.clone();
+        edit.updated.choose("lint", Some("selene"));
+        assert!(!newly_requested_blender(&edit));
+    }
 
     #[test]
     fn external_record_edits_are_refused_before_project_files_change() {

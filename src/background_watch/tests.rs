@@ -1,5 +1,184 @@
 use super::*;
 
+#[test]
+fn workbench_status_does_not_create_storage_or_expose_control_secrets() {
+    use rproj_core::operations::WatchState;
+    let root = tempfile::tempdir().unwrap();
+    let missing = root.path().join("missing");
+    assert_eq!(
+        structured_status_at(&missing).unwrap().state,
+        WatchState::Stopped
+    );
+    assert!(!missing.exists());
+    assert_eq!(
+        structured_status_at(root.path()).unwrap().state,
+        WatchState::Stopped
+    );
+    assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
+
+    let snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "private-nonce".into(),
+        project: "fixture-project".into(),
+        state: State::Stopped,
+        message: "Stopped normally".into(),
+        address: "127.0.0.1:1".parse().unwrap(),
+        token: "private-token".into(),
+        supervisor: 123,
+    };
+    save(root.path(), &snapshot).unwrap();
+    let before = fs::read(root.path().join("session.json")).unwrap();
+    let file_count = fs::read_dir(root.path()).unwrap().count();
+    let status = structured_status_at(root.path()).unwrap();
+    assert!(status.supported);
+    assert_eq!(status.project, Some(PathBuf::from("fixture-project")));
+    assert_eq!(status.state, WatchState::Stopped);
+    let json = serde_json::to_value(status).unwrap();
+    assert_eq!(json.as_object().unwrap().len(), 4);
+    for secret in ["nonce", "token", "address", "supervisor"] {
+        assert!(json.get(secret).is_none());
+    }
+    assert!(!json.to_string().contains("private-"));
+    assert_eq!(fs::read(root.path().join("session.json")).unwrap(), before);
+    assert_eq!(fs::read_dir(root.path()).unwrap().count(), file_count);
+    assert!(!root.path().join("owner.lock").exists());
+}
+
+#[test]
+fn workbench_status_reports_unresponsive_and_exited_supervisors_truthfully() {
+    use rproj_core::operations::WatchState;
+    let root = tempfile::tempdir().unwrap();
+    let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let owner = open_lock(root.path(), "owner.lock").unwrap();
+    assert!(acquire(&owner).unwrap());
+    save(
+        root.path(),
+        &Snapshot {
+            version: PROTOCOL,
+            nonce: "fixture".into(),
+            project: "fixture".into(),
+            state: State::Watching,
+            message: "Watching".into(),
+            address: listener.local_addr().unwrap(),
+            token: "secret".into(),
+            supervisor: std::process::id(),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        structured_status_at(root.path()).unwrap().state,
+        WatchState::Unresponsive
+    );
+    drop(owner);
+    assert_eq!(
+        structured_status_at(root.path()).unwrap().state,
+        WatchState::Failed
+    );
+    assert_eq!(
+        metadata(root.path()).unwrap().unwrap().state,
+        State::Watching
+    );
+}
+
+fn with_workbench_stop_fixture<R>(finish: bool, action: impl FnOnce(&Path) -> R) -> R {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let root = tempfile::tempdir().unwrap();
+    let owner = open_lock(root.path(), "owner.lock").unwrap();
+    assert!(acquire(&owner).unwrap());
+    let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let mut snapshot = Snapshot {
+        version: PROTOCOL,
+        nonce: "stop-fixture".into(),
+        project: "fixture".into(),
+        state: State::Watching,
+        message: "Watching".into(),
+        address: listener.local_addr().unwrap(),
+        token: "fixture-token".into(),
+        supervisor: std::process::id(),
+    };
+    save(root.path(), &snapshot).unwrap();
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let server_shutdown = shutdown.clone();
+    let state_root = root.path().to_owned();
+    let server = std::thread::spawn(move || {
+        let _owner = owner;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut stopped_at = None;
+        while Instant::now() < deadline && !server_shutdown.load(Ordering::Acquire) {
+            if finish
+                && stopped_at
+                    .is_some_and(|instant: Instant| instant.elapsed() >= Duration::from_millis(200))
+            {
+                break;
+            }
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    stream.set_nonblocking(false).unwrap();
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(1)))
+                        .unwrap();
+                    let mut line = String::new();
+                    BufReader::new(&stream).read_line(&mut line).unwrap();
+                    let request: Request = serde_json::from_str(&line).unwrap();
+                    assert_eq!(request.token, snapshot.token);
+                    if request.verb == "stop" {
+                        snapshot.state = State::Stopping;
+                        stopped_at = Some(Instant::now());
+                    } else {
+                        assert_eq!(request.verb, "status");
+                        if finish
+                            && stopped_at.is_some_and(|instant| {
+                                instant.elapsed() >= Duration::from_millis(40)
+                            })
+                        {
+                            snapshot.state = State::Stopped;
+                        }
+                    }
+                    save(&state_root, &snapshot).unwrap();
+                    stream
+                        .write_all(&serde_json::to_vec(&snapshot).unwrap())
+                        .unwrap();
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+                Err(error) => panic!("{error}"),
+            }
+        }
+    });
+    let result = action(root.path());
+    shutdown.store(true, Ordering::Release);
+    server.join().unwrap();
+    result
+}
+
+#[test]
+fn workbench_stop_waits_for_terminal_state_and_released_ownership() {
+    with_workbench_stop_fixture(true, |root| {
+        let started = Instant::now();
+        stop_and_wait_at(root, Duration::from_secs(2)).unwrap();
+        assert!(started.elapsed() >= Duration::from_millis(200));
+        assert!(acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
+        assert_eq!(
+            structured_status_at(root).unwrap().state,
+            rproj_core::operations::WatchState::Stopped
+        );
+    });
+}
+
+#[test]
+fn workbench_stop_timeout_does_not_claim_stopped() {
+    with_workbench_stop_fixture(false, |root| {
+        let error = stop_and_wait_at(root, Duration::from_millis(80)).unwrap_err();
+        assert!(
+            error.to_string().contains("has not finished stopping"),
+            "{error:#}"
+        );
+        assert_eq!(metadata(root).unwrap().unwrap().state, State::Stopping);
+    });
+}
+
 fn delayed_control_acknowledgment(verb: &str) -> Result<Snapshot> {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
     let snapshot = Snapshot {
