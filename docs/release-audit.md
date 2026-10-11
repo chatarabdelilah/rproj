@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-## October 10: shared core and Windows desktop implementation
+## October 10–11: shared core and Windows desktop implementation
 
 The approved [desktop transition](desktop-transition.md) is being implemented on
 `codex/desktop-alpha` from `17b7ef4db0a4248e8f36ce8b3941ec909edca4db`.
@@ -43,7 +43,7 @@ entries and 26 verified notice supplements. Original notice text remains unavail
 for three legacy dependencies; [the provenance record](../third-party/README.md)
 states those limits. It is not a public release or proof of notice completeness.
 
-Six desktop tests passed, including GPUI keyboard focus and dependency selection,
+Seven desktop tests passed, including GPUI keyboard focus and dependency selection,
 unavailable-action behavior, recovery after a transient inspection error, retained
 preference errors, bounded output, and reconstruction across stdout/stderr chunks.
 Strict all-target desktop Clippy and workspace formatting passed on Rust 1.99.0.
@@ -66,8 +66,11 @@ retry. The fix is covered by the desktop regression. Final branch review and
 reviewed-head/merged-main CI remain delivery gates. The earlier partial tracked-file
 review is not counted as complete. The complete branch review at `9537c28` covered
 92 files and found two minor improvements: preserve unchanged preferences and
-require DLL-import inspection during packaging. Both are corrected; a final
-follow-up review is pending.
+require DLL-import inspection during packaging. Both were corrected in `e39a665`.
+The complete review of that head found one minor catalog-failure visibility issue.
+A separate accessible error now survives successful inspection and Watch status,
+while the matching worker remains available. Its regression uses a real fixture
+worker returning malformed catalog JSON. The final follow-up review is pending.
 Linux/macOS core CI and a separate Windows desktop build/package job are added;
 unexecuted remote checks and ignored prerequisites are not passes. No machine-wide
 applications, user projects, or publication state were changed for this audit.

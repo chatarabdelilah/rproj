@@ -4,7 +4,7 @@ Approved October 8, 2026. This supersedes the Ratatui-only direction, not the
 retirement of Tauri, model import, or embedded replacements for external tools.
 The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
-## Implementation checkpoint (October 10)
+## Implementation checkpoint (October 11)
 
 Work continues on `codex/desktop-alpha`; no release candidate, publication, or
 tag is prepared. The CLI/core workspace, versioned inspection, manifest-based
@@ -30,9 +30,10 @@ initial portable ZIP passed extracted version, worker identity, read-only
 inspection, and static-runtime dependency checks. See
 [the framework record](desktop-feasibility.md). The complete uncommitted CodeRabbit
 review found one inspection-recovery bug; its fix remains part of the final branch
-review. Six desktop tests now pass, covering recovery, keyboard navigation,
-unavailable actions, preference preservation, and bounded faithful output. The earlier partial tracked-file
-pass does not count as complete review.
+review. Seven desktop tests now pass, covering recovery, keyboard navigation,
+unavailable actions, preference preservation, catalog failure visibility, and
+bounded faithful output. The earlier partial tracked-file pass does not count as
+complete review.
 
 ## Product and release boundary
 

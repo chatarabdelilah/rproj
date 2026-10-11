@@ -51,7 +51,10 @@ impl Section {
 }
 
 enum Event {
-    Connected(Result<WorkbenchClient, String>, Vec<CatalogEntry>),
+    Connected(
+        Result<WorkbenchClient, String>,
+        Option<Result<Vec<CatalogEntry>, String>>,
+    ),
     Preferences(Result<(DesktopState, PathBuf), String>),
     PreferenceError(String),
     Inspected(u64, Box<Result<(ProjectSnapshot, String), String>>),
@@ -59,6 +62,18 @@ enum Event {
     Progress(OperationEvent),
     Complete(Result<OperationOutcome, String>),
     WatchLogs(Result<String, String>),
+}
+
+fn connection_event(worker: anyhow::Result<PathBuf>) -> Event {
+    let client = worker
+        .and_then(WorkbenchClient::new)
+        .map_err(|error| format!("{error:#}"));
+    let catalog = client.as_ref().ok().map(|client| {
+        client
+            .catalog()
+            .map_err(|error| format!("Could not load package catalog: {error:#}"))
+    });
+    Event::Connected(client, catalog)
 }
 
 #[derive(Default)]
@@ -147,6 +162,7 @@ pub struct Workbench {
     client: Option<WorkbenchClient>,
     client_error: Option<String>,
     catalog: Vec<CatalogEntry>,
+    catalog_error: Option<String>,
     watch: Option<WatchStatus>,
     querying_status: bool,
     running: Option<(Operation, Cancellation)>,
@@ -228,6 +244,7 @@ impl Workbench {
             client: None,
             client_error: Some("Connecting to the bundled CLI…".into()),
             catalog: Vec::new(),
+            catalog_error: None,
             watch: None,
             querying_status: false,
             running: None,
@@ -242,15 +259,7 @@ impl Workbench {
         };
         let sender = view.sender.clone();
         std::thread::spawn(move || {
-            let client = worker_path()
-                .and_then(WorkbenchClient::new)
-                .map_err(|error| format!("{error:#}"));
-            let catalog = client
-                .as_ref()
-                .ok()
-                .and_then(|client| client.catalog().ok())
-                .unwrap_or_default();
-            let _ = sender.send(Event::Connected(client, catalog));
+            let _ = sender.send(connection_event(worker_path()));
         });
         if let Some(path) = initial {
             view.open_project(path, cx);
@@ -360,7 +369,14 @@ impl Workbench {
                     self.preferences_error = Some(error);
                 }
                 Event::Connected(client, catalog) => {
-                    self.catalog = catalog;
+                    match catalog {
+                        Some(Ok(catalog)) => {
+                            self.catalog = catalog;
+                            self.catalog_error = None;
+                        }
+                        Some(Err(error)) => self.catalog_error = Some(error),
+                        None => {}
+                    }
                     match client {
                         Ok(client) => {
                             self.client = Some(client);
@@ -555,7 +571,9 @@ fn load_preferences(override_path: Option<PathBuf>) -> Result<(DesktopState, Pat
 
 #[cfg(test)]
 mod tests {
-    use super::{Activity, DesktopState, Event, Section, Workbench, load_preferences};
+    use super::{
+        Activity, DesktopState, Event, Section, Workbench, connection_event, load_preferences,
+    };
     use gpui_kit::test::TestWindowExt;
     use gpui_kit::{
         AppContext, Bounds, Point, TestAppContext, WindowBounds, WindowOptions, px, size,
@@ -646,6 +664,99 @@ mod tests {
             );
             assert!(output.lines.iter().all(|line| line.len() <= 8_192));
         }
+    }
+
+    #[gpui_kit::test]
+    fn catalog_failure_remains_visible_after_connection_and_inspection(cx: &mut TestAppContext) {
+        let fixture = tempfile::tempdir().unwrap();
+        let source = fixture.path().join("worker.rs");
+        std::fs::write(
+            &source,
+            format!(
+                r#"fn main() {{
+                    if std::env::args().nth(1).as_deref() == Some("--version") {{
+                        println!("rproj {}");
+                    }} else {{
+                        println!("invalid catalog response");
+                    }}
+                }}"#,
+                env!("CARGO_PKG_VERSION")
+            ),
+        )
+        .unwrap();
+        let worker = fixture
+            .path()
+            .join(format!("worker{}", std::env::consts::EXE_SUFFIX));
+        let compiled = std::process::Command::new("rustc")
+            .arg(source)
+            .arg("-o")
+            .arg(&worker)
+            .output()
+            .unwrap();
+        assert!(
+            compiled.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        let connected = connection_event(Ok(worker));
+        assert!(matches!(&connected, Event::Connected(Ok(_), Some(Err(_)))));
+        std::fs::write(
+            fixture.path().join("default.project.json"),
+            r#"{"name":"Catalog fixture","tree":{"$className":"DataModel"}}"#,
+        )
+        .unwrap();
+        let snapshot = rproj_core::inspect(fixture.path()).unwrap();
+        let fingerprint = serde_json::to_string(&snapshot).unwrap();
+        let preferences = fixture.path().join("desktop-state.json");
+        let (handle, view) = cx.update(|cx| {
+            gpui_kit::init(cx);
+            gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+                cx.new(|cx| Workbench::new(None, Some(preferences), window, cx))
+            })
+            .unwrap()
+        });
+        cx.update(|cx| {
+            view.update(cx, |this, cx| {
+                // Isolate this event sequence from startup background workers.
+                (this.sender, this.receiver) = std::sync::mpsc::sync_channel(super::EVENT_CAPACITY);
+                this.querying_status = true;
+                this.sender.send(connected).unwrap();
+                this.drain(cx);
+                assert!(
+                    this.client.is_some(),
+                    "catalog failure must keep the matching worker"
+                );
+                assert!(this.client_error.is_none());
+                let error = this
+                    .catalog_error
+                    .clone()
+                    .expect("catalog failure is visible");
+                assert!(error.contains("invalid package catalog"));
+                this.sender
+                    .send(Event::Inspected(0, Box::new(Ok((snapshot, fingerprint)))))
+                    .unwrap();
+                this.sender
+                    .send(Event::Status(Ok(super::WatchStatus {
+                        supported: true,
+                        project: None,
+                        state: rproj_core::operations::WatchState::Stopped,
+                        message: "Stopped".into(),
+                    })))
+                    .unwrap();
+                this.drain(cx);
+                assert!(this.snapshot.is_some());
+                assert!(this.error.is_none());
+                assert!(this.client_error.is_none());
+                assert_eq!(this.catalog_error.as_deref(), Some(error.as_str()));
+            });
+        });
+        cx.update_window(handle, |_, window, cx| {
+            window.render_frame(cx);
+            let alert = window.find("catalog-error");
+            assert!(alert.visible());
+            assert!(alert.label().unwrap().contains("invalid package catalog"));
+        })
+        .unwrap();
     }
 
     #[gpui_kit::test]

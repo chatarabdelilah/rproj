@@ -489,7 +489,17 @@ impl Render for Workbench {
                                                 .child(path.display().to_string()),
                                         )
                                     })
-                                    .when_some(self.error.clone(), |view, error| view.child(error)),
+                                    .when_some(self.error.clone(), |view, error| view.child(error))
+                                    .when_some(self.catalog_error.clone(), |view, error| {
+                                        view.child(
+                                            div()
+                                                .id("catalog-error")
+                                                .role(Role::Alert)
+                                                .aria_label(error.clone())
+                                                .child(error)
+                                                .test_support(),
+                                        )
+                                    }),
                             )
                             .child(
                                 div()

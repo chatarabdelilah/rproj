@@ -69,7 +69,7 @@ serialized preferences writer, and semantic theme controls. The sidebar keeps
 recent projects scrollable independently of the appearance controls. Package
 presence labels describe the alias module and package index checked by core.
 
-On October 10, 2026, all six desktop tests passed without ignored tests. They
+On October 11, 2026, all seven desktop tests passed without ignored tests. They
 cover bounded output retention, stdout/stderr chunk joining, complete retention
 of 40,000-character streamed lines, and a headless GPUI interaction test. The
 interaction test verifies recovery after an unavailable project becomes readable
