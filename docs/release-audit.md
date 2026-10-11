@@ -43,7 +43,7 @@ entries and 26 verified notice supplements. Original notice text remains unavail
 for three legacy dependencies; [the provenance record](../third-party/README.md)
 states those limits. It is not a public release or proof of notice completeness.
 
-Seven desktop tests passed, including GPUI keyboard focus and dependency selection,
+Eight desktop tests passed, including GPUI keyboard focus and dependency selection,
 unavailable-action behavior, recovery after a transient inspection error, retained
 preference errors, bounded output, and reconstruction across stdout/stderr chunks.
 Strict all-target desktop Clippy and workspace formatting passed on Rust 1.99.0.
@@ -54,7 +54,9 @@ stream segment reaches its bound. Initial native launch preceded isolated
 preferences and may have registered the development executable in normal desktop
 preferences; subsequent acceptance uses an explicit disposable preferences path.
 The extracted portable workbench exposes a native window, but two Computer Use
-state-capture attempts stalled without returning an image. Native visual, resize,
+state-capture attempts stalled without returning an image. A third attempt with
+the updated helper stalled during window selection/activation before capture;
+native automation was stopped. Native visual, resize,
 theme, and scaling acceptance therefore remains unverified; this cannot be inferred
 from the successful prototype capture or headless interaction tests. Delivery stays
 in draft until the remaining native gate is confirmed.
@@ -70,7 +72,16 @@ require DLL-import inspection during packaging. Both were corrected in `e39a665`
 The complete review of that head found one minor catalog-failure visibility issue.
 A separate accessible error now survives successful inspection and Watch status,
 while the matching worker remains available. Its regression uses a real fixture
-worker returning malformed catalog JSON. The final follow-up review is pending.
+worker returning malformed catalog JSON. The complete follow-up at `0e8186a`
+reported two minor issues: concurrent Watch-output requests could return stale
+results, and supplement files with identical basenames could overwrite each
+other. Watch output now allows one request at a time and rejects late results
+after project, worker, or Watch changes; a regression verifies recovery and
+preservation of a newer request's guard. Packaging now refuses colliding notice
+paths, including case-only names. Its standalone PowerShell fixture verifies
+valid inventory paths/hashes and three collision refusals, and fails against
+the previous writer. Desktop CI runs it explicitly; CLI tests retain their
+existing prerequisites. Final follow-up review is pending.
 Linux/macOS core CI and a separate Windows desktop build/package job are added;
 unexecuted remote checks and ignored prerequisites are not passes. No machine-wide
 applications, user projects, or publication state were changed for this audit.

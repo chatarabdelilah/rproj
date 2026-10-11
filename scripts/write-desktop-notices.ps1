@@ -28,6 +28,8 @@ $licenses = Join-Path $Destination 'licenses'
 New-Item -ItemType Directory -Path $licenses -Force | Out-Null
 $inventory = [Collections.Generic.List[object]]::new()
 $omissions = [Collections.Generic.List[string]]::new()
+# The portable archive targets Windows, where case-only names share a destination.
+$noticeTargets = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($package in $Metadata.packages | Where-Object { $selected.Contains($_.id) } | Sort-Object name, version) {
     $crateRoot = Split-Path -Parent $package.manifest_path
     $key = $package.name + '-' + $package.version
@@ -52,6 +54,7 @@ foreach ($package in $Metadata.packages | Where-Object { $selected.Contains($_.i
     foreach ($text in $texts | Sort-Object FullName -Unique) {
         $relative = [IO.Path]::GetRelativePath($crateRoot, $text.FullName)
         $target = Join-Path $folder $relative
+        if (-not $noticeTargets.Add([IO.Path]::GetFullPath($target))) { throw "Duplicate license notice destination: $target" }
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
         Copy-Item -LiteralPath $text.FullName -Destination $target
         $records.Add([ordered]@{ path = "licenses/$key/" + $relative.Replace('\', '/'); origin = 'published crate'; sha256 = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() })
@@ -66,6 +69,7 @@ foreach ($package in $Metadata.packages | Where-Object { $selected.Contains($_.i
             if (-not $source.StartsWith($supplementRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'License supplement escapes third-party/licenses.' }
             if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $file.sha256) { throw "License supplement checksum changed: $($file.path)" }
             $target = Join-Path $folder ('upstream-' + [IO.Path]::GetFileName($source))
+            if (-not $noticeTargets.Add([IO.Path]::GetFullPath($target))) { throw "Duplicate license notice destination: $target" }
             Copy-Item -LiteralPath $source -Destination $target
             $records.Add([ordered]@{ path = "licenses/$key/" + [IO.Path]::GetFileName($target); origin = $file.url; sha256 = $file.sha256 })
         }

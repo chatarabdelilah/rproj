@@ -160,6 +160,11 @@ jobs:
         run: cargo +1.99.0 test --locked -p rproj-desktop
       - name: Desktop Clippy
         run: cargo +1.99.0 clippy --locked -p rproj-desktop --all-targets -- -D warnings
+      - name: Verify dependency notice preservation
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP ('rproj-notices-' + [Guid]::NewGuid().ToString('N'))
+          ./scripts/test-desktop-notices.ps1 -Writer ./scripts/write-desktop-notices.ps1 -FixtureRoot $fixture
       - name: Build and smoke-check the portable distribution
         id: portable
         shell: pwsh

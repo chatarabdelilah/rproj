@@ -61,7 +61,7 @@ enum Event {
     Status(Result<WatchStatus, String>),
     Progress(OperationEvent),
     Complete(Result<OperationOutcome, String>),
-    WatchLogs(Result<String, String>),
+    WatchLogs(u64, Result<String, String>),
 }
 
 fn connection_event(worker: anyhow::Result<PathBuf>) -> Event {
@@ -74,6 +74,40 @@ fn connection_event(worker: anyhow::Result<PathBuf>) -> Event {
             .map_err(|error| format!("Could not load package catalog: {error:#}"))
     });
     Event::Connected(client, catalog)
+}
+
+#[derive(Default)]
+struct WatchLogRequest {
+    context: u64,
+    next_id: u64,
+    pending: Option<(u64, u64)>,
+}
+
+impl WatchLogRequest {
+    fn begin(&mut self) -> Option<u64> {
+        if self.pending.is_some() {
+            return None;
+        }
+        self.next_id = self.next_id.wrapping_add(1);
+        self.pending = Some((self.next_id, self.context));
+        Some(self.next_id)
+    }
+
+    fn invalidate(&mut self) {
+        self.context = self.context.wrapping_add(1);
+        // Keep the guard until the old worker finishes, even across project switches.
+    }
+
+    fn finish(&mut self, id: u64) -> bool {
+        let Some((pending_id, context)) = self.pending else {
+            return false;
+        };
+        if pending_id != id {
+            return false;
+        }
+        self.pending = None;
+        context == self.context
+    }
 }
 
 #[derive(Default)]
@@ -165,6 +199,7 @@ pub struct Workbench {
     catalog_error: Option<String>,
     watch: Option<WatchStatus>,
     querying_status: bool,
+    watch_log_request: WatchLogRequest,
     running: Option<(Operation, Cancellation)>,
     activity: Activity,
     filter: Entity<InputState>,
@@ -247,6 +282,7 @@ impl Workbench {
             catalog_error: None,
             watch: None,
             querying_status: false,
+            watch_log_request: WatchLogRequest::default(),
             running: None,
             activity: Activity::default(),
             filter,
@@ -268,6 +304,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.watch_log_request.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.project = Some(path);
         self.inspecting = false;
@@ -341,6 +378,30 @@ impl Workbench {
         });
     }
 
+    fn request_watch_logs(&mut self, cx: &mut Context<Self>) {
+        if self.changing_watch() {
+            return;
+        }
+        let Some(client) = self.client.clone() else {
+            return;
+        };
+        let Some(request) = self.watch_log_request.begin() else {
+            return;
+        };
+        let sender = self.sender.clone();
+        std::thread::spawn(move || {
+            let result = client.watch_logs().map_err(|error| format!("{error:#}"));
+            let _ = sender.send(Event::WatchLogs(request, result));
+        });
+        cx.notify();
+    }
+
+    fn changing_watch(&self) -> bool {
+        self.running
+            .as_ref()
+            .is_some_and(|(operation, _)| !operation.cancellable())
+    }
+
     fn drain(&mut self, cx: &mut Context<Self>) {
         let mut changed = false;
         for _ in 0..EVENT_CAPACITY {
@@ -369,6 +430,7 @@ impl Workbench {
                     self.preferences_error = Some(error);
                 }
                 Event::Connected(client, catalog) => {
+                    self.watch_log_request.invalidate();
                     match catalog {
                         Some(Ok(catalog)) => {
                             self.catalog = catalog;
@@ -413,6 +475,17 @@ impl Workbench {
                 Event::Inspected(_, _) => continue,
                 Event::Status(status) => {
                     self.querying_status = false;
+                    if self
+                        .watch
+                        .as_ref()
+                        .map(|watch| (&watch.project, watch.state))
+                        != status
+                            .as_ref()
+                            .ok()
+                            .map(|watch| (&watch.project, watch.state))
+                    {
+                        self.watch_log_request.invalidate();
+                    }
                     match status {
                         Ok(status) => {
                             self.watch = Some(status);
@@ -444,12 +517,16 @@ impl Workbench {
                         self.inspect();
                     }
                 }
-                Event::WatchLogs(result) => match result {
-                    Ok(logs) => self.activity.append(&logs),
-                    Err(error) => self
-                        .activity
-                        .append(&format!("Could not read Watch output: {error}")),
-                },
+                Event::WatchLogs(request, result) => {
+                    if self.watch_log_request.finish(request) {
+                        match result {
+                            Ok(logs) => self.activity.append(&logs),
+                            Err(error) => self
+                                .activity
+                                .append(&format!("Could not read Watch output: {error}")),
+                        }
+                    }
+                }
             }
             changed = true;
         }
@@ -512,6 +589,9 @@ impl Workbench {
             self.project.clone()
         };
         let Some(project) = project else { return };
+        if !operation.cancellable() {
+            self.watch_log_request.invalidate();
+        }
         let cancellation = Cancellation::default();
         self.running = Some((operation, cancellation.clone()));
         self.activity.append(&format!(
@@ -664,6 +744,75 @@ mod tests {
             );
             assert!(output.lines.iter().all(|line| line.len() <= 8_192));
         }
+    }
+
+    #[gpui_kit::test]
+    fn watch_output_is_bounded_and_rejects_stale_contexts(cx: &mut TestAppContext) {
+        let fixture = tempfile::tempdir().unwrap();
+        let preferences = fixture.path().join("desktop-state.json");
+        let (_, view) = cx.update(|cx| {
+            gpui_kit::init(cx);
+            gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+                cx.new(|cx| Workbench::new(None, Some(preferences), window, cx))
+            })
+            .unwrap()
+        });
+        cx.update(|cx| {
+            view.update(cx, |this, cx| {
+                (this.sender, this.receiver) = std::sync::mpsc::sync_channel(super::EVENT_CAPACITY);
+                let first = this.watch_log_request.begin().unwrap();
+                assert!(this.watch_log_request.begin().is_none());
+                this.open_project(fixture.path().to_path_buf(), cx);
+                assert!(
+                    this.watch_log_request.begin().is_none(),
+                    "switching projects must not release an unfinished worker"
+                );
+                this.sender
+                    .send(Event::WatchLogs(first, Ok("old project output".into())))
+                    .unwrap();
+                this.drain(cx);
+                assert!(this.activity.lines.is_empty());
+
+                let second = this.watch_log_request.begin().unwrap();
+                this.sender
+                    .send(Event::Connected(Err("Worker replaced".into()), None))
+                    .unwrap();
+                this.sender
+                    .send(Event::WatchLogs(second, Err("old worker error".into())))
+                    .unwrap();
+                this.drain(cx);
+                assert!(this.activity.lines.is_empty());
+
+                let third = this.watch_log_request.begin().unwrap();
+                this.sender
+                    .send(Event::Status(Ok(super::WatchStatus {
+                        supported: true,
+                        project: Some(fixture.path().to_path_buf()),
+                        state: rproj_core::operations::WatchState::Watching,
+                        message: "Watching another project".into(),
+                    })))
+                    .unwrap();
+                this.sender
+                    .send(Event::WatchLogs(third, Ok("old Watch output".into())))
+                    .unwrap();
+                this.drain(cx);
+                assert!(this.activity.lines.is_empty());
+
+                let current = this.watch_log_request.begin().unwrap();
+                this.sender
+                    .send(Event::WatchLogs(first, Ok("duplicate stale event".into())))
+                    .unwrap();
+                this.drain(cx);
+                assert!(this.watch_log_request.begin().is_none());
+                this.sender
+                    .send(Event::WatchLogs(current, Ok("current output".into())))
+                    .unwrap();
+                this.drain(cx);
+                assert_eq!(this.activity.lines.back().unwrap(), "current output");
+                assert_eq!(this.activity.lines.len(), 1);
+                assert!(this.watch_log_request.pending.is_none());
+            });
+        });
     }
 
     #[gpui_kit::test]

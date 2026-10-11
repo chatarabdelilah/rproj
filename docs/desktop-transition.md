@@ -30,9 +30,10 @@ initial portable ZIP passed extracted version, worker identity, read-only
 inspection, and static-runtime dependency checks. See
 [the framework record](desktop-feasibility.md). The complete uncommitted CodeRabbit
 review found one inspection-recovery bug; its fix remains part of the final branch
-review. Seven desktop tests now pass, covering recovery, keyboard navigation,
+review. Eight desktop tests now pass, covering recovery, keyboard navigation,
 unavailable actions, preference preservation, catalog failure visibility, and
-bounded faithful output. The earlier partial tracked-file pass does not count as
+bounded faithful output. Watch-output requests are serialized and reject stale
+results after project, worker, or Watch changes. The earlier partial tracked-file pass does not count as
 complete review.
 
 ## Product and release boundary

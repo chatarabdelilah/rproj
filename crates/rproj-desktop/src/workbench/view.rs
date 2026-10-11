@@ -394,10 +394,9 @@ impl Workbench {
                     .on_click(cx.listener(move |this, _, _, cx| this.start(if active { Operation::SwitchWatch } else { Operation::StartWatch }, cx))))
                 .child(Button::new("watch-stop").label("Stop").disabled(busy || !active)
                     .on_click(cx.listener(|this, _, _, cx| this.start(Operation::StopWatch, cx))))
-                .child(Button::new("watch-logs").ghost().label("Watch output").disabled(self.client.is_none())
-                    .on_click(cx.listener(|this, _, _, _| { if let Some(client) = this.client.clone() {
-                        let sender = this.sender.clone(); std::thread::spawn(move || { let _ = sender.send(Event::WatchLogs(client.watch_logs().map_err(|error| format!("{error:#}")))); });
-                    } }))))
+                .child(Button::new("watch-logs").ghost().label("Watch output")
+                    .disabled(self.client.is_none() || self.watch_log_request.pending.is_some() || self.changing_watch())
+                    .on_click(cx.listener(|this, _, _, cx| this.request_watch_logs(cx)))))
             .child(div().text_xs().text_color(cx.theme().muted_foreground)
                 .child("Watch prepares dependencies and maintains the sourcemap. Closing this window keeps Watch running."))
             .when_some(self.client_error.clone(), |view, error| view.child(div().text_sm().child(error)))
