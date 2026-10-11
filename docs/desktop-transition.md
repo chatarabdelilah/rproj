@@ -6,7 +6,8 @@ The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
 ## Implementation checkpoint (October 11)
 
-Work continues on `codex/desktop-alpha`; no release candidate, publication, or
+Work continues on `codex/desktop-alpha` in
+[draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106); no release candidate, publication, or
 tag is prepared. The CLI/core workspace, versioned inspection, manifest-based
 Watch summary, Blender preflight/repair, and CLI worker protocol are implemented.
 The ordinary CLI/core suite passed 557 tests (530 CLI, 27 core), with 24 live or
@@ -25,12 +26,13 @@ an explicitly executed installed-Blender temporary-scene test passed.
 GPUI Kit 0.7.1 compiles with workspace-local Rust 1.99, renders a Windows window,
 and exposes keyboard focus after adding an explicit focus owner. System Rust
 defaults remain unchanged. The core-backed desktop's resize/theme/operation
-acceptance, final CodeRabbit review, and PR/CI delivery are still in progress. An
+acceptance and PR/CI delivery are still in progress. Final CodeRabbit review at
+`93f93ff` covered 93 files with zero findings. An
 initial portable ZIP passed extracted version, worker identity, read-only
 inspection, and static-runtime dependency checks. See
 [the framework record](desktop-feasibility.md). The complete uncommitted CodeRabbit
-review found one inspection-recovery bug; its fix remains part of the final branch
-review. Eight desktop tests now pass, covering recovery, keyboard navigation,
+review found one inspection-recovery bug, corrected before final branch review.
+Eight desktop tests now pass, covering recovery, keyboard navigation,
 unavailable actions, preference preservation, catalog failure visibility, and
 bounded faithful output. Watch-output requests are serialized and reject stale
 results after project, worker, or Watch changes. The earlier partial tracked-file pass does not count as

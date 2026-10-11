@@ -3,7 +3,8 @@
 ## October 10–11: shared core and Windows desktop implementation
 
 The approved [desktop transition](desktop-transition.md) is being implemented on
-`codex/desktop-alpha` from `17b7ef4db0a4248e8f36ce8b3941ec909edca4db`.
+`codex/desktop-alpha` from `17b7ef4db0a4248e8f36ce8b3941ec909edca4db`, in
+[draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
 Published 0.22.0 and its tags remain unchanged; this is development work, not a
 release candidate. Ratatui and direct commands remain available.
 
@@ -81,9 +82,11 @@ preservation of a newer request's guard. Packaging now refuses colliding notice
 paths, including case-only names. Its standalone PowerShell fixture verifies
 valid inventory paths/hashes and three collision refusals, and fails against
 the previous writer. Desktop CI runs it explicitly; CLI tests retain their
-existing prerequisites. Final follow-up review is pending.
+existing prerequisites. Complete final review at `93f93ff` covered 93 files with
+zero findings. The clean-head portable ZIP passed all extracted-copy checks.
 Linux/macOS core CI and a separate Windows desktop build/package job are added;
-unexecuted remote checks and ignored prerequisites are not passes. No machine-wide
+Reviewed-head CI is pending; unexecuted remote checks and ignored prerequisites
+are not passes. The native gate keeps the PR in draft. No machine-wide
 applications, user projects, or publication state were changed for this audit.
 
 ## October 8: 0.22.0 publication verified
