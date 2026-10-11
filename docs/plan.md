@@ -19,9 +19,9 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 The approved [desktop transition](desktop-transition.md) is under implementation:
 shared read-only inspection, manifest-based Watch summaries, Blender repair,
-and a native Windows workbench backed by the existing CLI. Complete native
-acceptance and CI delivery for [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106)
-before treating it as available to
+and a native Windows workbench backed by the existing CLI. All seven executed
+CI jobs passed for [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
+Complete native acceptance before treating it as available to
 users. The [audit](release-audit.md) records completed checks and remaining gates.
 
 The published baseline is **v0.22.0, public alpha**. Interactive Upgrade

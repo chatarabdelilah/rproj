@@ -26,7 +26,9 @@ an explicitly executed installed-Blender temporary-scene test passed.
 GPUI Kit 0.7.1 compiles with workspace-local Rust 1.99, renders a Windows window,
 and exposes keyboard focus after adding an explicit focus owner. System Rust
 defaults remain unchanged. The core-backed desktop's resize/theme/operation
-acceptance and PR/CI delivery are still in progress. Final CodeRabbit review at
+acceptance remains pending. All seven executed PR CI jobs passed on `27cf3d0`,
+including the portable build and extracted-copy checks; the PR stays in draft
+for the native gate. Final CodeRabbit review at
 `93f93ff` covered 93 files with zero findings. An
 initial portable ZIP passed extracted version, worker identity, read-only
 inspection, and static-runtime dependency checks. See

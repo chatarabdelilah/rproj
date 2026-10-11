@@ -84,9 +84,17 @@ valid inventory paths/hashes and three collision refusals, and fails against
 the previous writer. Desktop CI runs it explicitly; CLI tests retain their
 existing prerequisites. Complete final review at `93f93ff` covered 93 files with
 zero findings. The clean-head portable ZIP passed all extracted-copy checks.
-Linux/macOS core CI and a separate Windows desktop build/package job are added;
-Reviewed-head CI is pending; unexecuted remote checks and ignored prerequisites
-are not passes. The native gate keeps the PR in draft. No machine-wide
+All seven executed CI jobs passed on documentation head
+`27cf3d078abbda231091a6678881c51576290763` in
+[38161159774](https://github.com/chatarabdelilah/rproj/actions/runs/38161159774):
+Windows stable/MSRV, Linux/macOS core, released Wally compatibility, both Cargo
+archives, and the Windows desktop. The portable ZIP/checksum artifact was retained.
+The first desktop job took 19 minutes 45 seconds; other executed jobs took 11
+seconds to 4 minutes 3 seconds. The scheduled/manual badge job was intentionally
+skipped. Runtime and CI sources match the zero-finding review at `93f93ff`;
+the later commit only records delivery evidence. Unexecuted native checks and
+ignored prerequisites are not passes. The native gate keeps the PR in draft,
+so merging and merged-main CI remain pending. No machine-wide
 applications, user projects, or publication state were changed for this audit.
 
 ## October 8: 0.22.0 publication verified

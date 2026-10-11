@@ -87,6 +87,13 @@ desktop `--self-check`, and inspection from the unpacked ZIP. Static CRT linking
 and import inspection found only Windows system DLL dependencies. These checks
 do not establish visual or interactive acceptance.
 
+GitHub's Windows runner independently passed the eight desktop tests, strict
+Clippy, notice-preservation regressions, and portable packaging in
+[run 38161159774](https://github.com/chatarabdelilah/rproj/actions/runs/38161159774)
+on `27cf3d0`. Its first desktop job took 19 minutes 45 seconds and retained the
+ZIP/checksum artifact. This confirms the automated package path; the native
+acceptance gap below remains open.
+
 The actual portable workbench launched against an ignored fixture using an
 explicit `--preferences-path` inside `target/desktop-fixture/`. Computer Use
 discovered its native window, title `rproj`. Its `get_window_state` capture then
