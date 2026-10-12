@@ -45,6 +45,11 @@ cover global flags, absent/existing log storage, and ordinary commands whose
 arguments contain `inspect`, which retain their existing error logging.
 The corrected full CLI/core suite passed **563 tests**, with **24 ignored**;
 the complete five-file uncommitted review reported zero findings.
+Complete branch review at `87dc635` reported one minor documentation issue:
+the transition checkpoint still described the older `93f93ff` review as final.
+The checkpoint was corrected and its small documentation diff reviewed directly;
+there were no further code findings. Updated-head CI was pending at this checkpoint
+and its subsequent result is tracked in PR #106.
 
 The owner reported installing Hyper-V on October 12 for possible future use.
 Its setup and a clean Windows VM remain unverified. The roadmap records the
@@ -58,7 +63,8 @@ The generated PR test-merge commit `4123ea6` has parents `17b7ef4` and `3fcaedc`
 and the same source tree as the latter; it is not a merge into main. Extracted
 version and matching-worker self-checks passed outside the Windows sandbox,
 which denied executable-path access. The cached desktop job took 2 minutes
-44 seconds. New changes still require final-head review and CI.
+44 seconds. Subsequent final-head review and CI evidence are tracked in draft
+PR #106; the native gate continues to prevent merging.
 
 The original-notice search was repeated for the three unresolved legacy
 dependencies. No exact-version original was recovered; the
