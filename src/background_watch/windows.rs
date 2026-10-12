@@ -91,13 +91,19 @@ fn root() -> Result<PathBuf> {
 thread_local! { static TEST_ROOT: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) }; }
 
 #[cfg(test)]
-pub(crate) fn with_unresponsive_fixture<R>(project: &Path, action: impl FnOnce() -> R) -> R {
+pub(crate) fn with_test_root<R>(path: &Path, action: impl FnOnce() -> R) -> R {
     struct Restore(Option<PathBuf>);
     impl Drop for Restore {
         fn drop(&mut self) {
             TEST_ROOT.with(|root| *root.borrow_mut() = self.0.take());
         }
     }
+    let _restore = Restore(TEST_ROOT.with(|slot| slot.replace(Some(path.into()))));
+    action()
+}
+
+#[cfg(test)]
+pub(crate) fn with_unresponsive_fixture<R>(project: &Path, action: impl FnOnce() -> R) -> R {
     let root = tempfile::tempdir().unwrap();
     private_directory(root.path()).unwrap();
     let owner = open_lock(root.path(), "owner.lock").unwrap();
@@ -113,8 +119,7 @@ pub(crate) fn with_unresponsive_fixture<R>(project: &Path, action: impl FnOnce()
         supervisor: 0,
     };
     save(root.path(), &snapshot).unwrap();
-    let _restore = Restore(TEST_ROOT.with(|slot| slot.replace(Some(root.path().into()))));
-    action()
+    with_test_root(root.path(), action)
 }
 
 fn private_directory(path: &Path) -> Result<()> {

@@ -4,16 +4,19 @@ Approved October 8, 2026. This supersedes the Ratatui-only direction, not the
 retirement of Tauri, model import, or embedded replacements for external tools.
 The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
-## Implementation checkpoint (October 11)
+## Implementation checkpoint (October 12)
 
 Work continues on `codex/desktop-alpha` in
 [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106); no release candidate, publication, or
 tag is prepared. The CLI/core workspace, versioned inspection, manifest-based
 Watch summary, Blender preflight/repair, and CLI worker protocol are implemented.
-The ordinary CLI/core suite passed 557 tests (530 CLI, 27 core), with 24 live or
+The ordinary CLI/core suite passed 560 tests (533 CLI, 27 core), with 24 live or
 prerequisite-dependent tests ignored. Core coverage includes
 bounded configuration reads, diagnostic redaction, both output streams, and
-Windows descendant cancellation. Both CLI/core archives built successfully with
+Windows descendant cancellation. A test-build bridge now verifies Check/Test
+dispatch, both output streams, exact failure codes, and Watch-lock refusal/recovery
+with disposable tools and storage; shipped-binary and real-runner acceptance
+remain separate. Both CLI/core archives built successfully with
 the final dependency graph using locked offline packaging in a fresh target
 directory. Repeated packaging at the unchanged development version had reused an
 older local-registry core source; CI now isolates that registry by run identity.

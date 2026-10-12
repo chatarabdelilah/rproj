@@ -6,13 +6,13 @@ use anyhow::Result;
 
 #[cfg(windows)]
 mod windows;
-#[cfg(all(windows, test))]
-pub(crate) use windows::with_unresponsive_fixture;
 #[cfg(windows)]
 pub(crate) use windows::{
     internal_entry, mutation_guard, show_logs, show_status, start_in, stop, stop_and_wait,
     structured_status, summary,
 };
+#[cfg(all(windows, test))]
+pub(crate) use windows::{with_test_root, with_unresponsive_fixture};
 
 #[cfg(not(windows))]
 pub(crate) struct MutationGuard;

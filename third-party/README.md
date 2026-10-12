@@ -19,7 +19,7 @@ declaration. The notice was added after publication; it is not presented as a
 file from the published archive.
 
 Three legacy distributions still contain declarations without standalone notice
-text, checked October 10, 2026:
+text, checked again October 12, 2026:
 
 - `mac` 0.1.1 has no notice text in [the upstream tree](https://github.com/reem/rust-mac/tree/66afc663b68a65633ea165c742b5a9c6734581c2).
   Its [request for a license file](https://github.com/reem/rust-mac/issues/14)
@@ -29,9 +29,14 @@ text, checked October 10, 2026:
   by [one mirror](https://github.com/aleksa2808/seahash/tree/94b632aeac099031c373599313d5b5f0acbbaec0)
   and [a second mirror](https://github.com/planet-s/seahash/tree/94b632aeac099031c373599313d5b5f0acbbaec0);
   both trees contain no notice. A later fork-added text is not used as evidence
-  of an original-author notice.
+  of an original-author notice. An original-author notice also exists in
+  [TFS](https://github.com/redox-os/tfs/blob/master/LICENSE), but its adjacent
+  [SeaHash manifest](https://github.com/redox-os/tfs/blob/master/seahash/Cargo.toml)
+  identifies version 3.0.5; it is not recorded as a notice for 4.1.0.
 - `windows-permissions` 0.2.4 has no notice file in [its published upstream tree](https://github.com/danieldulaney/windows-permissions-rs/tree/8740e4efbd88dd01046ad9c169894f3a52eb6e2c)
   or the current repository root; upstream history has no `LICENSE` addition.
+  Published source headers, upstream issue/PR discussions, and release records
+  also yielded no original notice in the October 12 check.
 
 Packaging preserves the available manifest/README attribution and
 lists these gaps explicitly in `THIRD-PARTY.md` and `dependencies.json`.

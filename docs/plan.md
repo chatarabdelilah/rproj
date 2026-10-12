@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 11, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 12, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -21,7 +21,8 @@ The approved [desktop transition](desktop-transition.md) is under implementation
 shared read-only inspection, manifest-based Watch summaries, Blender repair,
 and a native Windows workbench backed by the existing CLI. All seven executed
 CI jobs passed for [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
-Complete native acceptance before treating it as available to
+Isolated worker tests now verify Check/Test dispatch and Watch-lock recovery using
+disposable tools and storage. Complete native acceptance before treating it as available to
 users. The [audit](release-audit.md) records completed checks and remaining gates.
 
 The published baseline is **v0.22.0, public alpha**. Interactive Upgrade

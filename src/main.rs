@@ -39,18 +39,7 @@ use cli::{Cli, Command};
 /// writes an uncoloured `Error: ...` with the chain in `Debug` form.
 fn main() -> ExitCode {
     if let Some(result) = background_watch::internal_entry().or_else(workbench::internal_entry) {
-        return match result {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(error) => {
-                eprintln!("{error:#}");
-                ExitCode::from(
-                    error
-                        .downcast_ref::<commands::test::RunnerFailure>()
-                        .map(commands::test::RunnerFailure::exit_code)
-                        .unwrap_or(1),
-                )
-            }
-        };
+        return ExitCode::from(internal_result_exit_code(result));
     }
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
@@ -95,6 +84,19 @@ fn main() -> ExitCode {
     };
     log.finish(code);
     ExitCode::from(code)
+}
+
+fn internal_result_exit_code(result: anyhow::Result<()>) -> u8 {
+    match result {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("{error:#}");
+            error
+                .downcast_ref::<commands::test::RunnerFailure>()
+                .map(commands::test::RunnerFailure::exit_code)
+                .unwrap_or(1)
+        }
+    }
 }
 
 fn log_command(cli: &Cli) {

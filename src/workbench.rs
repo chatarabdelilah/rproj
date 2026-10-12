@@ -12,36 +12,39 @@ pub(crate) fn internal_entry() -> Option<Result<()>> {
     if args.next().as_deref() != Some(OsStr::new(WORKER_FLAG)) {
         return None;
     }
-    Some((|| {
-        let operation = parse_operation(args)?;
-        match operation {
-            Operation::Catalog => {
-                println!("{}", serde_json::to_string(&catalog_entries()?)?);
-                Ok(())
-            }
-            Operation::Status => {
-                println!(
-                    "{}",
-                    serde_json::to_string(&crate::background_watch::structured_status()?)?
-                );
-                Ok(())
-            }
-            Operation::Logs => crate::background_watch::show_logs(),
-            Operation::Stop => crate::background_watch::stop_and_wait(),
-            Operation::Start => {
-                let project =
-                    std::env::current_dir().context("could not read project directory")?;
-                crate::background_watch::start_in(&project)
-            }
-            Operation::Check => {
-                let project =
-                    std::env::current_dir().context("could not read project directory")?;
-                run_check(&project)
-            }
-            Operation::Test => crate::commands::test::run(&[]),
-        }
-    })())
+    Some(parse_operation(args).and_then(dispatch))
 }
+
+fn dispatch(operation: Operation) -> Result<()> {
+    match operation {
+        Operation::Catalog => {
+            println!("{}", serde_json::to_string(&catalog_entries()?)?);
+            Ok(())
+        }
+        Operation::Status => {
+            println!(
+                "{}",
+                serde_json::to_string(&crate::background_watch::structured_status()?)?
+            );
+            Ok(())
+        }
+        Operation::Logs => crate::background_watch::show_logs(),
+        Operation::Stop => crate::background_watch::stop_and_wait(),
+        Operation::Start => {
+            let project = std::env::current_dir().context("could not read project directory")?;
+            crate::background_watch::start_in(&project)
+        }
+        Operation::Check => {
+            let project = std::env::current_dir().context("could not read project directory")?;
+            run_check(&project)
+        }
+        Operation::Test => crate::commands::test::run(&[]),
+    }
+}
+
+#[cfg(all(test, windows))]
+#[path = "workbench/worker_tests.rs"]
+mod worker_tests;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Operation {

@@ -1,5 +1,51 @@
 # Release-Hardening Audit
 
+## October 12: isolated worker dispatch coverage
+
+Work continues on `codex/desktop-alpha` in draft PR #106. The owner has not yet
+checked the portable native preview, so the native gate and merge remain pending.
+Native automation was not retried. Published 0.22.0 remains unchanged.
+
+Windows tests now drive the production `WorkbenchClient`, operation dispatcher,
+and internal CLI exit reporting through a test-build child process. A small
+compiled bridge supplies the matching version and a disposable Lute stub; the
+existing test-only Watch-root scope isolates lock storage. Production storage
+selection and the core API are unchanged. Eight operation executions cover Check
+and Test success, failure, stdout/stderr, arguments, working directory, refusal
+while the private Watch start lock is held, and recovery after release. They
+verify project and private Watch file contents and directory membership remain
+unchanged. Check maps the stub's exit 7 to failure 1; Test preserves exit 7.
+This is shared-dispatcher evidence, not successful shipped-binary, real Lute,
+Roblox, or native GUI acceptance.
+
+The full CLI/core suite passed **560 tests**, with **24 ignored**, outside the
+Windows sandbox; nested child summaries are excluded. A sandboxed attempt failed
+subprocess checks and stalled in loopback tests, so that run was stopped rather
+than counted as evidence. Focused worker/integration/guard tests, strict all-target
+CLI/core Clippy, workspace formatting, and standalone fixture formatting passed
+with the repository-local Rust 1.99.0 toolchain.
+
+Independent review added a test-only 20-second cancellation deadline so a
+regression to blocking Watch-lock acquisition fails instead of hanging. The
+complete uncommitted CodeRabbit review covered all seven changed files and
+found one minor fixture weakness: joining arguments with spaces concealed
+argument boundaries. The fixture now reports the argument vector and compares
+the complete line. An earlier review omitted the two untracked test files and
+is not counted as complete.
+
+The prior final head `3fcaedc` passed all seven executed jobs in
+[38162648985](https://github.com/chatarabdelilah/rproj/actions/runs/38162648985).
+Its downloaded portable archive's checksum and executable hashes were verified.
+The generated PR test-merge commit `4123ea6` has parents `17b7ef4` and `3fcaedc`
+and the same source tree as the latter; it is not a merge into main. Extracted
+version and matching-worker self-checks passed outside the Windows sandbox,
+which denied executable-path access. The cached desktop job took 2 minutes
+44 seconds. New changes still require final-head review and CI.
+
+The original-notice search was repeated for the three unresolved legacy
+dependencies. No exact-version original was recovered; the
+[provenance record](../third-party/README.md) records the additional evidence.
+
 ## October 10–11: shared core and Windows desktop implementation
 
 The approved [desktop transition](desktop-transition.md) is being implemented on
