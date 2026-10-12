@@ -30,7 +30,7 @@ mod test_common;
 use std::io::IsTerminal;
 use std::process::ExitCode;
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 
 use cli::{Cli, Command};
 
@@ -45,7 +45,7 @@ fn main() -> ExitCode {
         Ok(cli) => cli,
         Err(error) => {
             let code = error.exit_code() as u8;
-            if error.use_stderr() {
+            if error.use_stderr() && !is_inspection_invocation() {
                 let log = diagnostics::start();
                 diagnostics::event(
                     "cli.invalid",
@@ -84,6 +84,15 @@ fn main() -> ExitCode {
     };
     log.finish(code);
     ExitCode::from(code)
+}
+
+fn is_inspection_invocation() -> bool {
+    // Reuse Clap's grammar, including global flags, to classify failed input.
+    // Partial matches only control logging; they are never dispatched.
+    Cli::command()
+        .ignore_errors(true)
+        .try_get_matches()
+        .is_ok_and(|matches| matches.subcommand_name() == Some("inspect"))
 }
 
 fn internal_result_exit_code(result: anyhow::Result<()>) -> u8 {

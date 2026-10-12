@@ -5,14 +5,79 @@ use std::process::{Command, Output};
 use tempfile::TempDir;
 
 fn inspect(root: &Path, arguments: &[&str]) -> Output {
+    let mut invocation = vec!["inspect"];
+    invocation.extend_from_slice(arguments);
+    cli(root, &invocation)
+}
+
+fn cli(root: &Path, arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_rproj"))
-        .arg("inspect")
         .args(arguments)
         .current_dir(root)
         .env("RPROJ_LOG_DIR", root.join("diagnostic-logs"))
         .env_remove("RPROJ_NO_LOG")
         .output()
         .unwrap()
+}
+
+#[test]
+fn invalid_inspect_arguments_preserve_absent_and_existing_diagnostic_logs() {
+    for arguments in [
+        &["inspect", "--bad-option"][..],
+        &["--verbose", "inspect", "--bad-option"],
+        &["-v", "inspect", "--bad-option"],
+        &["inspect", "first-project", "extra-project"],
+        &["inspect", "--json=false"],
+    ] {
+        for existing_logs in [false, true] {
+            let project = TempDir::new().unwrap();
+            let logs = project.path().join("diagnostic-logs");
+            let preserved = b"existing diagnostic output\r\n";
+            if existing_logs {
+                fs::create_dir(&logs).unwrap();
+                fs::write(logs.join("existing.txt"), preserved).unwrap();
+            }
+
+            let output = cli(project.path(), arguments);
+
+            assert_eq!(output.status.code(), Some(2), "{arguments:?}");
+            assert!(output.stdout.is_empty(), "{arguments:?}");
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("error:"),
+                "{arguments:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            if existing_logs {
+                assert_eq!(fs::read(logs.join("existing.txt")).unwrap(), preserved);
+                assert_eq!(fs::read_dir(&logs).unwrap().count(), 1, "{arguments:?}");
+            } else {
+                assert!(!logs.exists(), "{arguments:?} created diagnostic logs");
+            }
+        }
+    }
+}
+
+#[test]
+fn inspect_as_an_ordinary_argument_does_not_disable_parse_error_logging() {
+    for arguments in [
+        &["new", "inspect", "--bad-option"][..],
+        &["--verbose", "new", "--like", "inspect", "--bad-option"],
+        &["info", "inspect", "--bad-option"],
+        &["--bad-option", "inspect"],
+    ] {
+        let project = TempDir::new().unwrap();
+
+        let output = cli(project.path(), arguments);
+
+        assert_eq!(output.status.code(), Some(2), "{arguments:?}");
+        let logs: Vec<_> = fs::read_dir(project.path().join("diagnostic-logs"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        assert_eq!(logs.len(), 1, "{arguments:?}");
+        let text = fs::read_to_string(&logs[0]).unwrap();
+        assert!(text.contains("cli.invalid"), "{arguments:?}: {text}");
+    }
 }
 
 #[test]

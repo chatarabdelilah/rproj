@@ -33,6 +33,24 @@ argument boundaries. The fixture now reports the argument vector and compares
 the complete line. An earlier review omitted the two untracked test files and
 is not counted as complete.
 
+Complete branch review at `618acee` found two further behavior gaps: Stop could
+return success when Watch ended in `Failed`, and invalid Inspect arguments could
+start a global diagnostic log before entering the read-only command path.
+Stop now reports an error for `Failed` after ownership releases, preserves the
+failed snapshot, and points to the Watch log. Inspect parse-error classification
+uses Clap's existing command grammar; only its selected subcommand controls
+whether logging starts, and partial matches are never executed. Regressions
+failed against both previous behaviors and pass after correction. Inspect tests
+cover global flags, absent/existing log storage, and ordinary commands whose
+arguments contain `inspect`, which retain their existing error logging.
+The corrected full CLI/core suite passed **563 tests**, with **24 ignored**;
+the complete five-file uncommitted review reported zero findings.
+
+The owner reported installing Hyper-V on October 12 for possible future use.
+Its setup and a clean Windows VM remain unverified. The roadmap records the
+request to notify the owner when VM-based fresh-machine acceptance becomes
+the next useful step; no VM provisioning was started.
+
 The prior final head `3fcaedc` passed all seven executed jobs in
 [38162648985](https://github.com/chatarabdelilah/rproj/actions/runs/38162648985).
 Its downloaded portable archive's checksum and executable hashes were verified.

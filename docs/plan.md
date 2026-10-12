@@ -288,10 +288,12 @@ cancellation. It adds no Rojo Serve, sign-in task, automatic restart, or service
 Implementation and acceptance are recorded in [the release audit](release-audit.md);
 owner publication, archive identity, annotated tag and GitHub alpha release
 are verified at `f3cdea8`. [Release notes](release-notes-0.20.0.md) record limits.
-The fresh-Windows environment inventory is complete: the current PC is already
-configured, and no spare Windows machine or ready local VM is available. The
-owner deferred Hyper-V/VM provisioning on October 6; do not resume it on an
-ordinary request to continue. Fresh-machine acceptance remains unverified.
+The current PC is already configured. The owner reported installing Hyper-V on
+October 12; its configuration and a clean Windows test VM have not been verified.
+Notify the owner when a fresh-Windows VM audit becomes the next useful step.
+VM provisioning was deferred on October 6 and has not been requested by this
+installation report; do not start it on an ordinary request to continue.
+Fresh-machine acceptance remains unverified.
 Authenticated Open Cloud execution likewise requires a suitable environment
 and credentials.
 

@@ -10,7 +10,7 @@ Work continues on `codex/desktop-alpha` in
 [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106); no release candidate, publication, or
 tag is prepared. The CLI/core workspace, versioned inspection, manifest-based
 Watch summary, Blender preflight/repair, and CLI worker protocol are implemented.
-The ordinary CLI/core suite passed 560 tests (533 CLI, 27 core), with 24 live or
+The ordinary CLI/core suite passed 563 tests (536 CLI, 27 core), with 24 live or
 prerequisite-dependent tests ignored. Core coverage includes
 bounded configuration reads, diagnostic redaction, both output streams, and
 Windows descendant cancellation. A test-build bridge now verifies Check/Test

@@ -80,7 +80,7 @@ fn workbench_status_reports_unresponsive_and_exited_supervisors_truthfully() {
     );
 }
 
-fn with_workbench_stop_fixture<R>(finish: bool, action: impl FnOnce(&Path) -> R) -> R {
+fn with_workbench_stop_fixture<R>(finish: Option<State>, action: impl FnOnce(&Path) -> R) -> R {
     use std::sync::atomic::{AtomicBool, Ordering};
     let root = tempfile::tempdir().unwrap();
     let owner = open_lock(root.path(), "owner.lock").unwrap();
@@ -102,15 +102,17 @@ fn with_workbench_stop_fixture<R>(finish: bool, action: impl FnOnce(&Path) -> R)
     let server_shutdown = shutdown.clone();
     let state_root = root.path().to_owned();
     let server = std::thread::spawn(move || {
-        let _owner = owner;
+        let mut owner = Some(owner);
         let deadline = Instant::now() + Duration::from_secs(5);
         let mut stopped_at = None;
         while Instant::now() < deadline && !server_shutdown.load(Ordering::Acquire) {
-            if finish
+            if finish.is_some()
                 && stopped_at
                     .is_some_and(|instant: Instant| instant.elapsed() >= Duration::from_millis(200))
             {
-                break;
+                // Keep control alive so terminal-state assertions do not race
+                // connection teardown when ownership is released.
+                drop(owner.take());
             }
             match listener.accept() {
                 Ok((mut stream, _)) => {
@@ -127,12 +129,16 @@ fn with_workbench_stop_fixture<R>(finish: bool, action: impl FnOnce(&Path) -> R)
                         stopped_at = Some(Instant::now());
                     } else {
                         assert_eq!(request.verb, "status");
-                        if finish
+                        if let Some(terminal) = finish
                             && stopped_at.is_some_and(|instant| {
                                 instant.elapsed() >= Duration::from_millis(40)
                             })
                         {
-                            snapshot.state = State::Stopped;
+                            snapshot.state = terminal;
+                            if terminal == State::Failed {
+                                snapshot.message =
+                                    "fixture Watch engine failed while stopping".into();
+                            }
                         }
                     }
                     save(&state_root, &snapshot).unwrap();
@@ -155,7 +161,7 @@ fn with_workbench_stop_fixture<R>(finish: bool, action: impl FnOnce(&Path) -> R)
 
 #[test]
 fn workbench_stop_waits_for_terminal_state_and_released_ownership() {
-    with_workbench_stop_fixture(true, |root| {
+    with_workbench_stop_fixture(Some(State::Stopped), |root| {
         let started = Instant::now();
         stop_and_wait_at(root, Duration::from_secs(2)).unwrap();
         assert!(started.elapsed() >= Duration::from_millis(200));
@@ -168,8 +174,41 @@ fn workbench_stop_waits_for_terminal_state_and_released_ownership() {
 }
 
 #[test]
+fn workbench_stop_reports_failure_after_releasing_ownership() {
+    with_workbench_stop_fixture(Some(State::Failed), |root| {
+        let started = Instant::now();
+        let error = stop_and_wait_at(root, Duration::from_secs(2)).unwrap_err();
+        assert!(started.elapsed() >= Duration::from_millis(200));
+        assert!(acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
+        assert!(
+            error.to_string().contains("did not stop successfully"),
+            "{error:#}"
+        );
+        assert!(error.to_string().contains("rproj watch logs"), "{error:#}");
+        assert!(
+            error
+                .to_string()
+                .contains("fixture Watch engine failed while stopping"),
+            "{error:#}"
+        );
+
+        let before = fs::read(root.join("session.json")).unwrap();
+        let status = structured_status_at(root).unwrap();
+        assert_eq!(status.state, rproj_core::operations::WatchState::Failed);
+        assert_eq!(status.message, "fixture Watch engine failed while stopping");
+        assert!(
+            stop_and_wait_at(root, Duration::from_secs(2))
+                .unwrap_err()
+                .to_string()
+                .contains("did not stop successfully")
+        );
+        assert_eq!(fs::read(root.join("session.json")).unwrap(), before);
+    });
+}
+
+#[test]
 fn workbench_stop_timeout_does_not_claim_stopped() {
-    with_workbench_stop_fixture(false, |root| {
+    with_workbench_stop_fixture(None, |root| {
         let error = stop_and_wait_at(root, Duration::from_millis(80)).unwrap_err();
         assert!(
             error.to_string().contains("has not finished stopping"),

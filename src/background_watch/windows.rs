@@ -479,6 +479,11 @@ fn stop_and_wait_at(root: &Path, timeout: Duration) -> Result<()> {
         if matches!(current.state, State::Stopped | State::Failed) {
             let owner = open_lock(root, "owner.lock")?;
             if acquire_shared(&owner)? {
+                ensure!(
+                    current.state == State::Stopped,
+                    "Watch did not stop successfully: {}. Inspect `rproj watch logs` before restarting",
+                    current.display()
+                );
                 println!("{}", current.display());
                 return Ok(());
             }
