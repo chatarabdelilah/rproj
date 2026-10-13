@@ -1,5 +1,41 @@
 # Release-Hardening Audit
 
+## October 13: manual desktop theme, icon, and keyboard checks
+
+The owner confirmed that text and buttons remain readable after switching to
+Light and then Dark in the portable preview's Appearance controls. This adds
+manual theme-readability evidence to the confirmed opening/resizing checks for
+the `00784b3` preview. A targeted follow-up confirmed that the folder icon beside
+Open project is visible in both themes, resolving the initial missing-icons
+report. Broader navigation icons and branding are not implemented.
+
+The owner also confirmed that Tab/Shift+Tab keep focus visible between Overview
+and Dependencies, Enter opens Dependencies, and Space returns to Overview.
+Enter also opens the folder picker; Esc cancels it, preserves the selected
+project, and lets Tab navigation resume. These section and folder-dialog checks
+pass; section actions, the output filter, display scaling, and background
+responsiveness remain outside the verified evidence. The UI remains provisional,
+native capture/activation automation stays stopped, and PR #106 remains draft.
+The owner reports 100% Windows Scale on both monitors; alternate-scale behavior
+has not yet been verified.
+
+A disposable plain Rojo project with synthetic Wally declarations across shared,
+server, and development realms was calibrated using the verified portable CLI.
+Three bounded invocations inspected 500 dependencies in 0.0538 seconds and 5,300
+dependencies in 0.2852 and 0.2802 seconds. The final manifest is 318,209 bytes;
+its JSON output is 1,915,962 bytes. All runs parsed the expected dependency count,
+reported a ready manifest, exited successfully with empty stderr, and preserved
+project file hashes, membership, and last-write timestamps. Timings include CLI
+startup, inspection, serialization, and pipe draining. No packages were installed
+or GUI operations launched. The ignored fixture and measurement records live
+under `target/desktop-fixture/`. The three-calibration budget is exhausted; the
+result supports a bounded-load smoke check, not sustained native responsiveness.
+
+The documentation-only acceptance checkpoint `92d3b47` passed all seven executed
+jobs in [38370486305](https://github.com/chatarabdelilah/rproj/actions/runs/38370486305).
+The preview's runtime is unchanged by that checkpoint or these acceptance notes.
+Subsequent exact-head CI results are tracked in draft PR #106.
+
 ## October 12: isolated worker dispatch coverage
 
 Work continues on `codex/desktop-alpha` in draft PR #106. The owner confirmed

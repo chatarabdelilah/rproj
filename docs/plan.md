@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 12, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 13, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -22,8 +22,12 @@ The owner confirmed continuation and emphasized that the current UI is not the
 intended release design. Preserve the shared-core work and validate the existing
 prototype. Wireframes and visual mockups still need a separate review; technical
 acceptance does not approve the prototype's navigation, layout, or styling for
-release. Opening, resizing, and visible text/buttons are confirmed. Continue with
-theme readability and the remaining native checks; icon visibility is unverified.
+release. Opening, resizing, and visible text/buttons are confirmed. On October 13,
+the owner confirmed readable text/buttons and the Open project folder icon in both
+Light and Dark themes, plus visible focus and keyboard activation between Overview
+and Dependencies. The folder picker opens with Enter and cancels with Esc while
+preserving the selected project and restoring Tab navigation. Continue with
+display scaling, background responsiveness, and the remaining interaction checks.
 
 The approved [desktop transition](desktop-transition.md) is under implementation:
 shared read-only inspection, manifest-based Watch summaries, Blender repair,

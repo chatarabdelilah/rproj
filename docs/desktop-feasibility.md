@@ -121,20 +121,34 @@ failure does not identify a framework or application defect. Further native
 acceptance remains manual rather than another unbounded capture retry.
 
 The owner subsequently confirmed opening and resizing of the CI `00784b3`
-portable preview, and clarified that text and buttons are visible but icons are
-not. The preview launcher needed corrected argument order and Windows PowerShell
-5.1 support; those local helper corrections restored launch. No capture or
-activation automation was retried.
+portable preview, and clarified that text and buttons are visible while initially
+reporting no icons. The preview launcher needed corrected argument order and
+Windows PowerShell 5.1 support; those local helper corrections restored launch.
+No capture or activation automation was retried.
 
 Source and pinned dependency inspection confirm that the one explicit action
 icon, `FolderOpen` on Open project, is in the registered default asset bundle.
-No missing-asset configuration defect was found. Its actual visibility remains
-unverified; the broader navigation icons, logo, and branding are not implemented.
+No missing-asset configuration defect was found. A targeted owner check on
+October 13 confirmed that folder icon is visible in both Light and Dark themes,
+resolving the initial report. The broader navigation icons, logo, and branding
+are not implemented.
 
-The full native gate remains pending: display scaling, light/dark appearance,
-icon visibility, background-work responsiveness, the complete keyboard flow,
-and the remaining visual/interactive acceptance. The confirmed opening,
-resizing, and visible controls are partial evidence, not a full gate pass.
+On October 13, the owner confirmed that text and buttons remain readable after
+switching to Light and then Dark in the preview's Appearance controls. The owner
+also confirmed visible focus and correct keyboard activation between Overview
+and Dependencies: Tab then Enter opens Dependencies, and Shift+Tab then Space
+returns to Overview. A subsequent keyboard check confirmed that Enter opens the
+folder picker and Esc cancels it, preserving the selected project and allowing
+Tab navigation to resume. Section actions and the output filter remain outside
+these manual checks.
+
+The full native gate remains pending: display scaling, background-work
+responsiveness, and the remaining visual/interactive acceptance. The confirmed
+opening, resizing, visible controls, theme readability, folder icon, section
+keyboard navigation, and folder-dialog recovery are partial evidence, not a full
+gate pass. A bounded synthetic project inspected 5,300 dependencies in about
+0.28 seconds through the portable CLI; this is too fast to establish sustained
+native responsiveness. The [audit](release-audit.md) records the calibration.
 The owner authorized continued technical validation while explicitly keeping
 the current UI provisional; wireframes and visual design require separate review.
 
