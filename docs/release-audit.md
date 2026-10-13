@@ -2,9 +2,17 @@
 
 ## October 12: isolated worker dispatch coverage
 
-Work continues on `codex/desktop-alpha` in draft PR #106. The owner has not yet
-checked the portable native preview, so the native gate and merge remain pending.
-Native automation was not retried. Published 0.22.0 remains unchanged.
+Work continues on `codex/desktop-alpha` in draft PR #106. The owner confirmed
+opening and resizing the portable preview from CI head `00784b3`. The local
+preview helper initially supplied the project before `--preferences-path`,
+causing an immediate usage error; corrected argument order and Windows
+PowerShell 5.1 support restored launch. The owner clarified that text and buttons
+are visible, but icons are not; the window is not blank. Icon visibility and the
+remaining native gate still need verification. The owner explicitly authorized
+continuing technical validation while retaining separate wireframe/visual-design
+review before release. The current UI is provisional. Capture/activation
+automation was not retried;
+published 0.22.0 remains unchanged, and the PR stays in draft.
 
 Windows tests now drive the production `WorkbenchClient`, operation dispatcher,
 and internal CLI exit reporting through a test-build child process. A small
@@ -63,8 +71,14 @@ The generated PR test-merge commit `4123ea6` has parents `17b7ef4` and `3fcaedc`
 and the same source tree as the latter; it is not a merge into main. Extracted
 version and matching-worker self-checks passed outside the Windows sandbox,
 which denied executable-path access. The cached desktop job took 2 minutes
-44 seconds. Subsequent final-head review and CI evidence are tracked in draft
-PR #106; the native gate continues to prevent merging.
+44 seconds. Updated documentation head `00784b3` subsequently passed all seven
+executed jobs in [38287575860](https://github.com/chatarabdelilah/rproj/actions/runs/38287575860).
+The downloaded portable archive's checksum and executable hashes were verified;
+its generated PR test-merge commit `1480963` has parents `17b7ef4` and `00784b3`
+and the same tree as the latter. Extracted version and matching-worker checks
+passed. This is the preview used for the owner's opening/resizing checks.
+The native gate continues to prevent merging; subsequent exact-head CI results
+are tracked in draft PR #106.
 
 The original-notice search was repeated for the three unresolved legacy
 dependencies. No exact-version original was recovered; the

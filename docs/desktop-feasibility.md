@@ -120,11 +120,23 @@ surface in the current environment. This is a tooling/verification limit; the
 failure does not identify a framework or application defect. Further native
 acceptance remains manual rather than another unbounded capture retry.
 
-The full native gate remains pending: stable resize and scaling, light/dark
-appearance, background-work responsiveness, the complete keyboard flow, and
-visual/interactive acceptance of the final portable build. This is an unresolved
-verification limit, not evidence that the framework failed. Headless tests and
-successful native process launch must not be reported as a full gate pass.
+The owner subsequently confirmed opening and resizing of the CI `00784b3`
+portable preview, and clarified that text and buttons are visible but icons are
+not. The preview launcher needed corrected argument order and Windows PowerShell
+5.1 support; those local helper corrections restored launch. No capture or
+activation automation was retried.
+
+Source and pinned dependency inspection confirm that the one explicit action
+icon, `FolderOpen` on Open project, is in the registered default asset bundle.
+No missing-asset configuration defect was found. Its actual visibility remains
+unverified; the broader navigation icons, logo, and branding are not implemented.
+
+The full native gate remains pending: display scaling, light/dark appearance,
+icon visibility, background-work responsiveness, the complete keyboard flow,
+and the remaining visual/interactive acceptance. The confirmed opening,
+resizing, and visible controls are partial evidence, not a full gate pass.
+The owner authorized continued technical validation while explicitly keeping
+the current UI provisional; wireframes and visual design require separate review.
 
 The gate must establish native Windows compilation and window launch, basic
 keyboard interaction, resizing and scaling, background work responsiveness,

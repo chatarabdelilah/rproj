@@ -17,6 +17,14 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**Current priority, clarified October 12: continue technical prototype validation.**
+The owner confirmed continuation and emphasized that the current UI is not the
+intended release design. Preserve the shared-core work and validate the existing
+prototype. Wireframes and visual mockups still need a separate review; technical
+acceptance does not approve the prototype's navigation, layout, or styling for
+release. Opening, resizing, and visible text/buttons are confirmed. Continue with
+theme readability and the remaining native checks; icon visibility is unverified.
+
 The approved [desktop transition](desktop-transition.md) is under implementation:
 shared read-only inspection, manifest-based Watch summaries, Blender repair,
 and a native Windows workbench backed by the existing CLI. All seven executed

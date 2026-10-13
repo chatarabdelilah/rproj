@@ -6,6 +6,15 @@ The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
 ## Implementation checkpoint (October 12)
 
+The owner clarified that technical prototype work should continue, while the
+current UI must not become the release design by default. Keep its navigation,
+layout, and styling provisional. Wireframes and visual mockups still require
+separate review; technical acceptance is not design acceptance. The owner
+confirmed opening and resizing, then clarified that text and buttons are visible
+but icons are not. This is not a blank-window report. Themes, icon visibility,
+keyboard, scaling, and background responsiveness remain unverified. Do not
+restart the stalled native capture/activation route.
+
 Work continues on `codex/desktop-alpha` in
 [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106); no release candidate, publication, or
 tag is prepared. The CLI/core workspace, versioned inspection, manifest-based
@@ -28,9 +37,10 @@ an explicitly executed installed-Blender temporary-scene test passed.
 
 GPUI Kit 0.7.1 compiles with workspace-local Rust 1.99, renders a Windows window,
 and exposes keyboard focus after adding an explicit focus owner. System Rust
-defaults remain unchanged. The core-backed desktop's resize/theme/operation
-acceptance remains pending. All seven executed PR CI jobs passed on prior head
-`3fcaedc`, including the portable build and extracted-copy checks. Complete
+defaults remain unchanged. The core-backed desktop's remaining native theme and
+operation acceptance remains pending. All seven executed PR CI jobs passed on
+`00784b3`, including the portable build and extracted-copy checks. That portable
+preview is the source of the owner's opening/resizing evidence. Complete
 CodeRabbit review at `87dc635` found only a stale checkpoint statement, corrected
 by direct documentation review; it reported no further code findings. Updated-head
 CI evidence is tracked in PR #106, which stays in draft for the native gate. An
