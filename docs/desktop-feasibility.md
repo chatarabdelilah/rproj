@@ -91,8 +91,8 @@ GitHub's Windows runner independently passed the eight desktop tests, strict
 Clippy, notice-preservation regressions, and portable packaging in
 [run 38161159774](https://github.com/chatarabdelilah/rproj/actions/runs/38161159774)
 on `27cf3d0`. Its first desktop job took 19 minutes 45 seconds and retained the
-ZIP/checksum artifact. This confirms the automated package path; the native
-acceptance gap below remains open.
+ZIP/checksum artifact. This confirms the automated package path; the later manual
+evidence below completes the initial Windows feasibility gate.
 
 The actual portable workbench launched against an ignored fixture using an
 explicit `--preferences-path` inside `target/desktop-fixture/`. Computer Use
@@ -139,18 +139,37 @@ also confirmed visible focus and correct keyboard activation between Overview
 and Dependencies: Tab then Enter opens Dependencies, and Shift+Tab then Space
 returns to Overview. A subsequent keyboard check confirmed that Enter opens the
 folder picker and Esc cancels it, preserving the selected project and allowing
-Tab navigation to resume. Section actions and the output filter remain outside
-these manual checks.
+Tab navigation to resume. The October 14 check below adds operation and
+output-filter evidence.
 
-The full native gate remains pending: display scaling, background-work
-responsiveness, and the remaining visual/interactive acceptance. The confirmed
-opening, resizing, visible controls, theme readability, folder icon, section
-keyboard navigation, and folder-dialog recovery are partial evidence, not a full
-gate pass. A bounded synthetic project inspected 5,300 dependencies in about
-0.28 seconds through the portable CLI; this is too fast to establish sustained
-native responsiveness. The [audit](release-audit.md) records the calibration.
-The owner authorized continued technical validation while explicitly keeping
-the current UI provisional; wireframes and visual design require separate review.
+Both monitors normally use 100% Windows Scale. The owner temporarily switched
+the preview's monitor to 125%, confirmed readable text, unclipped controls, and
+correct Dependencies selection by clicking, then restored 100% successfully.
+This verifies the requested same-monitor scale transition; mixed-scale monitor
+movement was not tested.
+
+On October 14, a timer-only Check fixture completed through the shipped
+CLI worker and installed Lute in 5.1415 seconds with all expected output and
+existing fixture/Watch storage preserved. The owner then opened that fixture in
+the portable preview, ran Checks, and confirmed that the window stayed responsive
+while switching themes during the five-second operation. The operation finished;
+searching for `PROBE tick 3/5` filtered the output correctly, and clearing the query
+restored it. Lute buffers this script's piped output until completion, so this
+does not verify one-second incremental output.
+
+**The initial Windows GPUI feasibility gate passed on October 14.** Released
+dependencies build and launch from the portable package; native keyboard/focus,
+resizing/scaling, Light/Dark readability, and background-operation responsiveness
+have evidence. This permits continued desktop development, not public release or
+Ratatui retirement. The current UI remains provisional; wireframes and visual
+design require separate review. Broader workflow parity, real Test/Roblox runner
+acceptance, fresh-machine packaging, and macOS/Linux desktop acceptance remain
+separate work.
+
+A bounded synthetic project also inspected 5,300 dependencies in about 0.28
+seconds through the portable CLI. That supports bounded-load inspection only;
+the five-second native Check supplies the responsiveness evidence. The
+[audit](release-audit.md) records both fixtures and their limits.
 
 The gate must establish native Windows compilation and window launch, basic
 keyboard interaction, resizing and scaling, background work responsiveness,

@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 13, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 14, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, clarified October 12: continue technical prototype validation.**
+**Current priority, October 14: deliver the verified prototype, then review designs.**
 The owner confirmed continuation and emphasized that the current UI is not the
 intended release design. Preserve the shared-core work and validate the existing
 prototype. Wireframes and visual mockups still need a separate review; technical
@@ -26,16 +26,23 @@ release. Opening, resizing, and visible text/buttons are confirmed. On October 1
 the owner confirmed readable text/buttons and the Open project folder icon in both
 Light and Dark themes, plus visible focus and keyboard activation between Overview
 and Dependencies. The folder picker opens with Enter and cancels with Esc while
-preserving the selected project and restoring Tab navigation. Continue with
-display scaling, background responsiveness, and the remaining interaction checks.
+preserving the selected project and restoring Tab navigation. The owner also
+confirmed readable, unclipped controls and correct clicks at 125% Windows Scale
+and after restoring 100%. A disposable five-second Check passed through the
+shipped CLI with installed Lute and preserved existing Watch state/storage.
+On October 14, the owner confirmed that this Check stays responsive during theme
+changes, finishes, and supports filtering and restoring its output. The initial
+Windows GPUI feasibility gate is complete. Finish reviewed PR delivery, then
+prepare wireframes and visual mockups before expanding the native interface.
 
 The approved [desktop transition](desktop-transition.md) is under implementation:
 shared read-only inspection, manifest-based Watch summaries, Blender repair,
 and a native Windows workbench backed by the existing CLI. All seven executed
-CI jobs passed for [draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
+CI jobs passed for [PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
 Isolated worker tests now verify Check/Test dispatch and Watch-lock recovery using
-disposable tools and storage. Complete native acceptance before treating it as available to
-users. The [audit](release-audit.md) records completed checks and remaining gates.
+disposable tools and storage. The initial native feasibility pass does not make
+this a released desktop product or establish workflow parity. The
+[audit](release-audit.md) records completed checks and remaining gates.
 
 The published baseline is **v0.22.0, public alpha**. Interactive Upgrade
 shows actual file diffs in Ratatui and uses default-No Apply-all confirmation;

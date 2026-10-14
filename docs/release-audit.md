@@ -1,5 +1,60 @@
 # Release-Hardening Audit
 
+## October 14: initial Windows GPUI feasibility gate passed
+
+The owner confirmed the final native check in the verified portable preview:
+running the five-second Check fixture kept the window responsive during
+Light/Dark changes, completed successfully, and allowed `PROBE tick 3/5` to
+filter the output and clearing the query to restore it. Together with the
+opening, resizing, theme, icon, keyboard/focus, folder-picker, and 100%/125%
+scaling checks below, this completes the initial Windows GPUI feasibility gate.
+No capture/activation automation was retried.
+
+This is acceptance of the technical foundation, not the release design, full
+workflow parity, or a public desktop release. Wireframes and visual mockups
+still require separate review before expanding the interface. Real Test/Roblox
+runner, fresh-machine, authenticated Open Cloud, and macOS/Linux desktop
+acceptance remain unverified. The prior exact head `50df649` passed all seven
+executed jobs in [38465159162](https://github.com/chatarabdelilah/rproj/actions/runs/38465159162);
+the scheduled/manual badge job was intentionally skipped. These acceptance notes
+change no runtime source and receive direct diff review. Final-head review/CI
+and merge delivery are tracked in [PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
+Published 0.22.0, versions, and tags remain unchanged.
+
+### Shipped Check worker with installed Lute
+
+A disposable plain Rojo project under
+`target/desktop-fixture/background-check` contains a timer/stdout-only
+`.lute/check.luau` script. The already-installed Lute 1.0.0 executable was used
+directly, without tool installation. The verified `00784b3` portable CLI ran
+`--rproj-workbench check` from that project and completed in **5.1415 seconds**,
+exit 0, with empty stderr and all seven expected start/tick/complete lines.
+Read-only inspection reports Check available, no package dependencies, and Test
+unavailable because the fixture has no test framework configured.
+
+This uses the shipped production Check dispatcher and its normal Watch guard,
+not the test-build bridge or private test storage. The real Watch root already
+contained all four guard files and a Failed session from the earlier fixture's
+intentional missing Wally package. Check preserved that status plus fixture and
+Watch file contents, membership, last-write timestamps, and ACLs. The guard's
+normal directory protection/lock acquisition still ran; this is preservation
+evidence for the existing storage, not a zero-access or fully isolated run.
+A sandboxed status query had reported a different empty root, so acceptance was
+run in the owner context outside the sandbox.
+
+The ignored helper `target/desktop-fixture/verify-background-check.ps1` verifies
+the bundle source identity and CLI hash, requires the existing guard files, and
+refuses active/recovering Watch states. Its 15-second deadline covers both process
+exit and pipe capture. Review corrected unbounded pipe waits and preservation
+checks skipped on failure; cleanup and result recording now use `finally`.
+The result is saved in `background-check-worker-result.json` beside the helper.
+Lute buffers this script's piped output until completion, so the fixture tests
+an ongoing operation and its final output, not one-second incremental updates.
+
+The subsequent owner check above verifies native responsiveness, Checks
+activation, and output filtering through the existing preview. The observed
+100%/125% scaling pass is recorded below.
+
 ## October 13: manual desktop theme, icon, and keyboard checks
 
 The owner confirmed that text and buttons remain readable after switching to
@@ -12,12 +67,15 @@ report. Broader navigation icons and branding are not implemented.
 The owner also confirmed that Tab/Shift+Tab keep focus visible between Overview
 and Dependencies, Enter opens Dependencies, and Space returns to Overview.
 Enter also opens the folder picker; Esc cancels it, preserves the selected
-project, and lets Tab navigation resume. These section and folder-dialog checks
-pass; section actions, the output filter, display scaling, and background
-responsiveness remain outside the verified evidence. The UI remains provisional,
-native capture/activation automation stays stopped, and PR #106 remains draft.
-The owner reports 100% Windows Scale on both monitors; alternate-scale behavior
-has not yet been verified.
+project, and lets Tab navigation resume. At this checkpoint, section actions,
+the output filter, and background responsiveness were still unverified and
+PR #106 remained draft; the October 14 entry records their later verification.
+The UI remains provisional and native capture/activation automation stays stopped.
+Both monitors normally use 100% Windows Scale. The owner temporarily selected
+125% for the preview's monitor and confirmed readable text, unclipped controls,
+and correct Dependencies selection by clicking. Restoring 100% also worked.
+This passes the requested same-monitor scale transition; mixed-scale monitor
+movement was not tested.
 
 A disposable plain Rojo project with synthetic Wally declarations across shared,
 server, and development realms was calibrated using the verified portable CLI.

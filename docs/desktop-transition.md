@@ -4,7 +4,7 @@ Approved October 8, 2026. This supersedes the Ratatui-only direction, not the
 retirement of Tauri, model import, or embedded replacements for external tools.
 The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
-## Implementation checkpoint (October 13)
+## Implementation checkpoint (October 14)
 
 The owner clarified that technical prototype work should continue, while the
 current UI must not become the release design by default. Keep its navigation,
@@ -16,12 +16,21 @@ confirmed the Open project folder icon in both Light and Dark themes. Text/butto
 are readable in both themes. Tab/Shift+Tab focus stays visible between Overview
 and Dependencies, and Enter/Space activate the expected section. Enter opens the
 folder picker; Esc cancels while preserving the project and restoring Tab
-navigation. Display scaling, background responsiveness, and the remaining
-interaction checks are unverified. Do not restart the stalled native
+navigation. The owner confirmed readable, unclipped controls and correct clicks
+at 125% Windows Scale and after restoring 100%. On October 14, the owner confirmed
+that a five-second Check stays responsive during theme changes, finishes, and
+supports filtering and restoring its output. Do not restart the stalled native
 capture/activation route.
 
+A five-second disposable Check now passes through the shipped CLI worker with
+installed Lute 1.0.0, preserving the existing Watch state, files, and permissions.
+Together with the owner's native check, this completes the initial Windows GPUI
+feasibility gate. The [audit](release-audit.md) records the exact evidence and
+limits. Wireframe/design review is the next product milestone; full workflow
+parity and public-release acceptance remain separate gates.
+
 Work continues on `codex/desktop-alpha` in
-[draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106); no release candidate, publication, or
+[PR #106](https://github.com/chatarabdelilah/rproj/pull/106); no release candidate, publication, or
 tag is prepared. The CLI/core workspace, versioned inspection, manifest-based
 Watch summary, Blender preflight/repair, and CLI worker protocol are implemented.
 The ordinary CLI/core suite passed 563 tests (536 CLI, 27 core), with 24 live or
@@ -29,8 +38,9 @@ prerequisite-dependent tests ignored. Core coverage includes
 bounded configuration reads, diagnostic redaction, both output streams, and
 Windows descendant cancellation. A test-build bridge now verifies Check/Test
 dispatch, both output streams, exact failure codes, and Watch-lock refusal/recovery
-with disposable tools and storage; shipped-binary and real-runner acceptance
-remain separate. Both CLI/core archives built successfully with
+with disposable tools and storage. The shipped Check worker now also has the
+installed-Lute and native evidence above; real Test/Roblox runner acceptance
+remains separate. Both CLI/core archives built successfully with
 the final dependency graph using locked offline packaging in a fresh target
 directory. Repeated packaging at the unchanged development version had reused an
 older local-registry core source; CI now isolates that registry by run identity.
@@ -42,13 +52,14 @@ an explicitly executed installed-Blender temporary-scene test passed.
 
 GPUI Kit 0.7.1 compiles with workspace-local Rust 1.99, renders a Windows window,
 and exposes keyboard focus after adding an explicit focus owner. System Rust
-defaults remain unchanged. The core-backed desktop's remaining native interaction
-and operation acceptance remains pending. All seven executed PR CI jobs passed on
+defaults remain unchanged. The initial Windows feasibility gate is complete;
+broader workflow acceptance remains pending. All seven executed PR CI jobs passed on
 `00784b3`, including the portable build and extracted-copy checks. That portable
 preview is the source of the owner's opening/resizing evidence. Complete
 CodeRabbit review at `87dc635` found only a stale checkpoint statement, corrected
 by direct documentation review; it reported no further code findings. Updated-head
-CI evidence is tracked in PR #106, which stays in draft for the native gate. An
+CI and merge evidence are tracked in PR #106; the native gate no longer blocks
+review of this unreleased prototype. An
 initial portable ZIP passed extracted version, worker identity, read-only
 inspection, and static-runtime dependency checks. See
 [the framework record](desktop-feasibility.md). The complete uncommitted CodeRabbit
