@@ -26,6 +26,22 @@ env:
   CARGO_NET_RETRY: 3
 
 jobs:
+  core:
+    name: shared core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked -p rproj-core
+      - run: cargo clippy --locked -p rproj-core --all-targets -- -D warnings
+
   test:
     name: test (${{ matrix.toolchain }} on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -120,9 +136,49 @@ jobs:
 
       # Builds the tarball AND compiles the crate from it, which is the
       # only check that catches a file excluded from the package but
-      # needed by the build.
+      # needed by the build. A unique local registry path prevents Cargo
+      # from reusing an older cached core archive at an unreleased version.
       - name: Verify the crate packages and builds from its tarball
-        run: cargo package --locked
+        run: cargo package --locked -p rproj-core -p rproj --target-dir target/package-check-${{ github.run_id }}-${{ github.run_attempt }}
+
+  desktop:
+    name: desktop (Windows portable)
+    runs-on: windows-latest
+    if: github.event_name != 'schedule'
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install the desktop toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.99.0'
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-windows-1.99.0
+      - name: Desktop tests
+        run: cargo +1.99.0 test --locked -p rproj-desktop
+      - name: Desktop Clippy
+        run: cargo +1.99.0 clippy --locked -p rproj-desktop --all-targets -- -D warnings
+      - name: Verify dependency notice preservation
+        shell: pwsh
+        run: |
+          $fixture = Join-Path $env:RUNNER_TEMP ('rproj-notices-' + [Guid]::NewGuid().ToString('N'))
+          ./scripts/test-desktop-notices.ps1 -Writer ./scripts/write-desktop-notices.ps1 -FixtureRoot $fixture
+      - name: Build and smoke-check the portable distribution
+        id: portable
+        shell: pwsh
+        run: ./scripts/package-desktop.ps1 -Toolchain '1.99.0'
+      - name: Preserve the portable archive and checksums
+        uses: actions/upload-artifact@v7
+        with:
+          name: rproj-desktop-windows-x86_64
+          path: |
+            ${{ steps.portable.outputs.archive }}
+            ${{ steps.portable.outputs.checksum }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
 
   badges:
     name: badge freshness

@@ -91,13 +91,19 @@ fn root() -> Result<PathBuf> {
 thread_local! { static TEST_ROOT: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) }; }
 
 #[cfg(test)]
-pub(crate) fn with_unresponsive_fixture<R>(project: &Path, action: impl FnOnce() -> R) -> R {
+pub(crate) fn with_test_root<R>(path: &Path, action: impl FnOnce() -> R) -> R {
     struct Restore(Option<PathBuf>);
     impl Drop for Restore {
         fn drop(&mut self) {
             TEST_ROOT.with(|root| *root.borrow_mut() = self.0.take());
         }
     }
+    let _restore = Restore(TEST_ROOT.with(|slot| slot.replace(Some(path.into()))));
+    action()
+}
+
+#[cfg(test)]
+pub(crate) fn with_unresponsive_fixture<R>(project: &Path, action: impl FnOnce() -> R) -> R {
     let root = tempfile::tempdir().unwrap();
     private_directory(root.path()).unwrap();
     let owner = open_lock(root.path(), "owner.lock").unwrap();
@@ -113,8 +119,7 @@ pub(crate) fn with_unresponsive_fixture<R>(project: &Path, action: impl FnOnce()
         supervisor: 0,
     };
     save(root.path(), &snapshot).unwrap();
-    let _restore = Restore(TEST_ROOT.with(|slot| slot.replace(Some(root.path().into()))));
-    action()
+    with_test_root(root.path(), action)
 }
 
 fn private_directory(path: &Path) -> Result<()> {
@@ -194,10 +199,17 @@ fn save(root: &Path, snapshot: &Snapshot) -> Result<()> {
 }
 
 fn metadata(root: &Path) -> Result<Option<Snapshot>> {
+    metadata_with(root, false)
+}
+
+fn metadata_with(root: &Path, read_only: bool) -> Result<Option<Snapshot>> {
     if !root.exists() {
         return Ok(None);
     }
-    let _state = lock_state(root, false)?;
+    if read_only && !root.join("session.json").exists() {
+        return Ok(None);
+    }
+    let _state = lock_state_with(root, false, read_only)?;
     match File::open(root.join("session.json")) {
         Ok(file) => {
             let snapshot: Snapshot =
@@ -214,8 +226,19 @@ fn metadata(root: &Path) -> Result<Option<Snapshot>> {
 }
 
 fn lock_state(root: &Path, writing: bool) -> Result<File> {
-    let state = open_lock(root, "state.lock")?;
-    let gate = open_lock(root, "state-writer.lock")?;
+    lock_state_with(root, writing, false)
+}
+
+fn lock_state_with(root: &Path, writing: bool, read_only: bool) -> Result<File> {
+    let open = |name| {
+        if read_only {
+            File::open(root.join(name)).map_err(anyhow::Error::from)
+        } else {
+            open_lock(root, name)
+        }
+    };
+    let state = open("state.lock")?;
+    let gate = open("state-writer.lock")?;
     let deadline = Instant::now() + TIMEOUT;
     let pause = || -> Result<()> {
         if Instant::now() >= deadline {
@@ -293,12 +316,32 @@ fn request(snapshot: &Snapshot, token: &str, verb: &str) -> Result<Snapshot> {
 }
 
 fn status_at(root: &Path) -> Result<Option<Snapshot>> {
+    status_at_with(root, false)
+}
+
+fn status_at_with(root: &Path, read_only: bool) -> Result<Option<Snapshot>> {
     if !root.exists() {
         return Ok(None);
     }
-    let lock = open_lock(root, "owner.lock")?;
-    let held = !acquire_shared(&lock)?;
-    let cached = metadata(root);
+    let lock = if read_only {
+        match File::open(root.join("owner.lock")) {
+            Ok(lock) => Some(lock),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error.into()),
+        }
+    } else {
+        Some(open_lock(root, "owner.lock")?)
+    };
+    let held = lock
+        .as_ref()
+        .map(acquire_shared)
+        .transpose()?
+        .is_some_and(|available| !available);
+    let cached = if read_only {
+        metadata_with(root, true)
+    } else {
+        metadata(root)
+    };
     if !held {
         let mut snapshot = cached?;
         if let Some(snapshot) = &mut snapshot
@@ -342,6 +385,35 @@ pub(crate) fn show_status() -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn structured_status() -> Result<rproj_core::operations::WatchStatus> {
+    structured_status_at(&root()?)
+}
+
+fn structured_status_at(root: &Path) -> Result<rproj_core::operations::WatchStatus> {
+    use rproj_core::operations::{WatchState, WatchStatus};
+    Ok(match status_at_with(root, true)? {
+        Some(snapshot) => WatchStatus {
+            supported: true,
+            project: Some(snapshot.project),
+            state: match snapshot.state {
+                State::Preparing => WatchState::Preparing,
+                State::Watching => WatchState::Watching,
+                State::Stopping => WatchState::Stopping,
+                State::Stopped => WatchState::Stopped,
+                State::Failed => WatchState::Failed,
+                State::Unresponsive => WatchState::Unresponsive,
+            },
+            message: snapshot.message,
+        },
+        None => WatchStatus {
+            supported: true,
+            project: None,
+            state: WatchState::Stopped,
+            message: "No background Watch".into(),
+        },
+    })
+}
+
 pub(crate) fn show_logs() -> Result<()> {
     logs_at(&root()?)
 }
@@ -380,6 +452,52 @@ pub(crate) fn stop() -> Result<()> {
         println!("Stopped: no background Watch");
     }
     Ok(())
+}
+
+pub(crate) fn stop_and_wait() -> Result<()> {
+    stop_and_wait_at(&root()?, Duration::from_secs(15))
+}
+
+fn stop_and_wait_at(root: &Path, timeout: Duration) -> Result<()> {
+    let deadline = Instant::now() + timeout;
+    let Some(snapshot) = status_at(root)? else {
+        println!("Stopped: no background Watch");
+        return Ok(());
+    };
+    if snapshot.state.active() {
+        request(&snapshot, &snapshot.token, "stop")
+            .context("Watch could not acknowledge Stop; it has not been reported stopped")?;
+    }
+    loop {
+        crate::interrupt::check()?;
+        let current =
+            status_at(root)?.context("Watch session disappeared before Stop was acknowledged")?;
+        ensure!(
+            current.nonce == snapshot.nonce,
+            "Watch owner changed while waiting for Stop; inspect status before retrying"
+        );
+        if matches!(current.state, State::Stopped | State::Failed) {
+            let owner = open_lock(root, "owner.lock")?;
+            if acquire_shared(&owner)? {
+                ensure!(
+                    current.state == State::Stopped,
+                    "Watch did not stop successfully: {}. Inspect `rproj watch logs` before restarting",
+                    current.display()
+                );
+                println!("{}", current.display());
+                return Ok(());
+            }
+        }
+        ensure!(
+            current.state != State::Unresponsive,
+            "Watch control is unresponsive; it has not been reported stopped"
+        );
+        ensure!(
+            Instant::now() < deadline,
+            "Watch has not finished stopping; inspect status before starting another project"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    }
 }
 
 thread_local! { static MUTATION_DEPTH: Cell<usize> = const { Cell::new(0) }; }

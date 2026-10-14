@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 8, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 14, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -8,7 +8,7 @@ Updated October 8, 2026. This describes current priorities, not every idea consi
 
 rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
 
-- Ratatui remains the interactive interface: the workspace hub, project creation, Catalog, and Template Explorer.
+- Desktop is the approved future primary human interface. Follow the [desktop transition](desktop-transition.md), beginning with correctness fixes and a GPUI feasibility gate. Retain Ratatui during migration and direct commands permanently; reuse existing graphs, catalogs, and execution.
 - Direct commands remain available for automation and normal subprocess output.
 - Rojo owns model loading, builds, synchronization, and sourcemaps.
 - Selene owns linting, StyLua owns formatting, and luau-lsp owns type analysis.
@@ -16,6 +16,33 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**Current priority, October 14: deliver the verified prototype, then review designs.**
+The owner confirmed continuation and emphasized that the current UI is not the
+intended release design. Preserve the shared-core work and validate the existing
+prototype. Wireframes and visual mockups still need a separate review; technical
+acceptance does not approve the prototype's navigation, layout, or styling for
+release. Opening, resizing, and visible text/buttons are confirmed. On October 13,
+the owner confirmed readable text/buttons and the Open project folder icon in both
+Light and Dark themes, plus visible focus and keyboard activation between Overview
+and Dependencies. The folder picker opens with Enter and cancels with Esc while
+preserving the selected project and restoring Tab navigation. The owner also
+confirmed readable, unclipped controls and correct clicks at 125% Windows Scale
+and after restoring 100%. A disposable five-second Check passed through the
+shipped CLI with installed Lute and preserved existing Watch state/storage.
+On October 14, the owner confirmed that this Check stays responsive during theme
+changes, finishes, and supports filtering and restoring its output. The initial
+Windows GPUI feasibility gate is complete. Finish reviewed PR delivery, then
+prepare wireframes and visual mockups before expanding the native interface.
+
+The approved [desktop transition](desktop-transition.md) is under implementation:
+shared read-only inspection, manifest-based Watch summaries, Blender repair,
+and a native Windows workbench backed by the existing CLI. All seven executed
+CI jobs passed for [PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
+Isolated worker tests now verify Check/Test dispatch and Watch-lock recovery using
+disposable tools and storage. The initial native feasibility pass does not make
+this a released desktop product or establish workflow parity. The
+[audit](release-audit.md) records completed checks and remaining gates.
 
 The published baseline is **v0.22.0, public alpha**. Interactive Upgrade
 shows actual file diffs in Ratatui and uses default-No Apply-all confirmation;
@@ -79,7 +106,7 @@ repairs the test harness without changing Projects behavior or the release.
 | Embedded Selene or StyLua | Removed. Working external tools do not need internal replacements. |
 | Full Moon | Removed. No approved standalone Lua/Luau parsing requirement exists. |
 | M6 / M7a + M6a: static model-to-template conversion | Permanently dropped. The owner requested deletion of the experiment and its branch; it will not be reintroduced. |
-| Tauri GUI and GUI-driven core-library extraction | Dropped, not deferred. Ratatui is the selected interface direction. |
+| Tauri GUI | Dropped. The approved native GPUI feasibility gate and incremental shared core are tracked in the desktop transition; Ratatui stays supported during migration. |
 | R4: additional project types | Uncommitted backlog, requiring a concrete use case and working build targets. |
 | M8: rproj Studio plugin | Uncommitted backlog. No new plugin is needed to release the existing product. |
 
@@ -280,10 +307,12 @@ cancellation. It adds no Rojo Serve, sign-in task, automatic restart, or service
 Implementation and acceptance are recorded in [the release audit](release-audit.md);
 owner publication, archive identity, annotated tag and GitHub alpha release
 are verified at `f3cdea8`. [Release notes](release-notes-0.20.0.md) record limits.
-The fresh-Windows environment inventory is complete: the current PC is already
-configured, and no spare Windows machine or ready local VM is available. The
-owner deferred Hyper-V/VM provisioning on October 6; do not resume it on an
-ordinary request to continue. Fresh-machine acceptance remains unverified.
+The current PC is already configured. The owner reported installing Hyper-V on
+October 12; its configuration and a clean Windows test VM have not been verified.
+Notify the owner when a fresh-Windows VM audit becomes the next useful step.
+VM provisioning was deferred on October 6 and has not been requested by this
+installation report; do not start it on an ordinary request to continue.
+Fresh-machine acceptance remains unverified.
 Authenticated Open Cloud execution likewise requires a suitable environment
 and credentials.
 

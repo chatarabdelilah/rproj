@@ -16,7 +16,7 @@ T5 (0.17.0 candidate) keeps Machine Setup selection, sequential installation pro
 
 The projects folder is read-only. Selections describe intent, not installation state. Deselecting never uninstalls software. Installer/UAC dialogs can appear separately. Stop confirmation waits for the active item, skips remaining work, and prevents configuration saving; it cannot roll back completed installations. Results offer Done or Back to Review for a confirmed rerun. Home borrows one terminal throughout.
 
-Ratatui is the selected interactive interface. There is no planned Tauri application or separate desktop frontend.
+The owner approved the [desktop transition](desktop-transition.md) on October 8, 2026. A native workbench will become the primary human interface after verified workflow parity. Ratatui remains supported during migration; the interaction contracts below describe its current behavior. Tauri remains dropped.
 
 The current interface is hybrid:
 

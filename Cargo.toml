@@ -1,3 +1,8 @@
+[workspace]
+members = [".", "crates/rproj-core", "crates/rproj-desktop"]
+default-members = [".", "crates/rproj-core"]
+resolver = "3"
+
 [package]
 name = "rproj"
 version = "0.22.0"
@@ -9,11 +14,12 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/chatarabdelilah/rproj"
 
-exclude = ["docs/", ".github/", ".codegraph/"]
+exclude = ["docs/", ".github/", ".codegraph/", "scripts/", "third-party/"]
 keywords = ["roblox", "luau", "rojo", "wally", "scaffold"]
 categories = ["command-line-utilities", "development-tools", "game-development"]
 
 [dependencies]
+rproj-core = { path = "crates/rproj-core", version = "=0.22.0" }
 anyhow = "1.0.104"
 arboard = { version = "3.6.1", default-features = false }
 clap = { version = "4.6.4", features = ["derive"] }

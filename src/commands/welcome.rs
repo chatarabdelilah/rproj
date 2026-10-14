@@ -61,6 +61,16 @@ const COMMANDS: &[(&str, &str, &[&str])] = &[
         "rproj info [key]",
         &["Look up what a tool or package does, and how to use it"],
     ),
+    (
+        "🔎",
+        "rproj inspect [path]",
+        &["Read actual dependencies, tool pins, and diagnostics; --json for automation"],
+    ),
+    (
+        "📺",
+        "rproj app [path]",
+        &["Open the desktop workbench at an optional project directory"],
+    ),
 ];
 
 pub fn run() {
@@ -133,6 +143,8 @@ mod tests {
             "test",
             "copy",
             "info",
+            "inspect",
+            "app",
         ] {
             assert!(
                 COMMANDS

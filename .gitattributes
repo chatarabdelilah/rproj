@@ -9,6 +9,9 @@
 # rproj writes out.
 * text=auto eol=lf
 
+# Preserve upstream notice bytes, including intentional trailing spaces.
+third-party/licenses/** -text whitespace=-trailing-space
+
 # No binary files are tracked today; these are the formats that would show
 # up first if any were, and line-ending conversion corrupts every one.
 *.rbxl binary

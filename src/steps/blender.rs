@@ -114,25 +114,105 @@ pub(crate) fn account_link_instructions(reporter: &Reporter) {
 /// Scaffolds `blender/scene.blend` in the project with Roblox's stud scale
 /// already configured, so every new Blender scene starts correctly sized.
 pub fn scaffold_starter_scene(project_dir: &Path) -> Result<()> {
+    scaffold_starter_scene_with(project_dir, locate_blender_exe, |exe, script| {
+        run_headless_script_at(exe, script, None)
+    })
+}
+
+pub(crate) fn preflight_starter_scene(project_dir: &Path) -> Result<()> {
+    starter_scene_executable(project_dir, locate_blender_exe).map(|_| ())
+}
+
+fn starter_scene_executable(
+    project_dir: &Path,
+    locate: impl FnOnce() -> Result<PathBuf>,
+) -> Result<Option<PathBuf>> {
+    crate::interrupt::check()?;
     let blender_dir = project_dir.join("blender");
-    let dest = blender_dir.join("scene.blend");
-    if dest.exists() {
+    match fs::symlink_metadata(&blender_dir) {
+        Ok(metadata) => {
+            #[cfg(windows)]
+            let linked = {
+                use std::os::windows::fs::MetadataExt;
+                metadata.file_attributes() & 0x400 != 0
+            };
+            #[cfg(not(windows))]
+            let linked = metadata.file_type().is_symlink();
+            if linked {
+                bail!(
+                    "{} is a linked directory; refusing to create a scene outside the project",
+                    blender_dir.display()
+                );
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("failed to inspect {}", blender_dir.display()));
+        }
+    }
+    let dest = project_dir.join("blender/scene.blend");
+    match fs::symlink_metadata(&dest) {
+        Ok(metadata) if metadata.is_file() => return Ok(None),
+        Ok(_) => bail!(
+            "{} already exists and is not a regular file; leave it intact and choose another scene location",
+            dest.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error).with_context(|| format!("failed to inspect {}", dest.display()));
+        }
+    }
+    locate().map(Some).context(
+        "Assets 3D needs Blender to create blender/scene.blend. Install Blender (https://www.blender.org/download/), make it available on PATH, or deselect the Blender scene. No scene was created; retry creation or run `rproj setup blender` inside an existing project",
+    )
+}
+
+fn scaffold_starter_scene_with(
+    project_dir: &Path,
+    locate: impl FnOnce() -> Result<PathBuf>,
+    run: impl FnOnce(&Path, &str) -> Result<String>,
+) -> Result<()> {
+    let Some(blender_exe) = starter_scene_executable(project_dir, locate)? else {
         ui::ok("blender/scene.blend already exists");
         return Ok(());
-    }
+    };
+    let blender_dir = project_dir.join("blender");
+    let dest = blender_dir.join("scene.blend");
     fs::create_dir_all(&blender_dir)?;
+    let staged = tempfile::Builder::new()
+        .prefix(".rproj-scene-")
+        .suffix(".blend")
+        .tempfile_in(&blender_dir)?
+        .into_temp_path();
 
-    let dest_str = dest.to_string_lossy().replace('\\', "/");
+    let dest_str = serde_json::to_string(&staged.to_string_lossy())?;
     let script = format!(
         r#"
 import bpy
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.unit_settings.system = 'METRIC'
 bpy.context.scene.unit_settings.scale_length = {ROBLOX_STUD_SCALE}
-bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
+bpy.context.preferences.filepaths.save_version = 0
+bpy.ops.wm.save_as_mainfile(filepath={dest_str})
 "#
     );
-    run_headless_script(&script)?;
+    run(&blender_exe, &script)?;
+    crate::interrupt::check()?;
+    if fs::metadata(&staged)?.len() == 0 {
+        bail!(
+            "Blender completed without writing the starter scene; blender/scene.blend was not created"
+        );
+    }
+    // Another process may create a scene while Blender runs. Commit only if
+    // the destination is still free, preserving that process's work.
+    if let Err(error) = staged.persist_noclobber(&dest) {
+        if error.error.kind() == std::io::ErrorKind::AlreadyExists && dest.is_file() {
+            ui::ok("blender/scene.blend appeared while Blender ran; preserved the existing scene");
+            return Ok(());
+        }
+        return Err(error.error).context("failed to save blender/scene.blend without overwriting");
+    }
     ui::ok("scaffolded blender/scene.blend");
     Ok(())
 }
@@ -144,19 +224,23 @@ bpy.ops.wm.save_as_mainfile(filepath=r"{dest_str}")
 /// so a bare `Command::status()` can report a failure with nothing useful
 /// printed above it. This guarantees whatever Blender wrote is visible.
 /// Returns the captured stdout so callers can parse `RPROJ_*:` markers.
-fn run_headless_script(script: &str) -> Result<String> {
-    run_headless_script_with(script, None)
+fn run_headless_script_with(script: &str, reporter: Option<&Reporter>) -> Result<String> {
+    let blender_exe = locate_blender_exe()?;
+    run_headless_script_at(&blender_exe, script, reporter)
 }
 
-fn run_headless_script_with(script: &str, reporter: Option<&Reporter>) -> Result<String> {
+fn run_headless_script_at(
+    blender_exe: &Path,
+    script: &str,
+    reporter: Option<&Reporter>,
+) -> Result<String> {
     crate::interrupt::check()?;
     let script_dir = tempfile::tempdir().context("failed to create Blender script directory")?;
     let script_path = script_dir.path().join("script.py");
     fs::write(&script_path, script)?;
 
-    let blender_exe = locate_blender_exe()?;
     if let Some(reporter) = reporter {
-        let output = reporter.capture(std::process::Command::new(&blender_exe).args([
+        let output = reporter.capture(std::process::Command::new(blender_exe).args([
             "--background",
             "--python",
             &script_path.to_string_lossy(),
@@ -173,7 +257,7 @@ fn run_headless_script_with(script: &str, reporter: Option<&Reporter>) -> Result
         &blender_exe.to_string_lossy(),
         &["--background", "--python", &script_path.to_string_lossy()],
     );
-    let output = std::process::Command::new(&blender_exe)
+    let output = std::process::Command::new(blender_exe)
         .args(["--background", "--python", &script_path.to_string_lossy()])
         .output()
         .with_context(|| format!("failed to spawn `{}`", blender_exe.display()));
@@ -234,4 +318,170 @@ fn locate_blender_exe() -> Result<PathBuf> {
             base.display()
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires an installed Blender; writes only an isolated temporary project"]
+    fn installed_blender_creates_and_preserves_a_starter_scene() {
+        let root = tempfile::tempdir().unwrap();
+        scaffold_starter_scene(root.path()).unwrap();
+        let path = root.path().join("blender/scene.blend");
+        let bytes = fs::read(&path).unwrap();
+        assert!(!bytes.is_empty());
+        scaffold_starter_scene(root.path()).unwrap();
+        assert_eq!(fs::read(path).unwrap(), bytes);
+        assert_eq!(
+            fs::read_dir(root.path().join("blender")).unwrap().count(),
+            1
+        );
+    }
+
+    fn write_scene_script_output(script: &str) {
+        assert!(script.contains("scale_length = 0.28"));
+        let filename = script
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix("bpy.ops.wm.save_as_mainfile(filepath=")
+                    .and_then(|value| value.strip_suffix(')'))
+            })
+            .unwrap();
+        let path: String = serde_json::from_str(filename).unwrap();
+        fs::write(path, b"BLENDER fixture scene").unwrap();
+    }
+
+    #[test]
+    fn missing_blender_fails_before_creating_project_or_scene_directories() {
+        let root = tempfile::tempdir().unwrap();
+        let project = root.path().join("uncreated");
+        let error = scaffold_starter_scene_with(
+            &project,
+            || bail!("fixture missing executable"),
+            |_, _| panic!("missing Blender must not execute a script"),
+        )
+        .unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("Assets 3D needs Blender"), "{message}");
+        assert!(message.contains("rproj setup blender"), "{message}");
+        assert!(!project.exists());
+    }
+
+    #[test]
+    fn detected_blender_creates_a_scaled_scene_without_machine_preferences() {
+        let root = tempfile::tempdir().unwrap();
+        let project = root.path().join("quoted ' project é");
+        scaffold_starter_scene_with(
+            &project,
+            || Ok(PathBuf::from("discovered-blender")),
+            |exe, script| {
+                assert_eq!(exe, Path::new("discovered-blender"));
+                write_scene_script_output(script);
+                Ok(String::new())
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(project.join("blender/scene.blend")).unwrap(),
+            b"BLENDER fixture scene"
+        );
+        assert_eq!(fs::read_dir(project.join("blender")).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn existing_scene_needs_no_blender_and_is_never_overwritten() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("blender")).unwrap();
+        let scene = root.path().join("blender/scene.blend");
+        fs::write(&scene, b"owner scene").unwrap();
+        scaffold_starter_scene_with(
+            root.path(),
+            || panic!("existing scene must not need Blender"),
+            |_, _| panic!("existing scene must not execute Blender"),
+        )
+        .unwrap();
+        assert_eq!(fs::read(scene).unwrap(), b"owner scene");
+    }
+
+    #[test]
+    fn linked_blender_folder_is_refused_without_writing_outside_the_project() {
+        let project = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let linked = project.path().join("blender");
+        #[cfg(windows)]
+        {
+            let status = std::process::Command::new("cmd")
+                .args(["/C", "mklink", "/J"])
+                .arg(&linked)
+                .arg(outside.path())
+                .output()
+                .unwrap();
+            assert!(
+                status.status.success(),
+                "{}",
+                String::from_utf8_lossy(&status.stderr)
+            );
+        }
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.path(), &linked).unwrap();
+        let error = scaffold_starter_scene_with(
+            project.path(),
+            || panic!("linked directory must fail before locating Blender"),
+            |_, _| panic!("linked directory must not run Blender"),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("linked directory"));
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+        #[cfg(windows)]
+        fs::remove_dir(&linked).unwrap();
+        #[cfg(unix)]
+        fs::remove_file(&linked).unwrap();
+    }
+
+    #[test]
+    fn failed_or_empty_blender_output_leaves_no_partial_scene() {
+        for fails in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let error = scaffold_starter_scene_with(
+                root.path(),
+                || Ok(PathBuf::from("blender")),
+                |_, script| {
+                    if fails {
+                        write_scene_script_output(script);
+                        bail!("fixture Blender failed");
+                    }
+                    Ok(String::new())
+                },
+            )
+            .unwrap_err();
+            assert!(!error.to_string().is_empty());
+            assert_eq!(
+                fs::read_dir(root.path().join("blender")).unwrap().count(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn scene_created_during_blender_execution_is_preserved() {
+        let root = tempfile::tempdir().unwrap();
+        let scene = root.path().join("blender/scene.blend");
+        scaffold_starter_scene_with(
+            root.path(),
+            || Ok(PathBuf::from("blender")),
+            |_, script| {
+                write_scene_script_output(script);
+                fs::write(&scene, b"concurrent owner scene")?;
+                Ok(String::new())
+            },
+        )
+        .unwrap();
+        assert_eq!(fs::read(scene).unwrap(), b"concurrent owner scene");
+        assert_eq!(
+            fs::read_dir(root.path().join("blender")).unwrap().count(),
+            1
+        );
+    }
 }

@@ -1,5 +1,280 @@
 # Release-Hardening Audit
 
+## October 14: initial Windows GPUI feasibility gate passed
+
+The owner confirmed the final native check in the verified portable preview:
+running the five-second Check fixture kept the window responsive during
+Light/Dark changes, completed successfully, and allowed `PROBE tick 3/5` to
+filter the output and clearing the query to restore it. Together with the
+opening, resizing, theme, icon, keyboard/focus, folder-picker, and 100%/125%
+scaling checks below, this completes the initial Windows GPUI feasibility gate.
+No capture/activation automation was retried.
+
+This is acceptance of the technical foundation, not the release design, full
+workflow parity, or a public desktop release. Wireframes and visual mockups
+still require separate review before expanding the interface. Real Test/Roblox
+runner, fresh-machine, authenticated Open Cloud, and macOS/Linux desktop
+acceptance remain unverified. The prior exact head `50df649` passed all seven
+executed jobs in [38465159162](https://github.com/chatarabdelilah/rproj/actions/runs/38465159162);
+the scheduled/manual badge job was intentionally skipped. These acceptance notes
+change no runtime source and receive direct diff review. Final-head review/CI
+and merge delivery are tracked in [PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
+Published 0.22.0, versions, and tags remain unchanged.
+
+### Shipped Check worker with installed Lute
+
+A disposable plain Rojo project under
+`target/desktop-fixture/background-check` contains a timer/stdout-only
+`.lute/check.luau` script. The already-installed Lute 1.0.0 executable was used
+directly, without tool installation. The verified `00784b3` portable CLI ran
+`--rproj-workbench check` from that project and completed in **5.1415 seconds**,
+exit 0, with empty stderr and all seven expected start/tick/complete lines.
+Read-only inspection reports Check available, no package dependencies, and Test
+unavailable because the fixture has no test framework configured.
+
+This uses the shipped production Check dispatcher and its normal Watch guard,
+not the test-build bridge or private test storage. The real Watch root already
+contained all four guard files and a Failed session from the earlier fixture's
+intentional missing Wally package. Check preserved that status plus fixture and
+Watch file contents, membership, last-write timestamps, and ACLs. The guard's
+normal directory protection/lock acquisition still ran; this is preservation
+evidence for the existing storage, not a zero-access or fully isolated run.
+A sandboxed status query had reported a different empty root, so acceptance was
+run in the owner context outside the sandbox.
+
+The ignored helper `target/desktop-fixture/verify-background-check.ps1` verifies
+the bundle source identity and CLI hash, requires the existing guard files, and
+refuses active/recovering Watch states. Its 15-second deadline covers both process
+exit and pipe capture. Review corrected unbounded pipe waits and preservation
+checks skipped on failure; cleanup and result recording now use `finally`.
+The result is saved in `background-check-worker-result.json` beside the helper.
+Lute buffers this script's piped output until completion, so the fixture tests
+an ongoing operation and its final output, not one-second incremental updates.
+
+The subsequent owner check above verifies native responsiveness, Checks
+activation, and output filtering through the existing preview. The observed
+100%/125% scaling pass is recorded below.
+
+## October 13: manual desktop theme, icon, and keyboard checks
+
+The owner confirmed that text and buttons remain readable after switching to
+Light and then Dark in the portable preview's Appearance controls. This adds
+manual theme-readability evidence to the confirmed opening/resizing checks for
+the `00784b3` preview. A targeted follow-up confirmed that the folder icon beside
+Open project is visible in both themes, resolving the initial missing-icons
+report. Broader navigation icons and branding are not implemented.
+
+The owner also confirmed that Tab/Shift+Tab keep focus visible between Overview
+and Dependencies, Enter opens Dependencies, and Space returns to Overview.
+Enter also opens the folder picker; Esc cancels it, preserves the selected
+project, and lets Tab navigation resume. At this checkpoint, section actions,
+the output filter, and background responsiveness were still unverified and
+PR #106 remained draft; the October 14 entry records their later verification.
+The UI remains provisional and native capture/activation automation stays stopped.
+Both monitors normally use 100% Windows Scale. The owner temporarily selected
+125% for the preview's monitor and confirmed readable text, unclipped controls,
+and correct Dependencies selection by clicking. Restoring 100% also worked.
+This passes the requested same-monitor scale transition; mixed-scale monitor
+movement was not tested.
+
+A disposable plain Rojo project with synthetic Wally declarations across shared,
+server, and development realms was calibrated using the verified portable CLI.
+Three bounded invocations inspected 500 dependencies in 0.0538 seconds and 5,300
+dependencies in 0.2852 and 0.2802 seconds. The final manifest is 318,209 bytes;
+its JSON output is 1,915,962 bytes. All runs parsed the expected dependency count,
+reported a ready manifest, exited successfully with empty stderr, and preserved
+project file hashes, membership, and last-write timestamps. Timings include CLI
+startup, inspection, serialization, and pipe draining. No packages were installed
+or GUI operations launched. The ignored fixture and measurement records live
+under `target/desktop-fixture/`. The three-calibration budget is exhausted; the
+result supports a bounded-load smoke check, not sustained native responsiveness.
+
+The documentation-only acceptance checkpoint `92d3b47` passed all seven executed
+jobs in [38370486305](https://github.com/chatarabdelilah/rproj/actions/runs/38370486305).
+The preview's runtime is unchanged by that checkpoint or these acceptance notes.
+Subsequent exact-head CI results are tracked in draft PR #106.
+
+## October 12: isolated worker dispatch coverage
+
+Work continues on `codex/desktop-alpha` in draft PR #106. The owner confirmed
+opening and resizing the portable preview from CI head `00784b3`. The local
+preview helper initially supplied the project before `--preferences-path`,
+causing an immediate usage error; corrected argument order and Windows
+PowerShell 5.1 support restored launch. The owner clarified that text and buttons
+are visible, but icons are not; the window is not blank. Icon visibility and the
+remaining native gate still need verification. The owner explicitly authorized
+continuing technical validation while retaining separate wireframe/visual-design
+review before release. The current UI is provisional. Capture/activation
+automation was not retried;
+published 0.22.0 remains unchanged, and the PR stays in draft.
+
+Windows tests now drive the production `WorkbenchClient`, operation dispatcher,
+and internal CLI exit reporting through a test-build child process. A small
+compiled bridge supplies the matching version and a disposable Lute stub; the
+existing test-only Watch-root scope isolates lock storage. Production storage
+selection and the core API are unchanged. Eight operation executions cover Check
+and Test success, failure, stdout/stderr, arguments, working directory, refusal
+while the private Watch start lock is held, and recovery after release. They
+verify project and private Watch file contents and directory membership remain
+unchanged. Check maps the stub's exit 7 to failure 1; Test preserves exit 7.
+This is shared-dispatcher evidence, not successful shipped-binary, real Lute,
+Roblox, or native GUI acceptance.
+
+The full CLI/core suite passed **560 tests**, with **24 ignored**, outside the
+Windows sandbox; nested child summaries are excluded. A sandboxed attempt failed
+subprocess checks and stalled in loopback tests, so that run was stopped rather
+than counted as evidence. Focused worker/integration/guard tests, strict all-target
+CLI/core Clippy, workspace formatting, and standalone fixture formatting passed
+with the repository-local Rust 1.99.0 toolchain.
+
+Independent review added a test-only 20-second cancellation deadline so a
+regression to blocking Watch-lock acquisition fails instead of hanging. The
+complete uncommitted CodeRabbit review covered all seven changed files and
+found one minor fixture weakness: joining arguments with spaces concealed
+argument boundaries. The fixture now reports the argument vector and compares
+the complete line. An earlier review omitted the two untracked test files and
+is not counted as complete.
+
+Complete branch review at `618acee` found two further behavior gaps: Stop could
+return success when Watch ended in `Failed`, and invalid Inspect arguments could
+start a global diagnostic log before entering the read-only command path.
+Stop now reports an error for `Failed` after ownership releases, preserves the
+failed snapshot, and points to the Watch log. Inspect parse-error classification
+uses Clap's existing command grammar; only its selected subcommand controls
+whether logging starts, and partial matches are never executed. Regressions
+failed against both previous behaviors and pass after correction. Inspect tests
+cover global flags, absent/existing log storage, and ordinary commands whose
+arguments contain `inspect`, which retain their existing error logging.
+The corrected full CLI/core suite passed **563 tests**, with **24 ignored**;
+the complete five-file uncommitted review reported zero findings.
+Complete branch review at `87dc635` reported one minor documentation issue:
+the transition checkpoint still described the older `93f93ff` review as final.
+The checkpoint was corrected and its small documentation diff reviewed directly;
+there were no further code findings. Updated-head CI was pending at this checkpoint
+and its subsequent result is tracked in PR #106.
+
+The owner reported installing Hyper-V on October 12 for possible future use.
+Its setup and a clean Windows VM remain unverified. The roadmap records the
+request to notify the owner when VM-based fresh-machine acceptance becomes
+the next useful step; no VM provisioning was started.
+
+The prior final head `3fcaedc` passed all seven executed jobs in
+[38162648985](https://github.com/chatarabdelilah/rproj/actions/runs/38162648985).
+Its downloaded portable archive's checksum and executable hashes were verified.
+The generated PR test-merge commit `4123ea6` has parents `17b7ef4` and `3fcaedc`
+and the same source tree as the latter; it is not a merge into main. Extracted
+version and matching-worker self-checks passed outside the Windows sandbox,
+which denied executable-path access. The cached desktop job took 2 minutes
+44 seconds. Updated documentation head `00784b3` subsequently passed all seven
+executed jobs in [38287575860](https://github.com/chatarabdelilah/rproj/actions/runs/38287575860).
+The downloaded portable archive's checksum and executable hashes were verified;
+its generated PR test-merge commit `1480963` has parents `17b7ef4` and `00784b3`
+and the same tree as the latter. Extracted version and matching-worker checks
+passed. This is the preview used for the owner's opening/resizing checks.
+The native gate continues to prevent merging; subsequent exact-head CI results
+are tracked in draft PR #106.
+
+The original-notice search was repeated for the three unresolved legacy
+dependencies. No exact-version original was recovered; the
+[provenance record](../third-party/README.md) records the additional evidence.
+
+## October 10–11: shared core and Windows desktop implementation
+
+The approved [desktop transition](desktop-transition.md) is being implemented on
+`codex/desktop-alpha` from `17b7ef4db0a4248e8f36ce8b3941ec909edca4db`, in
+[draft PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
+Published 0.22.0 and its tags remain unchanged; this is development work, not a
+release candidate. Ratatui and direct commands remain available.
+
+Read-only `rproj-core` inspection and `rproj inspect --json` now distinguish Wally
+declarations, lock resolutions, alias/index presence, malformed inputs, and saved
+composition. Watch summaries use the actual manifest. Inspection of the owner's
+`scarywormtower` found 13 aliases (including manual additions) and 11 saved keys,
+without changing that project. Blender creation no longer depends on an old
+machine-selection record; fixtures and an explicitly executed installed-Blender
+temporary-scene test verify creation, failure handling, and preservation.
+
+`cargo test --locked -p rproj -p rproj-core` passed **557 tests**, with **24 ignored**
+(nested child summaries excluded). Strict all-target CLI/core Clippy and formatting
+passed. Both CLI/core archives built from their tarballs with the final dependency
+graph using locked offline packaging in a fresh target directory. Reusing Cargo's
+local registry at an unchanged development version had selected an older cached
+core source; CI now uses a distinct registry path per run. Core tests cover
+diagnostic redaction, bounded reads, missing lock targets,
+invalid tool pins, both process output streams, failed exits, and Windows process
+tree cancellation. Existing persistent-Watch ownership and stop acknowledgement
+remain authoritative; the desktop calls the matching CLI through typed messages.
+Three real-CLI integration tests verify matching worker/catalog identity, refusal
+of a different version, and Check prerequisite failure/events without fixture
+changes. A focused Watch run exposed an accepted-socket race in its test server;
+explicitly restoring blocking mode before the timed read fixed it. Seventeen
+focused boundary tests passed. Successful real-worker Check/Test with isolated
+global Watch storage remains a separate acceptance gap.
+
+The native GPUI Kit 0.7.1 workbench builds with repository-local Rust 1.99.0;
+CLI/core retain MSRV 1.89. The initial portable ZIP passed extracted-copy version,
+matching-worker and read-only inspection checks. Static CRT linking was verified
+against executable imports, removing the separate Visual C++ runtime requirement.
+Dependency notices and exact-source supplements are included. Real-window and
+final-package acceptance are recorded in [the framework record](desktop-feasibility.md).
+The current development ZIP passes the extracted-copy checks with 589 dependency
+entries and 26 verified notice supplements. Original notice text remains unavailable
+for three legacy dependencies; [the provenance record](../third-party/README.md)
+states those limits. It is not a public release or proof of notice completeness.
+
+Eight desktop tests passed, including GPUI keyboard focus and dependency selection,
+unavailable-action behavior, recovery after a transient inspection error, retained
+preference errors, bounded output, and reconstruction across stdout/stderr chunks.
+Strict all-target desktop Clippy and workspace formatting passed on Rust 1.99.0.
+Two preference regressions verify byte-for-byte preservation when registration
+is unchanged and successful registration after moving the desktop executable.
+An additional review correction prevents long ASCII lines losing data when a
+stream segment reaches its bound. Initial native launch preceded isolated
+preferences and may have registered the development executable in normal desktop
+preferences; subsequent acceptance uses an explicit disposable preferences path.
+The extracted portable workbench exposes a native window, but two Computer Use
+state-capture attempts stalled without returning an image. A third attempt with
+the updated helper stalled during window selection/activation before capture;
+native automation was stopped. Native visual, resize,
+theme, and scaling acceptance therefore remains unverified; this cannot be inferred
+from the successful prototype capture or headless interaction tests. Delivery stays
+in draft until the remaining native gate is confirmed.
+
+The complete local `cr review --agent --uncommitted` covered the new files and
+reported one major inspection-recovery issue, also found independently: a failed
+inspection retained the previous fingerprint and could skip an identical successful
+retry. The fix is covered by the desktop regression. Final branch review and
+reviewed-head/merged-main CI remain delivery gates. The earlier partial tracked-file
+review is not counted as complete. The complete branch review at `9537c28` covered
+92 files and found two minor improvements: preserve unchanged preferences and
+require DLL-import inspection during packaging. Both were corrected in `e39a665`.
+The complete review of that head found one minor catalog-failure visibility issue.
+A separate accessible error now survives successful inspection and Watch status,
+while the matching worker remains available. Its regression uses a real fixture
+worker returning malformed catalog JSON. The complete follow-up at `0e8186a`
+reported two minor issues: concurrent Watch-output requests could return stale
+results, and supplement files with identical basenames could overwrite each
+other. Watch output now allows one request at a time and rejects late results
+after project, worker, or Watch changes; a regression verifies recovery and
+preservation of a newer request's guard. Packaging now refuses colliding notice
+paths, including case-only names. Its standalone PowerShell fixture verifies
+valid inventory paths/hashes and three collision refusals, and fails against
+the previous writer. Desktop CI runs it explicitly; CLI tests retain their
+existing prerequisites. Complete final review at `93f93ff` covered 93 files with
+zero findings. The clean-head portable ZIP passed all extracted-copy checks.
+All seven executed CI jobs passed on documentation head
+`27cf3d078abbda231091a6678881c51576290763` in
+[38161159774](https://github.com/chatarabdelilah/rproj/actions/runs/38161159774):
+Windows stable/MSRV, Linux/macOS core, released Wally compatibility, both Cargo
+archives, and the Windows desktop. The portable ZIP/checksum artifact was retained.
+The first desktop job took 19 minutes 45 seconds; other executed jobs took 11
+seconds to 4 minutes 3 seconds. The scheduled/manual badge job was intentionally
+skipped. Runtime and CI sources match the zero-finding review at `93f93ff`;
+the later commit only records delivery evidence. Unexecuted native checks and
+ignored prerequisites are not passes. The native gate keeps the PR in draft,
+so merging and merged-main CI remain pending. No machine-wide
+applications, user projects, or publication state were changed for this audit.
+
 ## October 8: 0.22.0 publication verified
 
 The owner reported publication after [release PR #104](https://github.com/chatarabdelilah/rproj/pull/104)

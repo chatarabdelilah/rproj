@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 
 use crate::catalog::{tool_catalog, tool_usage};
-use crate::steps::{asphalt, toolchain, tungsten};
+use crate::steps::{asphalt, blender, toolchain, tungsten};
 use crate::ui;
 
 /// `rproj setup` with no tool: machine-wide provisioning.
@@ -65,6 +65,7 @@ fn setup_tool(key: &str) -> Result<()> {
     match entry.key {
         "asphalt" => asphalt::ensure_config(&project_dir)?,
         "tungsten" => tungsten::ensure_config(&project_dir)?,
+        "blender" => blender::scaffold_starter_scene(&project_dir)?,
         _ => {
             // `rproj configure` owns the tools with a settings walkthrough;
             // pointing at it beats reimplementing it here.
@@ -118,6 +119,50 @@ fn find_project_root() -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blender_setup_driver() {
+        if std::env::var_os("RPROJ_TEST_BLENDER_SETUP").is_some() {
+            setup_tool("blender").unwrap();
+            println!("BLENDER_SETUP_COMPLETE");
+        }
+    }
+
+    #[test]
+    fn blender_setup_preserves_existing_scene_and_project_record() {
+        let project = tempfile::tempdir().unwrap();
+        std::fs::create_dir(project.path().join("blender")).unwrap();
+        std::fs::write(project.path().join("default.project.json"), "{}").unwrap();
+        std::fs::write(project.path().join("rproj.toml"), "# owner record\n").unwrap();
+        std::fs::write(project.path().join("blender/scene.blend"), b"owner scene").unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "commands::setup::tests::blender_setup_driver",
+                "--nocapture",
+            ])
+            .current_dir(project.path())
+            .env("RPROJ_TEST_BLENDER_SETUP", "1")
+            .env("RPROJ_NO_LOG", "1")
+            .output()
+            .unwrap();
+        let text = format!(
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(output.status.success(), "{text}");
+        assert!(text.contains("BLENDER_SETUP_COMPLETE"), "{text}");
+        assert_eq!(
+            std::fs::read(project.path().join("blender/scene.blend")).unwrap(),
+            b"owner scene"
+        );
+        assert_eq!(
+            std::fs::read_to_string(project.path().join("rproj.toml")).unwrap(),
+            "# owner record\n"
+        );
+        assert_eq!(std::fs::read_dir(project.path()).unwrap().count(), 3);
+    }
 
     /// An unknown tool must say so, and say where the list is - not fail
     /// with something about a missing directory.

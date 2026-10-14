@@ -1,6 +1,6 @@
 # rproj — Architecture
 
-Published baseline: **0.18.1**. No later release candidate is prepared. Release scope and verification are recorded in [the release audit](release-audit.md).
+Published baseline: **0.22.0**. The approved [desktop transition](desktop-transition.md) is in progress; no later release candidate is prepared. Release scope and verification are recorded in [the release audit](release-audit.md).
 
 ## 1. System Overview
 
@@ -22,9 +22,25 @@ Interactive bare `rproj` is a workspace hub over the existing commands. It repor
 
 **Every generated file is a catalog entry, not a step in a script** (§8.9). A project is composed from answers the same way its package list is, so the minimum `rproj new` can produce is `src/` plus `default.project.json` — no CI workflow, no editor settings, no quality script. What keeps that from becoming *incoherent* freedom is the other half of the same model: an artifact an earlier answer has already decided is reported rather than offered, because a checkbox whose only sane answer is yes is not a question, and answering it the other way used to make the packages the user had just picked silently evaporate.
 
-This version is Windows-only (installs go through `winget`).
+Provisioning and background Watch remain Windows-specific (installs use `winget`).
+Shared read-only inspection is portable and receives Windows, Linux, and macOS checks.
 
-**Scope decision (September 9, 2026):** Ratatui remains the interactive frontend. There is no planned desktop GUI or broad migration to embedded tool libraries. Rojo, Selene, StyLua, and the other external tools retain their existing responsibilities. Model-to-template import is permanently dropped; the owner requested deletion of the unfinished experiment. See [the roadmap](plan.md) for current commitments rather than treating historical implementation notes as future work.
+The workspace separates `rproj-core` from the CLI adapter. Core inspection takes
+an explicit path and returns a versioned snapshot without network, subprocesses,
+prompts, or writes. Saved catalog choices, manifest declarations, lock resolutions,
+and package-file presence are distinct facts. Desktop preferences use a separate
+per-user `desktop.json`; machine setup and project files retain their schemas.
+
+Core operations call an explicitly located, version-matched CLI worker. Watch
+status uses structured data with private control credentials omitted. Output is
+progress only. Windows check/test children run in an owned Job Object; cancelling
+or closing that operation terminates descendants and drains both bounded streams.
+Watch control launchers permit the existing detached supervisor to survive desktop
+closure. Stop-and-switch requires the old supervisor's acknowledged termination.
+The CLI remains the execution adapter during incremental extraction, reusing its
+existing file guards and external command implementations.
+
+**Scope decision (October 8, 2026):** The owner approved a native desktop workbench with an incremental shared core. Ratatui remains supported during migration; direct commands remain permanent. The [desktop transition](desktop-transition.md) defines the first alpha and its GPUI feasibility gate. Rojo, Selene, StyLua, and other external tools retain their responsibilities. Tauri and model-to-template import remain dropped.
 
 ## 2. Behavior / Rules Specification
 

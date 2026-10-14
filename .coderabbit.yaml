@@ -22,7 +22,24 @@ reviews:
     description_keyword: "coderabbit:review"
     auto_incremental_review: false
     drafts: false
+  # Verbatim upstream licenses are checked against supplements.json by packaging.
+  # Review their provenance and inventory script instead of generated text.
+  path_filters:
+    - "**"
+    - "!third-party/licenses/**"
   path_instructions:
+    - path: "crates/rproj-core/**"
+      instructions: >-
+        Check read-only inspection, malformed-versus-missing distinctions, Wally
+        alias and realm fidelity, bounded output, cancellation of process trees,
+        structured state, and portability. Lock resolution is not installation
+        proof. Keep prompts, rendering, and implicit current-directory state out.
+    - path: "crates/rproj-desktop/**"
+      instructions: >-
+        Check UI responsiveness, keyboard access, stale asynchronous results,
+        bounded logs, failure visibility, and matching CLI worker identity.
+        Opening a project must not mutate its configuration. Watch persists
+        after closing the window; switching must wait for Stop acknowledgement.
     - path: "src/**/*.rs"
       instructions: >-
         Prioritize behavior regressions, data loss, Windows subprocess and terminal

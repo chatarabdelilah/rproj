@@ -21,6 +21,7 @@ mod project_editor;
 mod steps;
 mod tui;
 mod ui;
+mod workbench;
 
 #[cfg(test)]
 #[path = "../tests/common/mod.rs"]
@@ -29,7 +30,7 @@ mod test_common;
 use std::io::IsTerminal;
 use std::process::ExitCode;
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 
 use cli::{Cli, Command};
 
@@ -37,20 +38,14 @@ use cli::{Cli, Command};
 /// by `ui::error` instead of by Rust's default `Termination` impl, which
 /// writes an uncoloured `Error: ...` with the chain in `Debug` form.
 fn main() -> ExitCode {
-    if let Some(result) = background_watch::internal_entry() {
-        return match result {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(error) => {
-                eprintln!("{error:#}");
-                ExitCode::FAILURE
-            }
-        };
+    if let Some(result) = background_watch::internal_entry().or_else(workbench::internal_entry) {
+        return ExitCode::from(internal_result_exit_code(result));
     }
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         Err(error) => {
             let code = error.exit_code() as u8;
-            if error.use_stderr() {
+            if error.use_stderr() && !is_inspection_invocation() {
                 let log = diagnostics::start();
                 diagnostics::event(
                     "cli.invalid",
@@ -64,6 +59,16 @@ fn main() -> ExitCode {
             return ExitCode::from(code);
         }
     };
+    // Inspection is read-only, including avoiding a new global diagnostic log.
+    if let Some(Command::Inspect { path, json }) = &cli.command {
+        return match commands::inspect::run(path.as_deref(), *json) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("{error:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     let log = diagnostics::start();
     log_command(&cli);
     ui::set_verbose(cli.verbose);
@@ -79,6 +84,28 @@ fn main() -> ExitCode {
     };
     log.finish(code);
     ExitCode::from(code)
+}
+
+fn is_inspection_invocation() -> bool {
+    // Reuse Clap's grammar, including global flags, to classify failed input.
+    // Partial matches only control logging; they are never dispatched.
+    Cli::command()
+        .ignore_errors(true)
+        .try_get_matches()
+        .is_ok_and(|matches| matches.subcommand_name() == Some("inspect"))
+}
+
+fn internal_result_exit_code(result: anyhow::Result<()>) -> u8 {
+    match result {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("{error:#}");
+            error
+                .downcast_ref::<commands::test::RunnerFailure>()
+                .map(commands::test::RunnerFailure::exit_code)
+                .unwrap_or(1)
+        }
+    }
 }
 
 fn log_command(cli: &Cli) {
@@ -102,6 +129,8 @@ fn log_command(cli: &Cli) {
         ),
         Some(Command::Copy) => "copy (source and clipboard contents omitted)".into(),
         Some(Command::Info { key }) => format!("info key={key:?}"),
+        Some(Command::Inspect { .. }) => "inspect".into(),
+        Some(Command::App { .. }) => "app".into(),
     };
     diagnostics::event("command", message);
 }
@@ -135,6 +164,8 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Test { args }) => commands::test::run(&args),
         Some(Command::Copy) => commands::copy::run(),
         Some(Command::Info { key }) => commands::info::run(key.as_deref()),
+        Some(Command::Inspect { path, json }) => commands::inspect::run(path.as_deref(), json),
+        Some(Command::App { path }) => commands::app::run(path.as_deref()),
     }
 }
 

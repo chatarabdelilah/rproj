@@ -170,6 +170,9 @@ pub(super) fn execute_confirmed(
     save_setup: Option<SetupSave<'_>>,
 ) -> Result<()> {
     crate::interrupt::check()?;
+    if planned.iter().any(|artifact| artifact.key == "blender") {
+        blender::preflight_starter_scene(project_dir)?;
+    }
     create_project_dir(project_dir)?;
     let result = (|| {
         let packages = graph.package_set();
@@ -1086,10 +1089,8 @@ fn scaffold(project_dir: &Path, name: &str, options: ScaffoldOptions<'_>) -> Res
         gitattributes::ensure_gitattributes(project_dir)?;
     }
 
-    // Was `config.blender_enabled()`, which meant that selecting Blender once at
-    // setup silently added a folder to every project afterwards. Now it is
-    // an artifact requiring the app AND defaulting to off, so it is opt-in
-    // per project.
+    // This follows the reviewed project choice, regardless of whether Blender
+    // was installed through machine setup or independently.
     if writes("blender") {
         blender::scaffold_starter_scene(project_dir)?;
     }
@@ -1172,6 +1173,33 @@ pub(super) fn read_setup(name: &str) -> Result<(ProjectGraph, Vec<String>)> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn saved_assets_3d_without_machine_preferences_keeps_the_blender_scene() {
+        let mut graph = super::ProjectGraph::default();
+        graph.choose("assets-3d", Some("blender"));
+        let saved: super::ProjectGraph = toml::from_str(&toml::to_string(&graph).unwrap()).unwrap();
+        assert!(
+            saved
+                .plan(&[], &[])
+                .iter()
+                .any(|artifact| artifact.key == "blender")
+        );
+    }
+
+    #[test]
+    fn dropped_blender_scene_stays_dropped_when_replaying_a_saved_composition() {
+        let mut graph = super::ProjectGraph::default();
+        graph.choose("assets-3d", Some("blender"));
+        graph.dropped.push("blender".into());
+        let saved: super::ProjectGraph = toml::from_str(&toml::to_string(&graph).unwrap()).unwrap();
+        assert!(
+            !saved
+                .plan(&[], &[])
+                .iter()
+                .any(|artifact| artifact.key == "blender")
+        );
+    }
+
     #[test]
     fn missing_git_creation_driver() {
         let Some(project_dir) = std::env::var_os("RPROJ_MISSING_GIT_PROJECT") else {
