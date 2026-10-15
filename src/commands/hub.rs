@@ -727,6 +727,8 @@ mod tests {
         let mut app = HubApp::new(WorkspaceContext::load(path.to_path_buf()));
         app.update_receiver = None;
         app.update = UpdateStatus::Current;
+        // Render fixtures must not depend on the user's persisted Watch session.
+        app.watch = "Stopped: no background Watch".into();
         app
     }
 

@@ -22,6 +22,9 @@ Corrected-head Windows CI also caught a pre-existing fixture race releasing Watc
 ownership before a terminal snapshot was saved. Its test-only guard now waits for
 the terminal state; all three Stop cases passed ten repetitions each. No production
 Watch behavior or protocol changed, and the failed attempt remains CI evidence.
+The full local suite also exposed a Hub rendering fixture depending on the live
+user Watch summary. A fixed test value isolates it; the layout case and complete
+563-test CLI/core suite pass. Ratatui production code remains unchanged.
 Published 0.22.0, public APIs, preference/configuration schemas, and tags are unchanged.
 
 ## October 14: initial Windows GPUI feasibility gate passed

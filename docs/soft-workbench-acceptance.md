@@ -67,6 +67,10 @@ snapshot still said Stopping. CI failed 2.2 seconds into the unit batch, before 
 fixture's five-second lifetime limit. The fixture now requires its terminal state
 to have been published before releasing ownership. Success, failed-Stop and timeout
 cases each passed ten local repetitions; production Watch code is unchanged.
+The local full suite also reproduced a Hub layout test reading the owner's live
+Watch summary. Its test helper now supplies a fixed Stopped summary; the previously
+failing layout case and complete 563-test CLI/core suite pass without changing the
+actual Watch session. Ratatui production rendering is unchanged.
 
 Headless tests verify state, controls and geometry. They do not verify Windows
 pixels, GPU rendering, OS appearance notifications, or monitor scaling. The previous
