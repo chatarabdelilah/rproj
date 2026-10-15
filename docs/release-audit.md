@@ -6,9 +6,28 @@ The owner checked the verified clean `bfb52d5` portable Soft preview. System mod
 follows Windows default app mode between Light and Dark without selecting either
 mode inside rproj. Dependencies and expanded Activity remain usable at 125%
 Windows Scale and after restoring the original 100% setting. These are native
-Soft observations, separate from the earlier prototype's acceptance. Arbitrary
-Activity height retention and disposable-session real Watch switching remain
-unverified; the latter must not interrupt an unrelated user Watch.
+Soft observations, separate from the earlier prototype's acceptance. The owner
+then confirmed that taller Activity content fits but its height resets after
+collapse/reopen. A native drag regression reproduced 271.5 px becoming 233.5 px.
+Keeping the resizer state on the workbench fixes that reset in automated coverage;
+all 21 desktop tests and strict desktop Clippy pass. In the clean `297f53f`
+replacement preview, the owner confirmed retained height through two collapse/reopen
+cycles with all content inside. Disposable-session real Watch switching remains
+unverified and must not interrupt an unrelated user Watch.
+
+The documentation-only merged-main run
+[38816125972](https://github.com/chatarabdelilah/rproj/actions/runs/38816125972)
+exposed a second Stop-fixture timing issue: status requests rewrote and flushed
+session state before replying despite their 300 ms probe timeout. A new regression
+reproduces the same unresponsive-control error with a 600 ms persistence delay.
+The fixture now persists its terminal transition on a separate worker while
+answering status from its live snapshot, then releases ownership only after the
+terminal state is saved and published. Fixture cleanup joins both workers even
+when the test action panics. All four focused Stop cases passed 40 runs across
+four concurrent processes (160 case executions). The full CLI/core suite passes
+564 tests, with 24 prerequisite-dependent tests still ignored; strict Clippy and
+formatting pass. Production Watch code and timeouts are unchanged. Corrected-head
+review and CI remain separate from the passing native appearance observations.
 
 ## October 15: approved Soft native workbench
 

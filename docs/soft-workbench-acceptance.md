@@ -33,7 +33,7 @@ worker protocol, project configuration, or preference schema changed.
 
 ## Automated evidence
 
-- 20 desktop tests pass: switcher/sidebar keyboard behavior; folder-picker
+- 21 desktop tests pass: switcher/sidebar keyboard behavior; folder-picker
   cancellation and Close project; dialog Escape and
   focus restoration; stale confirmation rejection; dependency layout geometry;
   Soft mode switching and measurable text/focus contrast; operation origin, filtering, pending cancellation and stale
@@ -41,10 +41,12 @@ worker protocol, project configuration, or preference schema changed.
   preference preservation; bundled icons; catalog failure visibility.
   A regression case covers a long failure and Watch path at the minimum Activity
   height, including collapse/reopen and retained panel height.
+  A separate real-drag regression verifies arbitrary resized height survives
+  collapse/reopen; the earlier minimum-height case did not detect that reset.
 - 27 shared-core tests pass. Desktop/core Clippy and repository formatting pass.
-- CLI compatibility: 536 CLI tests and 27 shared-core tests pass; 24 live or
+- CLI compatibility: 537 CLI tests and 27 shared-core tests pass; 24 live or
   prerequisite-dependent tests remain ignored. The separate desktop suite has no
-  ignored tests. Final local CodeRabbit review inspected all 14 changed files at
+  ignored tests. The original Soft delivery's final local CodeRabbit review inspected all 14 changed files at
   `b824aba` and returned zero findings. Earlier review findings were corrected:
   workbench notices no longer inherit a running operation's project label;
   bundle-test coverage includes both Activity arrow icons; failure messages use
@@ -72,6 +74,18 @@ The local full suite also reproduced a Hub layout test reading the owner's live
 Watch summary. Its test helper now supplies a fixed Stopped summary; the previously
 failing layout case and complete 563-test CLI/core suite pass without changing the
 actual Watch session. Ratatui production rendering is unchanged.
+
+The October 16 documentation-only main run
+[38816125972](https://github.com/chatarabdelilah/rproj/actions/runs/38816125972)
+later exposed a different Stop-fixture timeout. Its status handler flushed state
+on every probe; a delayed write could exceed the 300 ms status timeout. A new
+600 ms delayed-persistence regression reproduces the failure. The fixture now
+serves status independently of terminal persistence, publishes the saved terminal
+snapshot before releasing ownership, and joins its workers after action failure.
+All four focused Stop cases passed 160 case executions across 40 runs with four
+concurrent processes. The full CLI/core suite passes 564 tests, with 24 prerequisite
+tests still ignored; strict Clippy and formatting pass. Production Watch and its
+timeouts are unchanged. Corrected-head review/CI are recorded with follow-up delivery.
 
 Headless tests verify state, controls and geometry. They do not verify Windows
 pixels, GPU rendering, OS appearance notifications, or monitor scaling. The previous
@@ -127,7 +141,13 @@ confirmed that System appearance follows Windows default app mode between Light
 and Dark automatically. Dependencies and expanded Activity fit and respond after
 changing Windows Scale from 100% to 125% and restoring the original settings.
 These observations apply to Soft separately from the earlier prototype's results.
-Arbitrary panel-resize persistence remains unverified. Real Watch
+The owner then reported that a taller Activity panel resets after collapse/reopen,
+while its content stays inside. A native drag regression reproduced 271.5 px
+becoming 233.5 px. The workbench now owns the resizer state across collapsed
+renders; all 21 desktop tests and strict desktop Clippy pass. In the clean
+`297f53f` replacement preview, the owner confirmed that the chosen height stays
+unchanged through two collapse/reopen cycles and all content fits. This completes
+the reported Activity height fix's native check. Real Watch
 switching needs a separate disposable-session check; it must not stop an unrelated
 user Watch as part of this checklist. macOS/Linux desktop, fresh-machine runtime,
 real Roblox Test runners, and authenticated Open Cloud acceptance remain outside

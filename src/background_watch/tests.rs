@@ -80,14 +80,18 @@ fn workbench_status_reports_unresponsive_and_exited_supervisors_truthfully() {
     );
 }
 
-fn with_workbench_stop_fixture<R>(finish: Option<State>, action: impl FnOnce(&Path) -> R) -> R {
+fn with_workbench_stop_fixture<R>(
+    finish: Option<State>,
+    terminal_delay: Duration,
+    action: impl FnOnce(&Path) -> R,
+) -> R {
     use std::sync::atomic::{AtomicBool, Ordering};
     let root = tempfile::tempdir().unwrap();
     let owner = open_lock(root.path(), "owner.lock").unwrap();
     assert!(acquire(&owner).unwrap());
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
     listener.set_nonblocking(true).unwrap();
-    let mut snapshot = Snapshot {
+    let snapshot = Snapshot {
         version: PROTOCOL,
         nonce: "stop-fixture".into(),
         project: "fixture".into(),
@@ -98,23 +102,14 @@ fn with_workbench_stop_fixture<R>(finish: Option<State>, action: impl FnOnce(&Pa
         supervisor: std::process::id(),
     };
     save(root.path(), &snapshot).unwrap();
+    let live = Arc::new(Mutex::new(snapshot));
     let shutdown = Arc::new(AtomicBool::new(false));
     let server_shutdown = shutdown.clone();
     let state_root = root.path().to_owned();
     let server = std::thread::spawn(move || {
         let mut owner = Some(owner);
-        let deadline = Instant::now() + Duration::from_secs(5);
-        let mut stopped_at = None;
-        while Instant::now() < deadline && !server_shutdown.load(Ordering::Acquire) {
-            if finish.is_some_and(|terminal| snapshot.state == terminal)
-                && stopped_at
-                    .is_some_and(|instant: Instant| instant.elapsed() >= Duration::from_millis(200))
-            {
-                // Publish the terminal snapshot before releasing ownership, even
-                // if the previous write delayed the first status poll past 200ms.
-                // Keep control alive while the client checks the persisted state.
-                drop(owner.take());
-            }
+        let mut finisher = None;
+        while !server_shutdown.load(Ordering::Acquire) {
             match listener.accept() {
                 Ok((mut stream, _)) => {
                     stream.set_nonblocking(false).unwrap();
@@ -124,27 +119,41 @@ fn with_workbench_stop_fixture<R>(finish: Option<State>, action: impl FnOnce(&Pa
                     let mut line = String::new();
                     BufReader::new(&stream).read_line(&mut line).unwrap();
                     let request: Request = serde_json::from_str(&line).unwrap();
-                    assert_eq!(request.token, snapshot.token);
+                    let mut response = live.lock().unwrap().clone();
+                    assert_eq!(request.token, response.token);
                     if request.verb == "stop" {
-                        snapshot.state = State::Stopping;
-                        stopped_at = Some(Instant::now());
+                        let stopped_at = Instant::now();
+                        response.state = State::Stopping;
+                        save(&state_root, &response).unwrap();
+                        *live.lock().unwrap() = response.clone();
+                        if let Some(terminal) = finish {
+                            assert!(finisher.is_none());
+                            let owner = owner.take().unwrap();
+                            let state_root = state_root.clone();
+                            let live = live.clone();
+                            let mut terminal_snapshot = response.clone();
+                            finisher = Some(std::thread::spawn(move || {
+                                std::thread::sleep(Duration::from_millis(40) + terminal_delay);
+                                terminal_snapshot.state = terminal;
+                                if terminal == State::Failed {
+                                    terminal_snapshot.message =
+                                        "fixture Watch engine failed while stopping".into();
+                                }
+                                // Keep status probes independent of persistence latency.
+                                // Publish before releasing ownership, without holding the cache lock.
+                                save(&state_root, &terminal_snapshot).unwrap();
+                                *live.lock().unwrap() = terminal_snapshot;
+                                std::thread::sleep(
+                                    Duration::from_millis(200).saturating_sub(stopped_at.elapsed()),
+                                );
+                                drop(owner);
+                            }));
+                        }
                     } else {
                         assert_eq!(request.verb, "status");
-                        if let Some(terminal) = finish
-                            && stopped_at.is_some_and(|instant| {
-                                instant.elapsed() >= Duration::from_millis(40)
-                            })
-                        {
-                            snapshot.state = terminal;
-                            if terminal == State::Failed {
-                                snapshot.message =
-                                    "fixture Watch engine failed while stopping".into();
-                            }
-                        }
                     }
-                    save(&state_root, &snapshot).unwrap();
                     stream
-                        .write_all(&serde_json::to_vec(&snapshot).unwrap())
+                        .write_all(&serde_json::to_vec(&response).unwrap())
                         .unwrap();
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
@@ -153,16 +162,19 @@ fn with_workbench_stop_fixture<R>(finish: Option<State>, action: impl FnOnce(&Pa
                 Err(error) => panic!("{error}"),
             }
         }
+        if let Some(finisher) = finisher {
+            finisher.join().unwrap();
+        }
     });
-    let result = action(root.path());
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| action(root.path())));
     shutdown.store(true, Ordering::Release);
     server.join().unwrap();
-    result
+    result.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
 }
 
 #[test]
 fn workbench_stop_waits_for_terminal_state_and_released_ownership() {
-    with_workbench_stop_fixture(Some(State::Stopped), |root| {
+    with_workbench_stop_fixture(Some(State::Stopped), Duration::ZERO, |root| {
         let started = Instant::now();
         stop_and_wait_at(root, Duration::from_secs(2)).unwrap();
         assert!(started.elapsed() >= Duration::from_millis(200));
@@ -175,8 +187,20 @@ fn workbench_stop_waits_for_terminal_state_and_released_ownership() {
 }
 
 #[test]
+fn workbench_stop_remains_responsive_while_terminal_state_is_persisted() {
+    let delay = TIMEOUT * 2;
+    with_workbench_stop_fixture(Some(State::Stopped), delay, |root| {
+        let started = Instant::now();
+        stop_and_wait_at(root, Duration::from_secs(2)).unwrap();
+        assert!(started.elapsed() >= delay);
+        assert!(acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
+        assert_eq!(metadata(root).unwrap().unwrap().state, State::Stopped);
+    });
+}
+
+#[test]
 fn workbench_stop_reports_failure_after_releasing_ownership() {
-    with_workbench_stop_fixture(Some(State::Failed), |root| {
+    with_workbench_stop_fixture(Some(State::Failed), Duration::ZERO, |root| {
         let started = Instant::now();
         let error = stop_and_wait_at(root, Duration::from_secs(2)).unwrap_err();
         assert!(started.elapsed() >= Duration::from_millis(200));
@@ -209,7 +233,7 @@ fn workbench_stop_reports_failure_after_releasing_ownership() {
 
 #[test]
 fn workbench_stop_timeout_does_not_claim_stopped() {
-    with_workbench_stop_fixture(None, |root| {
+    with_workbench_stop_fixture(None, Duration::ZERO, |root| {
         let error = stop_and_wait_at(root, Duration::from_millis(80)).unwrap_err();
         assert!(
             error.to_string().contains("has not finished stopping"),

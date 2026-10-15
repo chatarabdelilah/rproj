@@ -251,6 +251,7 @@ pub struct Workbench {
     pending_switch: Option<WatchSwitch>,
     watch_generation: u64,
     activity_height: Pixels,
+    activity_panels: Entity<resizable::ResizableState>,
     activity: Activity,
     filter: Entity<InputState>,
     sender: SyncSender<Event>,
@@ -340,6 +341,8 @@ impl Workbench {
             pending_switch: None,
             watch_generation: 0,
             activity_height: px(180.),
+            // Keep the divider state alive while the expanded panel is unmounted.
+            activity_panels: cx.new(|_| resizable::ResizableState::default()),
             activity: Activity::default(),
             filter,
             sender,
