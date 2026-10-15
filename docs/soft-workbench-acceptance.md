@@ -144,8 +144,10 @@ These observations apply to Soft separately from the earlier prototype's results
 The owner then reported that a taller Activity panel resets after collapse/reopen,
 while its content stays inside. A native drag regression reproduced 271.5 px
 becoming 233.5 px. The workbench now owns the resizer state across collapsed
-renders; all 21 desktop tests and strict desktop Clippy pass. Replacement-preview
-manual confirmation of this height fix remains pending. Real Watch
+renders; all 21 desktop tests and strict desktop Clippy pass. In the clean
+`297f53f` replacement preview, the owner confirmed that the chosen height stays
+unchanged through two collapse/reopen cycles and all content fits. This completes
+the reported Activity height fix's native check. Real Watch
 switching needs a separate disposable-session check; it must not stop an unrelated
 user Watch as part of this checklist. macOS/Linux desktop, fresh-machine runtime,
 real Roblox Test runners, and authenticated Open Cloud acceptance remain outside

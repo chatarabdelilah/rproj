@@ -28,8 +28,9 @@ remaining acceptance. On October 16, the owner also confirmed automatic System
 appearance changes and usable Dependencies/Activity at 125% Windows Scale and
 after restoring 100%. A subsequent taller-panel check exposed Activity height
 resetting after collapse/reopen. Retained resizer state now passes a native drag
-regression; replacement-preview manual confirmation and a disposable-session
-real Watch check remain separate.
+regression, and the owner confirmed retained height and fitting content through
+two collapse/reopen cycles in the replacement preview. A disposable-session real
+Watch check remains separate.
 Full workflow parity remains a later gate. No version bump, publication, installer,
 or CLI/Ratatui production behavior change was made.
 

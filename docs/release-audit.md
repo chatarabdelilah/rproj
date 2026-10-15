@@ -10,8 +10,9 @@ Soft observations, separate from the earlier prototype's acceptance. The owner
 then confirmed that taller Activity content fits but its height resets after
 collapse/reopen. A native drag regression reproduced 271.5 px becoming 233.5 px.
 Keeping the resizer state on the workbench fixes that reset in automated coverage;
-all 21 desktop tests and strict desktop Clippy pass. Replacement-preview manual
-confirmation remains pending. Disposable-session real Watch switching remains
+all 21 desktop tests and strict desktop Clippy pass. In the clean `297f53f`
+replacement preview, the owner confirmed retained height through two collapse/reopen
+cycles with all content inside. Disposable-session real Watch switching remains
 unverified and must not interrupt an unrelated user Watch.
 
 The documentation-only merged-main run
