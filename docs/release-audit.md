@@ -4,11 +4,14 @@
 
 The owner approved the section-sidebar layout and Soft visual direction. Native
 implementation and acceptance are recorded in [Soft acceptance](soft-workbench-acceptance.md).
-The 19 desktop tests and 563 CLI/core tests pass locally (24 prerequisite-dependent
+The 20 desktop tests and 563 CLI/core tests pass locally (24 prerequisite-dependent
 CLI tests remain ignored), together with desktop/core Clippy and formatting.
 Full changed-file CodeRabbit review,
 portable packaging, reviewed-head CI, and merged-main CI are tracked there as they
 complete. Earlier prototype manual checks do not certify this new interface.
+The owner confirmed the initial Soft controls and responsive Check, but reported
+Activity clipping at its minimum height. A screenshot-backed layout correction
+and regression test are included; its native recheck remains separate.
 Published 0.22.0, public APIs, preference/configuration schemas, and tags are unchanged.
 
 ## October 14: initial Windows GPUI feasibility gate passed

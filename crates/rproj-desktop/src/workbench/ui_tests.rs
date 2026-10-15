@@ -161,6 +161,70 @@ fn switcher_folder_cancel_and_close_preserve_focus_and_watch(cx: &mut TestAppCon
 }
 
 #[gpui_kit::test]
+fn minimum_activity_height_contains_long_failure_and_watch_text(cx: &mut TestAppContext) {
+    let (project, handle, view) = fixture(cx);
+    let origin = project
+        .path()
+        .join("long-path-component/".repeat(12))
+        .join("Original project");
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            let id = this.operations.begin(Operation::StartWatch, origin.clone());
+            let failure = format!(
+                "Watch did not acknowledge the requested project: {}",
+                "failure details ".repeat(30)
+            );
+            this.operations.finish(id, &Err(failure.clone()));
+            this.activity_height = px(144.);
+            this.activity
+                .set_origin(Some(format!("{} · Starting Watch", origin.display())));
+            this.activity.append(&failure);
+            this.watch = Some(super::WatchStatus {
+                supported: true,
+                project: Some(origin.clone()),
+                state: rproj_core::operations::WatchState::Failed,
+                message: failure,
+            });
+            cx.notify();
+        })
+    });
+    cx.simulate_window_resize(handle, size(px(800.), px(580.)));
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        let summary = window.find("activity-summary-row").bounds();
+        let toolbar = window.find("activity-toolbar").bounds();
+        let output = window.find("activity-output").bounds();
+        assert!(summary.bottom() <= toolbar.top());
+        assert!(toolbar.bottom() <= output.top());
+        assert!(
+            output.size.height >= px(24.),
+            "at least one complete output row must fit: {output:?}"
+        );
+        assert!(output.bottom() <= window.find("watch-summary").bounds().top());
+        assert!(
+            window
+                .find("operation-summary")
+                .label()
+                .unwrap()
+                .contains("failure details")
+        );
+        assert!(
+            window
+                .find("watch-summary")
+                .label()
+                .unwrap()
+                .contains("long-path-component")
+        );
+        window.click("activity-toggle", cx);
+        assert!(window.try_find("activity-toolbar").is_none());
+        window.click("activity-toggle", cx);
+        assert!(window.find("activity-output").bounds().size.height >= px(24.));
+    })
+    .unwrap();
+    cx.update(|cx| assert_eq!(view.read(cx).activity_height, px(144.)));
+}
+
+#[gpui_kit::test]
 fn activity_tracks_origin_collapse_filter_cancel_and_late_events(cx: &mut TestAppContext) {
     let (project, handle, view) = fixture(cx);
     let origin = project.path().join("origin");

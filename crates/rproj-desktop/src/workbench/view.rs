@@ -4,6 +4,7 @@ use gpui_kit::component::{
     input::Input,
     menu::{DropdownMenu, PopupMenuItem},
     resizable::{resizable_panel, v_resizable},
+    tooltip::Tooltip,
 };
 use gpui_kit::prelude::FluentBuilder;
 use rproj_core::{PackageDependency, PresenceState, ResolutionState, operations::WatchState};
@@ -390,7 +391,13 @@ impl Workbench {
             .min_h_0()
             .child(
                 div()
+                    .id("activity-toolbar")
+                    .role(Role::Group)
+                    .aria_label("Activity controls")
+                    .test_support()
                     .h_flex()
+                    .h(rems(3.))
+                    .flex_none()
                     .gap_3()
                     .px_4()
                     .py_2()
@@ -415,6 +422,10 @@ impl Workbench {
             )
             .child(
                 div()
+                    .id("activity-output")
+                    .role(Role::Group)
+                    .aria_label("Operation output")
+                    .test_support()
                     .flex_1()
                     .min_h_0()
                     .px_4()
@@ -444,11 +455,16 @@ impl Workbench {
     fn render_activity_summary(&self, cx: &mut Context<Self>) -> AnyElement {
         let summary = self.operations.summary();
         div()
+            .id("activity-summary-row")
+            .role(Role::Group)
+            .aria_label("Activity status")
+            .test_support()
             .h_flex()
+            .h(rems(3.))
+            .flex_none()
             .gap_2()
             .px_4()
             .py_2()
-            .flex_wrap()
             .border_t_1()
             .border_color(cx.theme().border)
             .child(
@@ -478,7 +494,9 @@ impl Workbench {
                     .flex_1()
                     .min_w_0()
                     .text_sm()
-                    .child(summary),
+                    .truncate()
+                    .tooltip(move |window, cx| Tooltip::new(summary.clone()).build(window, cx))
+                    .child(self.operations.compact_summary()),
             )
             .when_some(self.running.as_ref(), |view, (operation, _)| {
                 view.child(
@@ -538,7 +556,7 @@ impl Workbench {
             })
             .unwrap_or_else(|| "Watch: status unavailable".into());
         div().v_flex().gap_2().px_4().py_2().border_t_1().border_color(cx.theme().border)
-            .child(div().h_flex().flex_wrap().gap_3().child(div().flex_1().min_w_0().text_sm().child(label))
+            .child(div().h_flex().gap_3().child(div().id("watch-summary").role(Role::Status).aria_label(label.clone()).test_support().flex_1().min_w_0().text_sm().truncate().tooltip(move |window, cx| Tooltip::new(label.clone()).build(window, cx)).child(self.watch.as_ref().map(|status| format!("Watch: {:?}{}", status.state, status.project.as_ref().map(|path| format!(" — {}", path.file_name().unwrap_or(path.as_os_str()).to_string_lossy())).unwrap_or_default())).unwrap_or_else(|| "Watch: status unavailable".into())))
                 .child(div().track_focus(&self.watch_focus).child(Button::new("watch-start").label(if active && !same_project { "Switch Watch…" } else { "Start Watch" })
                     .disabled(busy || !available || (active && (same_project || !switchable)))
                     .on_click(cx.listener(move |this, _, window, cx| {
@@ -605,7 +623,7 @@ impl Render for Workbench {
                 .child(
                     resizable_panel()
                         .size(self.activity_height)
-                        .size_range(px(110.)..px(1000.))
+                        .size_range(px(144.)..px(1000.))
                         .child(
                             div()
                                 .v_flex()

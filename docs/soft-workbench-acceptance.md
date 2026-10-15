@@ -32,12 +32,14 @@ worker protocol, project configuration, or preference schema changed.
 
 ## Automated evidence
 
-- 19 desktop tests pass: switcher/sidebar keyboard behavior; folder-picker
+- 20 desktop tests pass: switcher/sidebar keyboard behavior; folder-picker
   cancellation and Close project; dialog Escape and
   focus restoration; stale confirmation rejection; dependency layout geometry;
   Soft mode switching and measurable text/focus contrast; operation origin, filtering, pending cancellation and stale
   events; bounded faithful output; inspection recovery; unavailable actions;
   preference preservation; bundled icons; catalog failure visibility.
+  A regression case covers a long failure and Watch path at the minimum Activity
+  height, including collapse/reopen and retained panel height.
 - 27 shared-core tests pass. Desktop/core Clippy and repository formatting pass.
 - CLI compatibility: 536 CLI tests and 27 shared-core tests pass; 24 live or
   prerequisite-dependent tests remain ignored. The separate desktop suite has no
@@ -49,8 +51,8 @@ worker protocol, project configuration, or preference schema changed.
   CRT dependency checks. License notices were preserved for 589 dependencies;
   completeness for three legacy archives remains documented in `THIRD-PARTY.md`.
   Windows PowerShell 5.1 ran the preview fixture preparation successfully.
-- Delivery: [PR #107](https://github.com/chatarabdelilah/rproj/pull/107).
-  Reviewed-head CI and merged-main CI are pending.
+- Delivery checks and merge status: [PR #107](https://github.com/chatarabdelilah/rproj/pull/107).
+  Final run links are recorded with that PR's delivery evidence.
 
 Headless tests verify state, controls and geometry. They do not verify Windows
 pixels, GPU rendering, OS appearance notifications, or monitor scaling. The previous
@@ -85,7 +87,16 @@ Watch remains the existing machine/user session, not an isolated fake Watch.
    collapse Activity, then reopen, resize, and filter `PROBE tick 3/5`.
 5. Use Close project and confirm Activity and global Watch identity remain.
 
-All new-build real-window items above are **unverified** until observed. Real Watch
+The owner confirmed the first Soft preview's sidebar icons, Light/Dark readability,
+project-menu/folder-picker focus restoration, dependency layout at minimum size,
+and responsive background Check. They reported that shrinking Activity let a long
+failure summary overlap the Watch bar, with a screenshot confirming it. The fix
+uses a single-line project/status summary with full accessible/tooltip details,
+fixed-height status/toolbar rows, a 144-logical-pixel Activity minimum, and a
+single-line Watch identity. Output retains horizontal scrolling. Automated geometry
+checks pass; a targeted real-window recheck of this fix remains **unverified**.
+System OS-change behavior, 100%/125% scaling on Soft, and panel-resize persistence
+remain unverified separately from the prior prototype's results. Real Watch
 switching needs a separate disposable-session check; it must not stop an unrelated
 user Watch as part of this checklist. macOS/Linux desktop, fresh-machine runtime,
 real Roblox Test runners, and authenticated Open Cloud acceptance remain outside

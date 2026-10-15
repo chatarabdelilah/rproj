@@ -96,6 +96,27 @@ impl OperationPresentation {
             })
             .unwrap_or_else(|| "No operations yet".into())
     }
+
+    pub(super) fn compact_summary(&self) -> String {
+        self.latest
+            .as_ref()
+            .map(|run| {
+                let project = run
+                    .project
+                    .file_name()
+                    .unwrap_or(run.project.as_os_str())
+                    .to_string_lossy();
+                let status = match &run.status {
+                    RunStatus::Failed(_) => "Failed",
+                    other => other.label(),
+                };
+                format!(
+                    "{project} · {} · {status}",
+                    super::operation_label(run.operation)
+                )
+            })
+            .unwrap_or_else(|| "No operations yet".into())
+    }
 }
 
 #[derive(Clone)]
