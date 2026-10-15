@@ -26,7 +26,9 @@ CI passed. The owner confirmed the minimum-height Activity clipping fix.
 [Soft acceptance](soft-workbench-acceptance.md) separates confirmed checks from
 remaining acceptance. On October 16, the owner also confirmed automatic System
 appearance changes and usable Dependencies/Activity at 125% Windows Scale and
-after restoring 100%. Arbitrary panel-height persistence and a disposable-session
+after restoring 100%. A subsequent taller-panel check exposed Activity height
+resetting after collapse/reopen. Retained resizer state now passes a native drag
+regression; replacement-preview manual confirmation and a disposable-session
 real Watch check remain separate.
 Full workflow parity remains a later gate. No version bump, publication, installer,
 or CLI/Ratatui production behavior change was made.

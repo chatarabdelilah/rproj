@@ -225,6 +225,56 @@ fn minimum_activity_height_contains_long_failure_and_watch_text(cx: &mut TestApp
 }
 
 #[gpui_kit::test]
+fn activity_resize_height_survives_collapse_reopen(cx: &mut TestAppContext) {
+    let (_project, handle, view) = fixture(cx);
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.operations.expanded = true;
+            this.activity.append("Retained output");
+            cx.notify();
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.render_frame(cx);
+        let summary = window.find("activity-summary-row").bounds();
+        let initial = window.find("activity-output").bounds().bottom() - summary.top();
+        let divider = Point {
+            x: summary.center().x,
+            y: summary.top() - px(2.),
+        };
+        window.drag(
+            divider,
+            Point {
+                y: divider.y - px(90.),
+                ..divider
+            },
+            cx,
+        );
+        window.render_frame(cx);
+        window.render_frame(cx);
+        let resized = window.find("activity-output").bounds().bottom()
+            - window.find("activity-summary-row").bounds().top();
+        assert!(
+            resized >= initial + px(50.),
+            "the divider must actually move: {initial:?} -> {resized:?}"
+        );
+        window.click("activity-toggle", cx);
+        assert!(window.try_find("activity-toolbar").is_none());
+        window.click("activity-toggle", cx);
+        window.render_frame(cx);
+        window.render_frame(cx);
+        let reopened = window.find("activity-output").bounds().bottom()
+            - window.find("activity-summary-row").bounds().top();
+        assert!(
+            (reopened - resized).abs() <= px(1.),
+            "Activity height changed after collapse: {resized:?} -> {reopened:?}"
+        );
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
 fn activity_tracks_origin_collapse_filter_cancel_and_late_events(cx: &mut TestAppContext) {
     let (project, handle, view) = fixture(cx);
     let origin = project.path().join("origin");

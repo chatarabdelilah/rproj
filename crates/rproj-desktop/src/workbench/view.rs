@@ -607,6 +607,7 @@ impl Render for Workbench {
         let watch = self.render_watch(cx);
         let content = if self.operations.expanded {
             v_resizable("project-activity")
+                .with_state(&self.activity_panels)
                 .on_resize(
                     cx.listener(|this, state: &Entity<resizable::ResizableState>, _, cx| {
                         if let Some(height) = state.read(cx).sizes().get(1) {
