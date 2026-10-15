@@ -134,6 +134,13 @@ struct Activity {
     partial: [String; 2],
 }
 impl Activity {
+    fn append_untagged(&mut self, text: &str) {
+        self.flush();
+        let origin = self.origin.take();
+        self.append(text);
+        self.origin = origin;
+    }
+
     fn set_origin(&mut self, origin: Option<String>) {
         if self.origin.as_deref() != origin.as_deref() {
             self.flush();
@@ -491,7 +498,7 @@ impl Workbench {
                 },
                 Event::PreferenceError(error) => {
                     self.operations.expanded = true;
-                    self.activity.append(&error);
+                    self.activity.append_untagged(&error);
                     self.preferences_error = Some(error);
                 }
                 Event::Connected(client, catalog) => {
@@ -632,8 +639,9 @@ impl Workbench {
                             }
                             Err(error) => {
                                 self.operations.expanded = true;
-                                self.activity
-                                    .append(&format!("Could not read Watch output: {error}"));
+                                self.activity.append_untagged(&format!(
+                                    "Could not read Watch output: {error}"
+                                ));
                             }
                         }
                     }
@@ -643,7 +651,7 @@ impl Workbench {
         }
         let dropped = self.dropped.swap(0, Ordering::Relaxed);
         if dropped > 0 {
-            self.activity.append(&format!(
+            self.activity.append_untagged(&format!(
                 "{dropped} output chunks omitted while the queue was full."
             ));
             changed = true;
@@ -748,7 +756,7 @@ impl Workbench {
                             this.start_for(Operation::SwitchWatch, pending.to.clone(), cx);
                         } else {
                             this.operations.expanded = true;
-                            this.activity.append("Watch switch expired because the project or Watch changed. Open Switch Watch again.");
+                            this.activity.append_untagged("Watch switch expired because the project or Watch changed. Open Switch Watch again.");
                             cx.notify();
                         }
                     });
@@ -898,6 +906,13 @@ mod tests {
         let mut output = Activity::default();
         output.set_origin(Some("first project · Check".into()));
         output.append_stream(false, "partial");
+        output.append_untagged("Workbench notice");
+        assert_eq!(output.displayed().last().unwrap(), "Workbench notice");
+        output.append_stream(false, "continued\n");
+        assert_eq!(
+            output.displayed().last().unwrap(),
+            "[first project · Check] continued"
+        );
         output.set_origin(Some("other project · Watch".into()));
         output.append("watch line");
         assert!(

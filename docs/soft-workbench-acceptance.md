@@ -45,7 +45,11 @@ worker protocol, project configuration, or preference schema changed.
   prerequisite-dependent tests remain ignored. The separate desktop suite has no
   ignored tests. Full changed-file CodeRabbit review returned zero findings on
   `15f79c7`, including all new source files. The follow-up fixture correction is
-  reviewed separately; it adds the required Wally package metadata.
+  reviewed separately; it adds the required Wally package metadata. The clipping
+  follow-up received a full review with one minor attribution finding: workbench
+  notices inherited a running operation's project label. An untagged append path
+  and regression assertions correct it. The final CodeRabbit recheck is currently
+  rate-limited; it has not been reported as a clean final-head review.
 - A clean `15f79c7` portable archive passed extracted CLI/desktop version checks,
   matching-worker self-check, read-only inspection, executable hashes and static
   CRT dependency checks. License notices were preserved for 589 dependencies;
@@ -94,8 +98,11 @@ failure summary overlap the Watch bar, with a screenshot confirming it. The fix
 uses a single-line project/status summary with full accessible/tooltip details,
 fixed-height status/toolbar rows, a 144-logical-pixel Activity minimum, and a
 single-line Watch identity. Output retains horizontal scrolling. Automated geometry
-checks pass; a targeted real-window recheck of this fix remains **unverified**.
-System OS-change behavior, 100%/125% scaling on Soft, and panel-resize persistence
+checks pass. In the clean `008db96` portable preview, the owner confirmed the
+summary, Search/Clear controls and output remain inside the minimum Activity panel
+above Watch, including after collapse/reopen. Its extracted-copy packaging checks
+also passed. This confirms the reported clipping fix.
+System OS-change behavior, 100%/125% scaling on Soft, and arbitrary panel-resize persistence
 remain unverified separately from the prior prototype's results. Real Watch
 switching needs a separate disposable-session check; it must not stop an unrelated
 user Watch as part of this checklist. macOS/Linux desktop, fresh-machine runtime,
