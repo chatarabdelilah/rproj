@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 14, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 15, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,16 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 14: deliver the verified prototype, then review designs.**
+**Current priority, October 15: deliver the approved Soft native workbench.**
+The owner accepted the section sidebar and compact project switcher, then chose
+Soft from the working visual comparison. The native implementation on
+`codex/soft-workbench` adds that layout, themed controls, contextual Activity,
+operation ownership, and acknowledged Watch switching. Automated validation and
+review are tracked in [Soft acceptance](soft-workbench-acceptance.md). Native
+acceptance of this new build is separate from the earlier feasibility pass.
+No version bump, publication, installer, or CLI/Ratatui behavior change is planned.
+
+**Historical foundation, October 14:**
 The owner confirmed continuation and emphasized that the current UI is not the
 intended release design. Preserve the shared-core work and validate the existing
 prototype. Wireframes and visual mockups still need a separate review; technical

@@ -4,7 +4,28 @@ Approved October 8, 2026. This supersedes the Ratatui-only direction, not the
 retirement of Tauri, model import, or embedded replacements for external tools.
 The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
-## Implementation checkpoint (October 14)
+## Implementation checkpoint (October 15)
+
+### Approved native design (October 15)
+
+The owner approved the section sidebar, compact project switcher, and Activity
+that opens when needed, then selected Soft as shown in the working comparison:
+warm surfaces, roomier spacing, rounded controls, platform typography, labeled
+Lucide icons, and restrained blue emphasis. Implement this baseline in the native
+workbench on `codex/soft-workbench`. Keep operation origins visible across project
+navigation and confirm Watch switching with both project paths. The latest inline
+comparison works for both proposals; older conversation previews are superseded.
+This approves the design direction, not native acceptance or a public release.
+
+The native implementation now uses GPUI Kit's project menu and alert dialog,
+the four sidebar sections, registered Soft palettes, and the existing resizable
+Activity panel. Desktop-private run IDs reject stale progress/results and retain
+project labels; output labels survive bounded-history eviction. Watch confirms
+both paths and rejects stale selection/ownership before using the existing
+Stop-acknowledgement worker path. See [Soft acceptance](soft-workbench-acceptance.md)
+for automated evidence, the isolated preview, and pending real-window checks.
+
+### Historical prototype evidence (October 14)
 
 The owner clarified that technical prototype work should continue, while the
 current UI must not become the release design by default. Keep its navigation,

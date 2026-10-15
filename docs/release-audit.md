@@ -1,5 +1,32 @@
 # Release-Hardening Audit
 
+## October 15: approved Soft native workbench
+
+The owner approved the section-sidebar layout and Soft visual direction. Native
+implementation and acceptance are recorded in [Soft acceptance](soft-workbench-acceptance.md).
+The 20 desktop tests and 563 CLI/core tests pass locally (24 prerequisite-dependent
+CLI tests remain ignored), together with desktop/core Clippy and formatting.
+Full changed-file CodeRabbit review,
+portable packaging, reviewed-head CI, and merged-main CI are tracked there as they
+complete. Earlier prototype manual checks do not certify this new interface.
+The owner confirmed the initial Soft controls and responsive Check, but reported
+Activity clipping at its minimum height. A screenshot-backed layout correction
+and regression test are included; the owner confirmed the minimum Activity panel
+and collapse/reopen now keep the summary, controls and output inside the panel.
+The local CodeRabbit recheck was rate-limited after its minor attribution finding
+was corrected and tested. An opt-in GitHub review inspected all 12 files at
+`08340a1`; both minor comments (Activity icon coverage and readable exit-code
+messages) are corrected. Review, final-head CI and merge delivery are tracked in
+[PR #107](https://github.com/chatarabdelilah/rproj/pull/107); this is not a public release.
+Corrected-head Windows CI also caught a pre-existing fixture race releasing Watch
+ownership before a terminal snapshot was saved. Its test-only guard now waits for
+the terminal state; all three Stop cases passed ten repetitions each. No production
+Watch behavior or protocol changed, and the failed attempt remains CI evidence.
+The full local suite also exposed a Hub rendering fixture depending on the live
+user Watch summary. A fixed test value isolates it; the layout case and complete
+563-test CLI/core suite pass. Ratatui production code remains unchanged.
+Published 0.22.0, public APIs, preference/configuration schemas, and tags are unchanged.
+
 ## October 14: initial Windows GPUI feasibility gate passed
 
 The owner confirmed the final native check in the verified portable preview:

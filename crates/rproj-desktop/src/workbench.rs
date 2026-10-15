@@ -1,4 +1,9 @@
+mod operation;
+mod theme;
+#[cfg(test)]
+mod ui_tests;
 mod view;
+use operation::{OperationPresentation, RunStatus, WatchSwitch};
 
 use gpui_kit::component::{
     input::{InputEvent, InputState},
@@ -40,6 +45,15 @@ enum Section {
     Checks,
 }
 impl Section {
+    fn icon(self) -> gpui_kit::assets::IconName {
+        use gpui_kit::assets::IconName;
+        match self {
+            Self::Overview => IconName::LayoutDashboard,
+            Self::Dependencies => IconName::Package,
+            Self::Tools => IconName::Wrench,
+            Self::Checks => IconName::FlaskConical,
+        }
+    }
     fn title(self) -> &'static str {
         match self {
             Self::Overview => "Overview",
@@ -59,8 +73,8 @@ enum Event {
     PreferenceError(String),
     Inspected(u64, Box<Result<(ProjectSnapshot, String), String>>),
     Status(Result<WatchStatus, String>),
-    Progress(OperationEvent),
-    Complete(Result<OperationOutcome, String>),
+    Progress(u64, OperationEvent),
+    Complete(u64, Result<OperationOutcome, String>),
     WatchLogs(u64, Result<String, String>),
 }
 
@@ -113,11 +127,27 @@ impl WatchLogRequest {
 #[derive(Default)]
 struct Activity {
     lines: VecDeque<String>,
+    origins: VecDeque<Option<Arc<str>>>,
+    origin: Option<Arc<str>>,
     bytes: usize,
     omitted: usize,
     partial: [String; 2],
 }
 impl Activity {
+    fn append_untagged(&mut self, text: &str) {
+        self.flush();
+        let origin = self.origin.take();
+        self.append(text);
+        self.origin = origin;
+    }
+
+    fn set_origin(&mut self, origin: Option<String>) {
+        if self.origin.as_deref() != origin.as_deref() {
+            self.flush();
+            self.origin = origin.map(Arc::from);
+        }
+    }
+
     fn append_stream(&mut self, stderr: bool, text: &str) {
         let stream = usize::from(stderr);
         for character in text.chars() {
@@ -149,27 +179,42 @@ impl Activity {
         }
     }
     fn displayed(&self) -> impl Iterator<Item = String> + '_ {
-        self.lines.iter().cloned().chain(
-            self.partial
-                .iter()
-                .enumerate()
-                .filter(|(_, text)| !text.is_empty())
-                .map(|(stream, text)| {
-                    if stream == 1 {
-                        format!("[stderr] {text}")
-                    } else {
-                        text.clone()
-                    }
-                }),
-        )
+        self.lines
+            .iter()
+            .zip(&self.origins)
+            .map(|(line, origin)| {
+                origin
+                    .as_ref()
+                    .map(|origin| format!("[{origin}] {line}"))
+                    .unwrap_or_else(|| line.clone())
+            })
+            .chain(
+                self.partial
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, text)| !text.is_empty())
+                    .map(|(stream, text)| {
+                        let text = if stream == 1 {
+                            format!("[stderr] {text}")
+                        } else {
+                            text.clone()
+                        };
+                        self.origin
+                            .as_ref()
+                            .map(|origin| format!("[{origin}] {text}"))
+                            .unwrap_or(text)
+                    }),
+            )
     }
     fn append(&mut self, text: &str) {
         for line in text.lines() {
             let line: String = line.chars().take(8_192).collect();
             self.bytes += line.len();
             self.lines.push_back(line);
+            self.origins.push_back(self.origin.clone());
             while self.lines.len() > LOG_CAPACITY || self.bytes > LOG_BYTES {
                 if let Some(line) = self.lines.pop_front() {
+                    self.origins.pop_front();
                     self.bytes -= line.len();
                     self.omitted += 1;
                 }
@@ -180,6 +225,7 @@ impl Activity {
 
 pub struct Workbench {
     focus: FocusHandle,
+    watch_focus: FocusHandle,
     section: Section,
     project: Option<PathBuf>,
     snapshot: Option<ProjectSnapshot>,
@@ -201,6 +247,10 @@ pub struct Workbench {
     querying_status: bool,
     watch_log_request: WatchLogRequest,
     running: Option<(Operation, Cancellation)>,
+    operations: OperationPresentation,
+    pending_switch: Option<WatchSwitch>,
+    watch_generation: u64,
+    activity_height: Pixels,
     activity: Activity,
     filter: Entity<InputState>,
     sender: SyncSender<Event>,
@@ -218,6 +268,7 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
+        theme::install(cx);
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
         let (sender, receiver) = sync_channel(EVENT_CAPACITY);
@@ -263,6 +314,7 @@ impl Workbench {
         });
         let mut view = Self {
             focus,
+            watch_focus: cx.focus_handle(),
             section: Section::Overview,
             project: None,
             snapshot: None,
@@ -284,6 +336,10 @@ impl Workbench {
             querying_status: false,
             watch_log_request: WatchLogRequest::default(),
             running: None,
+            operations: OperationPresentation::default(),
+            pending_switch: None,
+            watch_generation: 0,
+            activity_height: px(180.),
             activity: Activity::default(),
             filter,
             sender,
@@ -304,6 +360,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.pending_switch = None;
         self.watch_log_request.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.project = Some(path);
@@ -313,6 +370,19 @@ impl Workbench {
         self.error = None;
         self.inspection_fingerprint.clear();
         self.inspect();
+        cx.notify();
+    }
+
+    fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.pending_switch = None;
+        self.watch_log_request.invalidate();
+        self.generation = self.generation.wrapping_add(1);
+        self.project = None;
+        self.snapshot = None;
+        self.selected_package = None;
+        self.inspecting = false;
+        self.error = None;
+        self.inspection_fingerprint.clear();
         cx.notify();
     }
 
@@ -388,6 +458,7 @@ impl Workbench {
         let Some(request) = self.watch_log_request.begin() else {
             return;
         };
+        self.operations.expanded = true;
         let sender = self.sender.clone();
         std::thread::spawn(move || {
             let result = client.watch_logs().map_err(|error| format!("{error:#}"));
@@ -426,11 +497,14 @@ impl Workbench {
                     Err(error) => self.preferences_error = Some(error),
                 },
                 Event::PreferenceError(error) => {
-                    self.activity.append(&error);
+                    self.operations.expanded = true;
+                    self.activity.append_untagged(&error);
                     self.preferences_error = Some(error);
                 }
                 Event::Connected(client, catalog) => {
                     self.watch_log_request.invalidate();
+                    self.watch_generation = self.watch_generation.wrapping_add(1);
+                    self.pending_switch = None;
                     match catalog {
                         Some(Ok(catalog)) => {
                             self.catalog = catalog;
@@ -485,6 +559,17 @@ impl Workbench {
                             .map(|watch| (&watch.project, watch.state))
                     {
                         self.watch_log_request.invalidate();
+                        self.watch_generation = self.watch_generation.wrapping_add(1);
+                        self.pending_switch = None;
+                        if status.as_ref().is_ok_and(|watch| {
+                            matches!(
+                                watch.state,
+                                rproj_core::operations::WatchState::Failed
+                                    | rproj_core::operations::WatchState::Unresponsive
+                            )
+                        }) {
+                            self.operations.expanded = true;
+                        }
                     }
                     match status {
                         Ok(status) => {
@@ -497,21 +582,36 @@ impl Workbench {
                         }
                     }
                 }
-                Event::Progress(OperationEvent::Output { stderr, text }) => {
+                Event::Progress(id, OperationEvent::Output { stderr, text })
+                    if self.operations.accepts(id) =>
+                {
+                    self.activity
+                        .set_origin(self.operations.latest.as_ref().map(|run| {
+                            format!(
+                                "{} · {}",
+                                run.project.display(),
+                                operation_label(run.operation)
+                            )
+                        }));
                     self.activity.append_stream(stderr, &text);
                 }
-                Event::Progress(_) => continue,
-                Event::Complete(result) => {
+                Event::Progress(_, _) => continue,
+                Event::Complete(id, result) => {
+                    if !self.operations.finish(id, &result) {
+                        continue;
+                    }
                     self.running = None;
+                    self.activity
+                        .set_origin(self.operations.latest.as_ref().map(|run| {
+                            format!(
+                                "{} · {}",
+                                run.project.display(),
+                                operation_label(run.operation)
+                            )
+                        }));
                     self.activity.flush();
-                    self.activity.append(&match result {
-                        Ok(OperationOutcome::Succeeded) => "Completed".into(),
-                        Ok(OperationOutcome::Cancelled) => "Cancelled".into(),
-                        Ok(OperationOutcome::Failed { code }) => {
-                            format!("Failed (exit code {code:?})")
-                        }
-                        Err(error) => format!("Could not complete operation: {error}"),
-                    });
+                    self.activity.append(&self.operations.summary());
+                    self.activity.set_origin(None);
                     self.poll_status();
                     if !self.inspecting {
                         self.inspect();
@@ -520,10 +620,29 @@ impl Workbench {
                 Event::WatchLogs(request, result) => {
                     if self.watch_log_request.finish(request) {
                         match result {
-                            Ok(logs) => self.activity.append(&logs),
-                            Err(error) => self
-                                .activity
-                                .append(&format!("Could not read Watch output: {error}")),
+                            Ok(logs) => {
+                                let origin = self
+                                    .watch
+                                    .as_ref()
+                                    .and_then(|watch| watch.project.as_ref())
+                                    .map(|path| path.display().to_string())
+                                    .unwrap_or_else(|| "No active project".into());
+                                self.activity.flush();
+                                self.activity.set_origin(Some(format!("{origin} · Watch")));
+                                self.activity.append(&format!("Watch output — {origin}"));
+                                self.activity.append(if logs.is_empty() {
+                                    "No Watch output yet."
+                                } else {
+                                    &logs
+                                });
+                                self.activity.set_origin(None);
+                            }
+                            Err(error) => {
+                                self.operations.expanded = true;
+                                self.activity.append_untagged(&format!(
+                                    "Could not read Watch output: {error}"
+                                ));
+                            }
                         }
                     }
                 }
@@ -532,7 +651,7 @@ impl Workbench {
         }
         let dropped = self.dropped.swap(0, Ordering::Relaxed);
         if dropped > 0 {
-            self.activity.append(&format!(
+            self.activity.append_untagged(&format!(
                 "{dropped} output chunks omitted while the queue was full."
             ));
             changed = true;
@@ -577,9 +696,6 @@ impl Workbench {
         if self.running.is_some() {
             return;
         }
-        let Some(client) = self.client.clone() else {
-            return;
-        };
         let project = if operation == Operation::StopWatch {
             self.watch
                 .as_ref()
@@ -589,28 +705,99 @@ impl Workbench {
             self.project.clone()
         };
         let Some(project) = project else { return };
+        self.start_for(operation, project, cx);
+    }
+
+    fn confirm_watch_switch(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(from) = self.watch.as_ref().and_then(|watch| watch.project.clone()) else {
+            return;
+        };
+        let Some(to) = self.project.clone() else {
+            return;
+        };
+        if self.running.is_some() || from == to {
+            return;
+        }
+        let pending = WatchSwitch {
+            from,
+            to,
+            generation: self.watch_generation,
+        };
+        if !pending.matches(
+            self.project.as_deref(),
+            self.watch.as_ref(),
+            self.watch_generation,
+        ) {
+            return;
+        }
+        self.pending_switch = Some(pending.clone());
+        // Component Button owns its focus handle and suppresses pointer focus.
+        // Enter its native tab stop through the preceding, non-tab-stop anchor.
+        self.watch_focus.focus(window, cx);
+        window.focus_next(cx);
+        let owner = cx.entity().downgrade();
+        window.open_alert_dialog(cx, move |dialog, _, _| {
+            let confirm = owner.clone();
+            let close = owner.clone();
+            let pending = pending.clone();
+            dialog.confirm().title("Switch the active Watch?")
+                .child(div().v_flex().gap_3()
+                    .child(format!("Stop: {}", pending.from.display()))
+                    .child(format!("Then start: {}", pending.to.display()))
+                    .child("The new Watch starts only after the current Watch acknowledges Stop."))
+                .button_props(dialog::DialogButtonProps::default().ok_text("Stop and switch").cancel_text("Keep current Watch").show_cancel(true))
+                .on_ok(move |_, _, cx| {
+                    let _ = confirm.update(cx, |this, cx| {
+                        let valid = this.pending_switch.as_ref().is_some_and(|current|
+                            current.from == pending.from && current.to == pending.to
+                                && current.generation == pending.generation
+                                && current.matches(this.project.as_deref(), this.watch.as_ref(), this.watch_generation));
+                        if valid && this.running.is_none() {
+                            this.start_for(Operation::SwitchWatch, pending.to.clone(), cx);
+                        } else {
+                            this.operations.expanded = true;
+                            this.activity.append_untagged("Watch switch expired because the project or Watch changed. Open Switch Watch again.");
+                            cx.notify();
+                        }
+                    });
+                    true
+                })
+                .on_close(move |_, _, cx| { let _ = close.update(cx, |this, _| this.pending_switch = None); })
+        });
+    }
+
+    fn start_for(&mut self, operation: Operation, project: PathBuf, cx: &mut Context<Self>) {
+        if self.running.is_some() {
+            return;
+        }
+        let Some(client) = self.client.clone() else {
+            return;
+        };
+        self.pending_switch = None;
         if !operation.cancellable() {
             self.watch_log_request.invalidate();
         }
         let cancellation = Cancellation::default();
+        let id = self.operations.begin(operation, project.clone());
         self.running = Some((operation, cancellation.clone()));
-        self.activity.append(&format!(
-            "{} — {}",
-            operation_label(operation),
-            project.display()
-        ));
+        self.activity.flush();
+        self.activity.set_origin(Some(format!(
+            "{} · {}",
+            project.display(),
+            operation_label(operation)
+        )));
         let sender = self.sender.clone();
         let progress = sender.clone();
         let dropped = self.dropped.clone();
         std::thread::spawn(move || {
             let result = client
                 .run(operation, &project, &cancellation, move |event| {
-                    if progress.try_send(Event::Progress(event)).is_err() {
+                    if progress.try_send(Event::Progress(id, event)).is_err() {
                         dropped.fetch_add(1, Ordering::Relaxed);
                     }
                 })
                 .map_err(|error| format!("{error:#}"));
-            let _ = sender.send(Event::Complete(result));
+            let _ = sender.send(Event::Complete(id, result));
         });
         cx.notify();
     }
@@ -715,6 +902,48 @@ mod tests {
     }
 
     #[test]
+    fn output_origins_survive_eviction_and_interleaved_sources() {
+        let mut output = Activity::default();
+        output.set_origin(Some("first project · Check".into()));
+        output.append_stream(false, "partial");
+        output.append_untagged("Workbench notice");
+        assert_eq!(output.displayed().last().unwrap(), "Workbench notice");
+        output.append_stream(false, "continued\n");
+        assert_eq!(
+            output.displayed().last().unwrap(),
+            "[first project · Check] continued"
+        );
+        output.set_origin(Some("other project · Watch".into()));
+        output.append("watch line");
+        assert!(
+            output
+                .displayed()
+                .next()
+                .unwrap()
+                .starts_with("[first project · Check] partial")
+        );
+        assert!(
+            output
+                .displayed()
+                .last()
+                .unwrap()
+                .starts_with("[other project · Watch] watch line")
+        );
+        for _ in 0..super::LOG_CAPACITY {
+            output.append("bounded output");
+        }
+        assert_eq!(output.origins.len(), output.lines.len());
+        assert!(
+            output
+                .displayed()
+                .all(|line| line.starts_with("[other project · Watch]"))
+        );
+        output.set_origin(None);
+        output.append("workbench message");
+        assert_eq!(output.displayed().last().unwrap(), "workbench message");
+    }
+
+    #[test]
     fn streamed_chunks_preserve_searchable_lines_and_separate_stderr() {
         let mut output = Activity::default();
         output.append_stream(false, "test ");
@@ -809,7 +1038,14 @@ mod tests {
                     .unwrap();
                 this.drain(cx);
                 assert_eq!(this.activity.lines.back().unwrap(), "current output");
-                assert_eq!(this.activity.lines.len(), 1);
+                assert_eq!(this.activity.lines.len(), 2);
+                assert!(
+                    this.activity
+                        .lines
+                        .front()
+                        .unwrap()
+                        .contains(&fixture.path().display().to_string())
+                );
                 assert!(this.watch_log_request.pending.is_none());
             });
         });
@@ -972,7 +1208,7 @@ mod tests {
         cx.update_window(handle, |_, window, cx| {
             window.render_frame(cx);
             window.press("tab", cx);
-            assert_eq!(window.find("open-project").focused(), Some(true));
+            assert_eq!(window.find("project-switcher").focused(), Some(true));
             window.click("Dependencies", cx);
             window.click("dependencies:Signal", cx);
             assert_eq!(
