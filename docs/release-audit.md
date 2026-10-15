@@ -1,5 +1,20 @@
 # Release-Hardening Audit
 
+## October 16: disposable real Watch acceptance prepared
+
+Git connectivity recovered; local main was synchronized to `7d78871` and fully
+merged acceptance branches were removed locally/remotely with exact-head guards.
+The verified portable preview and already-installed Rojo 7.7.1 started a real
+Watch in a unique disposable project, with no Wally/Rokit manifests or tool
+installation. Two added modules appeared in its sourcemap. No active unrelated
+Watch was stopped; the prior session was Failed on an old preview fixture.
+The source session survived replacement of the earlier preview window.
+Two read-only status probes during a two-minute monitor briefly reported
+Unresponsive and then Watching; their cause is unverified. Native browsing/Close
+project, confirmation cancellation,
+switching and Stop acceptance remain pending. See
+[Soft acceptance](soft-workbench-acceptance.md) for the bounded scope.
+
 ## October 16: Soft System appearance and scaling confirmed
 
 The owner checked the verified clean `bfb52d5` portable Soft preview. System mode

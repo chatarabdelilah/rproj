@@ -152,3 +152,23 @@ switching needs a separate disposable-session check; it must not stop an unrelat
 user Watch as part of this checklist. macOS/Linux desktop, fresh-machine runtime,
 real Roblox Test runners, and authenticated Open Cloud acceptance remain outside
 this milestone. Installers and publication are not included.
+
+## Real Watch acceptance preparation (October 16)
+
+After Git connectivity recovered, local main was synchronized to `7d78871` and
+the fully merged acceptance branches were deleted with exact-head guards.
+The verified `297f53f` portable preview is also the source for the real Watch check.
+Unique source/destination projects under `target/watch-acceptance` omit both
+Wally and Rokit manifests. The existing Watch was Failed on an older disposable
+preview, so no active unrelated Watch was stopped. Already-installed Rojo 7.7.1
+is supplied through a process-local PATH; no tools or packages are installed.
+
+The real source session reached Watching. Two newly added modules appeared in
+its generated sourcemap, and Watch remained running while the earlier preview
+window was replaced with isolated preferences listing both test projects.
+Two read-only probes during a two-minute monitor briefly reported Unresponsive
+and recovered to Watching; the cause remains unverified. The production status
+handler does not persist state for reads. Native Close project, browsing,
+confirmation Escape, confirmed
+switching, and final Stop observations remain pending separately from these
+backend checks. No native capture/activation automation was retried.
