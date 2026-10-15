@@ -1,6 +1,7 @@
 # Soft workbench acceptance
 
-Approved October 15, 2026. Implementation branch: `codex/soft-workbench`.
+Approved and merged October 15, 2026 in [PR #107](https://github.com/chatarabdelilah/rproj/pull/107)
+at `24595f6`. The fully merged `codex/soft-workbench` branch was removed.
 Published baseline: 0.22.0, unchanged. This is an unreleased Windows preview.
 
 ## Approved design and implemented behavior
@@ -43,23 +44,23 @@ worker protocol, project configuration, or preference schema changed.
 - 27 shared-core tests pass. Desktop/core Clippy and repository formatting pass.
 - CLI compatibility: 536 CLI tests and 27 shared-core tests pass; 24 live or
   prerequisite-dependent tests remain ignored. The separate desktop suite has no
-  ignored tests. Full changed-file CodeRabbit review returned zero findings on
-  `15f79c7`, including all new source files. The follow-up fixture correction is
-  reviewed separately; it adds the required Wally package metadata. The clipping
-  follow-up received a full review with one minor attribution finding: workbench
-  notices inherited a running operation's project label. An untagged append path
-  and regression assertions correct it. The local recheck was rate-limited;
-  the repository's opt-in GitHub review then inspected all 12 files at `08340a1`.
-  Its two minor comments were corrected: bundle-test coverage now includes both
-  Activity arrow icons, and failure messages use a plain exit code or "no exit code".
-- A clean `15f79c7` portable archive passed extracted CLI/desktop version checks,
+  ignored tests. Final local CodeRabbit review inspected all 14 changed files at
+  `b824aba` and returned zero findings. Earlier review findings were corrected:
+  workbench notices no longer inherit a running operation's project label;
+  bundle-test coverage includes both Activity arrow icons; failure messages use
+  a plain exit code or "no exit code". The opt-in GitHub review threads are resolved.
+- The latest clean `bfb52d5` portable archive passed extracted CLI/desktop version checks,
   matching-worker self-check, read-only inspection, executable hashes and static
   CRT dependency checks. License notices were preserved for 589 dependencies;
   completeness for three legacy archives remains documented in `THIRD-PARTY.md`.
   Windows PowerShell 5.1 ran the preview fixture preparation successfully.
-- Delivery checks and merge status: [PR #107](https://github.com/chatarabdelilah/rproj/pull/107).
-  Runtime-head CI: [38786314212](https://github.com/chatarabdelilah/rproj/actions/runs/38786314212).
-  Final correction/main run links are recorded with that PR's delivery evidence.
+- All seven executed CI jobs passed on the final reviewed head `b824aba` in
+  [38790704521](https://github.com/chatarabdelilah/rproj/actions/runs/38790704521)
+  and merged main `24595f6` in
+  [38792261666](https://github.com/chatarabdelilah/rproj/actions/runs/38792261666).
+  The scheduled/manual badge job was intentionally skipped. Nonblocking cache
+  annotations reported missing packaging scratch paths; package and portable
+  checks passed. No version, tag, installer, or publication was created.
 
 The corrected-head stable Windows run exposed an existing test-fixture ordering
 race: its fake supervisor could release ownership after 200 ms while the persisted

@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 15, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 16, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,14 +17,16 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 15: deliver the approved Soft native workbench.**
+**Current priority, October 16: finish Soft Windows acceptance.**
 The owner accepted the section sidebar and compact project switcher, then chose
-Soft from the working visual comparison. The native implementation on
-`codex/soft-workbench` adds that layout, themed controls, contextual Activity,
-operation ownership, and acknowledged Watch switching. Automated validation and
-review are tracked in [Soft acceptance](soft-workbench-acceptance.md). Native
-acceptance of this new build is separate from the earlier feasibility pass.
-No version bump, publication, installer, or CLI/Ratatui behavior change is planned.
+Soft from the working visual comparison. [PR #107](https://github.com/chatarabdelilah/rproj/pull/107)
+merged the native layout, themed controls, contextual Activity, operation ownership,
+and acknowledged Watch switching at `24595f6`. Final reviewed-head and merged-main
+CI passed. The owner confirmed the minimum-height Activity clipping fix.
+[Soft acceptance](soft-workbench-acceptance.md) separates confirmed checks from
+remaining System appearance, scaling, panel resizing, and real Watch checks.
+Full workflow parity remains a later gate. No version bump, publication, installer,
+or CLI/Ratatui production behavior change was made.
 
 **Historical foundation, October 14:**
 The owner confirmed continuation and emphasized that the current UI is not the
