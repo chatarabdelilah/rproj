@@ -36,6 +36,7 @@ mod tests {
             IconName::FlaskConical,
             IconName::FolderOpen,
             IconName::ChevronDown,
+            IconName::ChevronUp,
         ] {
             assert!(!Assets.load(&icon.path()).unwrap().unwrap().is_empty());
         }

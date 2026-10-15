@@ -71,8 +71,11 @@ impl OperationPresentation {
         let status = match result {
             Ok(OperationOutcome::Succeeded) => RunStatus::Succeeded,
             Ok(OperationOutcome::Cancelled) => RunStatus::Cancelled,
-            Ok(OperationOutcome::Failed { code }) => {
-                RunStatus::Failed(format!("Failed (exit code {code:?})"))
+            Ok(OperationOutcome::Failed { code: Some(code) }) => {
+                RunStatus::Failed(format!("Failed (exit code {code})"))
+            }
+            Ok(OperationOutcome::Failed { code: None }) => {
+                RunStatus::Failed("Failed (no exit code)".into())
             }
             Err(error) => RunStatus::Failed(format!("Could not complete operation: {error}")),
         };

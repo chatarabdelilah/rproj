@@ -48,15 +48,18 @@ worker protocol, project configuration, or preference schema changed.
   reviewed separately; it adds the required Wally package metadata. The clipping
   follow-up received a full review with one minor attribution finding: workbench
   notices inherited a running operation's project label. An untagged append path
-  and regression assertions correct it. The final CodeRabbit recheck is currently
-  rate-limited; it has not been reported as a clean final-head review.
+  and regression assertions correct it. The local recheck was rate-limited;
+  the repository's opt-in GitHub review then inspected all 12 files at `08340a1`.
+  Its two minor comments were corrected: bundle-test coverage now includes both
+  Activity arrow icons, and failure messages use a plain exit code or "no exit code".
 - A clean `15f79c7` portable archive passed extracted CLI/desktop version checks,
   matching-worker self-check, read-only inspection, executable hashes and static
   CRT dependency checks. License notices were preserved for 589 dependencies;
   completeness for three legacy archives remains documented in `THIRD-PARTY.md`.
   Windows PowerShell 5.1 ran the preview fixture preparation successfully.
 - Delivery checks and merge status: [PR #107](https://github.com/chatarabdelilah/rproj/pull/107).
-  Final run links are recorded with that PR's delivery evidence.
+  Runtime-head CI: [38786314212](https://github.com/chatarabdelilah/rproj/actions/runs/38786314212).
+  Final correction/main run links are recorded with that PR's delivery evidence.
 
 Headless tests verify state, controls and geometry. They do not verify Windows
 pixels, GPU rendering, OS appearance notifications, or monitor scaling. The previous

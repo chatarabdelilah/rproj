@@ -13,9 +13,11 @@ The owner confirmed the initial Soft controls and responsive Check, but reported
 Activity clipping at its minimum height. A screenshot-backed layout correction
 and regression test are included; the owner confirmed the minimum Activity panel
 and collapse/reopen now keep the summary, controls and output inside the panel.
-The final full CodeRabbit recheck is rate-limited after its one minor attribution
-finding was corrected and tested. Review, final-head CI and merge delivery remain
-tracked in PR #107; this is not a public release.
+The local CodeRabbit recheck was rate-limited after its minor attribution finding
+was corrected and tested. An opt-in GitHub review inspected all 12 files at
+`08340a1`; both minor comments (Activity icon coverage and readable exit-code
+messages) are corrected. Review, final-head CI and merge delivery are tracked in
+[PR #107](https://github.com/chatarabdelilah/rproj/pull/107); this is not a public release.
 Published 0.22.0, public APIs, preference/configuration schemas, and tags are unchanged.
 
 ## October 14: initial Windows GPUI feasibility gate passed
