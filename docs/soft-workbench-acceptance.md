@@ -93,6 +93,11 @@ preferences. `-CheckOnly` verifies the bundle without launching; `-PrepareOnly`
 also creates fixtures and reports their paths. A sample Check prints five timer
 ticks using an already-installed Lute; no tools or packages are installed.
 Watch remains the existing machine/user session, not an isolated fake Watch.
+The example's `example/unfamiliar` dependency is deliberately fictional to exercise
+unknown-package inspection. Starting real Watch there fails during Wally resolution;
+the October 16 read-only status/log check confirmed this cause for the older preview's
+Failed state. The separate `Another project` fixture has no Wally dependencies.
+Any real Watch acceptance still needs installed prerequisites and a disposable session.
 
 ## Bounded owner review (two minutes)
 
