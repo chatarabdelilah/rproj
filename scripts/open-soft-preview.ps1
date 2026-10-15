@@ -38,6 +38,12 @@ $utf8 = New-Object Text.UTF8Encoding($false)
 [IO.File]::WriteAllText((Join-Path $other 'default.project.json'), '{"name":"Another project","tree":{"$className":"DataModel"}}', $utf8)
 [IO.File]::WriteAllText((Join-Path $invalid 'default.project.json'), '{ broken configuration', $utf8)
 [IO.File]::WriteAllText((Join-Path $project 'wally.toml'), @'
+[package]
+name = "rproj/soft-preview"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
 [dependencies]
 Signal = "sleitnick/signal@2.0.1"
 Unfamiliar = "example/unfamiliar@1.0.0"

@@ -41,9 +41,16 @@ worker protocol, project configuration, or preference schema changed.
 - 27 shared-core tests pass. Desktop/core Clippy and repository formatting pass.
 - CLI compatibility: 536 CLI tests and 27 shared-core tests pass; 24 live or
   prerequisite-dependent tests remain ignored. The separate desktop suite has no
-  ignored tests. Full changed-file CodeRabbit review returned zero findings before
-  the final folder-picker/output-scrolling refinement; final review is pending.
-- Portable archive smoke checks, reviewed-head CI and merged-main CI: pending.
+  ignored tests. Full changed-file CodeRabbit review returned zero findings on
+  `15f79c7`, including all new source files. The follow-up fixture correction is
+  reviewed separately; it adds the required Wally package metadata.
+- A clean `15f79c7` portable archive passed extracted CLI/desktop version checks,
+  matching-worker self-check, read-only inspection, executable hashes and static
+  CRT dependency checks. License notices were preserved for 589 dependencies;
+  completeness for three legacy archives remains documented in `THIRD-PARTY.md`.
+  Windows PowerShell 5.1 ran the preview fixture preparation successfully.
+- Delivery: [PR #107](https://github.com/chatarabdelilah/rproj/pull/107).
+  Reviewed-head CI and merged-main CI are pending.
 
 Headless tests verify state, controls and geometry. They do not verify Windows
 pixels, GPU rendering, OS appearance notifications, or monitor scaling. The previous
