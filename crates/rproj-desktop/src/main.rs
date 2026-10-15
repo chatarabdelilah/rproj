@@ -1,5 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod assets;
 mod workbench;
 
 use gpui_kit::*;
@@ -40,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     );
     let initial_project = arguments.first().map(PathBuf::from);
     gpui_kit::application()
-        .with_assets(gpui_kit::assets::Assets)
+        .with_assets(assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
             cx.on_window_closed(|cx, _| {

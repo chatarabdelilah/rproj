@@ -2,6 +2,7 @@ use super::*;
 use gpui_kit::component::{
     button::*,
     input::Input,
+    menu::{DropdownMenu, PopupMenuItem},
     resizable::{resizable_panel, v_resizable},
 };
 use gpui_kit::prelude::FluentBuilder;
@@ -9,65 +10,118 @@ use rproj_core::{PackageDependency, PresenceState, ResolutionState, operations::
 
 impl Workbench {
     fn render_sidebar(&self, cx: &mut Context<Self>) -> AnyElement {
-        let recent = self
-            .preferences
-            .recent_projects
-            .iter()
-            .map(|path| {
-                let path = path.clone();
-                let label = path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                Button::new(SharedString::from(format!("recent:{}", path.display())))
-                    .ghost()
-                    .w_full()
-                    .label(label)
-                    .tooltip(path.display().to_string())
-                    .on_click(
-                        cx.listener(move |this, _, _, cx| this.open_project(path.clone(), cx)),
-                    )
+        let recent = self.preferences.recent_projects.clone();
+        let owner = cx.entity().downgrade();
+        let has_project = self.project.is_some();
+        let project_name = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.name.clone())
+            .or_else(|| {
+                self.project
+                    .as_ref()
+                    .and_then(|path| path.file_name())
+                    .map(|name| name.to_string_lossy().into_owned())
             })
-            .collect::<Vec<_>>();
+            .unwrap_or_else(|| "Open project…".into());
+        let switcher = Button::new("project-switcher")
+            .w_full()
+            .label(project_name)
+            .icon(IconName::FolderOpen)
+            .dropdown_menu(move |mut menu, _, _| {
+                if recent.is_empty() {
+                    menu = menu.label("No recent projects");
+                }
+                for path in &recent {
+                    let name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned();
+                    let display = path.display().to_string();
+                    let path = path.clone();
+                    let owner = owner.clone();
+                    menu = menu.item(
+                        PopupMenuItem::element(move |_, cx| {
+                            div()
+                                .id(SharedString::from(display.clone()))
+                                .role(Role::Group)
+                                .aria_label(format!("{name}: {display}"))
+                                .v_flex()
+                                .gap_1()
+                                .max_w(rems(26.))
+                                .child(name.clone())
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(cx.theme().muted_foreground)
+                                        .child(display.clone()),
+                                )
+                        })
+                        .on_click(move |_, _, cx| {
+                            let _ =
+                                owner.update(cx, |this, cx| this.open_project(path.clone(), cx));
+                        }),
+                    );
+                }
+                let open = owner.clone();
+                let close = owner.clone();
+                menu.separator()
+                    .item(
+                        PopupMenuItem::new("Open project…")
+                            .icon(IconName::FolderOpen)
+                            .on_click(move |_, _, cx| {
+                                let _ = open.update(cx, |this, cx| this.choose_project(cx));
+                            }),
+                    )
+                    .item(
+                        PopupMenuItem::new("Close project")
+                            .disabled(!has_project)
+                            .on_click(move |_, _, cx| {
+                                let _ = close.update(cx, |this, cx| this.close_project(cx));
+                            }),
+                    )
+            });
         let appearance = self.preferences.appearance;
         div()
             .v_flex()
-            .w(rems(13.))
+            .w(theme::SIDEBAR_WIDTH)
             .h_full()
             .flex_none()
             .border_r_1()
             .border_color(cx.theme().border)
             .bg(cx.theme().sidebar)
-            .p_4()
-            .gap_4()
+            .p(theme::PANEL_PADDING)
+            .gap(theme::GROUP_GAP)
             .child(
                 div()
                     .text_xl()
                     .font_weight(FontWeight::SEMIBOLD)
                     .child("rproj"),
             )
+            .child(switcher)
             .child(
-                Button::new("open-project")
-                    .label("Open project…")
-                    .icon(IconName::FolderOpen)
-                    .on_click(cx.listener(|this, _, _, cx| this.choose_project(cx))),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child("Recent projects"),
-            )
-            .child(
-                div()
-                    .id("recent-projects")
-                    .v_flex()
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .gap_1()
-                    .children(recent),
+                div().v_flex().flex_1().gap_2().children(
+                    [
+                        Section::Overview,
+                        Section::Dependencies,
+                        Section::Tools,
+                        Section::Checks,
+                    ]
+                    .into_iter()
+                    .map(|section| {
+                        Button::new(section.title())
+                            .ghost()
+                            .w_full()
+                            .label(section.title())
+                            .icon(section.icon())
+                            .selected(self.section == section)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.section = section;
+                                cx.notify();
+                            }))
+                    }),
+                ),
             )
             .child(
                 div()
@@ -111,6 +165,8 @@ impl Workbench {
                 .p_6()
                 .child(div().text_xl().child(if self.inspecting {
                     "Reading project…"
+                } else if self.error.is_some() {
+                    "Project could not be read"
                 } else {
                     "Open your project"
                 }))
@@ -141,7 +197,7 @@ impl Workbench {
             .into_any_element()
     }
 
-    fn render_dependencies(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn render_dependencies(&self, stacked: bool, cx: &mut Context<Self>) -> AnyElement {
         let Some(snapshot) = &self.snapshot else {
             return self.render_overview(cx);
         };
@@ -200,22 +256,33 @@ impl Workbench {
             });
         div()
             .h_flex()
+            .when(stacked, |view| view.flex_col())
             .items_stretch()
             .size_full()
             .min_h_0()
             .child(
                 div()
-                    .w(rems(20.))
+                    .id("package-list")
+                    .role(Role::Group)
+                    .aria_label("Dependencies")
+                    .test_support()
+                    .when(!stacked, |view| view.w(rems(16.)).h_full().border_r_1())
+                    .when(stacked, |view| {
+                        view.w_full().h(rems(7.)).flex_none().border_b_1()
+                    })
                     .min_h_0()
-                    .border_r_1()
                     .border_color(cx.theme().border)
                     .child(list),
             )
             .child(
                 div()
                     .id("package-detail")
+                    .role(Role::Group)
+                    .aria_label("Dependency details")
+                    .test_support()
                     .flex_1()
                     .min_w_0()
+                    .min_h_0()
                     .overflow_y_scroll()
                     .child(detail),
             )
@@ -297,11 +364,25 @@ impl Workbench {
                 .filter(|line| query.is_empty() || line.to_lowercase().contains(&query))
                 .collect(),
         );
+        let empty = visible.is_empty();
+        let widest = visible
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, line)| line.len())
+            .map(|(ix, _)| ix);
         let list = uniform_list("activity-lines", visible.len(), move |range, _, _| {
             range
-                .map(|ix| div().h(rems(1.5)).text_sm().child(visible[ix].clone()))
+                .map(|ix| {
+                    div()
+                        .h(rems(1.5))
+                        .whitespace_nowrap()
+                        .text_sm()
+                        .child(visible[ix].clone())
+                })
                 .collect::<Vec<_>>()
         })
+        .with_width_from_item(widest)
+        .with_horizontal_sizing_behavior(ListHorizontalSizingBehavior::Unconstrained)
         .size_full();
         div()
             .v_flex()
@@ -328,20 +409,6 @@ impl Workbench {
                             cx.notify();
                         }),
                     ))
-                    .when_some(self.running.as_ref(), |view, (operation, _)| {
-                        view.child(operation_label(*operation)).child(
-                            Button::new("cancel-operation")
-                                .label("Cancel")
-                                .disabled(!operation.cancellable())
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    if let Some((_, cancellation)) = &this.running {
-                                        cancellation.cancel();
-                                        this.activity.append("Cancellation requested…");
-                                        cx.notify();
-                                    }
-                                })),
-                        )
-                    })
                     .when(self.activity.omitted > 0, |view| {
                         view.child(format!("{} earlier lines omitted", self.activity.omitted))
                     }),
@@ -352,8 +419,88 @@ impl Workbench {
                     .min_h_0()
                     .px_4()
                     .overflow_hidden()
-                    .child(list),
+                    .child(if empty {
+                        let label = if self.activity.displayed().next().is_some() {
+                            "No search matches."
+                        } else if self.running.is_some() {
+                            "Waiting for output…"
+                        } else {
+                            "No output yet."
+                        };
+                        div()
+                            .id("output-empty")
+                            .role(Role::Status)
+                            .aria_label(label)
+                            .test_support()
+                            .child(label)
+                            .into_any_element()
+                    } else {
+                        list.into_any_element()
+                    }),
             )
+            .into_any_element()
+    }
+
+    fn render_activity_summary(&self, cx: &mut Context<Self>) -> AnyElement {
+        let summary = self.operations.summary();
+        div()
+            .h_flex()
+            .gap_2()
+            .px_4()
+            .py_2()
+            .flex_wrap()
+            .border_t_1()
+            .border_color(cx.theme().border)
+            .child(
+                Button::new("activity-toggle")
+                    .ghost()
+                    .icon(if self.operations.expanded {
+                        IconName::ChevronDown
+                    } else {
+                        IconName::ChevronUp
+                    })
+                    .label(if self.operations.expanded {
+                        "Hide Activity"
+                    } else {
+                        "Show Activity"
+                    })
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.operations.expanded = !this.operations.expanded;
+                        cx.notify();
+                    })),
+            )
+            .child(
+                div()
+                    .id("operation-summary")
+                    .role(Role::Status)
+                    .aria_label(summary.clone())
+                    .test_support()
+                    .flex_1()
+                    .min_w_0()
+                    .text_sm()
+                    .child(summary),
+            )
+            .when_some(self.running.as_ref(), |view, (operation, _)| {
+                view.child(
+                    Button::new("cancel-operation")
+                        .label("Cancel")
+                        .disabled(
+                            !operation.cancellable()
+                                || self
+                                    .operations
+                                    .latest
+                                    .as_ref()
+                                    .is_some_and(|run| run.status == RunStatus::Cancelling),
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            if let Some((_, cancellation)) = &this.running {
+                                cancellation.cancel();
+                                this.operations.cancel();
+                                cx.notify();
+                            }
+                        })),
+                )
+            })
             .into_any_element()
     }
 
@@ -372,6 +519,9 @@ impl Workbench {
             .as_ref()
             .is_some_and(|snapshot| snapshot.actions.watch.available)
             && self.watch.as_ref().is_some_and(|status| status.supported);
+        let switchable = self.watch.as_ref().is_some_and(|status| {
+            matches!(status.state, WatchState::Watching | WatchState::Preparing)
+        });
         let label = self
             .watch
             .as_ref()
@@ -388,10 +538,12 @@ impl Workbench {
             })
             .unwrap_or_else(|| "Watch: status unavailable".into());
         div().v_flex().gap_2().px_4().py_2().border_t_1().border_color(cx.theme().border)
-            .child(div().h_flex().gap_3().child(div().flex_1().min_w_0().text_sm().child(label))
-                .child(Button::new("watch-start").label(if active && !same_project { "Stop and switch" } else { "Start Watch" })
-                    .disabled(busy || !available || (active && same_project))
-                    .on_click(cx.listener(move |this, _, _, cx| this.start(if active { Operation::SwitchWatch } else { Operation::StartWatch }, cx))))
+            .child(div().h_flex().flex_wrap().gap_3().child(div().flex_1().min_w_0().text_sm().child(label))
+                .child(div().track_focus(&self.watch_focus).child(Button::new("watch-start").label(if active && !same_project { "Switch Watch…" } else { "Start Watch" })
+                    .disabled(busy || !available || (active && (same_project || !switchable)))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        if active { this.confirm_watch_switch(window, cx); } else { this.start(Operation::StartWatch, cx); }
+                    }))))
                 .child(Button::new("watch-stop").label("Stop").disabled(busy || !active)
                     .on_click(cx.listener(|this, _, _, cx| this.start(Operation::StopWatch, cx))))
                 .child(Button::new("watch-logs").ghost().label("Watch output")
@@ -405,7 +557,7 @@ impl Workbench {
 }
 
 impl Render for Workbench {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let title = self
             .snapshot
             .as_ref()
@@ -413,7 +565,11 @@ impl Render for Workbench {
             .unwrap_or_else(|| "Project workspace".into());
         let content = match self.section {
             Section::Overview => self.render_overview(cx),
-            Section::Dependencies => self.render_dependencies(cx),
+            Section::Dependencies => self.render_dependencies(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            ),
             Section::Tools => self.render_tools(cx),
             Section::Checks => self.render_checks(cx),
         };
@@ -429,7 +585,46 @@ impl Render for Workbench {
         };
         let sidebar = self.render_sidebar(cx);
         let activity = self.render_activity(cx);
+        let activity_summary = self.render_activity_summary(cx);
         let watch = self.render_watch(cx);
+        let content = if self.operations.expanded {
+            v_resizable("project-activity")
+                .on_resize(
+                    cx.listener(|this, state: &Entity<resizable::ResizableState>, _, cx| {
+                        if let Some(height) = state.read(cx).sizes().get(1) {
+                            this.activity_height = *height;
+                        }
+                    }),
+                )
+                .child(
+                    resizable_panel()
+                        .size(px(400.))
+                        .size_range(px(140.)..px(2000.))
+                        .child(content),
+                )
+                .child(
+                    resizable_panel()
+                        .size(self.activity_height)
+                        .size_range(px(110.)..px(1000.))
+                        .child(
+                            div()
+                                .v_flex()
+                                .size_full()
+                                .min_h_0()
+                                .child(activity_summary)
+                                .child(div().flex_1().min_h_0().child(activity)),
+                        ),
+                )
+                .into_any_element()
+        } else {
+            div()
+                .v_flex()
+                .size_full()
+                .min_h_0()
+                .child(div().flex_1().min_h_0().child(content))
+                .child(activity_summary)
+                .into_any_element()
+        };
         div()
             .track_focus(&self.focus)
             .size_full()
@@ -483,6 +678,12 @@ impl Render for Workbench {
                                     .when_some(self.project.as_ref(), |view, path| {
                                         view.child(
                                             div()
+                                                .id("project-path")
+                                                .role(Role::Group)
+                                                .aria_label(path.display().to_string())
+                                                .test_support()
+                                                .overflow_x_scroll()
+                                                .whitespace_nowrap()
                                                 .text_sm()
                                                 .text_color(cx.theme().muted_foreground)
                                                 .child(path.display().to_string()),
@@ -500,51 +701,7 @@ impl Render for Workbench {
                                         )
                                     }),
                             )
-                            .child(
-                                div()
-                                    .h_flex()
-                                    .gap_2()
-                                    .px_4()
-                                    .pb_2()
-                                    .border_b_1()
-                                    .border_color(cx.theme().border)
-                                    .children(
-                                        [
-                                            Section::Overview,
-                                            Section::Dependencies,
-                                            Section::Tools,
-                                            Section::Checks,
-                                        ]
-                                        .into_iter()
-                                        .map(|section| {
-                                            Button::new(section.title())
-                                                .ghost()
-                                                .label(section.title())
-                                                .selected(self.section == section)
-                                                .on_click(cx.listener(move |this, _, _, cx| {
-                                                    this.section = section;
-                                                    cx.notify();
-                                                }))
-                                        }),
-                                    ),
-                            )
-                            .child(
-                                div().flex_1().min_h_0().child(
-                                    v_resizable("project-activity")
-                                        .child(
-                                            resizable_panel()
-                                                .size(px(400.))
-                                                .size_range(px(160.)..px(2000.))
-                                                .child(content),
-                                        )
-                                        .child(
-                                            resizable_panel()
-                                                .size(px(180.))
-                                                .size_range(px(110.)..px(1000.))
-                                                .child(activity),
-                                        ),
-                                ),
-                            ),
+                            .child(div().flex_1().min_h_0().child(content)),
                     ),
             )
             .child(watch)

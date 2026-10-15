@@ -1,5 +1,16 @@
 # Release-Hardening Audit
 
+## October 15: approved Soft native workbench
+
+The owner approved the section-sidebar layout and Soft visual direction. Native
+implementation and acceptance are recorded in [Soft acceptance](soft-workbench-acceptance.md).
+The 19 desktop tests and 563 CLI/core tests pass locally (24 prerequisite-dependent
+CLI tests remain ignored), together with desktop/core Clippy and formatting.
+Full changed-file CodeRabbit review,
+portable packaging, reviewed-head CI, and merged-main CI are tracked there as they
+complete. Earlier prototype manual checks do not certify this new interface.
+Published 0.22.0, public APIs, preference/configuration schemas, and tags are unchanged.
+
 ## October 14: initial Windows GPUI feasibility gate passed
 
 The owner confirmed the final native check in the verified portable preview:
