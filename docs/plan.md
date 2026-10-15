@@ -24,7 +24,10 @@ merged the native layout, themed controls, contextual Activity, operation owners
 and acknowledged Watch switching at `24595f6`. Final reviewed-head and merged-main
 CI passed. The owner confirmed the minimum-height Activity clipping fix.
 [Soft acceptance](soft-workbench-acceptance.md) separates confirmed checks from
-remaining System appearance, scaling, panel resizing, and real Watch checks.
+remaining acceptance. On October 16, the owner also confirmed automatic System
+appearance changes and usable Dependencies/Activity at 125% Windows Scale and
+after restoring 100%. Arbitrary panel-height persistence and a disposable-session
+real Watch check remain separate.
 Full workflow parity remains a later gate. No version bump, publication, installer,
 or CLI/Ratatui production behavior change was made.
 

@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## October 16: Soft System appearance and scaling confirmed
+
+The owner checked the verified clean `bfb52d5` portable Soft preview. System mode
+follows Windows default app mode between Light and Dark without selecting either
+mode inside rproj. Dependencies and expanded Activity remain usable at 125%
+Windows Scale and after restoring the original 100% setting. These are native
+Soft observations, separate from the earlier prototype's acceptance. Arbitrary
+Activity height retention and disposable-session real Watch switching remain
+unverified; the latter must not interrupt an unrelated user Watch.
+
 ## October 15: approved Soft native workbench
 
 Merged in [PR #107](https://github.com/chatarabdelilah/rproj/pull/107) at `24595f6`.
