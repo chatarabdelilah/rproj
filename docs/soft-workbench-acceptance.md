@@ -117,8 +117,12 @@ checks pass. In the clean `008db96` portable preview, the owner confirmed the
 summary, Search/Clear controls and output remain inside the minimum Activity panel
 above Watch, including after collapse/reopen. Its extracted-copy packaging checks
 also passed. This confirms the reported clipping fix.
-System OS-change behavior, 100%/125% scaling on Soft, and arbitrary panel-resize persistence
-remain unverified separately from the prior prototype's results. Real Watch
+On October 16, the owner checked the verified clean `bfb52d5` Soft preview and
+confirmed that System appearance follows Windows default app mode between Light
+and Dark automatically. Dependencies and expanded Activity fit and respond after
+changing Windows Scale from 100% to 125% and restoring the original settings.
+These observations apply to Soft separately from the earlier prototype's results.
+Arbitrary panel-resize persistence remains unverified. Real Watch
 switching needs a separate disposable-session check; it must not stop an unrelated
 user Watch as part of this checklist. macOS/Linux desktop, fresh-machine runtime,
 real Roblox Test runners, and authenticated Open Cloud acceptance remain outside
