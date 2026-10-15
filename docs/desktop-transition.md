@@ -11,9 +11,10 @@ The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 The owner approved the section sidebar, compact project switcher, and Activity
 that opens when needed, then selected Soft as shown in the working comparison:
 warm surfaces, roomier spacing, rounded controls, platform typography, labeled
-Lucide icons, and restrained blue emphasis. Implement this baseline in the native
-workbench on `codex/soft-workbench`. Keep operation origins visible across project
-navigation and confirm Watch switching with both project paths. The latest inline
+Lucide icons, and restrained blue emphasis. This baseline merged in
+[PR #107](https://github.com/chatarabdelilah/rproj/pull/107) at `24595f6`.
+Operation origins stay visible across project navigation; Watch switching confirms
+both project paths. The latest inline
 comparison works for both proposals; older conversation previews are superseded.
 This approves the design direction, not native acceptance or a public release.
 
