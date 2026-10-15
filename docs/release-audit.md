@@ -18,6 +18,10 @@ was corrected and tested. An opt-in GitHub review inspected all 12 files at
 `08340a1`; both minor comments (Activity icon coverage and readable exit-code
 messages) are corrected. Review, final-head CI and merge delivery are tracked in
 [PR #107](https://github.com/chatarabdelilah/rproj/pull/107); this is not a public release.
+Corrected-head Windows CI also caught a pre-existing fixture race releasing Watch
+ownership before a terminal snapshot was saved. Its test-only guard now waits for
+the terminal state; all three Stop cases passed ten repetitions each. No production
+Watch behavior or protocol changed, and the failed attempt remains CI evidence.
 Published 0.22.0, public APIs, preference/configuration schemas, and tags are unchanged.
 
 ## October 14: initial Windows GPUI feasibility gate passed

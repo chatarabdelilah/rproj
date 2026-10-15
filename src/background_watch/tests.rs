@@ -106,12 +106,13 @@ fn with_workbench_stop_fixture<R>(finish: Option<State>, action: impl FnOnce(&Pa
         let deadline = Instant::now() + Duration::from_secs(5);
         let mut stopped_at = None;
         while Instant::now() < deadline && !server_shutdown.load(Ordering::Acquire) {
-            if finish.is_some()
+            if finish.is_some_and(|terminal| snapshot.state == terminal)
                 && stopped_at
                     .is_some_and(|instant: Instant| instant.elapsed() >= Duration::from_millis(200))
             {
-                // Keep control alive so terminal-state assertions do not race
-                // connection teardown when ownership is released.
+                // Publish the terminal snapshot before releasing ownership, even
+                // if the previous write delayed the first status poll past 200ms.
+                // Keep control alive while the client checks the persisted state.
                 drop(owner.take());
             }
             match listener.accept() {

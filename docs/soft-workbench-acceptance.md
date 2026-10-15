@@ -61,6 +61,13 @@ worker protocol, project configuration, or preference schema changed.
   Runtime-head CI: [38786314212](https://github.com/chatarabdelilah/rproj/actions/runs/38786314212).
   Final correction/main run links are recorded with that PR's delivery evidence.
 
+The corrected-head stable Windows run exposed an existing test-fixture ordering
+race: its fake supervisor could release ownership after 200 ms while the persisted
+snapshot still said Stopping. CI failed 2.2 seconds into the unit batch, before the
+fixture's five-second lifetime limit. The fixture now requires its terminal state
+to have been published before releasing ownership. Success, failed-Stop and timeout
+cases each passed ten local repetitions; production Watch code is unchanged.
+
 Headless tests verify state, controls and geometry. They do not verify Windows
 pixels, GPU rendering, OS appearance notifications, or monitor scaling. The previous
 prototype's manual acceptance remains historical evidence only. The stalled native
