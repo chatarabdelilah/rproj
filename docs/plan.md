@@ -34,10 +34,13 @@ composition, headless creation worker, then native controls. Shared composition
 merged in PR #113 with reviewed-head/main CI passing. The
 [headless worker](desktop-creation-worker.md) adds captured plans, source
 revalidation, structured claim/outcome reports and owned cancellation, merged in
-PR #114 with reviewed-head/main CI passing. Native five-step controls now use
-that worker, with session drafts, explicit review and normal-close cancellation.
-[Creation acceptance](desktop-creation-acceptance.md) records automated coverage
-and pending Windows observations. Full workflow parity,
+PR #114 with reviewed-head/main CI passing. Native five-step controls merged in
+PR #115 with reviewed-head/main CI passing and use that worker, with session
+drafts, explicit review and normal-close cancellation. The owner confirmed
+successful fixture creation, responsiveness and Open project in the preview.
+[Creation acceptance](desktop-creation-acceptance.md) records the scoped observation;
+recovery, cancellation/close, new-flow layout/input and real Watch ownership
+remain unverified. Full workflow parity,
 installers and macOS/Linux desktop acceptance remain later gates. No version
 bump or publication is included.
 

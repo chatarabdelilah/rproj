@@ -14,8 +14,11 @@ draft, strict saved choices, background preparation/execution, captured result
 ownership and a default-Keep close guard. Local desktop tests pass 32 cases;
 CLI/core regression suites pass with 24 prerequisite-dependent cases ignored.
 Strict desktop Clippy passes. The PowerShell 5.1 preview uses explicit disposable
-storage and tool stubs, and launched past startup. New-control manual Windows
-observations remain pending in [creation acceptance](desktop-creation-acceptance.md).
+storage and tool stubs, and launched past startup. The owner confirmed successful
+fixture creation, responsiveness and explicit Open project on October 16; the
+exact observed build was not reported. Recovery, cancellation/close, new-flow
+layout/input and actual Watch ownership remain unverified in
+[creation acceptance](desktop-creation-acceptance.md).
 Formatting, both crate tarballs in a fresh package directory and the portable
 Windows build/smoke checks pass. Final local CodeRabbit reviewed all 18 changed
 files with zero findings at initial runtime head `71542ef`. The initial review's
@@ -30,8 +33,11 @@ saved-source provenance after a rejected reload is intentional; Review stays
 blocked until an explicit valid source choice, and a regression verifies recovery.
 The review quota cleared. All seven
 [runtime-head CI jobs](https://github.com/chatarabdelilah/rproj/actions/runs/38901332447)
-passed; badge freshness was skipped. Final documentation-head/main CI are tracked
-by [PR #115](https://github.com/chatarabdelilah/rproj/pull/115).
+passed; badge freshness was skipped. [PR #115](https://github.com/chatarabdelilah/rproj/pull/115)
+merged at `8efb026`. Its [final head](https://github.com/chatarabdelilah/rproj/actions/runs/38902515284)
+and [merged main](https://github.com/chatarabdelilah/rproj/actions/runs/38903823480)
+passed all seven executed jobs; badge freshness was skipped. Guarded local/remote
+branch cleanup is complete.
 The existing three-archive legacy notice-completeness limitation remains recorded
 in THIRD-PARTY.md. No version bump or publication is included.
 
