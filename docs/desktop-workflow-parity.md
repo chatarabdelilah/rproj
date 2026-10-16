@@ -15,7 +15,7 @@ The evidence below keeps automated coverage separate from real-window observatio
 | `rproj app [path]` | Explicitly launches matching desktop/CLI distribution. | Present: existing-project workbench and recent-project menu. | Core desktop preferences and explicit worker discovery. Keep portable launch coverage. |
 | `rproj inspect [path] [--json]` | Read-only, versioned project snapshot. | Present: Overview, Dependencies, Tools; actual declarations/resolutions/presence remain distinct. | Core inspection and catalog. Keep unknown/malformed/offline cases visible. |
 | Projects browser | Discovers configured-root projects and launch directory; ten project actions. | Partial: Open/recent/Close; no equivalent discovery browser. | CLI discovery is not yet a core service. Plan discovery separately from creation. |
-| `rproj new <name>` / New Project | Wally/None, guided/expert/saved composition, capabilities, files, named setup save, exclusive destination, execution. Direct command may provision; Home requires recorded machine setup. | Present: five-step native flow, retained draft, background review/creation and normal-close cancellation guard. New-control Windows observations remain pending. Missing setup hands off to the existing terminal workflow. | Core graph/catalog/draft/plan plus typed CLI preparation/execution; no terminal widgets in core. |
+| `rproj new <name>` / New Project | Wally/None, guided/expert/saved composition, capabilities, files, named setup save, exclusive destination, execution. Direct command may provision; Home requires recorded machine setup. | Present: five-step native flow, retained draft, background review/creation and normal-close cancellation guard. Windows fixture success, recovery, failure, cancellation and basic layout/draft observations are confirmed; remaining gates are in the acceptance record. Missing setup hands off to the existing terminal workflow. | Core graph/catalog/draft/plan plus typed CLI preparation/execution; no terminal widgets in core. |
 | `rproj setup` / Machine Setup | Review selections, explicit Apply, sequential installs, pending Stop and recovery; completed installations can remain. | Missing. New Project explains the prerequisite; it does not install machine applications. | Machine setup model/worker plus external installers. Separate native design. |
 | `rproj setup <tool>` | Project tool setup, configuration and manual instructions. | Missing; Tools currently distinguishes pins from detection only. | Existing tool catalog/install/config boundaries. A detected executable is not proof of setup. |
 | `rproj configure [tool]` / Configure Tools | Guided configuration and guarded saves preserving unrelated content. | Missing; inspection is not an editor. | Configuration sessions and artifact-specific preservation rules. |
@@ -78,5 +78,6 @@ extraction alone does not make desktop creation available. The subsequent
 [headless worker](desktop-creation-worker.md) adds typed preparation/execution
 and preserves origin/claim information. Native controls now use those services;
 [creation acceptance](desktop-creation-acceptance.md) separates automated coverage,
-fixture launch evidence and pending real-window observations. Whole-product
-workflow parity remains incomplete.
+fixture evidence, confirmed October 16–17 real-window observations and remaining
+manual gates. Those observations use tool stubs; they do not establish actual
+Watch/external-tool behavior or whole-product workflow parity.
