@@ -85,6 +85,15 @@ fn with_workbench_stop_fixture<R>(
     terminal_delay: Duration,
     action: impl FnOnce(&Path) -> R,
 ) -> R {
+    with_workbench_stop_probe_delay(finish, terminal_delay, Duration::ZERO, action)
+}
+
+fn with_workbench_stop_probe_delay<R>(
+    finish: Option<State>,
+    terminal_delay: Duration,
+    status_delay: Duration,
+    action: impl FnOnce(&Path) -> R,
+) -> R {
     use std::sync::atomic::{AtomicBool, Ordering};
     let root = tempfile::tempdir().unwrap();
     let owner = open_lock(root.path(), "owner.lock").unwrap();
@@ -151,10 +160,11 @@ fn with_workbench_stop_fixture<R>(
                         }
                     } else {
                         assert_eq!(request.verb, "status");
+                        if response.state == State::Stopping {
+                            std::thread::sleep(status_delay);
+                        }
                     }
-                    stream
-                        .write_all(&serde_json::to_vec(&response).unwrap())
-                        .unwrap();
+                    write_control_reply(&mut stream, &response).unwrap();
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                     std::thread::sleep(Duration::from_millis(1));
@@ -240,6 +250,33 @@ fn workbench_stop_timeout_does_not_claim_stopped() {
             "{error:#}"
         );
         assert_eq!(metadata(root).unwrap().unwrap().state, State::Stopping);
+    });
+}
+
+#[test]
+fn workbench_stop_rechecks_transient_unresponsive_status_until_acknowledged() {
+    with_workbench_stop_probe_delay(
+        Some(State::Stopped),
+        Duration::from_secs(1),
+        TIMEOUT * 2,
+        |root| {
+            stop_and_wait_at(root, Duration::from_secs(3)).unwrap();
+            assert!(acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
+            assert_eq!(metadata(root).unwrap().unwrap().state, State::Stopped);
+        },
+    );
+}
+
+#[test]
+fn workbench_stop_unresponsive_status_still_requires_terminal_acknowledgement() {
+    with_workbench_stop_probe_delay(None, Duration::ZERO, TIMEOUT * 2, |root| {
+        let error = stop_and_wait_at(root, Duration::from_millis(800)).unwrap_err();
+        assert!(
+            error.to_string().contains("has not finished stopping"),
+            "{error:#}"
+        );
+        assert_eq!(metadata(root).unwrap().unwrap().state, State::Stopping);
+        assert!(!acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
     });
 }
 
@@ -508,7 +545,9 @@ fn begin_outside_launcher(
     };
     // Publish only after WriteAllText closes its exclusive handle; existence
     // must mean that the complete marker is immediately readable on Windows.
-    fs::write(&script, format!("{barrier}$env:RPROJ_TEST_WATCH_ROOT={}\n$env:RPROJ_TEST_WATCH_PROJECT={}\n$env:PATH={}\n$info = New-Object System.Diagnostics.ProcessStartInfo\n$info.FileName={}\n$info.Arguments='--exact background_watch::windows::tests::process_driver --nocapture'\n$info.UseShellExecute=$false\n$info.CreateNoWindow=$true\n$process=[System.Diagnostics.Process]::Start($info)\nif ($process.WaitForExit(12000)) {{ $result=[string]$process.ExitCode }} else {{ $process.Kill(); $result='timeout' }}\n[System.IO.File]::WriteAllText({}, $result, [System.Text.Encoding]::ASCII)\n[System.IO.File]::Move({}, {})\n",
+    // Capture both streams and require EOF while Watch is still running. Merely
+    // waiting for launcher exit misses inherited pipes that keep desktop busy.
+    fs::write(&script, format!("\u{feff}{barrier}$env:RPROJ_TEST_WATCH_ROOT={}\n$env:RPROJ_TEST_WATCH_PROJECT={}\n$env:PATH={}\n$info = New-Object System.Diagnostics.ProcessStartInfo\n$info.FileName={}\n$info.Arguments='--exact background_watch::windows::tests::process_driver --nocapture'\n$info.UseShellExecute=$false\n$info.CreateNoWindow=$true\n$info.RedirectStandardOutput=$true\n$info.RedirectStandardError=$true\n$process=[System.Diagnostics.Process]::Start($info)\n$out=$process.StandardOutput.ReadToEndAsync()\n$err=$process.StandardError.ReadToEndAsync()\nif ($process.WaitForExit(12000)) {{ if ($out.Wait(2000) -and $err.Wait(2000)) {{ $result=[string]$process.ExitCode }} else {{ $result='output pipes still held after launcher exit' }} }} else {{ $process.Kill(); $result='timeout' }}\n[System.IO.File]::WriteAllText({}, $result, [System.Text.Encoding]::ASCII)\n[System.IO.File]::Move({}, {})\n",
         quote(root.as_os_str()), quote(project.as_os_str()), quote(path), quote(std::env::current_exe().unwrap().as_os_str()), quote(pending.as_os_str()), quote(pending.as_os_str()), quote(done.as_os_str()))).unwrap();
     let command = format!(
         "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"",
@@ -669,7 +708,10 @@ fn held_state_lock_refuses_reads_and_writes_without_changing_the_snapshot() {
 
 #[test]
 fn supervisor_lifecycle_detachment_recovery_and_tree_cleanup() {
-    let fixtures = tempfile::tempdir().unwrap();
+    let fixtures = tempfile::Builder::new()
+        .prefix("rproj Watch ü with spaces ")
+        .tempdir()
+        .unwrap();
     let bin = fixtures.path().join("bin");
     fs::create_dir(&bin).unwrap();
     let output = Command::new("rustc")

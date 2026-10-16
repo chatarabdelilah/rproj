@@ -1,5 +1,44 @@
 # Release-Hardening Audit
 
+## October 16: disposable real Watch acceptance prepared
+
+Git connectivity recovered; local main was synchronized to `7d78871` and fully
+merged acceptance branches were removed locally/remotely with exact-head guards.
+The verified portable preview and already-installed Rojo 7.7.1 started a real
+Watch in a unique disposable project, with no Wally/Rokit manifests or tool
+installation. Two added modules appeared in its sourcemap. No active unrelated
+Watch was stopped; the prior session was Failed on an old preview fixture.
+The source session survived replacement of the earlier preview window.
+Two read-only status probes during a two-minute monitor briefly reported
+Unresponsive and then Watching; their cause is unverified. A later owner-context
+status query confirmed Watching on the destination, establishing destination
+startup but not the GUI confirmation sequence. The owner could not confirm which review steps they followed
+and reported disabled Start/Switch controls; these are expected when the selected
+project already owns Watch. The owner then confirmed that Stop is also disabled
+while Activity remains Starting Watch / Running and navigation responds. The
+lifecycle fixture reproduced inherited output pipes held by the detached
+supervisor after launcher exit. A safe no-inheritance detachment fix is under
+validation; native browsing/Close project, confirmation cancellation, and final
+Stop acceptance remain unverified. See
+[Soft acceptance](soft-workbench-acceptance.md) for the bounded scope.
+
+The inherited-pipe regression failed before the detachment fix and passes after
+it, including Unicode/spaced paths, breakaway refusal and owned-tree cleanup.
+A second regression reproduced a transient post-Stop status timeout causing an
+immediate false failure. Stop now observes the same session through its original
+deadline while retaining terminal-state and released-owner requirements. All six
+Stop cases, 566 CLI/core tests (24 prerequisite-dependent tests ignored), 21
+desktop tests, strict Clippy and formatting pass locally. Final CodeRabbit review
+of `b99ec49` found zero issues across all seven files. Its clean portable archive
+passes smoke/static-CRT checks and includes 590 dependency notices. Real Rojo
+Start/Stop with captured output both return EOF and final Stopped. In the clean
+`b99ec49` replacement preview, the owner confirmed source Start → Watching and
+Succeeded with Stop enabled, confirmed Switch → destination Watching and
+Succeeded, and Stop → Stopped. The reported hang/disabled Stop is confirmed fixed.
+Final-head/main CI remain separate delivery gates. Native Close project and
+confirmation Escape were not included in this recheck. No version bump or
+publication is included.
+
 ## October 16: Soft System appearance and scaling confirmed
 
 The owner checked the verified clean `bfb52d5` portable Soft preview. System mode
