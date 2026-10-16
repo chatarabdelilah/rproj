@@ -215,6 +215,9 @@ existing three legacy notice-completeness warnings remain. In the extracted
 copy, real Rojo source Start reaches Watching, both captured output streams close
 after launcher exit, and acknowledged Stop reaches Stopped with both streams
 closed. One replacement window uses isolated preferences and the same disposable
-projects. The source Start → destination Switch → Stop native recheck and exact
-head/main CI remain separate pending gates. No native acceptance pass is inferred
-from the backend checks.
+projects. In that `b99ec49` replacement window, the owner confirmed all three
+native steps: source Start reaches Watching and Activity Succeeded with Stop
+enabled; confirmed Switch reaches Watching on the destination and Succeeded;
+Stop reaches Stopped. This confirms the reported stuck operation/disabled Stop
+fix. Native Close project and confirmation Escape are not included in this
+three-step observation. Final head/main CI remain separate delivery gates.

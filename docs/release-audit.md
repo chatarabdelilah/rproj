@@ -31,9 +31,13 @@ Stop cases, 566 CLI/core tests (24 prerequisite-dependent tests ignored), 21
 desktop tests, strict Clippy and formatting pass locally. Final CodeRabbit review
 of `b99ec49` found zero issues across all seven files. Its clean portable archive
 passes smoke/static-CRT checks and includes 590 dependency notices. Real Rojo
-Start/Stop with captured output both return EOF and final Stopped. One replacement
-preview is open for the native recheck; exact-head/main CI and native acceptance
-remain separate pending gates. No version bump or publication is included.
+Start/Stop with captured output both return EOF and final Stopped. In the clean
+`b99ec49` replacement preview, the owner confirmed source Start → Watching and
+Succeeded with Stop enabled, confirmed Switch → destination Watching and
+Succeeded, and Stop → Stopped. The reported hang/disabled Stop is confirmed fixed.
+Final-head/main CI remain separate delivery gates. Native Close project and
+confirmation Escape were not included in this recheck. No version bump or
+publication is included.
 
 ## October 16: Soft System appearance and scaling confirmed
 
