@@ -52,7 +52,23 @@ fn unsupported_saved_choices_are_visible_and_never_normalized() {
         context: Some(context()),
         ..Default::default()
     };
+    let accepted_graph = state.draft.as_ref().unwrap().graph.clone();
+    state
+        .context
+        .as_mut()
+        .unwrap()
+        .setups
+        .push(SavedComposition {
+            name: "Accepted".into(),
+            graph: Some(accepted_graph),
+            problem: None,
+            source: SourceSnapshot {
+                bytes: Some(vec![8]),
+            },
+        });
+    state.load_setup("Accepted").unwrap();
     let original = state.draft.clone();
+    let accepted_source = state.setup_source.clone();
     let mut graph = CreationDraft::new("irrelevant".into()).graph;
     graph.packages.push("future-package".into());
     state
@@ -75,8 +91,13 @@ fn unsupported_saved_choices_are_visible_and_never_normalized() {
             .contains("Unsupported package")
     );
     assert_eq!(state.draft, original);
-    assert!(state.selected_setup.is_none());
+    assert_eq!(state.selected_setup.as_deref(), Some("Accepted"));
+    assert_eq!(state.setup_source, accepted_source);
     assert!(state.request().unwrap_err().contains("Unsupported package"));
+    state.select_mode("expert").unwrap();
+    assert!(state.selected_setup.is_none());
+    assert!(state.setup_source.is_none());
+    assert!(state.request().is_ok());
 }
 #[test]
 fn saved_source_changes_require_explicit_reload_and_preserve_concrete_choices() {

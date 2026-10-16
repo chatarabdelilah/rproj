@@ -54,10 +54,15 @@ source/destination/setup races, Unicode/spaces, structured reports and descendan
 cleanup. Those cases do not establish real Git/Wally/Blender/Studio acceptance.
 Strict desktop/CLI/core Clippy, formatting, both fresh-cache crate tarballs and
 the portable Windows build/smoke checks pass. Final local CodeRabbit reviewed
-all 18 changed files with zero findings at runtime head `71542ef`. The subsequent
-Guided-conversion correction awaits the required review refresh; the first retry
-hit the service quota. Exact-head/main CI remain separate delivery checks recorded
-in the release audit after completion.
+all 18 changed files at corrected runtime head `cea8e63`, with one minor
+presentation suggestion and no critical/warning findings. The suggestion to clear
+the previous saved-source identity after a rejected reload was evaluated: that
+identity describes the retained, last-applied graph. It stays captured while the
+visible error blocks Review until an explicit valid source choice; a regression
+checks both retention and recovery. The earlier review refresh quota cleared.
+All seven [runtime-head CI jobs](https://github.com/chatarabdelilah/rproj/actions/runs/38901332447)
+passed; badge freshness was skipped. Final documentation-head/main CI are separate
+delivery checks tracked by [PR #115](https://github.com/chatarabdelilah/rproj/pull/115).
 
 ## Disposable Windows preview
 

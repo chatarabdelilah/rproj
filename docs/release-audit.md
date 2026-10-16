@@ -18,14 +18,20 @@ storage and tool stubs, and launched past startup. New-control manual Windows
 observations remain pending in [creation acceptance](desktop-creation-acceptance.md).
 Formatting, both crate tarballs in a fresh package directory and the portable
 Windows build/smoke checks pass. Final local CodeRabbit reviewed all 18 changed
-files with zero findings at runtime head `71542ef`. The initial review's
+files with zero findings at initial runtime head `71542ef`. The initial review's
 second-close-bypass suggestion was evaluated against the approved close contract;
 the guard remains, with explicit disabled state and recovery guidance. Backward
 navigation and unsupported saved-selection review blockers are covered by
 regressions. Subsequent inspection found an Expert-to-Guided conversion edge case:
 the correction rejects multiple primary choices explicitly, reuses shared companion
-rules and has a regression. Its review refresh is pending the CodeRabbit quota;
-reviewed-head/main CI remain delivery gates for this third PR.
+rules and has a regression. The final review at `cea8e63` completed all 18 files
+with one minor suggestion and no critical/warning findings. Retaining last-applied
+saved-source provenance after a rejected reload is intentional; Review stays
+blocked until an explicit valid source choice, and a regression verifies recovery.
+The review quota cleared. All seven
+[runtime-head CI jobs](https://github.com/chatarabdelilah/rproj/actions/runs/38901332447)
+passed; badge freshness was skipped. Final documentation-head/main CI are tracked
+by [PR #115](https://github.com/chatarabdelilah/rproj/pull/115).
 The existing three-archive legacy notice-completeness limitation remains recorded
 in THIRD-PARTY.md. No version bump or publication is included.
 

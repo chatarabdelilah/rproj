@@ -48,6 +48,9 @@ pub(super) struct CreationSession {
     pub(super) error: Option<String>,
     pub(super) selection_problem: Option<String>,
     pub(super) selected_setup: Option<String>,
+    // This identity belongs to the last successfully applied graph. A failed
+    // reload keeps that provenance; selection_problem blocks review until the
+    // user explicitly chooses a valid setup or Guided/Expert again.
     pub(super) setup_source: Option<SourceSnapshot>,
     pub(super) prepared: Option<(u64, PreparedCreation)>,
     pub(super) result: Option<Result<CreationOutcome, String>>,
