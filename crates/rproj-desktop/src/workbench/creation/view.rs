@@ -504,7 +504,7 @@ impl Workbench {
             }
         }
         body.child("Creation initializes Git, writes the scaffold and project records, installs/resolves selected tools and dependencies, and generates their configured artifacts. These operations may access the network. No Watch is started or switched.")
-            .child(if self.creation_running() { "Working in the background. Activity contains human tool output; you can browse existing projects." } else if self.creation.fresh_plan().is_some() { "Review is prepared. Create project asks for final confirmation and revalidates the captured sources and destination." } else { "Prepare review to validate current configuration, template, setup identity, destination and prerequisites. This creates no destination." })
+            .child(if self.creation_running() { "Working in the background. Activity contains human tool output; you can browse existing projects." } else if self.creation.fresh_plan().is_some() { "Review is prepared. Create project asks for final confirmation and revalidates the captured sources and destination." } else { "Prepare review to validate current configuration, template, setup identity and destination. This creates no destination. External tools can still report missing prerequisites during creation." })
             .into_any_element()
     }
 }
