@@ -21,6 +21,8 @@ fn fixture(cx: &mut TestAppContext) -> (tempfile::TempDir, AnyWindowHandle, Enti
     let preferences = project.path().join("desktop.json");
     let (handle, view) = cx.update(|cx| {
         gpui_kit::init(cx);
+        // Hit testing must not sample a different point in the entrance animation.
+        cx.set_reduce_motion(true);
         gpui_kit::open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds {
@@ -45,6 +47,409 @@ fn fixture(cx: &mut TestAppContext) -> (tempfile::TempDir, AnyWindowHandle, Enti
         })
     });
     (project, handle, view)
+}
+
+fn enable_creation(view: &Entity<Workbench>, root: &std::path::Path, cx: &mut TestAppContext) {
+    use rproj_core::creation::{CreationEnvironment, protocol::*};
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.creation.context = Some(CreationContext {
+                protocol: CREATION_PROTOCOL,
+                environment: CreationEnvironment {
+                    projects_root: root.into(),
+                    apps: vec![],
+                    extensions: vec![],
+                },
+                machine_ready: true,
+                template: None,
+                template_problem: None,
+                config_source: SourceSnapshot { bytes: None },
+                template_source: SourceSnapshot { bytes: None },
+                setups: vec![],
+                setups_problem: None,
+            });
+            this.close_project(cx);
+        })
+    });
+}
+
+#[gpui_kit::test]
+fn creation_five_steps_keyboard_retention_and_minimum_layout(cx: &mut TestAppContext) {
+    let (project, handle, view) = fixture(cx);
+    enable_creation(&view, project.path(), cx);
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("new-project", cx);
+        window.input("A Unicode project 世界", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("creation-next", cx);
+        window.click("creation-package-react", cx);
+    })
+    .unwrap();
+    cx.update(|cx| {
+        view.update(cx, |this, _| {
+            assert!(
+                this.creation
+                    .draft
+                    .as_ref()
+                    .unwrap()
+                    .graph
+                    .packages
+                    .iter()
+                    .any(|p| p == "reactRoblox")
+            );
+        })
+    });
+    cx.simulate_window_resize(handle, size(px(800.), px(580.)));
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(window.find("creation-next").visible());
+        window.click("creation-next", cx);
+        window.click("creation-next", cx);
+        window.click("creation-file-src", cx);
+        window.click("creation-next", cx);
+        window.click("creation-create", cx);
+        assert!(window.try_find("ok").is_none());
+        window.click("Overview", cx);
+        assert!(window.try_find("creation-flow").is_none());
+        window.click("new-project", cx);
+        assert!(
+            window
+                .find("creation-flow")
+                .label()
+                .unwrap()
+                .ends_with("Review")
+        );
+    })
+    .unwrap();
+    cx.update(|cx| {
+        let this = view.read(cx);
+        assert_eq!(
+            this.creation.draft.as_ref().unwrap().name,
+            "A Unicode project 世界"
+        );
+        assert!(
+            !this
+                .creation
+                .draft
+                .as_ref()
+                .unwrap()
+                .graph
+                .dropped
+                .iter()
+                .any(|k| k == "src")
+        );
+        assert!(this.watch.is_none());
+    });
+}
+
+#[gpui_kit::test]
+fn creation_draft_default_keep_and_escape_preserve_choices(cx: &mut TestAppContext) {
+    let (project, handle, view) = fixture(cx);
+    enable_creation(&view, project.path(), cx);
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("new-project", cx);
+        window.input("Keep me", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(window.find("keep-draft").visible());
+        window.press("enter", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| assert!(view.read(cx).creation.dirty));
+    cx.update_window(handle, |_, window, cx| {
+        window.click("creation-discard", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.press("escape", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).creation.draft.as_ref().unwrap().name,
+            "Keep me"
+        )
+    });
+}
+
+#[gpui_kit::test]
+fn creation_close_cancellation_waits_and_teardown_error_keeps_window(cx: &mut TestAppContext) {
+    let (project, handle, view) = fixture(cx);
+    enable_creation(&view, project.path(), cx);
+    let destination = project.path().join("Captured destination");
+    let id = cx.update(|cx| {
+        view.update(cx, |this, _| {
+            let id = this
+                .operations
+                .begin(Operation::CreateProject, destination.clone());
+            this.running = Some((Operation::CreateProject, Cancellation::default()));
+            id
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.press("escape", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| assert!(!view.read(cx).running.as_ref().unwrap().1.is_cancelled()));
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(300));
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("cancel-creation-close", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            assert!(this.creation.close_pending);
+            assert!(this.running.as_ref().unwrap().1.is_cancelled());
+            assert_eq!(
+                this.operations.latest.as_ref().unwrap().project,
+                destination
+            );
+            this.sender
+                .send(Event::Created(id.wrapping_add(1), Err("stale".into())))
+                .unwrap();
+            this.drain(cx);
+            assert!(this.running.is_some());
+            this.sender
+                .send(Event::Created(id, Err("teardown failure fixture".into())))
+                .unwrap();
+            this.drain(cx);
+            assert!(this.creation.teardown_uncertain);
+            assert!(!this.creation.close_pending);
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
+fn creation_events_retain_destination_result_and_watch_after_navigation(cx: &mut TestAppContext) {
+    use rproj_core::creation::{CreationDraft, protocol::*};
+    let (project, handle, view) = fixture(cx);
+    enable_creation(&view, project.path(), cx);
+    let destination = project.path().join("Created project");
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.creation.draft = Some(CreationDraft::new("Created project".into()));
+            this.creation.visible = true;
+            this.creation.step = super::creation::Step::Review;
+            this.watch = Some(super::WatchStatus {
+                supported: true,
+                project: Some(project.path().join("Watch owner")),
+                state: rproj_core::operations::WatchState::Watching,
+                message: String::new(),
+            });
+            let id = this
+                .operations
+                .begin(Operation::CreateProject, destination.clone());
+            this.running = Some((Operation::CreateProject, Cancellation::default()));
+            this.operations.expanded = false;
+            this.section = Section::Overview;
+            this.sender
+                .send(Event::Created(
+                    id,
+                    Ok(CreationOutcome {
+                        destination: destination.clone(),
+                        status: CreationStatus::Succeeded,
+                        claim: ClaimState::Claimed,
+                        message: None,
+                    }),
+                ))
+                .unwrap();
+            this.drain(cx);
+            assert!(!this.operations.expanded);
+            assert!(this.project.is_none());
+            assert!(
+                this.activity
+                    .displayed()
+                    .any(|line| line.contains("Created project"))
+            );
+            this.sender
+                .send(Event::Created(id, Err("late".into())))
+                .unwrap();
+            this.drain(cx);
+            assert!(this.creation.result.as_ref().unwrap().is_ok());
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("creation-open-result", cx);
+    })
+    .unwrap();
+    cx.update(|cx| {
+        let this = view.read(cx);
+        assert_eq!(this.project.as_ref(), Some(&destination));
+        assert_eq!(
+            this.watch.as_ref().unwrap().project.as_ref(),
+            Some(&project.path().join("Watch owner"))
+        );
+    });
+}
+
+#[gpui_kit::test]
+fn creation_close_completes_only_after_owned_cancel_outcome(cx: &mut TestAppContext) {
+    use rproj_core::creation::protocol::*;
+    let (project, handle, view) = fixture(cx);
+    let destination = project.path().join("Partial files remain");
+    let id = cx.update(|cx| {
+        view.update(cx, |this, _| {
+            let id = this
+                .operations
+                .begin(Operation::CreateProject, destination.clone());
+            this.running = Some((Operation::CreateProject, Cancellation::default()));
+            id
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("keep-open", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| assert!(!view.read(cx).creation.close_dialog));
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("cancel-creation-close", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            assert!(this.creation.close_pending);
+            assert!(this.running.is_some());
+            this.sender
+                .send(Event::Created(
+                    id,
+                    Ok(CreationOutcome {
+                        destination,
+                        status: CreationStatus::Cancelled,
+                        claim: ClaimState::Unknown,
+                        message: Some("Inspect for partial files".into()),
+                    }),
+                ))
+                .unwrap();
+            this.drain(cx);
+        })
+    });
+    cx.run_until_parked();
+    assert!(cx.update_window(handle, |_, _, _| ()).is_err());
+}
+
+#[gpui_kit::test]
+fn creation_stale_preparation_loading_and_errors_do_not_remove_workbench(cx: &mut TestAppContext) {
+    use rproj_core::creation::{CreationDraft, protocol::*};
+    let (project, handle, view) = fixture(cx);
+    enable_creation(&view, project.path(), cx);
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("new-project", cx);
+        window.input("Review", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.creation.step = super::creation::Step::Review;
+            let request = this.creation.request().unwrap();
+            let prepared = PreparedCreation {
+                plan: request
+                    .draft
+                    .plan(&this.creation.context.as_ref().unwrap().environment)
+                    .unwrap(),
+                sources: request.sources,
+                template: None,
+            };
+            let id = this
+                .operations
+                .begin(Operation::PrepareCreation, project.path().join("Review"));
+            this.running = Some((Operation::PrepareCreation, Cancellation::default()));
+            this.creation.changed();
+            this.sender
+                .send(Event::Prepared(
+                    id,
+                    this.creation.revision.wrapping_sub(1),
+                    Ok(PreparationOutcome::Prepared(Box::new(prepared))),
+                ))
+                .unwrap();
+            this.drain(cx);
+            assert!(this.creation.fresh_plan().is_none());
+            assert!(this.running.is_none());
+            this.creation.loading = true;
+            this.creation.context_id = 10;
+            this.sender
+                .send(Event::CreationContext(9, Err("stale context".into())))
+                .unwrap();
+            this.drain(cx);
+            assert!(this.creation.loading);
+            assert!(this.creation.context.is_some());
+            this.creation.loading = false;
+            this.creation.draft = Some(CreationDraft::new("Review".into()));
+            this.creation.context.as_mut().unwrap().template_problem =
+                Some("Invalid template; repair with rproj configure project".into());
+            cx.notify();
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("creation-prepare", cx);
+        assert!(
+            window
+                .find("creation-error")
+                .label()
+                .unwrap()
+                .contains("rproj configure project")
+        );
+        assert!(window.find("project-switcher").visible());
+        assert!(window.find("watch-start").visible());
+        window.click("Overview", cx);
+        assert!(window.try_find("creation-flow").is_none());
+    })
+    .unwrap();
 }
 
 #[gpui_kit::test]

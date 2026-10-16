@@ -10,6 +10,12 @@ is authorized in three sequential reviewed PRs: shared composition, headless
 worker, then controls. Closing waits for cancellation teardown and warns about
 partial files; detached Watch stays running. No version bump or publication.
 
+Native implementation checkpoint: shared composition and the headless worker
+merged in PRs #113 and #114. The native controls implement this approved flow;
+[creation acceptance](desktop-creation-acceptance.md) records their automated
+coverage, disposable preview and pending Windows observations. The simulation
+description below remains historical design evidence, not native acceptance.
+
 ## Entry and navigation
 
 Use the accepted Soft shell. Add New project… to the compact project menu and

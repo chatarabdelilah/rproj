@@ -1,4 +1,5 @@
-use rproj_core::operations::{Operation, OperationOutcome, WatchStatus};
+use super::Operation;
+use rproj_core::operations::{OperationOutcome, WatchStatus};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq)]

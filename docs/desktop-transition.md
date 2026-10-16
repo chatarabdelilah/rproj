@@ -13,9 +13,11 @@ manual coverage is distinguished in [Soft acceptance](soft-workbench-acceptance.
 
 Next, the owner selected guided New Project with an explanation/handoff to existing
 machine setup. The [parity inventory](desktop-workflow-parity.md) records the gaps;
-the [creation design](desktop-new-project-design.md) defines this documentation and
-conversation-prototype pass. Native creation and incremental core extraction wait
-for design approval. Existing-project acceptance is separate from full workflow
+the [creation design](desktop-new-project-design.md) records the approved flow.
+Shared composition and the headless worker merged in PRs #113 and #114. The native
+five-step controls now use them; [creation acceptance](desktop-creation-acceptance.md)
+records automated coverage and pending Windows observations. Existing-project
+acceptance is separate from full workflow
 parity, desktop distribution and macOS/Linux acceptance.
 
 ### Approved native design (October 15)

@@ -1,3 +1,4 @@
+mod creation;
 mod operation;
 mod theme;
 #[cfg(test)]
@@ -15,7 +16,8 @@ use rproj_core::{
     catalog::CatalogEntry,
     desktop_state::{Appearance, DesktopState},
     operations::{
-        Cancellation, Operation, OperationEvent, OperationOutcome, WatchStatus, WorkbenchClient,
+        Cancellation, Operation as WorkerOperation, OperationEvent, OperationOutcome, WatchStatus,
+        WorkbenchClient,
     },
 };
 use std::{
@@ -32,6 +34,35 @@ use std::{
 const EVENT_CAPACITY: usize = 128;
 const LOG_CAPACITY: usize = 2_000;
 const LOG_BYTES: usize = 1_048_576;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Operation {
+    StartWatch,
+    StopWatch,
+    SwitchWatch,
+    Check,
+    Test,
+    PrepareCreation,
+    CreateProject,
+}
+impl Operation {
+    fn cancellable(self) -> bool {
+        matches!(
+            self,
+            Self::Check | Self::Test | Self::PrepareCreation | Self::CreateProject
+        )
+    }
+    fn worker(self) -> Option<WorkerOperation> {
+        Some(match self {
+            Self::StartWatch => WorkerOperation::StartWatch,
+            Self::StopWatch => WorkerOperation::StopWatch,
+            Self::SwitchWatch => WorkerOperation::SwitchWatch,
+            Self::Check => WorkerOperation::Check,
+            Self::Test => WorkerOperation::Test,
+            Self::PrepareCreation | Self::CreateProject => return None,
+        })
+    }
+}
 
 pub fn worker_path() -> anyhow::Result<PathBuf> {
     Ok(std::env::current_exe()?.with_file_name(if cfg!(windows) { "rproj.exe" } else { "rproj" }))
@@ -76,6 +107,19 @@ enum Event {
     Progress(u64, OperationEvent),
     Complete(u64, Result<OperationOutcome, String>),
     WatchLogs(u64, Result<String, String>),
+    CreationContext(
+        u64,
+        Result<rproj_core::creation::protocol::CreationContext, String>,
+    ),
+    Prepared(
+        u64,
+        u64,
+        Result<rproj_core::creation::protocol::PreparationOutcome, String>,
+    ),
+    Created(
+        u64,
+        Result<rproj_core::creation::protocol::CreationOutcome, String>,
+    ),
 }
 
 fn connection_event(worker: anyhow::Result<PathBuf>) -> Event {
@@ -224,6 +268,9 @@ impl Activity {
 }
 
 pub struct Workbench {
+    creation: creation::CreationSession,
+    creation_inputs: creation::CreationInputs,
+    window: AnyWindowHandle,
     focus: FocusHandle,
     watch_focus: FocusHandle,
     section: Section,
@@ -284,6 +331,13 @@ impl Workbench {
                 Theme::sync_system_appearance(Some(window), cx);
             }
         });
+        let (creation_inputs, creation_subscriptions) = creation::CreationInputs::new(window, cx);
+        let owner = cx.entity().downgrade();
+        window.on_window_should_close(cx, move |window, cx| {
+            owner
+                .update(cx, |this, cx| this.request_close(window, cx))
+                .unwrap_or(true)
+        });
         let preferences = DesktopState::default();
         apply_appearance(preferences.appearance, window, cx);
         let (preferences_sender, preferences_receiver) = sync_channel::<DesktopState>(1);
@@ -314,6 +368,9 @@ impl Workbench {
             }
         });
         let mut view = Self {
+            creation: creation::CreationSession::default(),
+            creation_inputs,
+            window: window.window_handle(),
             focus,
             watch_focus: cx.focus_handle(),
             section: Section::Overview,
@@ -349,7 +406,10 @@ impl Workbench {
             receiver,
             dropped: Arc::new(AtomicUsize::new(0)),
             last_poll: Instant::now(),
-            _subscriptions: vec![subscription, appearance_subscription],
+            _subscriptions: vec![subscription, appearance_subscription]
+                .into_iter()
+                .chain(creation_subscriptions)
+                .collect(),
             _pump: pump,
         };
         let sender = view.sender.clone();
@@ -363,6 +423,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.creation.visible = false;
         self.pending_switch = None;
         self.watch_log_request.invalidate();
         self.generation = self.generation.wrapping_add(1);
@@ -521,6 +582,7 @@ impl Workbench {
                             self.client = Some(client);
                             self.client_error = None;
                             self.poll_status();
+                            self.load_creation_context(cx);
                         }
                         Err(error) => self.client_error = Some(error),
                     }
@@ -584,6 +646,15 @@ impl Workbench {
                             self.client_error = Some(error);
                         }
                     }
+                }
+                Event::CreationContext(id, result) => {
+                    self.accept_creation_context(id, result);
+                }
+                Event::Prepared(id, revision, result) => {
+                    self.accept_preparation(id, revision, result, cx);
+                }
+                Event::Created(id, result) => {
+                    self.accept_creation_result(id, result, cx);
                 }
                 Event::Progress(id, OperationEvent::Output { stderr, text })
                     if self.operations.accepts(id) =>
@@ -776,6 +847,9 @@ impl Workbench {
         let Some(client) = self.client.clone() else {
             return;
         };
+        let Some(worker_operation) = operation.worker() else {
+            return;
+        };
         self.pending_switch = None;
         if !operation.cancellable() {
             self.watch_log_request.invalidate();
@@ -794,7 +868,7 @@ impl Workbench {
         let dropped = self.dropped.clone();
         std::thread::spawn(move || {
             let result = client
-                .run(operation, &project, &cancellation, move |event| {
+                .run(worker_operation, &project, &cancellation, move |event| {
                     if progress.try_send(Event::Progress(id, event)).is_err() {
                         dropped.fetch_add(1, Ordering::Relaxed);
                     }
@@ -813,6 +887,8 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::SwitchWatch => "Switching Watch",
         Operation::Check => "Running checks",
         Operation::Test => "Running tests",
+        Operation::PrepareCreation => "Preparing creation",
+        Operation::CreateProject => "Creating project",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

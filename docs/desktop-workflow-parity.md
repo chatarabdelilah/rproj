@@ -15,7 +15,7 @@ The evidence below keeps automated coverage separate from real-window observatio
 | `rproj app [path]` | Explicitly launches matching desktop/CLI distribution. | Present: existing-project workbench and recent-project menu. | Core desktop preferences and explicit worker discovery. Keep portable launch coverage. |
 | `rproj inspect [path] [--json]` | Read-only, versioned project snapshot. | Present: Overview, Dependencies, Tools; actual declarations/resolutions/presence remain distinct. | Core inspection and catalog. Keep unknown/malformed/offline cases visible. |
 | Projects browser | Discovers configured-root projects and launch directory; ten project actions. | Partial: Open/recent/Close; no equivalent discovery browser. | CLI discovery is not yet a core service. Plan discovery separately from creation. |
-| `rproj new <name>` / New Project | Wally/None, guided/expert/saved composition, capabilities, files, named setup save, exclusive destination, execution. Direct command may provision; Home requires recorded machine setup. | Native controls pending; approved guided flow, shared composition and headless worker. Missing setup hands off to the existing terminal workflow. | Core graph/catalog/draft/plan plus typed CLI preparation/execution; no terminal widgets in core. |
+| `rproj new <name>` / New Project | Wally/None, guided/expert/saved composition, capabilities, files, named setup save, exclusive destination, execution. Direct command may provision; Home requires recorded machine setup. | Present: five-step native flow, retained draft, background review/creation and normal-close cancellation guard. New-control Windows observations remain pending. Missing setup hands off to the existing terminal workflow. | Core graph/catalog/draft/plan plus typed CLI preparation/execution; no terminal widgets in core. |
 | `rproj setup` / Machine Setup | Review selections, explicit Apply, sequential installs, pending Stop and recovery; completed installations can remain. | Missing. New Project explains the prerequisite; it does not install machine applications. | Machine setup model/worker plus external installers. Separate native design. |
 | `rproj setup <tool>` | Project tool setup, configuration and manual instructions. | Missing; Tools currently distinguishes pins from detection only. | Existing tool catalog/install/config boundaries. A detected executable is not proof of setup. |
 | `rproj configure [tool]` / Configure Tools | Guided configuration and guarded saves preserving unrelated content. | Missing; inspection is not an editor. | Configuration sessions and artifact-specific preservation rules. |
@@ -28,7 +28,7 @@ The evidence below keeps automated coverage separate from real-window observatio
 | `rproj test [args...]` / Test | Selected runner/backend, dependency restoration, prerequisite handling and CLI argument passthrough. | Partial: existing default Test action; no arbitrary argument editor. | Worker Test operation. Real Roblox/cloud prerequisite acceptance is separate. |
 | `rproj copy` / Copy Source | Copy src files with relative-path headers. | Missing. | Existing explicit-path source collection; platform clipboard boundary. |
 | `rproj info [key]` / Catalog | Full package/tool/capability catalog and explanations. | Partial: known dependency details; no complete catalog browser. | Core package catalog currently shares only part of CLI catalog content. |
-| Saved Setups | Browse/edit/rename/duplicate/delete with no-clobber and stale-source checks; creation can load/save a composition. | Missing manager. Creation wireframe includes replay and new-name save only. | Saved document validation/preservation plus graph; no native manager in this milestone. |
+| Saved Setups | Browse/edit/rename/duplicate/delete with no-clobber and stale-source checks; creation can load/save a composition. | Native creation includes strict replay and new-name save; manager remains missing. | Saved document validation/preservation plus graph; no native manager in this milestone. |
 
 ## Evidence and limits
 
@@ -76,4 +76,7 @@ validation rejects unsupported selected compositions without changing the CLI's
 legacy loading behavior. Headless worker and native controls are next; this
 extraction alone does not make desktop creation available. The subsequent
 [headless worker](desktop-creation-worker.md) adds typed preparation/execution
-and preserves origin/claim information; native controls remain pending.
+and preserves origin/claim information. Native controls now use those services;
+[creation acceptance](desktop-creation-acceptance.md) separates automated coverage,
+fixture launch evidence and pending real-window observations. Whole-product
+workflow parity remains incomplete.
