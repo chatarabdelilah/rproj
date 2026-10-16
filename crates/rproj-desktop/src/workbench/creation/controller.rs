@@ -124,9 +124,12 @@ impl Workbench {
             self.prepare_creation(cx);
             return;
         }
-        if matches!(self.creation.step, Step::Project | Step::Capabilities)
-            && let Err(error) = self.creation.request()
-        {
+        let validation = match self.creation.step {
+            Step::Project => self.creation.project_ready(),
+            Step::Capabilities => self.creation.request().map(|_| ()),
+            _ => Ok(()),
+        };
+        if let Err(error) = validation {
             self.creation.error = Some(error);
             cx.notify();
             return;
@@ -142,7 +145,11 @@ impl Workbench {
         &mut self,
         operation: Operation,
     ) -> Option<(u64, Cancellation, WorkbenchClient)> {
-        if self.running.is_some() || self.creation.teardown_uncertain {
+        if self.creation.teardown_uncertain {
+            self.creation.error = Some("Worker teardown is unconfirmed. Inspect Activity and the destination; new creation remains disabled until cleanup can be confirmed.".into());
+            return None;
+        }
+        if self.running.is_some() {
             return None;
         }
         let client = self.client.clone()?;
@@ -322,9 +329,12 @@ impl Workbench {
             if teardown_confirmed {
                 self.close_after_teardown(cx);
             } else {
+                // The approved close contract requires confirmed teardown. A
+                // second close must not bypass that requirement after an error.
                 self.creation.teardown_uncertain = true;
                 self.operations.expanded = true;
                 self.creation.error = Some("The window stayed open because worker teardown could not be confirmed. Inspect Activity and the destination; partial files may exist.".into());
+                self.activity.append_untagged("Worker teardown is unconfirmed. Normal close and new creation remain disabled; inspect Activity and the destination for partial files.");
             }
         }
         cx.notify();

@@ -28,6 +28,13 @@ the window open. Close waits for the owned worker outcome after descendant teard
 and stream draining; uncertain teardown keeps the window open. Dirty unsubmitted
 drafts have a separate default-Keep discard confirmation. Detached Watch stays
 running. Force termination and OS shutdown are outside this normal-close contract.
+An actual teardown error deliberately has no second-close bypass: without an
+owned-process completion signal, this milestone cannot safely declare cleanup
+finished. The blocked state is explicit in Activity and disables new creation;
+read-only project browsing remains available. CodeRabbit suggested a second-close
+bypass, which conflicts with the owner's approved close requirement and was not
+adopted. This conservative error path has deterministic test coverage, not an
+injected real OS teardown-failure observation.
 
 ## Automated evidence
 

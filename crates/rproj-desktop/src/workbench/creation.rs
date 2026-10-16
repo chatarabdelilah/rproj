@@ -46,6 +46,7 @@ pub(super) struct CreationSession {
     pub(super) context_id: u64,
     pub(super) loading: bool,
     pub(super) error: Option<String>,
+    pub(super) selection_problem: Option<String>,
     pub(super) selected_setup: Option<String>,
     pub(super) setup_source: Option<SourceSnapshot>,
     pub(super) prepared: Option<(u64, PreparedCreation)>,
@@ -68,6 +69,7 @@ impl Default for CreationSession {
             context_id: 0,
             loading: false,
             error: None,
+            selection_problem: None,
             selected_setup: None,
             setup_source: None,
             prepared: None,
@@ -96,7 +98,7 @@ impl CreationSession {
                 .join(&self.draft.as_ref()?.name),
         )
     }
-    pub(super) fn request(&self) -> Result<PrepareCreation, String> {
+    pub(super) fn project_ready(&self) -> Result<(), String> {
         let context = self
             .context
             .as_ref()
@@ -116,6 +118,16 @@ impl CreationSession {
             return Err(format!("Saved setups: {error}"));
         }
         let draft = self.draft.as_ref().ok_or("Start a new draft.")?;
+        rproj_core::creation::validate_name(&draft.name).map_err(str::to_owned)?;
+        Ok(())
+    }
+    pub(super) fn request(&self) -> Result<PrepareCreation, String> {
+        self.project_ready()?;
+        if let Some(problem) = &self.selection_problem {
+            return Err(problem.clone());
+        }
+        let context = self.context.as_ref().expect("project readiness");
+        let draft = self.draft.as_ref().expect("project readiness");
         draft.validate().map_err(|e| e.to_string())?;
         let sources = context
             .sources(self.selected_setup.as_deref())
@@ -141,6 +153,12 @@ impl CreationSession {
             .then_some(prepared)
     }
     pub(super) fn load_setup(&mut self, name: &str) -> Result<(), String> {
+        let result = self.apply_setup(name);
+        self.selection_problem = result.as_ref().err().cloned();
+        self.prepared = None;
+        result
+    }
+    fn apply_setup(&mut self, name: &str) -> Result<(), String> {
         let saved = self
             .context
             .as_ref()

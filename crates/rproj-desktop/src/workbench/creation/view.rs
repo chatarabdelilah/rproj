@@ -16,7 +16,7 @@ use rproj_core::{
 
 impl Workbench {
     pub(in super::super) fn render_creation(&self, cx: &mut Context<Self>) -> AnyElement {
-        let busy = self.running.is_some();
+        let busy = self.running.is_some() || self.creation.teardown_uncertain;
         let finished = self.creation.result.is_some();
         let step = self.creation.step;
         let body = match step {
@@ -58,17 +58,23 @@ impl Workbench {
                             .v_flex()
                             .gap_4()
                             .p_6()
-                            .when_some(self.creation.error.clone(), |view, error| {
-                                view.child(
-                                    div()
-                                        .id("creation-error")
-                                        .role(Role::Alert)
-                                        .aria_label(error.clone())
-                                        .test_support()
-                                        .text_color(cx.theme().danger)
-                                        .child(error),
-                                )
-                            })
+                            .when_some(
+                                self.creation
+                                    .error
+                                    .clone()
+                                    .or_else(|| self.creation.selection_problem.clone()),
+                                |view, error| {
+                                    view.child(
+                                        div()
+                                            .id("creation-error")
+                                            .role(Role::Alert)
+                                            .aria_label(error.clone())
+                                            .test_support()
+                                            .text_color(cx.theme().danger)
+                                            .child(error),
+                                    )
+                                },
+                            )
                             .child(body),
                     ),
             )
@@ -188,7 +194,7 @@ impl Workbench {
                 .children([("guided", "Guided"), ("expert", "Expert")].into_iter().map(|(mode, label)|
                     Button::new(SharedString::from(format!("creation-{mode}"))).label(label).selected(draft.graph.mode == mode && self.creation.selected_setup.is_none()).disabled(disabled)
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.creation.selected_setup = None; this.creation.setup_source = None;
+                            this.creation.selected_setup = None; this.creation.setup_source = None; this.creation.selection_problem = None;
                             this.mutate_creation(|draft| { draft.graph.mode = mode.into(); Ok(()) }, cx);
                         }))))
                 .child(Button::new("creation-saved").label(self.creation.selected_setup.clone().unwrap_or_else(|| "Saved setup…".into())).disabled(disabled || setups.is_empty())

@@ -76,6 +76,7 @@ fn unsupported_saved_choices_are_visible_and_never_normalized() {
     );
     assert_eq!(state.draft, original);
     assert!(state.selected_setup.is_none());
+    assert!(state.request().unwrap_err().contains("Unsupported package"));
 }
 #[test]
 fn saved_source_changes_require_explicit_reload_and_preserve_concrete_choices() {
@@ -121,6 +122,10 @@ fn incompatible_testing_requires_a_decision_and_missing_setup_blocks_review() {
     let draft = state.draft.as_mut().unwrap();
     draft.set_capability("test", Some("jest-roblox")).unwrap();
     draft.set_workflow(PackageWorkflow::None);
+    assert!(
+        state.project_ready().is_ok(),
+        "Back to Project must not trap a repairable composition"
+    );
     assert!(state.request().unwrap_err().contains("compatible"));
     state
         .draft
