@@ -17,22 +17,21 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 16: finish Soft Windows acceptance.**
-The owner accepted the section sidebar and compact project switcher, then chose
-Soft from the working visual comparison. [PR #107](https://github.com/chatarabdelilah/rproj/pull/107)
-merged the native layout, themed controls, contextual Activity, operation ownership,
-and acknowledged Watch switching at `24595f6`. Final reviewed-head and merged-main
-CI passed. The owner confirmed the minimum-height Activity clipping fix.
-[Soft acceptance](soft-workbench-acceptance.md) separates confirmed checks from
-remaining acceptance. On October 16, the owner also confirmed automatic System
-appearance changes and usable Dependencies/Activity at 125% Windows Scale and
-after restoring 100%. A subsequent taller-panel check exposed Activity height
-resetting after collapse/reopen. Retained resizer state now passes a native drag
-regression, and the owner confirmed retained height and fitting content through
-two collapse/reopen cycles in the replacement preview. A disposable-session real
-Watch check remains separate.
-Full workflow parity remains a later gate. No version bump, publication, installer,
-or CLI/Ratatui production behavior change was made.
+**Current priority, October 16: workflow parity and guided New Project design.**
+The native Soft workbench is merged. The owner confirmed Activity containment and
+retained height, themes/System changes, scaling, and real Watch Start/Switch/Stop.
+[PR #111](https://github.com/chatarabdelilah/rproj/pull/111), merged at `9910df1`,
+fixed inherited launcher pipes and transient Stop-status failures. All seven
+executed jobs passed on its reviewed head and merged main. [Soft acceptance](soft-workbench-acceptance.md)
+keeps native Close-project/Watch persistence and confirmation Escape unverified.
+
+The owner chose guided New Project first, with explanation and handoff to existing
+`rproj setup` when machine setup is missing. The [workflow parity inventory](desktop-workflow-parity.md)
+records current terminal/desktop gaps; the [creation design](desktop-new-project-design.md)
+defines the interactive conversation prototype. Native creation and incremental
+core extraction follow design approval. This pass changes documentation and the
+prototype only. Full workflow parity, installers and macOS/Linux desktop acceptance
+remain later gates. No version bump or publication is included.
 
 **Historical foundation, October 14:**
 The owner confirmed continuation and emphasized that the current UI is not the
