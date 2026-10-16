@@ -2,7 +2,6 @@ use std::cell::Cell;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -17,6 +16,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 #[path = "tests.rs"]
 mod tests;
 
+#[path = "detached.rs"]
+mod detached;
+
 const PROTOCOL: u8 = 1;
 const MAX_MESSAGE: u64 = 16 * 1024;
 const LOG_SIZE: usize = 1024 * 1024;
@@ -25,7 +27,6 @@ const ACK_TIMEOUT: Duration = Duration::from_secs(2);
 const INTERNAL: &str = "--rproj-watch-internal";
 const NONCE: &str = "RPROJ_WATCH_NONCE";
 const ENGINE_TOKEN: &str = "RPROJ_WATCH_ENGINE_TOKEN";
-const DETACHED_BREAKAWAY: u32 = 0x00000008 | 0x01000000;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 enum State {
@@ -488,10 +489,9 @@ fn stop_and_wait_at(root: &Path, timeout: Duration) -> Result<()> {
                 return Ok(());
             }
         }
-        ensure!(
-            current.state != State::Unresponsive,
-            "Watch control is unresponsive; it has not been reported stopped"
-        );
+        // Stop was accepted above. A slow status probe is not a terminal result;
+        // keep the original deadline and require this same owner to release its
+        // lock with a successful terminal state before allowing a replacement.
         ensure!(
             Instant::now() < deadline,
             "Watch has not finished stopping; inspect status before starting another project"
@@ -596,9 +596,7 @@ fn start_at(root: &Path, project: &Path, exe: &Path) -> Result<Snapshot> {
         return Ok(snapshot);
     }
     let nonce = random_token()?;
-    let mut child = Command::new(exe).arg(INTERNAL).arg("supervisor").arg(root).arg(&project)
-        .env(NONCE, &nonce).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
-        .creation_flags(DETACHED_BREAKAWAY).spawn()
+    let child = detached::spawn(exe, root, &project, &nonce)
         .context("Could not detach background Watch. The launcher may prohibit job breakaway; launch rproj from a normal Windows terminal and retry")?;
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -613,7 +611,7 @@ fn start_at(root: &Path, project: &Path, exe: &Path) -> Result<Snapshot> {
                 return Ok(snapshot);
             }
         }
-        if let Some(exit) = child.try_wait()? {
+        if let Some(exit) = detached::exit_code(&child)? {
             bail!(
                 "Background Watch supervisor exited before acknowledgement ({exit}); inspect `rproj watch logs`"
             );
@@ -636,7 +634,14 @@ pub(crate) fn internal_entry() -> Option<Result<()>> {
         let mode = args.next().context("missing worker mode")?;
         let root = PathBuf::from(args.next().context("missing session directory")?);
         let project = PathBuf::from(args.next().context("missing project directory")?);
-        let nonce = std::env::var(NONCE).context("internal Watch requires a startup nonce")?;
+        let nonce = if mode == "supervisor" {
+            args.next()
+                .context("internal Watch requires a startup nonce")?
+                .into_string()
+                .map_err(|_| anyhow::anyhow!("invalid Watch startup nonce"))?
+        } else {
+            std::env::var(NONCE).context("internal Watch requires a startup nonce")?
+        };
         ensure!(args.next().is_none(), "unexpected internal worker argument");
         match mode.to_str() {
             Some("supervisor") => supervisor(&root, &project, nonce),

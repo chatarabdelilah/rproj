@@ -10,10 +10,27 @@ installation. Two added modules appeared in its sourcemap. No active unrelated
 Watch was stopped; the prior session was Failed on an old preview fixture.
 The source session survived replacement of the earlier preview window.
 Two read-only status probes during a two-minute monitor briefly reported
-Unresponsive and then Watching; their cause is unverified. Native browsing/Close
-project, confirmation cancellation,
-switching and Stop acceptance remain pending. See
+Unresponsive and then Watching; their cause is unverified. A later owner-context
+status query confirmed Watching on the destination, establishing destination
+startup but not the GUI confirmation sequence. The owner could not confirm which review steps they followed
+and reported disabled Start/Switch controls; these are expected when the selected
+project already owns Watch. The owner then confirmed that Stop is also disabled
+while Activity remains Starting Watch / Running and navigation responds. The
+lifecycle fixture reproduced inherited output pipes held by the detached
+supervisor after launcher exit. A safe no-inheritance detachment fix is under
+validation; native browsing/Close project, confirmation cancellation, and final
+Stop acceptance remain unverified. See
 [Soft acceptance](soft-workbench-acceptance.md) for the bounded scope.
+
+The inherited-pipe regression failed before the detachment fix and passes after
+it, including Unicode/spaced paths, breakaway refusal and owned-tree cleanup.
+A second regression reproduced a transient post-Stop status timeout causing an
+immediate false failure. Stop now observes the same session through its original
+deadline while retaining terminal-state and released-owner requirements. All six
+Stop cases, 566 CLI/core tests (24 prerequisite-dependent tests ignored), 21
+desktop tests, strict Clippy and formatting pass locally. Real replacement-window
+acceptance, packaging and final review/CI remain pending. No version bump or
+publication is included.
 
 ## October 16: Soft System appearance and scaling confirmed
 

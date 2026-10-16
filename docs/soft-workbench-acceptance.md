@@ -168,7 +168,45 @@ its generated sourcemap, and Watch remained running while the earlier preview
 window was replaced with isolated preferences listing both test projects.
 Two read-only probes during a two-minute monitor briefly reported Unresponsive
 and recovered to Watching; the cause remains unverified. The production status
-handler does not persist state for reads. Native Close project, browsing,
-confirmation Escape, confirmed
-switching, and final Stop observations remain pending separately from these
-backend checks. No native capture/activation automation was retried.
+handler does not persist state for reads. After the owner reported difficulty
+switching or stopping, a fresh owner-context status query confirmed Watching on
+the destination. This confirms destination startup, but does not establish which
+GUI action initiated it. The owner could not
+confirm which instructions they followed and reported disabled Start/Switch
+controls. Those controls are intentionally disabled when the selected project
+already owns Watch; this report alone does not establish a defect. A targeted
+Stop observation then confirmed a defect: Stop is disabled, Activity remains at
+`Watch destination · Starting Watch · Running`, and section navigation still
+responds. The production lifecycle fixture reproduced this: the launcher exits,
+but its captured output pipes remain open for the detached Watch's lifetime.
+Native Close project, browsing, and confirmation Escape remain unverified
+separately from the confirmed backend transition. No native capture/activation
+automation was retried.
+
+The fix starts the supervisor without inheriting handles, using winsafe's pinned
+kernel-only safe wrapper. This preserves the application's unsafe-code ban,
+detachment/breakaway behavior, environment/tool PATH, and existing control
+acknowledgements. The startup nonce moves from a supervisor environment override
+to its private invocation argument; control authentication tokens remain private.
+The public CLI, workbench worker verbs, session data and configuration are unchanged.
+The lifecycle fixture now requires EOF on both captured streams before stopping
+Watch and uses paths containing spaces and Unicode. It failed before the fix;
+replacement-preview acceptance and final validation remain pending.
+
+Cleaning up the owned session also exposed a false Stop failure: a transient
+status timeout after Stop was accepted made the acknowledgement loop fail
+immediately, although the same session then reached Stopped. A delayed-status
+regression reproduces that exact error. Stop now continues observing the same
+session within its existing deadline; it still requires persisted Stopped and
+released ownership, rejects changed owners and Failed outcomes, and never starts
+a replacement after an unacknowledged Stop. A permanently slow/still-owned fixture
+must time out rather than claim success.
+
+Final local validation passes 566 CLI/core tests (24 prerequisite-dependent tests
+remain ignored), all 21 desktop tests, formatting, and strict CLI/core/desktop
+Clippy. The initial full run while the disposable real Watch was active failed a
+setup test's mutation guard; after acknowledged cleanup, the full suite passed.
+The lifecycle regression initially also exposed a PowerShell 5.1 fixture encoding
+issue; generated scripts now include a UTF-8 BOM for Unicode fixture paths.
+Portable validation, final CodeRabbit review, CI, and replacement-window checks
+remain separate delivery gates.
