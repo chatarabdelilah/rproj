@@ -61,8 +61,11 @@ identity describes the retained, last-applied graph. It stays captured while the
 visible error blocks Review until an explicit valid source choice; a regression
 checks both retention and recovery. The earlier review refresh quota cleared.
 All seven [runtime-head CI jobs](https://github.com/chatarabdelilah/rproj/actions/runs/38901332447)
-passed; badge freshness was skipped. Final documentation-head/main CI are separate
-delivery checks tracked by [PR #115](https://github.com/chatarabdelilah/rproj/pull/115).
+passed; badge freshness was skipped. [PR #115](https://github.com/chatarabdelilah/rproj/pull/115)
+merged at `8efb026`. Its [final head](https://github.com/chatarabdelilah/rproj/actions/runs/38902515284)
+and [merged main](https://github.com/chatarabdelilah/rproj/actions/runs/38903823480)
+also passed all seven executed jobs; badge freshness was skipped. Guarded
+local/remote branch cleanup is complete.
 
 ## Disposable Windows preview
 
@@ -109,8 +112,16 @@ The launcher records source commit/dirty state and fixture paths in
 
 ## Manual observations
 
-The isolated native window launched and stayed alive past startup on October 16.
-Owner observations of the new flow, rendering, cancellation/close and real Watch
-ownership are **pending/unverified**. Earlier Soft acceptance does not establish
-these new controls. Browser prototype rendering also remains unverified; no retired
-native automation or failed browser route was repeated.
+On October 16, the owner answered “yes all successful” to the isolated New Project
+check: enter “Native example”, select Minimal fixture, advance to Review, confirm
+Create project, then choose Open project. This confirms successful creation,
+responsiveness and explicit opening of the result in the observed preview.
+The exact preview build used for this reply was not reported. The check used
+disposable storage and a Git stub; it does not establish real Git/Wally/Blender/
+Studio behavior or manual inspection of generated file contents.
+
+Recovery/failure cases, cancellation/normal close, new-flow theme/keyboard/layout/
+scaling checks and real Watch ownership remain **unverified**. Earlier Soft
+acceptance does not establish these new controls. Browser prototype rendering
+also remains unverified; no retired native automation or failed browser route
+was repeated.
