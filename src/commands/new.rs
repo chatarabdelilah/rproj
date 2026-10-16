@@ -152,9 +152,10 @@ pub(super) fn prepare_project(
     Ok((project_dir, template))
 }
 
-pub(super) enum SetupSave<'a> {
+pub(crate) enum SetupSave<'a> {
     Replace(&'a str),
     New(&'a str),
+    NewAt { name: &'a str, path: &'a Path },
 }
 
 /// Executes an already reviewed composition without asking any questions.
@@ -171,12 +172,54 @@ pub(super) fn execute_confirmed(
     config: &mut GlobalConfig,
     save_setup: Option<SetupSave<'_>>,
 ) -> Result<()> {
+    execute_reviewed(
+        ConfirmedCreation {
+            name,
+            project_dir,
+            graph,
+            planned,
+            project_template,
+            save_setup,
+            config_path: None,
+        },
+        config,
+        &mut |_| Ok(()),
+    )
+}
+
+pub(crate) struct ConfirmedCreation<'a> {
+    pub name: &'a str,
+    pub project_dir: &'a Path,
+    pub graph: &'a ProjectGraph,
+    pub planned: &'a [artifacts::Planned],
+    pub project_template: Option<&'a serde_json::Value>,
+    pub save_setup: Option<SetupSave<'a>>,
+    pub config_path: Option<&'a Path>,
+}
+
+pub(crate) fn execute_reviewed(
+    request: ConfirmedCreation<'_>,
+    config: &mut GlobalConfig,
+    observer: &mut impl FnMut(rproj_core::creation::protocol::ClaimState) -> Result<()>,
+) -> Result<()> {
+    use rproj_core::creation::protocol::ClaimState;
+    let ConfirmedCreation {
+        name,
+        project_dir,
+        graph,
+        planned,
+        project_template,
+        save_setup,
+        config_path,
+    } = request;
     crate::interrupt::check()?;
     if planned.iter().any(|artifact| artifact.key == "blender") {
         blender::preflight_starter_scene(project_dir)?;
     }
+    observer(ClaimState::Claiming)?;
     create_project_dir(project_dir)?;
     let result = (|| {
+        observer(ClaimState::Claimed)?;
         let packages = graph.package_set();
         let package_workflow = graph.package_workflow;
         let project_tools = graph.tools();
@@ -226,6 +269,13 @@ pub(super) fn execute_confirmed(
                     Setups::save_new(graph, name)?;
                     name
                 }
+                SetupSave::NewAt { name, path } => {
+                    let root = path.parent().context("Missing saved setup storage")?;
+                    let checked = crate::config::setups::setup_path(root, name)?;
+                    anyhow::ensure!(path == checked, "Saved setup destination changed");
+                    crate::config::save_new_setup_at(graph, path)?;
+                    name
+                }
             };
             ui::ok(&format!(
                 "saved setup `{setup_name}` - reuse with `rproj new <name> --like {setup_name}`"
@@ -244,7 +294,11 @@ pub(super) fn execute_confirmed(
                 config
                     .selected_studio_plugins
                     .push("jest-roblox-plugin".into());
-                config.save()?;
+                if let Some(path) = config_path {
+                    config.save_at(path)?;
+                } else {
+                    config.save()?;
+                }
             }
             if let Err(error) = refresh_jest_plugin() {
                 ui::warn(&format!(

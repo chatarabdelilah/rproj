@@ -48,6 +48,14 @@ closure. Stop-and-switch requires the old supervisor's acknowledged termination.
 The CLI remains the execution adapter during incremental extraction, reusing its
 existing file guards and external command implementations.
 
+The private [creation worker](desktop-creation-worker.md) adds bounded context and
+operation-owned request/report files. Preparation validates without creating a
+destination; confirmed execution revalidates captured sources and the full plan.
+Claim state and outcome come from atomic structured reports, not human output.
+Existing CLI creation calls the same executor with a no-op observer. Native
+execution supplies explicit server-derived config/setup storage and an observer;
+no production profile override or configuration schema is introduced.
+
 **Scope decision (October 8, 2026):** The owner approved a native desktop workbench with an incremental shared core. Ratatui remains supported during migration; direct commands remain permanent. The [desktop transition](desktop-transition.md) defines the first alpha and its GPUI feasibility gate. Rojo, Selene, StyLua, and other external tools retain their responsibilities. Tauri and model-to-template import remain dropped.
 
 ## 2. Behavior / Rules Specification

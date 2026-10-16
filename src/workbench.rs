@@ -7,6 +7,8 @@ use std::process::Command;
 use anyhow::{Context, Result, bail, ensure};
 use rproj_core::operations::WORKER_FLAG;
 
+mod creation;
+
 pub(crate) fn internal_entry() -> Option<Result<()>> {
     let mut args = std::env::args_os().skip(1);
     if args.next().as_deref() != Some(OsStr::new(WORKER_FLAG)) {
@@ -39,6 +41,16 @@ fn dispatch(operation: Operation) -> Result<()> {
             run_check(&project)
         }
         Operation::Test => crate::commands::test::run(&[]),
+        Operation::CreationContext => {
+            let text = serde_json::to_string(&creation::context()?)?;
+            ensure!(
+                text.len() as u64 <= rproj_core::creation::protocol::IPC_LIMIT,
+                "Creation context exceeded its size limit; use the terminal workflow or reduce the template/setup data"
+            );
+            println!("{text}");
+            Ok(())
+        }
+        Operation::CreationJob(directory) => creation::job(&directory),
     }
 }
 
@@ -46,7 +58,7 @@ fn dispatch(operation: Operation) -> Result<()> {
 #[path = "workbench/worker_tests.rs"]
 mod worker_tests;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Operation {
     Catalog,
     Status,
@@ -55,12 +67,20 @@ enum Operation {
     Stop,
     Check,
     Test,
+    CreationContext,
+    CreationJob(std::path::PathBuf),
 }
 
 fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation> {
     let verb = args.next().context("missing workbench operation")?;
+    if verb == "creation-job" {
+        let directory = args.next().context("missing creation IPC directory")?;
+        ensure!(args.next().is_none(), "unexpected workbench argument");
+        return Ok(Operation::CreationJob(directory.into()));
+    }
     ensure!(args.next().is_none(), "unexpected workbench argument");
     match verb.to_str() {
+        Some("creation-context") => Ok(Operation::CreationContext),
         Some("catalog") => Ok(Operation::Catalog),
         Some("status") => Ok(Operation::Status),
         Some("logs") => Ok(Operation::Logs),

@@ -2,6 +2,8 @@
 
 mod draft;
 pub mod graph;
+#[doc(hidden)]
+pub mod protocol;
 use crate::catalog::{
     capabilities,
     wally_packages::{PackageSpec, companions_for},

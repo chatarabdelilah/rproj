@@ -17,6 +17,9 @@ use std::{
 pub const WORKER_FLAG: &str = "--rproj-workbench";
 const QUERY_LIMIT: usize = 2 * 1024 * 1024 + 4096;
 
+#[path = "operations/creation.rs"]
+mod creation;
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WatchState {
     Stopped,
@@ -281,6 +284,18 @@ fn execute(
 fn execute_owned(
     worker: &Path,
     args: &[&str],
+    project: &Path,
+    cancellation: &Cancellation,
+    sink: Arc<dyn Fn(OperationEvent) + Send + Sync>,
+) -> Result<OperationOutcome> {
+    let args: Vec<std::ffi::OsString> = args.iter().map(std::ffi::OsString::from).collect();
+    execute_owned_os(worker, &args, project, cancellation, sink)
+}
+
+#[cfg(windows)]
+fn execute_owned_os(
+    worker: &Path,
+    args: &[std::ffi::OsString],
     project: &Path,
     cancellation: &Cancellation,
     sink: Arc<dyn Fn(OperationEvent) + Send + Sync>,
