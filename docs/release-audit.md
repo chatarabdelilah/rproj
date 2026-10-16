@@ -1,5 +1,34 @@
 # Release-Hardening Audit
 
+## October 16: Watch recovery delivered; guided creation design next
+
+[PR #111](https://github.com/chatarabdelilah/rproj/pull/111) merged at `9910df1`.
+[Reviewed-head CI](https://github.com/chatarabdelilah/rproj/actions/runs/38841289738)
+and [merged-main CI](https://github.com/chatarabdelilah/rproj/actions/runs/38841859391)
+passed all seven executed jobs; the badge job was intentionally skipped. Merged
+branch cleanup is complete. The owner confirmed real source Start, acknowledged
+Switch to the destination and final Stop in the replacement preview. Native
+Close-project/Watch persistence and confirmation Escape remain unverified.
+The preparation entries below are historical; their pending-delivery wording is
+superseded by this checkpoint.
+
+The next approved milestone is the [workflow parity inventory](desktop-workflow-parity.md)
+and [guided New Project design](desktop-new-project-design.md). Missing machine
+setup explains and hands off to `rproj setup`. This milestone contains a simulated
+conversation prototype and documentation, with native creation/core extraction
+behind design approval. No Rust, public API, configuration, installation, version
+or publication change is included.
+
+The guided prototype passes 32 local simulation/source/DOM checks and JavaScript
+syntax validation, including draft retention, graph invalidation, saved replay,
+explicit confirmation, origin-aware output, cancellation and failure recovery.
+Text contrast passes for 18 selected light/dark surface pairs. Source hashes,
+scripts and results are retained under ignored `target/new-project-design/`.
+There is no local browser executable, so real rendering, geometry, host icons and
+browser dialog/keyboard behavior remain unverified. No failed preview route was
+retried. The [design evidence](desktop-new-project-design.md#local-validation-october-16)
+distinguishes DOM coverage from acceptance; owner design review is still pending.
+
 ## October 16: disposable real Watch acceptance prepared
 
 Git connectivity recovered; local main was synchronized to `7d78871` and fully

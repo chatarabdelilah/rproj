@@ -220,4 +220,8 @@ native steps: source Start reaches Watching and Activity Succeeded with Stop
 enabled; confirmed Switch reaches Watching on the destination and Succeeded;
 Stop reaches Stopped. This confirms the reported stuck operation/disabled Stop
 fix. Native Close project and confirmation Escape are not included in this
-three-step observation. Final head/main CI remain separate delivery gates.
+three-step observation. Reviewed head `67f572a` passed all seven executed jobs in
+[CI](https://github.com/chatarabdelilah/rproj/actions/runs/38841289738); merged main
+`9910df1` passed all seven in [CI](https://github.com/chatarabdelilah/rproj/actions/runs/38841859391).
+The badge job was skipped intentionally. PR #111 and merged-branch cleanup are
+complete. No version bump or publication was performed.

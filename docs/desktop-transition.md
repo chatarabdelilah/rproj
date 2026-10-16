@@ -4,7 +4,19 @@ Approved October 8, 2026. This supersedes the Ratatui-only direction, not the
 retirement of Tauri, model import, or embedded replacements for external tools.
 The published baseline is 0.22.0; implementation starts from `17b7ef4`.
 
-## Implementation checkpoint (October 15)
+## Implementation checkpoint (October 16)
+
+The native Soft workbench and Watch recovery are merged through
+[PR #111](https://github.com/chatarabdelilah/rproj/pull/111), `9910df1`, with reviewed-head
+and merged-main CI passing. The owner confirmed real Start/Switch/Stop; remaining
+manual coverage is distinguished in [Soft acceptance](soft-workbench-acceptance.md).
+
+Next, the owner selected guided New Project with an explanation/handoff to existing
+machine setup. The [parity inventory](desktop-workflow-parity.md) records the gaps;
+the [creation design](desktop-new-project-design.md) defines this documentation and
+conversation-prototype pass. Native creation and incremental core extraction wait
+for design approval. Existing-project acceptance is separate from full workflow
+parity, desktop distribution and macOS/Linux acceptance.
 
 ### Approved native design (October 15)
 
