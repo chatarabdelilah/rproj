@@ -116,20 +116,7 @@ fn dirs_documents() -> Result<PathBuf> {
     Ok(PathBuf::from(home).join("Documents"))
 }
 
-/// How a project gets dependencies: Wally, or no dependency manager.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum PackageWorkflow {
-    /// The default in the `Default` sense only - which strategy a *project*
-    /// gets is always an explicit answer, never this.
-    #[default]
-    Wally,
-    None,
-}
-
-impl PackageWorkflow {
-    pub const ALL: &'static [Self] = &[Self::Wally, Self::None];
-}
+pub use rproj_core::creation::PackageWorkflow;
 
 /// Reading and writing `rproj.toml`, the per-project record.
 ///

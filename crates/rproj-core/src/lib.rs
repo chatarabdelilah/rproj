@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 pub mod catalog;
+pub mod creation;
 pub mod desktop_state;
 pub mod inspection;
 pub mod operations;

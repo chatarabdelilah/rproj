@@ -8,7 +8,7 @@ use crate::catalog::artifacts;
 use crate::catalog::capabilities;
 use crate::catalog::tool_catalog::{self, ToolKind};
 use crate::catalog::tool_settings;
-use crate::catalog::wally_packages::{self, Category, PackageSpec, companions_for};
+use crate::catalog::wally_packages::{self, Category, PackageSpec};
 use crate::commands::provision;
 use crate::config::{GlobalConfig, PackageWorkflow, Setups, project_file, project_template};
 use crate::graph::{Node, ProjectGraph, TestRunner};
@@ -17,6 +17,8 @@ use crate::steps::{
     testez, toolchain, tungsten, vscode, wally,
 };
 use crate::ui;
+#[cfg(test)]
+use rproj_core::creation::capability_owned;
 
 pub fn run(
     name: &str,
@@ -587,35 +589,7 @@ fn pick_composition(workflow: PackageWorkflow) -> Result<(&'static str, BTreeSet
     }
 }
 
-/// Packages a capability brings in on its own, so no picker offers them.
-///
-/// TestEZ is the case: *do I want tests* is a capability question, and it
-/// used to be asked in the package step **and** consequenced four prompts
-/// later in the files step - one intent, two prompts. Derived from the
-/// capability catalog rather than flagged on the package, so the two cannot
-/// drift apart.
-fn capability_owned(key: &str) -> bool {
-    capabilities::CAPABILITIES
-        .iter()
-        .any(|c| c.implementations.iter().any(|i| i.packages.contains(&key)))
-}
-
-pub(super) fn apply_derived_packages(graph: &mut ProjectGraph) {
-    graph.packages.retain(|key| !capability_owned(key));
-    for key in graph.derived().packages {
-        if !graph.packages.contains(&key) {
-            graph.packages.push(key);
-        }
-    }
-    graph.packages.sort();
-}
-
-/// Whether a package may be offered at all, given the strategy already
-/// chosen. Offering one that cannot be installed is offering a broken
-/// project.
-pub(super) fn offerable_package(spec: &PackageSpec, workflow: PackageWorkflow) -> bool {
-    workflow == PackageWorkflow::Wally && !capability_owned(spec.key)
-}
+pub(super) use rproj_core::creation::{apply_derived_packages, offerable_package};
 
 /// The summary, and the last chance to back out.
 ///
@@ -906,15 +880,7 @@ fn pick_expert(workflow: PackageWorkflow) -> Result<BTreeSet<String>> {
         .collect())
 }
 
-pub(super) fn add_companions(packages: &mut BTreeSet<String>) {
-    let primaries: Vec<String> = packages.iter().cloned().collect();
-    let snapshot = packages.clone();
-    for key in primaries {
-        for companion in companions_for(&key, |k| snapshot.contains(k)) {
-            packages.insert(companion.to_string());
-        }
-    }
-}
+pub(super) use rproj_core::creation::add_companions;
 
 struct ScaffoldOptions<'a> {
     packages: &'a BTreeSet<String>,
