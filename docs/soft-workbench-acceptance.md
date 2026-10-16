@@ -191,7 +191,7 @@ to its private invocation argument; control authentication tokens remain private
 The public CLI, workbench worker verbs, session data and configuration are unchanged.
 The lifecycle fixture now requires EOF on both captured streams before stopping
 Watch and uses paths containing spaces and Unicode. It failed before the fix;
-replacement-preview acceptance and final validation remain pending.
+replacement-preview acceptance remains separate from automated validation.
 
 Cleaning up the owned session also exposed a false Stop failure: a transient
 status timeout after Stop was accepted made the acknowledgement loop fail
@@ -208,5 +208,13 @@ Clippy. The initial full run while the disposable real Watch was active failed a
 setup test's mutation guard; after acknowledged cleanup, the full suite passed.
 The lifecycle regression initially also exposed a PowerShell 5.1 fixture encoding
 issue; generated scripts now include a UTF-8 BOM for Unicode fixture paths.
-Portable validation, final CodeRabbit review, CI, and replacement-window checks
-remain separate delivery gates.
+Final CodeRabbit review of `b99ec49` reports zero findings across all seven
+changed files. Its clean portable archive passes version, worker/inspection and
+static-CRT checks, with 590 dependency notices including winsafe's license; the
+existing three legacy notice-completeness warnings remain. In the extracted
+copy, real Rojo source Start reaches Watching, both captured output streams close
+after launcher exit, and acknowledged Stop reaches Stopped with both streams
+closed. One replacement window uses isolated preferences and the same disposable
+projects. The source Start → destination Switch → Stop native recheck and exact
+head/main CI remain separate pending gates. No native acceptance pass is inferred
+from the backend checks.

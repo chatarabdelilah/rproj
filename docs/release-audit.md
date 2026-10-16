@@ -28,9 +28,12 @@ A second regression reproduced a transient post-Stop status timeout causing an
 immediate false failure. Stop now observes the same session through its original
 deadline while retaining terminal-state and released-owner requirements. All six
 Stop cases, 566 CLI/core tests (24 prerequisite-dependent tests ignored), 21
-desktop tests, strict Clippy and formatting pass locally. Real replacement-window
-acceptance, packaging and final review/CI remain pending. No version bump or
-publication is included.
+desktop tests, strict Clippy and formatting pass locally. Final CodeRabbit review
+of `b99ec49` found zero issues across all seven files. Its clean portable archive
+passes smoke/static-CRT checks and includes 590 dependency notices. Real Rojo
+Start/Stop with captured output both return EOF and final Stopped. One replacement
+preview is open for the native recheck; exact-head/main CI and native acceptance
+remain separate pending gates. No version bump or publication is included.
 
 ## October 16: Soft System appearance and scaling confirmed
 
