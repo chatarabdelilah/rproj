@@ -11,7 +11,7 @@ is complete. This supersedes pending worker-delivery wording below.
 
 Native controls implement the approved five-step Soft flow with one retained
 draft, strict saved choices, background preparation/execution, captured result
-ownership and a default-Keep close guard. Local desktop tests pass 31 cases;
+ownership and a default-Keep close guard. Local desktop tests pass 32 cases;
 CLI/core regression suites pass with 24 prerequisite-dependent cases ignored.
 Strict desktop Clippy passes. The PowerShell 5.1 preview uses explicit disposable
 storage and tool stubs, and launched past startup. New-control manual Windows
@@ -22,7 +22,10 @@ files with zero findings at runtime head `71542ef`. The initial review's
 second-close-bypass suggestion was evaluated against the approved close contract;
 the guard remains, with explicit disabled state and recovery guidance. Backward
 navigation and unsupported saved-selection review blockers are covered by
-regressions. Reviewed-head/main CI remain delivery gates for this third PR.
+regressions. Subsequent inspection found an Expert-to-Guided conversion edge case:
+the correction rejects multiple primary choices explicitly, reuses shared companion
+rules and has a regression. Its review refresh is pending the CodeRabbit quota;
+reviewed-head/main CI remain delivery gates for this third PR.
 The existing three-archive legacy notice-completeness limitation remains recorded
 in THIRD-PARTY.md. No version bump or publication is included.
 

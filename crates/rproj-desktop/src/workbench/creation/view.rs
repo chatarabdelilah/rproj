@@ -194,8 +194,10 @@ impl Workbench {
                 .children([("guided", "Guided"), ("expert", "Expert")].into_iter().map(|(mode, label)|
                     Button::new(SharedString::from(format!("creation-{mode}"))).label(label).selected(draft.graph.mode == mode && self.creation.selected_setup.is_none()).disabled(disabled)
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.creation.selected_setup = None; this.creation.setup_source = None; this.creation.selection_problem = None;
-                            this.mutate_creation(|draft| { draft.graph.mode = mode.into(); Ok(()) }, cx);
+                            if !this.creation_running() && this.creation.result.is_none() {
+                                if let Err(error) = this.creation.select_mode(mode) { this.creation.error = Some(error); }
+                                cx.notify();
+                            }
                         }))))
                 .child(Button::new("creation-saved").label(self.creation.selected_setup.clone().unwrap_or_else(|| "Saved setup…".into())).disabled(disabled || setups.is_empty())
                     .dropdown_menu(move |mut menu, _, _| {
@@ -208,7 +210,7 @@ impl Workbench {
                             }));
                         } menu
                     })))
-            .child("Guided adds companions and keeps one primary choice per category. Expert exposes individual packages. Loading a saved setup replaces composition choices; names remain yours.")
+            .child("Guided adds companions and keeps one primary choice per category. Switching to Guided recomputes companions and affected file choices; resolve extra primary choices in Expert first. Loading a saved setup replaces composition choices; names remain yours.")
             .child(div().h_flex().gap_2().children([(PackageWorkflow::Wally,"Wally"), (PackageWorkflow::None,"None")].into_iter().map(|(workflow,label)|
                 Button::new(SharedString::from(format!("creation-workflow-{label}"))).label(label).selected(draft.graph.package_workflow == workflow).disabled(disabled)
                     .on_click(cx.listener(move |this, _, window, cx| this.confirm_workflow(workflow, window, cx))))))

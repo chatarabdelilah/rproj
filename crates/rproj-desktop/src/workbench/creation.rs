@@ -158,6 +158,60 @@ impl CreationSession {
         self.prepared = None;
         result
     }
+    pub(super) fn select_mode(&mut self, mode: &str) -> Result<(), String> {
+        use rproj_core::{
+            catalog::wally_packages::{self, Category},
+            creation::{add_companions, apply_derived_packages, capability_owned, graph::Node},
+        };
+        let mut draft = self.draft.clone().ok_or("Start a draft first.")?;
+        if mode == "guided" {
+            // Validate before filtering: an unfamiliar selection must never be
+            // silently removed by a conversion into Guided's primary choices.
+            let mut validation = draft.clone();
+            validation.name = "Validation".into();
+            validation.save_setup = None;
+            validation.validate().map_err(|e| e.to_string())?;
+            let mut choices: std::collections::BTreeSet<String> = draft
+                .graph
+                .packages
+                .iter()
+                .filter(|key| {
+                    wally_packages::find(key).is_some_and(|p| p.primary_choice)
+                        && !capability_owned(key)
+                })
+                .cloned()
+                .collect();
+            for category in Category::ALL.into_iter().filter(|c| !c.allows_multiple()) {
+                if choices
+                    .iter()
+                    .filter(|key| wally_packages::find(key).is_some_and(|p| p.category == category))
+                    .count()
+                    > 1
+                {
+                    return Err(format!(
+                        "Guided allows one primary choice in {}. Remove the extra choices in Expert, then select Guided again.",
+                        category.label()
+                    ));
+                }
+            }
+            add_companions(&mut choices);
+            let previous = draft.graph.packages.clone();
+            draft.graph.packages = choices.into_iter().collect();
+            apply_derived_packages(&mut draft.graph);
+            if draft.graph.packages != previous {
+                draft.graph.invalidate(Node::Packages);
+            }
+        } else if mode != "expert" {
+            return Err("Unsupported creation mode.".into());
+        }
+        draft.graph.mode = mode.into();
+        self.draft = Some(draft);
+        self.selected_setup = None;
+        self.setup_source = None;
+        self.selection_problem = None;
+        self.changed();
+        Ok(())
+    }
     fn apply_setup(&mut self, name: &str) -> Result<(), String> {
         let saved = self
             .context

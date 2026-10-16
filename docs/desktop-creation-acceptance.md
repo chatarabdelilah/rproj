@@ -38,13 +38,15 @@ injected real OS teardown-failure observation.
 
 ## Automated evidence
 
-Local desktop coverage: 31 passing tests, including native GPUI interaction tests
+Local desktop coverage: 32 passing tests, including native GPUI interaction tests
 for five-step navigation, Unicode name entry, companions, required-file protection,
 minimum layout, draft retention, default-Keep/Escape, cancellation pending until
 outcome, teardown failure, stale preparation/context/results, actionable template
 errors, explicit result opening and unchanged Watch ownership. Tests use the pinned
 Kit's reduced-motion mode for deterministic dialog hit testing; they do not verify
 animated rendering or Windows pixels. Existing Soft/inspection/Activity tests remain.
+Guided conversion also rejects multiple primary choices before changing the draft,
+reuses shared companion derivation and preserves unfamiliar data on rejection.
 
 CLI/core regression suites pass; 24 prerequisite-dependent cases remain ignored.
 Worker fixtures verify real scaffold helpers through tool stubs,
@@ -52,8 +54,10 @@ source/destination/setup races, Unicode/spaces, structured reports and descendan
 cleanup. Those cases do not establish real Git/Wally/Blender/Studio acceptance.
 Strict desktop/CLI/core Clippy, formatting, both fresh-cache crate tarballs and
 the portable Windows build/smoke checks pass. Final local CodeRabbit reviewed
-all 18 changed files with zero findings at runtime head `71542ef`. Exact-head/main
-CI remain separate delivery checks recorded in the release audit after completion.
+all 18 changed files with zero findings at runtime head `71542ef`. The subsequent
+Guided-conversion correction awaits the required review refresh; the first retry
+hit the service quota. Exact-head/main CI remain separate delivery checks recorded
+in the release audit after completion.
 
 ## Disposable Windows preview
 

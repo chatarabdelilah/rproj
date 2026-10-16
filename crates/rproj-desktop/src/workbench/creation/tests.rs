@@ -137,3 +137,65 @@ fn incompatible_testing_requires_a_decision_and_missing_setup_blocks_review() {
     state.context.as_mut().unwrap().machine_ready = false;
     assert!(state.request().unwrap_err().contains("rproj setup"));
 }
+
+#[test]
+fn guided_conversion_protects_primary_choices_and_uses_shared_companions() {
+    let mut state = CreationSession {
+        draft: Some(CreationDraft::new("Example".into())),
+        context: Some(context()),
+        ..Default::default()
+    };
+    state.select_mode("expert").unwrap();
+    state
+        .draft
+        .as_mut()
+        .unwrap()
+        .toggle_package("react", false)
+        .unwrap();
+    state
+        .draft
+        .as_mut()
+        .unwrap()
+        .toggle_package("vide", false)
+        .unwrap();
+    let before = state.draft.clone();
+    assert!(
+        state
+            .select_mode("guided")
+            .unwrap_err()
+            .contains("Remove the extra choices")
+    );
+    assert_eq!(state.draft, before);
+    state
+        .draft
+        .as_mut()
+        .unwrap()
+        .toggle_package("vide", false)
+        .unwrap();
+    state
+        .draft
+        .as_mut()
+        .unwrap()
+        .graph
+        .dropped
+        .push(".gitignore".into());
+    state.select_mode("guided").unwrap();
+    let draft = state.draft.as_ref().unwrap();
+    assert!(draft.graph.packages.iter().any(|p| p == "reactRoblox"));
+    assert!(draft.graph.dropped.is_empty());
+    state
+        .draft
+        .as_mut()
+        .unwrap()
+        .graph
+        .packages
+        .push("future-package".into());
+    let before = state.draft.clone();
+    assert!(
+        state
+            .select_mode("guided")
+            .unwrap_err()
+            .contains("Unsupported package")
+    );
+    assert_eq!(state.draft, before);
+}
