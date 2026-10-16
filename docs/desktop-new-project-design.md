@@ -11,10 +11,12 @@ worker, then controls. Closing waits for cancellation teardown and warns about
 partial files; detached Watch stays running. No version bump or publication.
 
 Native implementation checkpoint: shared composition and the headless worker
-merged in PRs #113 and #114. The native controls implement this approved flow;
+merged in PRs #113 and #114. Native controls merged in PR #115 and implement this
+approved flow;
 [creation acceptance](desktop-creation-acceptance.md) records their automated
-coverage, disposable preview and pending Windows observations. The simulation
-description below remains historical design evidence, not native acceptance.
+coverage, disposable preview, confirmed October 16–17 fixture observations and
+remaining Windows gates. The simulation description below remains historical
+design evidence, not native acceptance.
 
 ## Entry and navigation
 
