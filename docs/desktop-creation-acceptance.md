@@ -1,6 +1,6 @@
 # Native guided New Project acceptance
 
-October 16, 2026. Approved Soft flow: Project → Dependencies → Capabilities →
+October 16–17, 2026. Approved Soft flow: Project → Dependencies → Capabilities →
 Files → Review. This is the third delivery stage after shared composition
 ([PR #113](https://github.com/chatarabdelilah/rproj/pull/113)) and the owned
 creation worker ([PR #114](https://github.com/chatarabdelilah/rproj/pull/114)).
@@ -120,8 +120,41 @@ The exact preview build used for this reply was not reported. The check used
 disposable storage and a Git stub; it does not establish real Git/Wally/Blender/
 Studio behavior or manual inspection of generated file contents.
 
-Recovery/failure cases, cancellation/normal close, new-flow theme/keyboard/layout/
-scaling checks and real Watch ownership remain **unverified**. Earlier Soft
-acceptance does not establish these new controls. Browser prototype rendering
-also remains unverified; no retired native automation or failed browser route
-was repeated.
+In the reopened preview built from clean main `dfe336d`, the owner confirmed
+both saved-setup checks: Unsupported fixture shows an explanation and blocks
+Review; selecting Minimal fixture explicitly clears the error and successfully
+prepares Review without creating a destination. This confirms rejection and
+recovery, not execution-failure handling.
+
+In that same preview, with the fixture Git stub changed to pause after claiming
+the destination, the owner confirmed the normal-close check. The dialog named
+the destination and warned about partial files; Keep open retained a usable
+window, and Cancel creation and close closed it after cancellation completed.
+A subsequent filesystem/process observation found the fixture claim marker,
+the preserved `Recovery example/.git` directory and no remaining fixture
+desktop, bridge or Git processes. That later observation does not independently
+establish teardown ordering; the worker tests cover the owned-process contract.
+
+With the same build reopened and the fixture Git stub set to fail, the owner
+confirmed that creating `Failure example` reports failure, identifies the
+destination/possible partial files, offers no success/Open project action and
+leaves navigation responsive. This is a tool-stub execution-failure observation,
+not a real Git failure or a malformed/missing-report test. A subsequent inspection
+found the empty `Failure example` destination preserved and only the preview
+desktop process still active, with no fixture bridge or Git process.
+
+On October 17, the owner confirmed all four checks in the reopened cancellation
+preview of the same build: the Minimal fixture flow stayed readable in Light/Dark
+after shrinking and restoring the window; Activity Cancel reached Cancelled while
+leaving the window usable and output labeled for `Activity example`; a manually
+taller Activity retained its height after collapse/reopen; and closing a dirty
+`Draft example` showed Keep draft as the primary choice, with Escape preserving
+the entered name. These are owner observations, not instrumented pixel, timing
+or focus measurements.
+
+Actual dirty-draft discard, full keyboard traversal, new-flow System appearance
+changes/scaling, detailed package/long-path inspection and real Watch ownership
+remain **unverified**. The fixture observations do not establish real external-tool
+behavior. Earlier Soft acceptance does not establish these new controls. Browser
+prototype rendering also remains unverified; no retired native automation or
+failed browser route was repeated.

@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 16, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 17, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 16: native guided New Project.**
+**Current priority, October 17: native guided New Project acceptance.**
 The native Soft workbench is merged. The owner confirmed Activity containment and
 retained height, themes/System changes, scaling, and real Watch Start/Switch/Stop.
 [PR #111](https://github.com/chatarabdelilah/rproj/pull/111), merged at `9910df1`,
@@ -37,10 +37,15 @@ revalidation, structured claim/outcome reports and owned cancellation, merged in
 PR #114 with reviewed-head/main CI passing. Native five-step controls merged in
 PR #115 with reviewed-head/main CI passing and use that worker, with session
 drafts, explicit review and normal-close cancellation. The owner confirmed
-successful fixture creation, responsiveness and Open project in the preview.
-[Creation acceptance](desktop-creation-acceptance.md) records the scoped observation;
-recovery, cancellation/close, new-flow layout/input and real Watch ownership
-remain unverified. Full workflow parity,
+successful fixture creation, responsiveness and Open project in the preview,
+then unsupported saved-setup rejection, explicit recovery to prepared Review and
+Keep open / Cancel creation and close during fixture creation. Intentional
+tool-stub failure is reported clearly and leaves navigation responsive. On October
+17, the owner also confirmed Activity cancellation, retained panel height,
+Light/Dark readability after window resizing and dirty-draft preservation on Escape.
+[Creation acceptance](desktop-creation-acceptance.md) records the scoped observations;
+full keyboard traversal, new-flow System/scaling, actual draft discard, real
+Watch ownership and external-tool behavior remain unverified. Full workflow parity,
 installers and macOS/Linux desktop acceptance remain later gates. No version
 bump or publication is included.
 

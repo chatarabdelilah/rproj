@@ -1,5 +1,21 @@
 # Release-Hardening Audit
 
+## October 17: native creation fixture acceptance
+
+In the isolated native preview built from clean main `dfe336d`, the owner
+confirmed Activity Cancel reaches Cancelled without closing the window and keeps
+output labeled for its destination. Light/Dark remained readable after shrinking
+and restoring the window; Activity retained its resized height after reopening;
+and Escape from the dirty-draft close dialog preserved the draft with Keep draft
+as the primary choice. Recovery, normal-close cancellation and intentional
+tool-stub failure observations are recorded below.
+
+These observations use disposable storage and a Git stub. Full keyboard
+traversal, new-flow System/scaling, actual draft discard, detailed package/path
+inspection and actual Watch/tool behavior remain unverified. See
+[creation acceptance](desktop-creation-acceptance.md) for the exact scope.
+No runtime, version or publication change is included in this acceptance record.
+
 ## October 16: native guided creation controls
 
 The worker [PR #114](https://github.com/chatarabdelilah/rproj/pull/114) merged at
@@ -16,8 +32,14 @@ CLI/core regression suites pass with 24 prerequisite-dependent cases ignored.
 Strict desktop Clippy passes. The PowerShell 5.1 preview uses explicit disposable
 storage and tool stubs, and launched past startup. The owner confirmed successful
 fixture creation, responsiveness and explicit Open project on October 16; the
-exact observed build was not reported. Recovery, cancellation/close, new-flow
-layout/input and actual Watch ownership remain unverified in
+exact observed build was not reported. In the reopened clean-main `dfe336d`
+preview, the owner also confirmed unsupported saved-setup rejection and explicit
+Minimal fixture recovery to prepared Review, then Keep open / Cancel creation
+and close during fixture creation. A later inspection found preserved partial
+files and no remaining fixture processes. The owner also confirmed clear failure
+and responsive navigation with intentionally failing fixture Git. The October 17
+checkpoint above supersedes pending Activity cancellation and basic layout checks;
+remaining manual gates are listed in
 [creation acceptance](desktop-creation-acceptance.md).
 Formatting, both crate tarballs in a fresh package directory and the portable
 Windows build/smoke checks pass. Final local CodeRabbit reviewed all 18 changed
