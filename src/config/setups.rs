@@ -7,37 +7,7 @@ use anyhow::{Context, Result, bail, ensure};
 use crate::catalog::{capabilities, wally_packages};
 use crate::graph::ProjectGraph;
 
-pub fn validate_name(name: &str) -> Result<(), &'static str> {
-    if name.is_empty()
-        || name == "."
-        || name == ".."
-        || name.ends_with([' ', '.'])
-        || name
-            .chars()
-            .any(|c| c.is_control() || "<>:\"/\\|?*".contains(c))
-    {
-        return Err("Use a single name without reserved path characters.");
-    }
-    let stem = name
-        .split('.')
-        .next()
-        .unwrap_or("")
-        .trim_end()
-        .to_uppercase();
-    if ["CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"].contains(&stem.as_str())
-        || ["COM", "LPT"].iter().any(|prefix| {
-            stem.strip_prefix(prefix).is_some_and(|suffix| {
-                matches!(
-                    suffix,
-                    "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
-                )
-            })
-        })
-    {
-        return Err("This name is reserved by Windows.");
-    }
-    Ok(())
-}
+pub use rproj_core::creation::validate_name;
 
 fn unlinked(path: &Path) -> Result<()> {
     for ancestor in path.ancestors() {

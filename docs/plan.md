@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 16: workflow parity and guided New Project design.**
+**Current priority, October 16: native guided New Project.**
 The native Soft workbench is merged. The owner confirmed Activity containment and
 retained height, themes/System changes, scaling, and real Watch Start/Switch/Stop.
 [PR #111](https://github.com/chatarabdelilah/rproj/pull/111), merged at `9910df1`,
@@ -28,10 +28,13 @@ keeps native Close-project/Watch persistence and confirmation Escape unverified.
 The owner chose guided New Project first, with explanation and handoff to existing
 `rproj setup` when machine setup is missing. The [workflow parity inventory](desktop-workflow-parity.md)
 records current terminal/desktop gaps; the [creation design](desktop-new-project-design.md)
-defines the interactive conversation prototype. Native creation and incremental
-core extraction follow design approval. This pass changes documentation and the
-prototype only. Full workflow parity, installers and macOS/Linux desktop acceptance
-remain later gates. No version bump or publication is included.
+defines the approved five-step flow. The owner approved it and a default-Keep
+close confirmation, then authorized three sequential reviewed PRs: shared
+composition, headless creation worker, then native controls. Shared composition
+is extracted first with serialization/derivation compatibility fixtures; the
+worker and controls remain subsequent delivery gates. Full workflow parity,
+installers and macOS/Linux desktop acceptance remain later gates. No version
+bump or publication is included.
 
 **Historical foundation, October 14:**
 The owner confirmed continuation and emphasized that the current UI is not the

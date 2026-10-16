@@ -1,5 +1,29 @@
 # Release-Hardening Audit
 
+## October 16: approved native creation, shared composition extraction
+
+The owner approved Project → Dependencies → Capabilities → Files → Review as the
+native baseline, with Keep open / Cancel creation and close during execution.
+Delivery is ordered: shared composition, headless worker, then native controls.
+This first change moves the graph, catalogs, workflow/name validation and pure
+companion/derived-package rules into core; CLI modules re-export them and Ratatui
+keeps its widgets. Native draft/plan types perform no filesystem or tool work.
+
+Three golden serialization/derivation fixtures passed against the original code
+before extraction and pass against core. The full CLI/core suite passes 575 tests
+with 24 prerequisite-dependent cases ignored; strict Clippy passes. A restricted
+token run could not perform existing atomic-file/process-tree cases; the complete
+suite passed in owner context using its disposable fixtures. All 21 desktop tests
+and desktop Clippy pass with the pinned toolchain; both core and CLI build from
+their package tarballs. CodeRabbit's first pass found a workflow revision that
+cleared capability-derived package state and stale architecture locations. Both
+are corrected; the new regression covers a TestEZ Wally/None round trip and file
+exclusion after returning to Wally. Final review and reviewed-head/main CI remain
+delivery gates for this extraction.
+No worker protocol, native control, configuration schema, version or publication
+change is included in this first PR. Historical design-review-pending entries
+below are superseded by this approval checkpoint.
+
 ## October 16: Watch recovery delivered; guided creation design next
 
 [PR #111](https://github.com/chatarabdelilah/rproj/pull/111) merged at `9910df1`.

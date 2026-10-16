@@ -4,6 +4,12 @@ Approved direction, October 16, 2026: New Project first, guided steps, and an
 explanation/handoff to existing setup when machine setup is missing.
 This is a conversation prototype for review, not native creation or file output.
 
+The owner subsequently approved the five-step flow as the native implementation
+baseline and chose a default-Keep close confirmation during creation. Native work
+is authorized in three sequential reviewed PRs: shared composition, headless
+worker, then controls. Closing waits for cancellation teardown and warns about
+partial files; detached Watch stays running. No version bump or publication.
+
 ## Entry and navigation
 
 Use the accepted Soft shell. Add New project… to the compact project menu and

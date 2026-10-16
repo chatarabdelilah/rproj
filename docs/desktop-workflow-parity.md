@@ -64,6 +64,14 @@ notice completeness remain separate checks.
 4. Build desktop controls over that shared behavior. Ratatui keeps its own
    input/picker/focus state and continues using the same authoritative rules.
 
-No new public API or wire schema is defined here. There is no whole-codebase
-rewrite, configuration migration, replacement installer or stable-SDK promise.
+This inventory defines no worker wire schema. Extracted core types are shared
+product interfaces, not a stable SDK. There is no whole-codebase rewrite,
+configuration migration or replacement installer.
 See [New Project design](desktop-new-project-design.md) for this review milestone.
+
+October 16 implementation checkpoint: the owner approved the flow. Graph/catalog
+types, workflow/name validation, companion/derived-package helpers and pure native
+draft/plan types now live in core, with terminal re-exports. Strict native
+validation rejects unsupported selected compositions without changing the CLI's
+legacy loading behavior. Headless worker and native controls are next; this
+extraction alone does not make desktop creation available.

@@ -31,6 +31,14 @@ prompts, or writes. Saved catalog choices, manifest declarations, lock resolutio
 and package-file presence are distinct facts. Desktop preferences use a separate
 per-user `desktop.json`; machine setup and project files retain their schemas.
 
+Shared composition now lives in `rproj_core::creation` and the core package,
+capability and artifact catalogs. CLI modules re-export those authoritative types
+and helpers; Ratatui retains its input, picker and navigation state. Graph TOML
+and derivation order remain unchanged. The new pure CreationDraft/CreationPlan
+validate native choices and describe required/optional files without filesystem
+or tool execution. Strict native validation is separate from the terminal's
+existing legacy setup-loading compatibility adapter. Execution stays in the CLI.
+
 Core operations call an explicitly located, version-matched CLI worker. Watch
 status uses structured data with private control credentials omitted. Output is
 progress only. Windows check/test children run in an owned Job Object; cancelling
@@ -404,11 +412,18 @@ rproj/
 ├── .gitignore
 ├── docs/
 │   └── architecture.md          this document
+├── crates/rproj-core/src/
+│   ├── creation/graph.rs        ProjectGraph, invalidation, derivation and runner selection
+│   ├── creation/graph_compat.rs pre-extraction serialization/file-plan golden fixtures
+│   ├── creation/draft.rs        pure native draft, strict validation and review plan
+│   ├── creation/mod.rs          PackageWorkflow, name validation and shared package helpers
+│   ├── catalog.rs              guidance DTO and Maintenance
+│   └── catalog/                authoritative artifacts, capabilities and Wally packages; their tests live here
 └── src/
     ├── main.rs                  clap dispatch and post-TUI HubOutcome dispatch
     ├── cli.rs                   clap derive: direct commands, including Test with trailing arguments
-    ├── config.rs                GlobalConfig, PackageWorkflow, project_file, Setups, project_template  [+ 5 tests]
-    ├── graph.rs                 ProjectGraph, Node invalidation, derivation, TestRunner  [+ 17 tests]
+    ├── config.rs                GlobalConfig, project_file, Setups, project_template; core PackageWorkflow re-export
+    ├── graph.rs                 core graph re-export; graph tests live in core
     ├── catalog_view.rs          pure Catalog sections, entries and detail pages  [+ 3 tests]
     ├── tui/
     │   ├── terminal.rs          RAII alternate-screen lifecycle and event polling
@@ -422,17 +437,15 @@ rproj/
     │   └── text_buffer.rs       internal multiline JSON editing and history  [+ 2 tests]
     ├── ui.rs                    terminal output: section/ok/skip/warn/detail, Tally, verbosity
     ├── catalog/
-    │   ├── mod.rs               Maintenance enum
-    │   ├── artifacts.rs         Requirement, Artifact, Environment, Reason, Planned,
-    │   │                        ARTIFACTS, plan(), droppable policy  [+ 15 tests]
-    │   ├── capabilities.rs      Capability, Implementation, CAPABILITIES,
-    │   │                        workflow-aware offerable/derive  [+ 15 tests]
+    │   ├── mod.rs               core Maintenance re-export and cross-catalog integrity tests
+    │   ├── artifacts.rs         core artifact catalog re-export
+    │   ├── capabilities.rs      core capability catalog re-export
     │   ├── tool_catalog.rs      ToolKind, ToolEntry, FAMILY_ORDER, SYSTEM_APPS, ROKIT_TOOLS, PLUGINS, VSCODE_EXTENSIONS
     │   ├── place_template.rs    PropValue, PropertySpec, InstanceSpec, PLACE_TEMPLATE, render()  [+ 3 tests]
     │   ├── quality_checks.rs    CheckStep, CHECK_STEPS, render_check(), runner-aware CI  [+ 15 tests]
     │   ├── tool_settings.rs     SettingKind, SettingSpec, ConfigTarget, ConfigurableTool, CONFIGURABLE_TOOLS  [+ 18 tests]
     │   ├── tool_usage.rs        Usage, USAGE, TOPICS - what each tool is for and the commands to use it
-    │   └── wally_packages.rs    Category, PackageSpec, PACKAGES, companions_for()  [+ 9 tests]
+    │   └── wally_packages.rs    core Wally package catalog re-export
     ├── commands/
     │   ├── mod.rs               module declarations only
     │   ├── welcome.rs           redirected bare-`rproj` overview  [+ 3 tests]
@@ -1332,8 +1345,8 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | --- | --- |
 | `src/commands/creation` (27 tests), new config/hub regressions (2 tests), new live hub regressions (3 ignored tests) | Guided companions, expert filtering and graph parity, None/Wally choices, concrete TestEZ/Jest selection, saved replay, selective invalidation, abandoned revisions and unanswered implementations, managed files, explicit confirmation, Unicode and name safety, wide/narrow/minimum/help/input rendering, filtered checked package revision resize recovery with continued scrolling and acceptance, capability/implementation/Jest execution resize and Help recovery with whole-graph cancellation and retained execution choice, None strategy revision and Testing repair resize recovery with cancellation and retained TestEZ/disabled choices, machine prerequisites, and atomic no-clobber setup saves. Two ordinary isolated PTY regressions cover package and capability/implementation/Jest execution revision resize recovery, production small-screen input gating, continued scrolling, cancellation, acceptance/reopening and terminal restoration without preparation or execution. Separate live PTY checks cover cancellation, concurrent destination preservation, confirmed creation, named setup persistence and saved replay. |
 | `src/diagnostics.rs` (5 tests), `tests/diagnostics.rs` (8 tests) | Unique retained files, bounded size, escaped control characters, redaction before truncation, non-fatal initialization/write failures, unchanged stdout/exit status, invalid CLI handling, omitted runner/environment values, opt-out, accepted setting choices, and TUI navigation without typed filter contents. |
-| `src/graph.rs` (17 tests) | Project-graph invalidation, derivation, and persistence, plus explicit TestEZ/Jest selection, Wally compatibility, peer-artifact isolation, and package-only legacy TestEZ fallback. |
-| `src/catalog/artifacts.rs` (14 tests) | §8.9's whole model, in three groups. **Structure**, holding for any future entry: keys unique; every artifact requirement resolves; the graph is acyclic; mandatory entries require nothing and are never also entailed; no entailment names an artifact (it would be checked against an empty set and never fire); nothing entailed depends on an artifact (resolution could then drop something declared non-negotiable); every reason reads as a lowercase clause with no full stop, since it is printed mid-line. **The user story that used to fail**: a minimal answer writes exactly `src` + `default.project.json`, and all six previously-unconditional artifacts are droppable. **The incoherence** (§7): picking packages settles the manifest they install from, under both workflows, and `resolve` writes it even when handed a `chosen` list that omits it; pinning tools settles `rokit.toml`; a pinned linter settles the config without which it cannot run; a tool with working defaults keeps its config optional *and* declining it is honoured; the companion config needs the companion extension; `offered` and `entailed` never overlap and together with the mandatory entries cover exactly `offerable`; and with no packages the manifest is a question again, so "just the Rojo basics" stays reachable. Plus the property test: over every subset of a representative selection × both workflows × tick-everything and tick-nothing, nothing is written with an unmet requirement and the mandatory two are always present. |
+| `crates/rproj-core/src/creation/graph.rs` (15 tests plus 3 compatibility fixtures) | Project-graph invalidation, derivation, and persistence, plus explicit TestEZ/Jest selection, Wally compatibility, peer-artifact isolation, and package-only legacy TestEZ fallback. |
+| `crates/rproj-core/src/catalog/artifacts.rs` (15 tests) | §8.9's whole model, in three groups. **Structure**, holding for any future entry: keys unique; every artifact requirement resolves; the graph is acyclic; mandatory entries require nothing and are never also entailed; no entailment names an artifact (it would be checked against an empty set and never fire); nothing entailed depends on an artifact (resolution could then drop something declared non-negotiable); every reason reads as a lowercase clause with no full stop, since it is printed mid-line. **The user story that used to fail**: a minimal answer writes exactly `src` + `default.project.json`, and all six previously-unconditional artifacts are droppable. **The incoherence** (§7): picking packages settles the manifest they install from, under both workflows, and `resolve` writes it even when handed a `chosen` list that omits it; pinning tools settles `rokit.toml`; a pinned linter settles the config without which it cannot run; a tool with working defaults keeps its config optional *and* declining it is honoured; the companion config needs the companion extension; `offered` and `entailed` never overlap and together with the mandatory entries cover exactly `offerable`; and with no packages the manifest is a question again, so "just the Rojo basics" stays reachable. Plus the property test: over every subset of a representative selection × both workflows × tick-everything and tick-nothing, nothing is written with an unmet requirement and the mandatory two are always present. |
 | `src/steps/rojo.rs` (11 tests) | The built-in document keeps the established source/place shape; custom nodes and top-level settings survive while the real project name and workflow mounts are injected; core mounts cannot move; every dynamic mount name is reserved; arbitrary and conditionally generated `$path` targets are rejected; Wally/None outputs receive only their own dependency mount; missing Rokit configuration is distinguished from template rejection; and manually setting `Name` is rejected before Rojo ignores it. The ignored real-tool tests materialize and validate all eight reachable mount combinations through Rojo, and prove an invalid Roblox property value is rejected. |
 | `src/config.rs` (14 tests) | Project graphs keep their on-disk enum spelling; setup listing ignores non-files; the global project template round-trips in an injected location and atomically replaces an existing file; corrupt JSON names the repair command; and reset removes only the custom template, leaving unrelated machine configuration intact. Template edit sessions refuse external changes, creation/deletion and changes during validation, keep failed saves retryable, refresh snapshots after persistence and reject non-file reads. |
 | `src/project_editor` (40 tests) | Bundled metadata filters services, creatable classes and common properties, including the tree-owned `Name`; structural edits preserve unknown fields, enforce canonical unique root services, and respect ownership; inferred services retain their class when renamed or duplicated; incompatible classes and malformed common values are flagged without dropping data; undo/redo restores complete operations; the JSON buffer handles Unicode and multiline paste; valid, malformed and ownership-damaged documents select the right mode; save/reset/exit transitions retain drafts until confirmation and successful validation; common settings and attributes encode correctly; and Ratatui's test backend verifies wide, narrow and minimum-size rendering. Isolated PTY tests additionally cover edited-draft discard, byte/absence preservation, invalid-JSON repair, Windows replacement failure/retry, saved-content reopening, external save/reset conflict refusal with retained drafts, draft preservation through terminal resizes, small-screen save/reset protection, visible discard confirmation below the editing minimum and raw-mode restoration. The ignored installed-Rojo terminal test exercises valid save, refusal and repaired-draft save through the production validation boundary; it does not write the user's global template. |
@@ -1343,7 +1356,7 @@ Two dev-dependencies, both only for the integration tests. `portable-pty` becaus
 | `src/steps/jest.rs`, `src/commands/test.rs` | Production-project isolation, inherited custom nodes, mount-collision rejection, explicit Jest globals, inline project configuration, merge preservation, runner argument forwarding/backend overrides, disabled Testing, incompatible workflow failures before tool execution, and numeric subprocess exit-code preservation. Jest refresh/save regressions cover existing backup preservation, read-only refusal, Windows sharing violations, temporary-file cleanup, and successful retries. The ignored real-stack test installs Wally dev packages, validates/retypes the Jest sourcemap, and executes through Studio when every external prerequisite is present. |
 | `src/catalog/mod.rs` | Catalog integrity: keys are unique across tools and packages; every tool family is ordered; companion rules name real packages; entries have descriptions and secure documentation URLs; package sources parse as versioned Wally coordinates; and usage notes resolve to catalog entries. |
 | `src/catalog/tool_settings.rs` (18 tests) | The scaffolded config and `rproj configure`'s defaults render identically; StyLua's scaffolded config selects `Luau` syntax; Selene's `std` is overridable for TestEZ; top-level TOML keys precede any `[table]` header; an inserted top-level key lands above the first section (appending would make `exclude` become `rules.exclude` and do nothing) and still works in a file with no sections; every configurable tool is findable by key. Plus the five that encode configure's destructiveness (§7): current values are read from the file rather than the catalog; a merge keeps keys the catalog doesn't describe; **accepting every prompt changes nothing at all**, against a file carrying a comment, an unmanaged top-level key, an unmanaged key inside a managed table and an unmanaged table; a changed answer rewrites only its own line; and a setting the file predates lands under its own header rather than wherever the file happens to end. |
-| `src/catalog/wally_packages.rs` | Package realms, server detection, mixed-table lint selection and guided-category choices. Wally resolves dependency closure. |
+| `crates/rproj-core/src/catalog/wally_packages.rs` | Package realms, server detection, mixed-table lint selection and guided-category choices. Wally resolves dependency closure. |
 | `src/steps/gitattributes.rs` (2 tests) | The working tree is forced to LF, without which every fresh Windows clone fails `stylua --check`; and every binary format a Roblox project keeps in git is excluded from line-ending conversion. |
 | `src/steps/vscode.rs` | Shared editor settings, Studio bridge, StyLua configuration, sourcemap ownership, Unix line endings and preservation of unrelated settings. |
 | `src/ui.rs` | Option matching uses the full `key -` prefix, including its trailing space; marker icons are single scalars without variation selectors; and truncation preserves the key and maintenance badge within terminal width. Tallies wrap while retaining every item, and multi-select summaries list keys instead of repeating descriptions. |
