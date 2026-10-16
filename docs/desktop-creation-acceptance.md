@@ -50,8 +50,10 @@ CLI/core regression suites pass; 24 prerequisite-dependent cases remain ignored.
 Worker fixtures verify real scaffold helpers through tool stubs,
 source/destination/setup races, Unicode/spaces, structured reports and descendant
 cleanup. Those cases do not establish real Git/Wally/Blender/Studio acceptance.
-Strict Clippy, formatting, packaging, local CodeRabbit and exact-head/main CI are
-separate delivery checks recorded in the release audit after completion.
+Strict desktop/CLI/core Clippy, formatting, both fresh-cache crate tarballs and
+the portable Windows build/smoke checks pass. Final local CodeRabbit reviewed
+all 18 changed files with zero findings at runtime head `71542ef`. Exact-head/main
+CI remain separate delivery checks recorded in the release audit after completion.
 
 ## Disposable Windows preview
 

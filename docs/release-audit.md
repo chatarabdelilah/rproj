@@ -16,8 +16,15 @@ CLI/core regression suites pass with 24 prerequisite-dependent cases ignored.
 Strict desktop Clippy passes. The PowerShell 5.1 preview uses explicit disposable
 storage and tool stubs, and launched past startup. New-control manual Windows
 observations remain pending in [creation acceptance](desktop-creation-acceptance.md).
-Formatting, final packaging, local CodeRabbit and reviewed-head/main CI remain
-delivery gates for this third PR. No version bump or publication is included.
+Formatting, both crate tarballs in a fresh package directory and the portable
+Windows build/smoke checks pass. Final local CodeRabbit reviewed all 18 changed
+files with zero findings at runtime head `71542ef`. The initial review's
+second-close-bypass suggestion was evaluated against the approved close contract;
+the guard remains, with explicit disabled state and recovery guidance. Backward
+navigation and unsupported saved-selection review blockers are covered by
+regressions. Reviewed-head/main CI remain delivery gates for this third PR.
+The existing three-archive legacy notice-completeness limitation remains recorded
+in THIRD-PARTY.md. No version bump or publication is included.
 
 ## October 16: shared composition delivered; headless creation worker
 
