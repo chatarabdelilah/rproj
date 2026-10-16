@@ -1,5 +1,23 @@
 # Release-Hardening Audit
 
+## October 16: shared composition delivered; headless creation worker
+
+[PR #113](https://github.com/chatarabdelilah/rproj/pull/113) merged at `47a79c9`.
+Its [reviewed head](https://github.com/chatarabdelilah/rproj/actions/runs/38890783230)
+and [merged main](https://github.com/chatarabdelilah/rproj/actions/runs/38891292181)
+passed all seven executed CI jobs; badge freshness was skipped. Local CodeRabbit
+review completed all 22 files with zero remaining findings; merged branch cleanup
+is complete. This supersedes the extraction's pending-delivery wording below.
+
+The next change adds the [headless creation worker](desktop-creation-worker.md):
+bounded typed context/preparation/execution, captured source/plan revalidation,
+exclusive claim reporting, explicit storage and owned-process cancellation.
+CLI/core tests pass 589 cases with 24 prerequisite-dependent cases ignored;
+strict Clippy passes. Fixtures cover actual scaffold helpers with tool stubs,
+not real external-tool or native-window acceptance. Native controls and their
+close confirmation remain the third implementation stage. No version bump or
+publication is included.
+
 ## October 16: approved native creation, shared composition extraction
 
 The owner approved Project → Dependencies → Capabilities → Files → Review as the

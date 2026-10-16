@@ -34,7 +34,7 @@ impl GlobalConfig {
             .context("could not determine a config directory for this platform")
     }
 
-    fn path() -> Result<PathBuf> {
+    pub(crate) fn path() -> Result<PathBuf> {
         Ok(Self::dirs()?.config_dir().join("config.toml"))
     }
 
@@ -53,7 +53,7 @@ impl GlobalConfig {
         self.save_at(&path)
     }
 
-    fn save_at(&self, path: &Path) -> Result<()> {
+    pub(crate) fn save_at(&self, path: &Path) -> Result<()> {
         let text = toml::to_string_pretty(self)?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
@@ -167,7 +167,7 @@ pub mod project_file {
 /// summary.
 pub type SavedSetup = crate::graph::ProjectGraph;
 
-fn save_new_setup_at(setup: &SavedSetup, path: &Path) -> Result<()> {
+pub(crate) fn save_new_setup_at(setup: &SavedSetup, path: &Path) -> Result<()> {
     use std::io::Write;
     let parent = path.parent().context("setup has no parent directory")?;
     fs::create_dir_all(parent)?;

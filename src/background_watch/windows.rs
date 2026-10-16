@@ -516,6 +516,44 @@ pub(crate) fn mutation_guard(
     project: Option<&Path>,
     allow_watching: bool,
 ) -> Result<MutationGuard> {
+    mutation_guard_inner(project, allow_watching, false)
+}
+
+pub(crate) fn creation_guard(project: &Path) -> Result<MutationGuard> {
+    mutation_guard_inner(Some(project), false, true)
+}
+
+// Resolve the existing ancestor without creating the not-yet-owned suffix.
+fn creation_identity(project: &Path) -> Result<PathBuf> {
+    let mut ancestor = project;
+    let mut suffix = Vec::new();
+    loop {
+        match fs::canonicalize(ancestor) {
+            Ok(mut resolved) => {
+                for component in suffix.iter().rev() {
+                    resolved.push(component);
+                }
+                return Ok(resolved);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                suffix.push(
+                    ancestor
+                        .file_name()
+                        .context("Creation path has no existing ancestor")?
+                        .to_owned(),
+                );
+                ancestor = ancestor.parent().context("Creation path has no parent")?;
+            }
+            Err(error) => return Err(error).context("Cannot resolve creation destination"),
+        }
+    }
+}
+
+fn mutation_guard_inner(
+    project: Option<&Path>,
+    allow_watching: bool,
+    creating: bool,
+) -> Result<MutationGuard> {
     if MUTATION_DEPTH.with(|depth| depth.get() > 0) {
         MUTATION_DEPTH.with(|depth| depth.set(depth.get() + 1));
         return Ok(MutationGuard { _lock: None });
@@ -528,10 +566,14 @@ pub(crate) fn mutation_guard(
     if let Some(snapshot) = status_at(&root)?
         && snapshot.state.active()
     {
-        let same_project = project
-            .map(fs::canonicalize)
-            .transpose()?
-            .is_none_or(|project| project == snapshot.project);
+        let same_project = match project {
+            None => true,
+            Some(project) if creating => {
+                creation_identity(project)?.to_string_lossy().to_lowercase()
+                    == snapshot.project.to_string_lossy().to_lowercase()
+            }
+            Some(project) => fs::canonicalize(project)? == snapshot.project,
+        };
         check_operation(&snapshot, same_project, allow_watching)?;
     }
     MUTATION_DEPTH.with(|depth| depth.set(1));

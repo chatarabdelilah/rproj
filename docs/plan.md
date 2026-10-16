@@ -31,8 +31,10 @@ records current terminal/desktop gaps; the [creation design](desktop-new-project
 defines the approved five-step flow. The owner approved it and a default-Keep
 close confirmation, then authorized three sequential reviewed PRs: shared
 composition, headless creation worker, then native controls. Shared composition
-is extracted first with serialization/derivation compatibility fixtures; the
-worker and controls remain subsequent delivery gates. Full workflow parity,
+merged in PR #113 with reviewed-head/main CI passing. The
+[headless worker](desktop-creation-worker.md) adds captured plans, source
+revalidation, structured claim/outcome reports and owned cancellation; its native
+controls remain the third delivery stage. Full workflow parity,
 installers and macOS/Linux desktop acceptance remain later gates. No version
 bump or publication is included.
 

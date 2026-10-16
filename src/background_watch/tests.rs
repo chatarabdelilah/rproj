@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn creation_identity_resolves_existing_parents_without_claiming_the_destination() {
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("missing root").join("日本語 project");
+    assert_eq!(
+        creation_identity(&destination).unwrap(),
+        directory
+            .path()
+            .canonicalize()
+            .unwrap()
+            .join("missing root")
+            .join("日本語 project")
+    );
+    assert!(!destination.parent().unwrap().exists());
+}
+
+#[test]
+fn creation_guard_keeps_an_unrelated_watch_owner_and_session_unchanged() {
+    with_workbench_stop_fixture(None, Duration::ZERO, |root| {
+        let before = fs::read(root.join("session.json")).unwrap();
+        with_test_root(root, || {
+            let destination = root.join("missing projects root").join("New project");
+            let guard = creation_guard(&destination).unwrap();
+            assert!(!destination.parent().unwrap().exists());
+            assert_eq!(
+                structured_status_at(root).unwrap().state,
+                rproj_core::operations::WatchState::Watching
+            );
+            assert!(!acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
+            assert_eq!(fs::read(root.join("session.json")).unwrap(), before);
+            drop(guard);
+        });
+    });
+}
+
+#[test]
 fn workbench_status_does_not_create_storage_or_expose_control_secrets() {
     use rproj_core::operations::WatchState;
     let root = tempfile::tempdir().unwrap();

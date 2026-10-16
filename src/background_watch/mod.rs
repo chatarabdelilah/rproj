@@ -8,8 +8,8 @@ use anyhow::Result;
 mod windows;
 #[cfg(windows)]
 pub(crate) use windows::{
-    internal_entry, mutation_guard, show_logs, show_status, start_in, stop, stop_and_wait,
-    structured_status, summary,
+    creation_guard, internal_entry, mutation_guard, show_logs, show_status, start_in, stop,
+    stop_and_wait, structured_status, summary,
 };
 #[cfg(all(windows, test))]
 pub(crate) use windows::{with_test_root, with_unresponsive_fixture};
@@ -19,6 +19,10 @@ pub(crate) struct MutationGuard;
 
 #[cfg(not(windows))]
 pub(crate) fn mutation_guard(_: Option<&Path>, _: bool) -> Result<MutationGuard> {
+    Ok(MutationGuard)
+}
+#[cfg(not(windows))]
+pub(crate) fn creation_guard(_: &Path) -> Result<MutationGuard> {
     Ok(MutationGuard)
 }
 #[cfg(not(windows))]
