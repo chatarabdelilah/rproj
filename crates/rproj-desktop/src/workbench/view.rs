@@ -14,6 +14,11 @@ impl Workbench {
         let recent = self.preferences.recent_projects.clone();
         let owner = cx.entity().downgrade();
         let has_project = self.project.is_some();
+        let has_draft = self.creation.draft.is_some();
+        let creation_unavailable = self.creation.context.is_none();
+        let creation_reason = self.creation.error.clone();
+        let creation_loading = self.creation.loading;
+        let can_recheck = self.client.is_some() && !self.creation_running();
         let project_name = self
             .snapshot
             .as_ref()
@@ -67,7 +72,35 @@ impl Workbench {
                 }
                 let open = owner.clone();
                 let close = owner.clone();
+                let create = owner.clone();
+                let recheck = owner.clone();
+                if creation_unavailable {
+                    menu =
+                        menu.label(creation_reason.clone().unwrap_or_else(|| {
+                            "New Project: connecting to the bundled CLI…".into()
+                        }));
+                }
                 menu.separator()
+                    .item(
+                        PopupMenuItem::new(if has_draft {
+                            "Resume project creation"
+                        } else {
+                            "New project…"
+                        })
+                        .icon(IconName::Plus)
+                        .disabled(creation_unavailable && !has_draft)
+                        .on_click(move |_, window, cx| {
+                            let _ = create.update(cx, |this, cx| this.show_creation(window, cx));
+                        }),
+                    )
+                    .item(
+                        PopupMenuItem::new("Recheck creation availability")
+                            .disabled(creation_loading || !can_recheck)
+                            .on_click(move |_, _, cx| {
+                                let _ =
+                                    recheck.update(cx, |this, cx| this.load_creation_context(cx));
+                            }),
+                    )
                     .item(
                         PopupMenuItem::new("Open project…")
                             .icon(IconName::FolderOpen)
@@ -116,9 +149,10 @@ impl Workbench {
                             .w_full()
                             .label(section.title())
                             .icon(section.icon())
-                            .selected(self.section == section)
+                            .selected(self.section == section && !self.creation.visible)
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.section = section;
+                                this.creation.visible = false;
                                 cx.notify();
                             }))
                     }),
@@ -174,6 +208,30 @@ impl Workbench {
                 .child(
                     "Choose an existing rproj or Rojo project folder. Its files stay in control.",
                 )
+                .child(
+                    Button::new("new-project")
+                        .label(if self.creation.draft.is_some() {
+                            "Resume project creation"
+                        } else {
+                            "New project…"
+                        })
+                        .disabled(self.creation.context.is_none() && self.creation.draft.is_none())
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.show_creation(window, cx)),
+                        ),
+                )
+                .when_some(self.creation.error.clone(), |view, error| view.child(error))
+                .when(self.creation.context.is_none(), |view| {
+                    view.child("New Project needs a matching bundled CLI with creation support.")
+                        .child(
+                            Button::new("new-project-recheck")
+                                .label("Recheck")
+                                .disabled(self.creation.loading || self.client.is_none())
+                                .on_click(
+                                    cx.listener(|this, _, _, cx| this.load_creation_context(cx)),
+                                ),
+                        )
+                })
                 .into_any_element();
         };
         let files = [
@@ -576,22 +634,30 @@ impl Workbench {
 
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let title = self
-            .snapshot
-            .as_ref()
-            .and_then(|snapshot| snapshot.name.clone())
-            .unwrap_or_else(|| "Project workspace".into());
-        let content = match self.section {
-            Section::Overview => self.render_overview(cx),
-            Section::Dependencies => self.render_dependencies(
-                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
-                    < px(600.),
-                cx,
-            ),
-            Section::Tools => self.render_tools(cx),
-            Section::Checks => self.render_checks(cx),
+        let title = if self.creation.visible {
+            "New project".into()
+        } else {
+            self.snapshot
+                .as_ref()
+                .and_then(|snapshot| snapshot.name.clone())
+                .unwrap_or_else(|| "Project workspace".into())
         };
-        let content = if self.section == Section::Dependencies {
+        let content = if self.creation.visible {
+            self.render_creation(cx)
+        } else {
+            match self.section {
+                Section::Overview => self.render_overview(cx),
+                Section::Dependencies => self.render_dependencies(
+                    window.viewport_size().width
+                        - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                        < px(600.),
+                    cx,
+                ),
+                Section::Tools => self.render_tools(cx),
+                Section::Checks => self.render_checks(cx),
+            }
+        };
+        let content = if self.creation.visible || self.section == Section::Dependencies {
             content
         } else {
             div()
@@ -694,20 +760,23 @@ impl Render for Workbench {
                                                     })),
                                             ),
                                     )
-                                    .when_some(self.project.as_ref(), |view, path| {
-                                        view.child(
-                                            div()
-                                                .id("project-path")
-                                                .role(Role::Group)
-                                                .aria_label(path.display().to_string())
-                                                .test_support()
-                                                .overflow_x_scroll()
-                                                .whitespace_nowrap()
-                                                .text_sm()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child(path.display().to_string()),
-                                        )
-                                    })
+                                    .when_some(
+                                        self.project.as_ref().filter(|_| !self.creation.visible),
+                                        |view, path| {
+                                            view.child(
+                                                div()
+                                                    .id("project-path")
+                                                    .role(Role::Group)
+                                                    .aria_label(path.display().to_string())
+                                                    .test_support()
+                                                    .overflow_x_scroll()
+                                                    .whitespace_nowrap()
+                                                    .text_sm()
+                                                    .text_color(cx.theme().muted_foreground)
+                                                    .child(path.display().to_string()),
+                                            )
+                                        },
+                                    )
                                     .when_some(self.error.clone(), |view, error| view.child(error))
                                     .when_some(self.catalog_error.clone(), |view, error| {
                                         view.child(

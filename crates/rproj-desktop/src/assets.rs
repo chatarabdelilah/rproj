@@ -1,7 +1,7 @@
 use gpui_kit::{AssetSource, SharedString};
 use std::borrow::Cow;
 
-gpui_kit::assets::icon_assets!(WorkbenchIcons, [Package, Wrench, FlaskConical]);
+gpui_kit::assets::icon_assets!(WorkbenchIcons, [Package, Wrench, FlaskConical, Plus]);
 
 pub(crate) struct Assets;
 

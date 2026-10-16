@@ -33,8 +33,11 @@ close confirmation, then authorized three sequential reviewed PRs: shared
 composition, headless creation worker, then native controls. Shared composition
 merged in PR #113 with reviewed-head/main CI passing. The
 [headless worker](desktop-creation-worker.md) adds captured plans, source
-revalidation, structured claim/outcome reports and owned cancellation; its native
-controls remain the third delivery stage. Full workflow parity,
+revalidation, structured claim/outcome reports and owned cancellation, merged in
+PR #114 with reviewed-head/main CI passing. Native five-step controls now use
+that worker, with session drafts, explicit review and normal-close cancellation.
+[Creation acceptance](desktop-creation-acceptance.md) records automated coverage
+and pending Windows observations. Full workflow parity,
 installers and macOS/Linux desktop acceptance remain later gates. No version
 bump or publication is included.
 

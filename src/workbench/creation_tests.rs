@@ -22,7 +22,27 @@ fn driver() {
         setups: root.join("setups"),
     };
     let result = crate::background_watch::with_test_root(&root.join("watch"), || -> Result<()> {
-        if std::env::var("RPROJ_TEST_CREATION_ACTION")? == "context" {
+        let action = std::env::var("RPROJ_TEST_CREATION_ACTION")?;
+        if action == "catalog" {
+            fs::write(
+                root.join("catalog.json"),
+                serde_json::to_vec(&crate::workbench::catalog_entries()?)?,
+            )?;
+            return Ok(());
+        }
+        if action == "status" {
+            fs::write(
+                root.join("status.json"),
+                serde_json::to_vec(&rproj_core::operations::WatchStatus {
+                    supported: false,
+                    project: None,
+                    state: rproj_core::operations::WatchState::Stopped,
+                    message: "Isolated creation fixture; real Watch is unchanged.".into(),
+                })?,
+            )?;
+            return Ok(());
+        }
+        if action == "context" {
             fs::write(
                 root.join("context.json"),
                 serde_json::to_vec(&context_at(&storage)?)?,

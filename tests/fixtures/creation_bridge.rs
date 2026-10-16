@@ -25,6 +25,19 @@ fn main() {
     if args == ["--version"] { println!("rproj {}", env!("RPROJ_TEST_WORKER_VERSION")); return; }
     assert_eq!(args[0], "--rproj-workbench");
     let root = exe.parent().unwrap();
+    if args[1] == "catalog" || args[1] == "status" {
+        let status = Command::new(env!("RPROJ_TEST_WORKER_BINARY"))
+            .args(["--exact", "workbench::creation::worker_tests::driver", "--nocapture", "--test-threads=1"])
+            .env("RPROJ_TEST_CREATION_ROOT", root)
+            .env("RPROJ_TEST_CREATION_ACTION", &args[1])
+            .stdout(Stdio::null()).status().unwrap();
+        if status.success() { print!("{}", fs::read_to_string(root.join(format!("{}.json", args[1].to_string_lossy()))).unwrap()); }
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    if args[1] != "creation-context" && args[1] != "creation-job" {
+        eprintln!("Creation fixture: existing Watch and check/test controls are unavailable; no real Watch is controlled.");
+        std::process::exit(1);
+    }
     let context = args[1] == "creation-context";
     let mode = fs::read_to_string(root.join("mode")).unwrap();
     if context && mode == "old-worker" { eprintln!("unknown workbench operation"); std::process::exit(1); }
