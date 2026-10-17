@@ -28,7 +28,12 @@ fn driver() {
             return Ok(());
         }
         let ipc = PathBuf::from(std::env::var_os("RPROJ_TEST_COMPOSITION_IPC").unwrap());
-        job(&ipc)
+        let result = job(&ipc);
+        if fs::read_to_string(root.join("mode"))? == "late-cancel" {
+            fs::write(root.join("ready"), "terminal report written")?;
+            thread::sleep(Duration::from_secs(60));
+        }
+        result
     });
     std::process::exit(i32::from(crate::internal_result_exit_code(result)));
 }
@@ -313,4 +318,42 @@ fn malformed_missing_and_unsupported_records_do_not_adopt_or_normalize() {
     assert!(context.graph.is_none());
     assert!(context.problem.unwrap().contains("Missing"));
     assert!(!fixture.project.join("rproj.toml").exists());
+}
+
+#[test]
+fn invalid_utf8_and_oversized_records_are_project_problems() {
+    let fixture = Fixture::new();
+    for bytes in [vec![0xff, 0xfe], vec![b' '; IPC_LIMIT as usize + 1]] {
+        fs::write(fixture.project.join("rproj.toml"), &bytes).unwrap();
+        let context = fixture
+            .client
+            .composition_context(&fixture.project)
+            .unwrap();
+        assert!(context.graph.is_none());
+        let problem = context.problem.unwrap();
+        assert!(problem.contains("repair the record"), "{problem}");
+        assert_eq!(fs::read(fixture.project.join("rproj.toml")).unwrap(), bytes);
+    }
+}
+
+#[test]
+fn cancellation_after_a_completed_report_preserves_confirmed_success() {
+    let fixture = Fixture::new();
+    let prepared = fixture.prepared();
+    fs::write(fixture.root.join("mode"), "late-cancel").unwrap();
+    let cancel = Cancellation::default();
+    let running_cancel = cancel.clone();
+    let client = fixture.client.clone();
+    let running =
+        thread::spawn(move || client.apply_composition(prepared, &running_cancel, |_| {}));
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while !fixture.root.join("ready").exists() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(25));
+    }
+    let ready = fixture.root.join("ready").exists();
+    cancel.cancel();
+    let outcome = running.join().unwrap().unwrap();
+    assert!(ready);
+    assert_eq!(outcome.status, CompositionStatus::Succeeded);
+    assert_eq!(outcome.writes, WriteState::Completed);
 }

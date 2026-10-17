@@ -6,7 +6,14 @@ impl WorkbenchClient {
         let project = project
             .canonicalize()
             .context("Cannot open the captured project")?;
-        let text = query(&self.worker, &[WORKER_FLAG, "composition-context"], Some(&project)).context("Composition editing is unavailable; use the matching desktop and CLI from one portable distribution")?;
+        let text = query(&self.worker, &[WORKER_FLAG, "composition-context"], Some(&project)).map_err(|error| {
+            let reason = format!("{error:#}");
+            if reason.contains("unknown workbench operation") {
+                anyhow::anyhow!("Composition editing is unavailable; use the matching desktop and CLI from one portable distribution: {reason}")
+            } else {
+                anyhow::anyhow!("Cannot read project composition: {reason}")
+            }
+        })?;
         let context: CompositionContext =
             serde_json::from_str(&text).context("Invalid composition context")?;
         ensure!(

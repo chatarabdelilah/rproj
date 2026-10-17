@@ -15,22 +15,18 @@ pub(super) fn context(project: &Path) -> Result<CompositionContext> {
         project.is_dir(),
         "Existing-project editing requires a directory"
     );
-    let bytes = match rproj_core::creation::protocol::read_bounded(&project.join("rproj.toml")) {
-        Ok(bytes) => Some(bytes),
-        Err(error) if !project.join("rproj.toml").exists() => {
-            let _ = error;
-            None
-        }
-        Err(error) => return Err(error),
+    let inputs = project_composition::capture_inputs(&project)?;
+    let (source, read_problem) = match rproj_core::creation::protocol::read_bounded(&project.join("rproj.toml")) {
+        Ok(bytes) => match String::from_utf8(bytes) {
+            Ok(source) => (source, None),
+            Err(_) => (String::new(), Some("Malformed rproj.toml: UTF-8 is required; repair the record, then explicitly reload".to_string())),
+        },
+        Err(error) if error.downcast_ref::<std::io::Error>().is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound) => (String::new(), Some("Missing rproj.toml; editing needs a recorded composition. Project adoption is unavailable.".into())),
+        Err(error) => (String::new(), Some(format!("Cannot read rproj.toml (maximum 2 MiB); repair the record, then explicitly reload: {error:#}"))),
     };
-    let source = bytes
-        .map(String::from_utf8)
-        .transpose()
-        .context("rproj.toml must be UTF-8")?
-        .unwrap_or_default();
     let graph = toml::from_str::<rproj_core::creation::ProjectGraph>(&source);
-    let (graph, problem) = if !project.join("rproj.toml").is_file() {
-        (None, Some("Missing rproj.toml; editing needs a recorded composition. Project adoption is unavailable.".into()))
+    let (graph, problem) = if let Some(problem) = read_problem {
+        (None, Some(problem))
     } else {
         match graph {
             Ok(graph) => {
@@ -56,7 +52,7 @@ pub(super) fn context(project: &Path) -> Result<CompositionContext> {
             .unwrap_or_default()
             .to_string_lossy()
             .into_owned(),
-        inputs: project_composition::capture_inputs(&project)?,
+        inputs,
         project,
         source,
         graph,

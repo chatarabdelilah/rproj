@@ -59,10 +59,11 @@ confirmed process teardown. Session drafts and reports are not preferences.
 
 ## Automated evidence
 
-Nine Windows worker fixtures cover read-only preparation, successful structured
+Eleven Windows worker fixtures cover read-only preparation, successful structured
 Apply and stdout/stderr, stale drafts/reviews, partial tool failure, absent and
 malformed reports, descendant cancellation, cancellation before launch,
-unsupported workers and malformed/missing/unsupported records. Fixtures use
+unsupported workers, malformed/missing/unsupported records, bounded/non-UTF-8
+damaged records and cancellation racing a completed report. Fixtures use
 disposable Unicode/spaced paths, isolated Watch storage and a Rokit stub. Two
 core protocol tests cover correlation, invalid mutation states and size bounds.
 These are automated process tests, not actual external-tool or native-window
