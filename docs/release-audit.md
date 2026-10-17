@@ -1,5 +1,22 @@
 # Release-Hardening Audit
 
+## October 17: composition design scope
+
+The owner selected existing-project composition as the next product milestone:
+additions only, impact review, and wireframe review before native implementation.
+See the [design contract](desktop-composition-design.md). Product work continues
+without Windows troubleshooting, VM setup or native previews. The memory-stability
+blocker remains unresolved; no runtime, protocol, configuration or release change
+is included in this design pass. Detailed machine diagnostics remain local.
+
+The separate Soft conversation prototype passes 36 local simulation/DOM/source
+checks and 18 Light/Dark palette comparisons. It covers the three-step editor,
+locked original choices/exclusions, captured project ownership, stale review/
+Watch guards, explicit confirmation, partial outcomes and acknowledged cancel/
+close. Earlier working wireframes remain unchanged. Rendering/geometry, host
+icons and actual browser modality remain unverified; no native window or retired
+automation route was launched. Owner design review precedes native planning.
+
 ## October 17: native preview memory-exhaustion blocker
 
 The owner reports native preview use followed by system out-of-memory warnings
