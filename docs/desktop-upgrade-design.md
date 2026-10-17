@@ -47,7 +47,7 @@ files and unsafe merges remain actionable errors.
 ## Proposal and evidence
 
 The separate thread-local proposal is `rproj-upgrade-review-wireframe.html`.
-Its SHA-256 is `543b757091f9c8ce4f723e59573fd7d0917e2bafed11ead676150e42d87c062d`.
+Its SHA-256 is `e1f05504b62b4fb692d993f847424a7f5045ba2db7581b13b74e9d5e4cdb7db1`.
 It uses representative sample before/after contents derived from current source
 inspection, not a freshly executed Rust plan or real project files. Optional
 host state/icons cannot prevent initial review content from appearing.
