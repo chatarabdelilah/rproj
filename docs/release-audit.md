@@ -8,7 +8,8 @@ found only a documentation count mismatch, corrected below. Twelve Windows
 behavior fixtures plus their subprocess entry point pass, including same-project
 Watch refusal before writes and unchanged other-project ownership. These Watch
 fixtures hold a disposable owner lock; they are not real Watch acceptance.
-PR #121 is open at reviewed head `9795cc0`; CI and merge remain pending.
+PR #121 merged at `661ffb3` after all seven executed reviewed-head CI jobs passed
+at `9795cc0` (run `39074689788`). Merged-main run `39074952108` remains pending.
 Full applicable CLI/core suites, strict Clippy, both compiled crate archives,
 32 headless desktop tests and portable version/self-check/inspection checks pass.
 No native preview was launched.
@@ -18,7 +19,7 @@ No native preview was launched.
 PR #120 merged-main CI passed all seven executed jobs at `bf29098` (run
 `39063407424`); local/remote merged-branch cleanup is complete. This supersedes
 pending-main wording below. Worker final review is complete as recorded above;
-its CI and merge remain pending.
+its reviewed-head CI and merge are complete; merged-main CI remains pending.
 
 Native Soft composition controls are implemented on
 `codex/native-composition-editor`. All 48 headless desktop tests and strict Clippy
