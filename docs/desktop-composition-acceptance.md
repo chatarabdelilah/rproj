@@ -58,12 +58,25 @@ height, inspection recovery, Watch controls and creation tests remain in the sui
 Headless geometry confirms that narrow details are reachable by scrolling while
 footer controls remain visible. This does not establish actual pixel rendering,
 contrast, Windows scaling, assistive-technology behavior or memory stability.
-Strict desktop Clippy passes. Final branch review, portable-package validation
-and reviewed-head/main CI delivery are recorded separately when complete.
+Strict CLI/core/desktop Clippy, formatting and full applicable CLI/core suites
+pass. Both crate archives compile, and the portable bundle passes version,
+self-check and read-only inspection checks without launching a native window.
+Final local CodeRabbit review reports zero findings after the startup/teardown
+classification fix. The portable source checkpoint is `cb9f137` (clean tree).
 
 Shared execution has 15 project-fixture and six core-draft tests. The private
 [worker record](desktop-composition-worker.md) covers process/report fixtures.
 Live-tool and privileged ignored tests remain unverified, not passes.
+
+## Delivery evidence
+
+Shared planning/execution merged in [PR #120](https://github.com/chatarabdelilah/rproj/pull/120)
+at `bf29098`; the private worker merged in [PR #121](https://github.com/chatarabdelilah/rproj/pull/121)
+at `661ffb3`. Both reviewed heads and merged-main runs passed all seven executed
+CI jobs, and their merged branches are removed. The native implementation and
+its exact reviewed-head/merged-main verification are recorded on
+[PR #122](https://github.com/chatarabdelilah/rproj/pull/122). No version bump,
+publication or native-window acceptance is included.
 
 ## Deferred Windows checklist — five minutes
 

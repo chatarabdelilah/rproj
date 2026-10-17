@@ -3,7 +3,7 @@
 Private protocol 1 extends the matching bundled CLI with `composition-context`
 and `composition-job`; public commands, project formats, inspection JSON and
 desktop preference schemas are unchanged. Existing worker verbs are unchanged.
-Native controls follow in the third implementation PR; this document records
+Native controls use this worker in [PR #122](https://github.com/chatarabdelilah/rproj/pull/122); this document records
 worker behavior, not real-window acceptance.
 
 ## Capture and preparation

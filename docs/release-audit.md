@@ -34,8 +34,11 @@ NotStarted outcomes; post-spawn teardown failures retain an explicit close lock.
 An additional worker fixture verifies both preparation and Apply when the
 disposable executable disappears before launch. The worker suite now has thirteen
 behavior fixtures plus its subprocess entry point. See the
-[acceptance record](desktop-composition-acceptance.md). Final review, packaging and
-reviewed-head/main delivery remain pending. No native preview was launched;
+[acceptance record](desktop-composition-acceptance.md). Final local CodeRabbit review
+reports zero findings at code checkpoint `cb9f137`. Strict CLI/core/desktop Clippy,
+full applicable CLI/core suites, compiled crate archives and portable smoke checks
+pass. [PR #122](https://github.com/chatarabdelilah/rproj/pull/122) records the exact
+reviewed-head and merged-main delivery evidence. No native preview was launched;
 memory stability and real-window acceptance remain unresolved/unverified.
 
 ## October 17: private composition worker
