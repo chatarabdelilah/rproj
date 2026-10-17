@@ -17,9 +17,14 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 17: existing-project composition design.**
+**Current priority, October 17: native existing-project composition implementation.**
 The owner selected additions-only editing with an impact review and a wireframe
-review before native implementation. The [composition design](desktop-composition-design.md)
+review before native implementation. The owner has now approved that flow and
+three sequential implementation PRs: shared additive planning/execution,
+private worker, then native controls. Shared corrections also apply to the
+terminal editor. PR 1 is in progress on `codex/additive-composition-core`;
+preserve existing choices, metadata and exclusions, and commit the record last.
+The [composition design](desktop-composition-design.md)
 defines the Soft flow and preservation rules. Continue product development without
 Windows troubleshooting, VM setup or native preview launches. The
 [memory investigation](desktop-memory-investigation.md) remains unresolved and

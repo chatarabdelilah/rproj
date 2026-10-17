@@ -381,8 +381,9 @@ fn backing_out_of_an_unanswered_runner_cannot_skip_capability_review() {
 #[test]
 fn project_editor_adds_choices_without_removing_existing_ones() {
     let mut graph = ProjectGraph {
-        mode: "expert".into(),
+        mode: "like:custom".into(),
         packages: vec!["janitor".into()],
+        dropped: vec![".gitignore".into()],
         ..Default::default()
     };
     graph.choose("lint", Some("selene"));
@@ -410,6 +411,8 @@ fn project_editor_adds_choices_without_removing_existing_ones() {
     key(&mut draft, KeyCode::Enter);
     assert!(draft.graph.packages.contains(&"janitor".into()));
     assert!(draft.graph.packages.contains(&"promise".into()));
+    assert_eq!(draft.graph.mode, "like:custom");
+    assert_eq!(draft.graph.dropped, [".gitignore"]);
 
     select(&mut draft, "capabilities");
     draft.picker.selected = draft

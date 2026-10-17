@@ -27,6 +27,7 @@ pub struct ProjectEdit {
     pub source: String,
     pub original: ProjectGraph,
     pub updated: ProjectGraph,
+    pub reviewed: Option<rproj_core::creation::CompositionPlan>,
 }
 
 impl Prepared {
@@ -210,11 +211,34 @@ pub fn edit_project_in(
         match effect {
             Effect::None => {}
             Effect::Save => {
-                return Ok(Some(ProjectEdit {
-                    source,
-                    original,
-                    updated: draft.graph,
-                }));
+                let additive = rproj_core::creation::CompositionDraft {
+                    original: original.clone(),
+                    graph: draft.graph.clone(),
+                };
+                if let Err(error) = additive.validate() {
+                    draft.status = error.to_string();
+                    continue;
+                }
+                let mut edit = ProjectEdit {
+                    source: source.clone(),
+                    original: original.clone(),
+                    updated: draft.graph.clone(),
+                    reviewed: None,
+                };
+                match super::project_composition::prepare(project_dir, &edit) {
+                    Ok(plan) => {
+                        if let Err(error) = super::project_composition::check_prerequisites(&plan) {
+                            draft.status = error.to_string();
+                            continue;
+                        }
+                        if !super::project_composition::review(terminal, &plan)? {
+                            continue;
+                        }
+                        edit.reviewed = Some(plan);
+                        return Ok(Some(edit));
+                    }
+                    Err(error) => draft.status = format!("Cannot prepare additions: {error:#}"),
+                }
             }
             Effect::Cancel => return Ok(None),
             Effect::Create | Effect::LoadSetup(_) => {

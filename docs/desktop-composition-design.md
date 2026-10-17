@@ -1,5 +1,19 @@
 # Existing-project composition design
 
+## Native implementation approval — October 17, 2026
+
+The owner approved Dependencies → Capabilities → Review and the three-PR
+implementation plan against main `1b5c17c`: shared additive planning/execution,
+private worker, then native Soft controls. Shared terminal corrections preserve
+exclusions/provenance and materialize newly selected capability artifacts.
+Existing implementations, manual declarations, pins and unrelated metadata stay
+intact. A newly required missing excluded file blocks Apply; this editor never
+changes exclusions. The record is committed last, without promising rollback of
+other files. Native controls are included with automated coverage; native preview
+launches and real-window acceptance remain paused. No version bump/publication.
+
+The historical design/validation record below describes the wireframe pass.
+
 Approved scope, October 17, 2026; baseline main `c5e257c`. The next deliverable
 is a separate interactive Soft wireframe for review, not native controls.
 Development continues while native preview launches and memory-stability
