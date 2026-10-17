@@ -382,6 +382,30 @@ fn already_cancelled_operation_never_launches_or_changes_project() {
 }
 
 #[test]
+fn missing_worker_before_spawn_is_recoverable_without_possible_writes() {
+    let fixture = Fixture::new();
+    let request = fixture.request();
+    let prepared = fixture.prepared();
+    let before = project_snapshot(&fixture.project);
+    fs::remove_file(fixture.root.join("worker.exe")).unwrap();
+    let preparation = fixture
+        .client
+        .prepare_composition(request, &Cancellation::default(), |_| {})
+        .unwrap();
+    let CompositionPreparation::Failed(message) = preparation else {
+        panic!("Missing worker should report a recoverable preparation failure")
+    };
+    assert!(message.contains("could not start"), "{message}");
+    let outcome = fixture
+        .client
+        .apply_composition(prepared, &Cancellation::default(), |_| {})
+        .unwrap();
+    assert_eq!(outcome.status, CompositionStatus::Failed);
+    assert_eq!(outcome.writes, WriteState::NotStarted);
+    assert_eq!(project_snapshot(&fixture.project), before);
+}
+
+#[test]
 fn malformed_missing_and_unsupported_records_do_not_adopt_or_normalize() {
     let fixture = Fixture::new();
     for source in ["[capabilities]\nfuture='custom'\n", "packages=[\n"] {

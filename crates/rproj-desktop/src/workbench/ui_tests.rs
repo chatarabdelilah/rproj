@@ -9,7 +9,9 @@ use gpui_kit::{
     WindowOptions, px, size,
 };
 
-fn fixture(cx: &mut TestAppContext) -> (tempfile::TempDir, AnyWindowHandle, Entity<Workbench>) {
+pub(super) fn fixture(
+    cx: &mut TestAppContext,
+) -> (tempfile::TempDir, AnyWindowHandle, Entity<Workbench>) {
     let project = tempfile::tempdir().unwrap();
     std::fs::write(
         project.path().join("default.project.json"),

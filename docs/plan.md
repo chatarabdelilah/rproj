@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 17, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 18, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 17: native existing-project composition implementation.**
+**Current priority, October 18: native existing-project composition delivery.**
 The owner selected additions-only editing with an impact review and a wireframe
 review before native implementation. The owner has now approved that flow and
 three sequential implementation PRs: shared additive planning/execution,
@@ -26,11 +26,17 @@ terminal editor. PR #120 merged at `bf29098` after local CodeRabbit review and
 all seven executed reviewed-head CI jobs passed (the existing terminal-resize
 screen test needed one unchanged-head rerun). Shared planning/execution now
 preserves existing choices, metadata and exclusions, and commits the record last.
-The [private composition worker](desktop-composition-worker.md) is implemented on
-`codex/additive-composition-worker`; native controls follow as PR 3. PR #120
+The [private composition worker](desktop-composition-worker.md) merged in
+PR #121 at `661ffb3`; all seven executed reviewed-head jobs passed. PR #120
 merged-main CI passed all seven executed jobs at `bf29098`, and its merged branch
 is cleaned up. Final worker CodeRabbit review found only an evidence-count
-correction, now fixed; worker PR delivery remains pending.
+correction, now fixed. Worker merged-main CI passed all seven executed jobs at
+`661ffb3`, and its local/remote merged branches are removed.
+Native controls are implemented in [PR #122](https://github.com/chatarabdelilah/rproj/pull/122),
+with 50 headless tests, strict Clippy, crate archives and portable smoke checks
+passing. Final local CodeRabbit review reports zero findings; the PR records
+exact reviewed-head and merged-main delivery evidence. [Composition acceptance](desktop-composition-acceptance.md)
+keeps all real-window and memory-stability checks deferred.
 The [composition design](desktop-composition-design.md)
 defines the Soft flow and preservation rules. Continue product development without
 Windows troubleshooting, VM setup or native preview launches. The

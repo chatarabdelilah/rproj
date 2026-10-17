@@ -18,6 +18,13 @@ impl Workbench {
         let creation_unavailable = self.creation.context.is_none();
         let creation_reason = self.creation.error.clone();
         let creation_loading = self.creation.loading;
+        let composition_name = self
+            .composition
+            .context
+            .as_ref()
+            .map(|c| c.name.clone())
+            .unwrap_or_else(|| "captured project".into());
+        let has_composition = self.composition.project.is_some();
         let can_recheck = self.client.is_some() && !self.creation_running();
         let project_name = self
             .snapshot
@@ -74,6 +81,7 @@ impl Workbench {
                 let close = owner.clone();
                 let create = owner.clone();
                 let recheck = owner.clone();
+                let composition = owner.clone();
                 if creation_unavailable {
                     menu =
                         menu.label(creation_reason.clone().unwrap_or_else(|| {
@@ -92,6 +100,14 @@ impl Workbench {
                         .on_click(move |_, window, cx| {
                             let _ = create.update(cx, |this, cx| this.show_creation(window, cx));
                         }),
+                    )
+                    .item(
+                        PopupMenuItem::new(format!("Resume editing {composition_name}"))
+                            .disabled(!has_composition)
+                            .on_click(move |_, window, cx| {
+                                let _ = composition
+                                    .update(cx, |this, cx| this.show_composition(window, cx));
+                            }),
                     )
                     .item(
                         PopupMenuItem::new("Recheck creation availability")
@@ -149,10 +165,15 @@ impl Workbench {
                             .w_full()
                             .label(section.title())
                             .icon(section.icon())
-                            .selected(self.section == section && !self.creation.visible)
+                            .selected(
+                                self.section == section
+                                    && !self.creation.visible
+                                    && !self.composition.visible,
+                            )
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.section = section;
                                 this.creation.visible = false;
+                                this.composition.visible = false;
                                 cx.notify();
                             }))
                     }),
@@ -634,7 +655,13 @@ impl Workbench {
 
 impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let title = if self.creation.visible {
+        let title = if self.composition.visible {
+            self.composition
+                .context
+                .as_ref()
+                .map(|context| format!("Edit {}", context.name))
+                .unwrap_or_else(|| "Edit packages & capabilities".into())
+        } else if self.creation.visible {
             "New project".into()
         } else {
             self.snapshot
@@ -642,7 +669,13 @@ impl Render for Workbench {
                 .and_then(|snapshot| snapshot.name.clone())
                 .unwrap_or_else(|| "Project workspace".into())
         };
-        let content = if self.creation.visible {
+        let content = if self.composition.visible {
+            self.render_composition(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            )
+        } else if self.creation.visible {
             self.render_creation(cx)
         } else {
             match self.section {
@@ -657,7 +690,24 @@ impl Render for Workbench {
                 Section::Checks => self.render_checks(cx),
             }
         };
-        let content = if self.creation.visible || self.section == Section::Dependencies {
+        let content = if !self.composition.visible
+            && !self.creation.visible
+            && matches!(self.section, Section::Overview | Section::Dependencies)
+        {
+            div()
+                .v_flex()
+                .size_full()
+                .min_h_0()
+                .child(self.composition_entry(cx))
+                .child(div().flex_1().min_h_0().child(content))
+                .into_any_element()
+        } else {
+            content
+        };
+        let content = if self.composition.visible
+            || self.creation.visible
+            || self.section == Section::Dependencies
+        {
             content
         } else {
             div()
@@ -751,7 +801,9 @@ impl Render for Workbench {
                                                     .ghost()
                                                     .label("Refresh")
                                                     .disabled(
-                                                        self.inspecting || self.project.is_none(),
+                                                        self.inspecting
+                                                            || self.project.is_none()
+                                                            || self.composition.visible,
                                                     )
                                                     .on_click(cx.listener(|this, _, _, cx| {
                                                         this.inspect();
@@ -761,7 +813,9 @@ impl Render for Workbench {
                                             ),
                                     )
                                     .when_some(
-                                        self.project.as_ref().filter(|_| !self.creation.visible),
+                                        self.project.as_ref().filter(|_| {
+                                            !self.creation.visible && !self.composition.visible
+                                        }),
                                         |view, path| {
                                             view.child(
                                                 div()

@@ -8,7 +8,38 @@ found only a documentation count mismatch, corrected below. Twelve Windows
 behavior fixtures plus their subprocess entry point pass, including same-project
 Watch refusal before writes and unchanged other-project ownership. These Watch
 fixtures hold a disposable owner lock; they are not real Watch acceptance.
-Worker delivery remains pending; no native preview was launched.
+PR #121 merged at `661ffb3` after all seven executed reviewed-head CI jobs passed
+at `9795cc0` (run `39074689788`). Merged-main run `39074952108` passed all seven
+executed jobs; merged local/remote branch cleanup is complete. Its worker fixture
+count was twelve plus the subprocess entry point at that reviewed head.
+Full applicable CLI/core suites, strict Clippy, both compiled crate archives,
+32 headless desktop tests and portable version/self-check/inspection checks pass.
+No native preview was launched.
+
+## October 18: native composition controls (automated checkpoint)
+
+PR #120 merged-main CI passed all seven executed jobs at `bf29098` (run
+`39063407424`); local/remote merged-branch cleanup is complete. This supersedes
+pending-main wording below. Worker final review is complete as recorded above;
+its reviewed-head/main CI, merge and branch cleanup are complete.
+
+Native Soft composition controls are implemented on
+`codex/native-composition-editor`. All 50 headless desktop tests pass;
+new tests cover locked choices, keyboard/focus, responsive panes, default-Keep
+draft dialogs, stale confirmations/events, Watch ownership, cancellation/close,
+uncertain outcomes and coexistence with the retained New Project draft. Native
+CodeRabbit review identified an overbroad close lock: pre-spawn client errors
+looked like unconfirmed teardown. Startup failures now produce recoverable
+NotStarted outcomes; post-spawn teardown failures retain an explicit close lock.
+An additional worker fixture verifies both preparation and Apply when the
+disposable executable disappears before launch. The worker suite now has thirteen
+behavior fixtures plus its subprocess entry point. See the
+[acceptance record](desktop-composition-acceptance.md). Final local CodeRabbit review
+reports zero findings at code checkpoint `cb9f137`. Strict CLI/core/desktop Clippy,
+full applicable CLI/core suites, compiled crate archives and portable smoke checks
+pass. [PR #122](https://github.com/chatarabdelilah/rproj/pull/122) records the exact
+reviewed-head and merged-main delivery evidence. No native preview was launched;
+memory stability and real-window acceptance remain unresolved/unverified.
 
 ## October 17: private composition worker
 

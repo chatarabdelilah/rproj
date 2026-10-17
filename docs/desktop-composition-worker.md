@@ -3,7 +3,7 @@
 Private protocol 1 extends the matching bundled CLI with `composition-context`
 and `composition-job`; public commands, project formats, inspection JSON and
 desktop preference schemas are unchanged. Existing worker verbs are unchanged.
-Native controls follow in the third implementation PR; this document records
+Native controls use this worker in [PR #122](https://github.com/chatarabdelilah/rproj/pull/122); this document records
 worker behavior, not real-window acceptance.
 
 ## Capture and preparation
@@ -57,13 +57,19 @@ mutation boundary when possible; otherwise file state is unknown. Failure to
 confirm teardown remains an error, distinct from uncertain file state after
 confirmed process teardown. Session drafts and reports are not preferences.
 
+Startup failures before a worker is spawned return a recoverable Failed result
+with NotStarted writes. Only errors after a successful owned spawn can leave
+teardown unconfirmed and block closing/new operations; the UI explains that lock.
+Malformed reports after confirmed exit remain uncertain file outcomes, not
+teardown failures. No protocol or persisted-format change is involved.
+
 ## Automated evidence
 
-Twelve Windows worker fixtures (plus their subprocess entry point) cover read-only preparation, successful structured
+Thirteen Windows worker fixtures (plus their subprocess entry point) cover read-only preparation, successful structured
 Apply and stdout/stderr, stale drafts/reviews, partial tool failure, absent and
 malformed reports, descendant cancellation, cancellation before launch,
 unsupported workers, malformed/missing/unsupported records, bounded/non-UTF-8
-damaged records and cancellation racing a completed report. Held-owner Watch
+damaged records, recoverable missing-worker startup, and cancellation racing a completed report. Held-owner Watch
 fixtures verify same-project refusal before writes and another project's
 unchanged ownership during Apply; they are not real Watch acceptance. Fixtures use
 disposable Unicode/spaced paths, isolated Watch storage and a Rokit stub. Two
