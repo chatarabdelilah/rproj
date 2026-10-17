@@ -9,6 +9,10 @@ whole terminal product. Ratatui remains available; direct commands remain perman
 “Present” describes an implemented surface, not complete workflow acceptance.
 The evidence below keeps automated coverage separate from real-window observations.
 
+October 17: further native acceptance is paused for the
+[memory-exhaustion investigation](desktop-memory-investigation.md). Existing
+functional observations do not establish memory stability.
+
 | Workflow / entry | CLI and Ratatui behavior | Desktop coverage / gap | Reusable boundary and next action |
 | --- | --- | --- | --- |
 | Bare `rproj` / Home | Interactive Home; redirected invocation prints plain help. Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, Catalog. | Partial: project workbench, not a machine-level Home replacement. | CLI dispatch and hub action inventory. Preserve terminal behavior. |

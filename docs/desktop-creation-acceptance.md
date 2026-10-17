@@ -6,6 +6,11 @@ Files → Review. This is the third delivery stage after shared composition
 creation worker ([PR #114](https://github.com/chatarabdelilah/rproj/pull/114)).
 No version bump, publication, installer or new preference schema is included.
 
+**October 17 blocker:** the owner subsequently reported system memory exhaustion
+and display-wake failures after native preview use. Further native launches are
+paused for the [memory investigation](desktop-memory-investigation.md). The
+functional observations below do not establish memory stability.
+
 ## Implemented boundary
 
 The compact project menu and empty view open one session-only draft. Browsing
