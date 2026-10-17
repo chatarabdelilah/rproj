@@ -1,6 +1,8 @@
 //! Shared project composition; no terminal, window, process or filesystem state.
 
 mod composition;
+#[doc(hidden)]
+pub mod composition_protocol;
 mod draft;
 pub mod graph;
 #[doc(hidden)]

@@ -471,6 +471,20 @@ fn snapshot(project: &Path, relative: &str) -> Result<CompositionInput> {
     })
 }
 
+pub(crate) fn capture_inputs(project: &Path) -> Result<Vec<CompositionInput>> {
+    INPUTS
+        .iter()
+        .copied()
+        .chain([
+            ".",
+            "figma/exports",
+            "blender/scene.blend",
+            "sourcemap.json",
+        ])
+        .map(|relative| snapshot(project, relative))
+        .collect()
+}
+
 pub(crate) fn execute(
     plan: &CompositionPlan,
     before_write: &mut impl FnMut() -> Result<()>,

@@ -17,6 +17,8 @@ use std::{
 pub const WORKER_FLAG: &str = "--rproj-workbench";
 const QUERY_LIMIT: usize = 2 * 1024 * 1024 + 4096;
 
+#[path = "operations/composition.rs"]
+mod composition;
 #[path = "operations/creation.rs"]
 mod creation;
 

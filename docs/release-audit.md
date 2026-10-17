@@ -1,5 +1,33 @@
 # Release-Hardening Audit
 
+## October 18: worker final review
+
+PR #120 merged-main CI passed all seven executed jobs at `bf29098` (run
+`39063407424`); merged-branch cleanup is complete. Final worker CodeRabbit review
+found only a documentation count mismatch, corrected below. Twelve Windows
+behavior fixtures plus their subprocess entry point pass, including same-project
+Watch refusal before writes and unchanged other-project ownership. These Watch
+fixtures hold a disposable owner lock; they are not real Watch acceptance.
+Worker delivery remains pending; no native preview was launched.
+
+## October 17: private composition worker
+
+PR #120 merged at `bf29098`; all seven executed jobs passed on reviewed head
+`2071f06`, with an unchanged-head rerun of the existing terminal-resize screen
+comparison. Final local CodeRabbit review reported zero findings, packaged
+CLI/core archives compiled, and 32 headless desktop tests passed. Merged-main
+CI verification remains pending at this checkpoint.
+
+The [private composition worker](desktop-composition-worker.md) captures sources,
+prepares without project/machine writes and runs the shared checked executor.
+Operation/project-correlated atomic reports distinguish mutation boundaries;
+missing or contradictory reports never imply success. Owned cancellation drains
+streams and descendants, preserving a confirmed completion during a late cancel.
+Twelve Windows worker fixtures plus their subprocess entry point and two protocol fixtures pass; all applicable
+CLI/core regression suites and strict Clippy pass. Final worker review/delivery
+is pending. Native controls and real-window acceptance are not claimed here;
+no preview, version bump or publication is included.
+
 ## October 17: shared additive composition implementation
 
 The owner approved the three-step flow and all three implementation PRs, including
