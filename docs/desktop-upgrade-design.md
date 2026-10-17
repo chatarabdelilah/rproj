@@ -47,10 +47,14 @@ files and unsafe merges remain actionable errors.
 ## Proposal and evidence
 
 The separate thread-local proposal is `rproj-upgrade-review-wireframe.html`.
-Its SHA-256 is `e1f05504b62b4fb692d993f847424a7f5045ba2db7581b13b74e9d5e4cdb7db1`.
+Its SHA-256 is `adc30628739c5018a4a09f8760dce8391f76b36ef525e0cd62d4873d488b66d3`.
 It uses representative sample before/after contents derived from current source
 inspection, not a freshly executed Rust plan or real project files. Optional
 host state/icons cannot prevent initial review content from appearing.
+The scenario selector outside the sample app loads fresh cases while retaining
+Activity history. It can leave a simulated teardown-error case; this is a preview
+control, not a native cleanup/recovery action. Refresh review within a case uses
+its current simulated files, including successful or partial prior changes.
 
 [Upgrade design acceptance](desktop-upgrade-acceptance.md) records 30 passing
 simulation/DOM checks, 28 numeric contrast comparisons and unchanged hashes of
