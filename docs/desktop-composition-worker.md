@@ -59,7 +59,7 @@ confirmed process teardown. Session drafts and reports are not preferences.
 
 ## Automated evidence
 
-Thirteen Windows worker fixtures cover read-only preparation, successful structured
+Twelve Windows worker fixtures (plus their subprocess entry point) cover read-only preparation, successful structured
 Apply and stdout/stderr, stale drafts/reviews, partial tool failure, absent and
 malformed reports, descendant cancellation, cancellation before launch,
 unsupported workers, malformed/missing/unsupported records, bounded/non-UTF-8

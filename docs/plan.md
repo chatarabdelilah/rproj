@@ -27,8 +27,10 @@ all seven executed reviewed-head CI jobs passed (the existing terminal-resize
 screen test needed one unchanged-head rerun). Shared planning/execution now
 preserves existing choices, metadata and exclusions, and commits the record last.
 The [private composition worker](desktop-composition-worker.md) is implemented on
-`codex/additive-composition-worker`; native controls follow as PR 3. Merged-main
-CI verification and worker review/delivery are still pending.
+`codex/additive-composition-worker`; native controls follow as PR 3. PR #120
+merged-main CI passed all seven executed jobs at `bf29098`, and its merged branch
+is cleaned up. Final worker CodeRabbit review found only an evidence-count
+correction, now fixed; worker PR delivery remains pending.
 The [composition design](desktop-composition-design.md)
 defines the Soft flow and preservation rules. Continue product development without
 Windows troubleshooting, VM setup or native preview launches. The
