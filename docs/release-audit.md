@@ -8,7 +8,26 @@ found only a documentation count mismatch, corrected below. Twelve Windows
 behavior fixtures plus their subprocess entry point pass, including same-project
 Watch refusal before writes and unchanged other-project ownership. These Watch
 fixtures hold a disposable owner lock; they are not real Watch acceptance.
-Worker delivery remains pending; no native preview was launched.
+PR #121 is open at reviewed head `9795cc0`; CI and merge remain pending.
+Full applicable CLI/core suites, strict Clippy, both compiled crate archives,
+32 headless desktop tests and portable version/self-check/inspection checks pass.
+No native preview was launched.
+
+## October 18: native composition controls (automated checkpoint)
+
+PR #120 merged-main CI passed all seven executed jobs at `bf29098` (run
+`39063407424`); local/remote merged-branch cleanup is complete. This supersedes
+pending-main wording below. Worker final review is complete as recorded above;
+its CI and merge remain pending.
+
+Native Soft composition controls are implemented on
+`codex/native-composition-editor`. All 48 headless desktop tests and strict Clippy
+pass; new tests cover locked choices, keyboard/focus, responsive panes, default-Keep
+draft dialogs, stale confirmations/events, Watch ownership, cancellation/close,
+uncertain outcomes and coexistence with the retained New Project draft. See the
+[acceptance record](desktop-composition-acceptance.md). Final review, packaging and
+reviewed-head/main delivery remain pending. No native preview was launched;
+memory stability and real-window acceptance remain unresolved/unverified.
 
 ## October 17: private composition worker
 

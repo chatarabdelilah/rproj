@@ -1,3 +1,4 @@
+mod composition;
 mod creation;
 mod operation;
 mod theme;
@@ -44,12 +45,19 @@ enum Operation {
     Test,
     PrepareCreation,
     CreateProject,
+    PrepareComposition,
+    ApplyComposition,
 }
 impl Operation {
     fn cancellable(self) -> bool {
         matches!(
             self,
-            Self::Check | Self::Test | Self::PrepareCreation | Self::CreateProject
+            Self::Check
+                | Self::Test
+                | Self::PrepareCreation
+                | Self::CreateProject
+                | Self::PrepareComposition
+                | Self::ApplyComposition
         )
     }
     fn worker(self) -> Option<WorkerOperation> {
@@ -59,7 +67,10 @@ impl Operation {
             Self::SwitchWatch => WorkerOperation::SwitchWatch,
             Self::Check => WorkerOperation::Check,
             Self::Test => WorkerOperation::Test,
-            Self::PrepareCreation | Self::CreateProject => return None,
+            Self::PrepareCreation
+            | Self::CreateProject
+            | Self::PrepareComposition
+            | Self::ApplyComposition => return None,
         })
     }
 }
@@ -96,6 +107,27 @@ impl Section {
 }
 
 enum Event {
+    CompositionContext(
+        u64,
+        Box<
+            Result<
+                (
+                    rproj_core::creation::composition_protocol::CompositionContext,
+                    ProjectSnapshot,
+                ),
+                String,
+            >,
+        >,
+    ),
+    CompositionPrepared(
+        u64,
+        u64,
+        Result<rproj_core::creation::composition_protocol::CompositionPreparation, String>,
+    ),
+    CompositionApplied(
+        u64,
+        Result<rproj_core::creation::composition_protocol::CompositionOutcome, String>,
+    ),
     Connected(
         Result<WorkbenchClient, String>,
         Option<Result<Vec<CatalogEntry>, String>>,
@@ -268,6 +300,8 @@ impl Activity {
 }
 
 pub struct Workbench {
+    composition: composition::CompositionSession,
+    composition_inputs: composition::CompositionInputs,
     creation: creation::CreationSession,
     creation_inputs: creation::CreationInputs,
     window: AnyWindowHandle,
@@ -332,6 +366,8 @@ impl Workbench {
             }
         });
         let (creation_inputs, creation_subscriptions) = creation::CreationInputs::new(window, cx);
+        let (composition_inputs, composition_subscription) =
+            composition::CompositionInputs::new(window, cx);
         let owner = cx.entity().downgrade();
         window.on_window_should_close(cx, move |window, cx| {
             owner
@@ -368,6 +404,8 @@ impl Workbench {
             }
         });
         let mut view = Self {
+            composition: composition::CompositionSession::default(),
+            composition_inputs,
             creation: creation::CreationSession::default(),
             creation_inputs,
             window: window.window_handle(),
@@ -406,10 +444,14 @@ impl Workbench {
             receiver,
             dropped: Arc::new(AtomicUsize::new(0)),
             last_poll: Instant::now(),
-            _subscriptions: vec![subscription, appearance_subscription]
-                .into_iter()
-                .chain(creation_subscriptions)
-                .collect(),
+            _subscriptions: vec![
+                subscription,
+                appearance_subscription,
+                composition_subscription,
+            ]
+            .into_iter()
+            .chain(creation_subscriptions)
+            .collect(),
             _pump: pump,
         };
         let sender = view.sender.clone();
@@ -423,6 +465,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.composition.visible = false;
         self.creation.visible = false;
         self.pending_switch = None;
         self.watch_log_request.invalidate();
@@ -438,6 +481,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.composition.visible = false;
         self.pending_switch = None;
         self.watch_log_request.invalidate();
         self.generation = self.generation.wrapping_add(1);
@@ -544,6 +588,15 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::CompositionContext(id, result) => {
+                    self.composition.accept_context(id, *result)
+                }
+                Event::CompositionPrepared(id, revision, result) => {
+                    self.accept_composition_prepared(id, revision, result, cx)
+                }
+                Event::CompositionApplied(id, result) => {
+                    self.accept_composition_result(id, result, cx)
+                }
                 Event::Preferences(loaded) => match loaded {
                     Ok((state, path)) => {
                         self.preferences = state;
@@ -889,6 +942,8 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::Test => "Running tests",
         Operation::PrepareCreation => "Preparing creation",
         Operation::CreateProject => "Creating project",
+        Operation::PrepareComposition => "Preparing composition",
+        Operation::ApplyComposition => "Applying composition",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

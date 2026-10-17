@@ -47,6 +47,7 @@ impl Workbench {
         }
     }
     pub(in super::super) fn show_creation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.composition.visible = false;
         if self.creation.draft.is_none() {
             self.creation.draft = Some(CreationDraft::new(String::new()));
             self.creation.step = Step::Project;
@@ -145,7 +146,7 @@ impl Workbench {
         &mut self,
         operation: Operation,
     ) -> Option<(u64, Cancellation, WorkbenchClient)> {
-        if self.creation.teardown_uncertain {
+        if self.creation.teardown_uncertain || self.composition.teardown_uncertain {
             self.creation.error = Some("Worker teardown is unconfirmed. Inspect Activity and the destination; new creation remains disabled until cleanup can be confirmed.".into());
             return None;
         }
@@ -327,7 +328,7 @@ impl Workbench {
         if self.creation.close_pending {
             self.creation.close_pending = false;
             if teardown_confirmed {
-                self.close_after_teardown(cx);
+                self.continue_close(cx);
             } else {
                 // The approved close contract requires confirmed teardown. A
                 // second close must not bypass that requirement after an error.
@@ -339,7 +340,7 @@ impl Workbench {
         }
         cx.notify();
     }
-    fn close_after_teardown(&self, cx: &mut Context<Self>) {
+    pub(in super::super) fn close_after_teardown(&self, cx: &mut Context<Self>) {
         let handle = self.window;
         cx.defer(move |cx| {
             let _ = handle.update(cx, |_, window, _| window.remove_window());
@@ -377,7 +378,7 @@ impl Workbench {
         if !self.creation.dirty {
             self.reset_creation(window, cx);
             if closing {
-                self.close_after_teardown(cx);
+                self.continue_close(cx);
             }
             return;
         }
@@ -393,7 +394,7 @@ impl Workbench {
                         let _ = discard.update(cx, |this, cx| {
                             if this.creation.revision == revision && !this.creation_running() {
                                 this.reset_creation(window, cx);
-                                if closing { this.close_after_teardown(cx); }
+                                if closing { this.continue_close(cx); }
                                 cx.notify();
                             }
                         }); window.close_dialog(cx);
@@ -406,13 +407,18 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if self.creation.teardown_uncertain {
+        if self.creation.teardown_uncertain || self.composition.teardown_uncertain {
             self.operations.expanded = true;
             cx.notify();
             return false;
         }
         if self.creation.close_pending || self.creation.close_dialog {
             return false;
+        }
+        if !self.creation_running()
+            && let Some(decision) = self.composition_close(window, cx)
+        {
+            return decision;
         }
         if self.creation_running() {
             self.creation.close_dialog = true;
