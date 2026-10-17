@@ -17,7 +17,18 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 18: native existing-project composition delivery.**
+**Current priority, October 18: native Upgrade design review.**
+Existing-project composition delivery is complete through PR #122 at `490e2ee`;
+all seven executed reviewed-head and merged-main CI jobs passed, and its merged
+branches are removed. The owner selected native Upgrade next, with a separate
+Soft wireframe and unified diffs before native implementation. The
+[Upgrade design](desktop-upgrade-design.md) retains Apply-all, captured review
+ownership, explicit stale refresh and independent Watch controls. Thirty local
+simulation/DOM checks and 28 numeric contrast comparisons pass; the
+[acceptance record](desktop-upgrade-acceptance.md) keeps rendering unverified and
+native previews paused. The owner has not yet approved this proposed screen.
+
+**Completed existing-project composition implementation:**
 The owner selected additions-only editing with an impact review and a wireframe
 review before native implementation. The owner has now approved that flow and
 three sequential implementation PRs: shared additive planning/execution,
