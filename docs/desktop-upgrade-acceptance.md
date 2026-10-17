@@ -65,4 +65,4 @@ API, protocol, persisted format, preference schema, version or publication chang
 
 Native implementation planning follows the owner's design decision. Delivery
 evidence, including exact head/main CI and merged-branch cleanup, belongs to the
-design documentation PR.
+[design documentation PR #123](https://github.com/chatarabdelilah/rproj/pull/123).

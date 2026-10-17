@@ -61,3 +61,6 @@ This proposal awaits owner design approval. Review the selected file diff and
 the default-Keep Apply-all confirmation; native implementation planning follows
 that review. No Rust extraction, worker interface or native acceptance is approved
 by completing this documentation/prototype milestone.
+
+Documentation delivery and exact head/main CI evidence are tracked in
+[PR #123](https://github.com/chatarabdelilah/rproj/pull/123).
