@@ -10,8 +10,8 @@ unsafe merges/stale inputs and commits the composition record last. Existing
 Wally pins/forks, unrelated metadata and seed-file customizations are retained.
 Preparation uses disposable staging only, without project or machine writes.
 
-The first local pass of all CLI/core suites and strict Clippy passed. Fourteen
-composition executor fixtures plus five core draft fixtures pass; live-tool and
+The first local pass of all CLI/core suites and strict Clippy passed. Fifteen
+composition executor fixtures plus six core draft fixtures pass; live-tool and
 privileged cases remain ignored, not passes. Final-head validation/review and PR
 delivery are pending. No native preview was launched; memory stability and
 real-window acceptance remain unresolved/unverified. No version bump/publication.

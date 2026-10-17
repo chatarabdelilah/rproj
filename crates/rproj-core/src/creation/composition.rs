@@ -1,6 +1,6 @@
 //! Additions-only editing. The original intent is immutable, including exclusions.
 use super::{CreationDraft, ProjectGraph};
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -180,8 +180,17 @@ impl CompositionDraft {
         }
         let mut record: toml::Value = toml::from_str(source)?;
         let graph = toml::Value::try_from(&self.graph)?;
+        let table = record
+            .as_table_mut()
+            .context("rproj.toml must be a table")?;
         for key in ["packages", "capabilities"] {
-            record[key] = graph[key].clone();
+            table.insert(
+                key.into(),
+                graph
+                    .get(key)
+                    .with_context(|| format!("Composition is missing {key}"))?
+                    .clone(),
+            );
         }
         Ok(toml::to_string_pretty(&record)?)
     }
@@ -274,5 +283,20 @@ mod tests {
                 .is_err()
         );
         none.set_capability("format", Some("stylua")).unwrap();
+    }
+
+    #[test]
+    fn minimal_record_without_collection_fields_can_add_only_a_package() {
+        let source = "# legacy minimal record\n[metadata]\nowner = 'custom'\n";
+        let original: ProjectGraph = toml::from_str(source).unwrap();
+        let mut draft = CompositionDraft::new(original);
+        draft.toggle_package("promise").unwrap();
+        let patched = draft.record(source).unwrap();
+        assert_eq!(
+            toml::from_str::<ProjectGraph>(&patched).unwrap(),
+            draft.graph
+        );
+        let value: toml::Value = toml::from_str(&patched).unwrap();
+        assert_eq!(value["metadata"]["owner"].as_str(), Some("custom"));
     }
 }
