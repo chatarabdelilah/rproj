@@ -7,6 +7,7 @@ use std::process::Command;
 use anyhow::{Context, Result, bail, ensure};
 use rproj_core::operations::WORKER_FLAG;
 
+mod composition;
 mod creation;
 
 pub(crate) fn internal_entry() -> Option<Result<()>> {
@@ -51,6 +52,17 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::CreationJob(directory) => creation::job(&directory),
+        Operation::CompositionContext => {
+            let context = composition::context(&std::env::current_dir()?)?;
+            let text = serde_json::to_string(&context)?;
+            ensure!(
+                text.len() as u64 <= rproj_core::creation::composition_protocol::IPC_LIMIT,
+                "Composition context exceeded its size limit"
+            );
+            println!("{text}");
+            Ok(())
+        }
+        Operation::CompositionJob(directory) => composition::job(&directory),
     }
 }
 
@@ -69,18 +81,25 @@ enum Operation {
     Test,
     CreationContext,
     CreationJob(std::path::PathBuf),
+    CompositionContext,
+    CompositionJob(std::path::PathBuf),
 }
 
 fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation> {
     let verb = args.next().context("missing workbench operation")?;
-    if verb == "creation-job" {
+    if verb == "creation-job" || verb == "composition-job" {
         let directory = args.next().context("missing creation IPC directory")?;
         ensure!(args.next().is_none(), "unexpected workbench argument");
-        return Ok(Operation::CreationJob(directory.into()));
+        return Ok(if verb == "creation-job" {
+            Operation::CreationJob(directory.into())
+        } else {
+            Operation::CompositionJob(directory.into())
+        });
     }
     ensure!(args.next().is_none(), "unexpected workbench argument");
     match verb.to_str() {
         Some("creation-context") => Ok(Operation::CreationContext),
+        Some("composition-context") => Ok(Operation::CompositionContext),
         Some("catalog") => Ok(Operation::Catalog),
         Some("status") => Ok(Operation::Status),
         Some("logs") => Ok(Operation::Logs),
