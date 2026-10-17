@@ -1,5 +1,27 @@
 # Release-Hardening Audit
 
+## October 18: Upgrade design prototype
+
+Composition PR #122 merged at `490e2ee`: reviewed head `7c4639b` (run
+`39075648690`) and merged main (run `39076017595`) passed all seven executed
+CI jobs, with merged local/remote branches removed. This supersedes branch-only
+wording in the earlier composition checkpoint.
+
+The owner selected native Upgrade next, wireframe-first delivery and unified
+diffs. The [separate proposal](desktop-upgrade-design.md) keeps existing Apply-all
+semantics, source capture, skipped-versus-blocking outcomes, independent Watch
+and retained operation ownership. Thirty local simulation/DOM checks and 28
+numeric palette comparisons pass. Both earlier working wireframe hashes and
+the inspected Rust sources remain unchanged.
+
+[Design acceptance](desktop-upgrade-acceptance.md) distinguishes source/DOM
+checks from unverified rendering, browser keyboard behavior and native acceptance.
+No supported inline inspection route is available; no retired automation or
+native preview was attempted. Native memory stability stays unresolved. No Rust,
+worker protocol, project format, preference schema or version changed, and no
+publication or native implementation is included. The owner design decision and
+subsequent native implementation plan remain separate next steps.
+
 ## October 18: worker final review
 
 PR #120 merged-main CI passed all seven executed jobs at `bf29098` (run
