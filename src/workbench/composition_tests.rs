@@ -159,6 +159,88 @@ fn preparation_is_read_only_and_success_uses_structured_outcome() {
     assert_eq!(project_snapshot(&fixture.root.join("watch")), watch);
 }
 
+fn record_only_plan(fixture: &Fixture) -> CompositionPlan {
+    fs::create_dir_all(fixture.project.join("blender")).unwrap();
+    fs::write(
+        fixture.project.join("blender/scene.blend"),
+        b"preserved user-owned scene",
+    )
+    .unwrap();
+    let context = context(&fixture.project).unwrap();
+    let original = context.graph.unwrap();
+    let mut updated = original.clone();
+    updated.choose("assets-3d", Some("blender"));
+    project_composition::prepare(
+        &fixture.project,
+        &ProjectEdit {
+            source: context.source,
+            original,
+            updated,
+            reviewed: None,
+        },
+    )
+    .unwrap()
+}
+
+fn apply_request(plan: CompositionPlan) -> tempfile::TempDir {
+    let directory = tempfile::tempdir().unwrap();
+    write_atomic(
+        &directory.path().join("request.json"),
+        &CompositionRequest {
+            protocol: COMPOSITION_PROTOCOL,
+            id: "watch-conflict-fixture".into(),
+            project: plan.project.clone(),
+            action: CompositionAction::Apply(plan),
+        },
+    )
+    .unwrap();
+    directory
+}
+
+#[test]
+fn same_project_watch_blocks_apply_before_writes() {
+    let fixture = Fixture::new();
+    let directory = apply_request(record_only_plan(&fixture));
+    let before = project_snapshot(&fixture.project);
+    crate::background_watch::with_unresponsive_fixture(&fixture.project, || {
+        assert!(job(directory.path()).is_err());
+        let report: CompositionReport = read_json(&directory.path().join("report.json")).unwrap();
+        assert_eq!(report.status, Some(CompositionStatus::Failed));
+        assert_eq!(report.writes, WriteState::NotStarted);
+        assert_eq!(project_snapshot(&fixture.project), before);
+        let watch = crate::background_watch::structured_status().unwrap();
+        assert_eq!(watch.project.as_ref(), Some(&fixture.project));
+        assert_eq!(
+            watch.state,
+            rproj_core::operations::WatchState::Unresponsive
+        );
+    });
+}
+
+#[test]
+fn another_project_watch_is_preserved_during_apply() {
+    let fixture = Fixture::new();
+    let directory = apply_request(record_only_plan(&fixture));
+    let other = tempfile::tempdir().unwrap();
+    let other_path = other.path().canonicalize().unwrap();
+    crate::background_watch::with_unresponsive_fixture(&other_path, || {
+        job(directory.path()).unwrap();
+        let report: CompositionReport = read_json(&directory.path().join("report.json")).unwrap();
+        assert_eq!(report.status, Some(CompositionStatus::Succeeded));
+        assert_eq!(report.writes, WriteState::Completed);
+        let watch = crate::background_watch::structured_status().unwrap();
+        assert_eq!(watch.project.as_ref(), Some(&other_path));
+        assert_eq!(
+            watch.state,
+            rproj_core::operations::WatchState::Unresponsive
+        );
+        assert_eq!(
+            fs::read(fixture.project.join("blender/scene.blend")).unwrap(),
+            b"preserved user-owned scene"
+        );
+    });
+}
+
 #[test]
 fn stale_draft_sources_and_stale_review_targets_require_explicit_reload() {
     let fixture = Fixture::new();
