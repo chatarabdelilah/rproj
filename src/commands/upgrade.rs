@@ -345,7 +345,27 @@ fn plan(
     packages: &BTreeSet<String>,
     workflow: PackageWorkflow,
     runner: Option<TestRunner>,
+    upgrade: UpgradePlan,
+) -> Result<UpgradePlan> {
+    plan_for(
+        project_dir,
+        project,
+        packages,
+        workflow,
+        runner,
+        upgrade,
+        false,
+    )
+}
+
+fn plan_for(
+    project_dir: &Path,
+    project: &ProjectGraph,
+    packages: &BTreeSet<String>,
+    workflow: PackageWorkflow,
+    runner: Option<TestRunner>,
     mut upgrade: UpgradePlan,
+    composition: bool,
 ) -> Result<UpgradePlan> {
     // **Upgrade re-derives from the graph.** Every rewrite below is gated on
     // the project's own plan, so an upgrade cannot restore a file this
@@ -489,25 +509,61 @@ fn plan(
 
     // Preserve existing housekeeping eligibility, but review and protect these
     // merges exactly like the composition-derived replacements above.
-    let original = upgrade.read(project_dir, ".gitignore")?;
-    if let Some(contents) = gitignore::planned_entries(original.as_deref().unwrap_or("")) {
-        push(
-            &mut upgrade,
-            project_dir,
-            ".gitignore",
-            contents,
-            "missing generated-output ignore entries; your existing entries are kept",
-        )?;
+    if !composition || wants(".gitignore") {
+        let original = upgrade.read(project_dir, ".gitignore")?;
+        if let Some(contents) = gitignore::planned_entries(original.as_deref().unwrap_or("")) {
+            push(
+                &mut upgrade,
+                project_dir,
+                ".gitignore",
+                contents,
+                "missing generated-output ignore entries; your existing entries are kept",
+            )?;
+        }
     }
-    let original = upgrade.read(project_dir, ".luaurc")?;
-    let update = quality::planned_luaurc(original.as_deref())?;
-    plan_luaurc(&mut upgrade, project_dir, ".luaurc", update)?;
+    if !composition || wants(".luaurc") {
+        let original = upgrade.read(project_dir, ".luaurc")?;
+        let update = quality::planned_luaurc(original.as_deref())?;
+        plan_luaurc(&mut upgrade, project_dir, ".luaurc", update)?;
+    }
     if testez_selected {
         let original = upgrade.read(project_dir, "tests/.luaurc")?;
         let update = testez::planned_tests_luaurc(original.as_deref())?;
         plan_luaurc(&mut upgrade, project_dir, "tests/.luaurc", update)?;
     }
     Ok(upgrade)
+}
+
+/// Reuse Upgrade's checked merges with the reviewed graph, without reading or
+/// replacing rproj.toml. Composition commits that record only after execution.
+pub(super) fn composition_files(
+    project_dir: &Path,
+    project: &ProjectGraph,
+) -> Result<Vec<rproj_core::creation::CompositionFile>> {
+    let plan = plan_for(
+        project_dir,
+        project,
+        &project.package_set(),
+        project.package_workflow,
+        project.test_runner(),
+        UpgradePlan::default(),
+        true,
+    )?;
+    ensure!(
+        plan.skipped.is_empty(),
+        "Cannot safely refresh configuration: {}",
+        plan.skipped.join("; ")
+    );
+    Ok(plan
+        .rewrites
+        .into_iter()
+        .map(|rewrite| rproj_core::creation::CompositionFile {
+            relative: rewrite.relative,
+            contents: rewrite.contents,
+            creating: rewrite.creating,
+            reason: rewrite.reason.into(),
+        })
+        .collect())
 }
 
 fn plan_luaurc(

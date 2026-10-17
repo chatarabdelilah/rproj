@@ -1,5 +1,21 @@
 # Release-Hardening Audit
 
+## October 17: shared additive composition implementation
+
+The owner approved the three-step flow and all three implementation PRs, including
+headless native controls while real-window launches remain paused. PR 1 shares
+the immutable-baseline draft and checked file plan, preserves terminal exclusions
+and provenance, generates newly requested formatting/asset/test artifacts, rejects
+unsafe merges/stale inputs and commits the composition record last. Existing
+Wally pins/forks, unrelated metadata and seed-file customizations are retained.
+Preparation uses disposable staging only, without project or machine writes.
+
+The first local pass of all CLI/core suites and strict Clippy passed. Fourteen
+composition executor fixtures plus five core draft fixtures pass; live-tool and
+privileged cases remain ignored, not passes. Final-head validation/review and PR
+delivery are pending. No native preview was launched; memory stability and
+real-window acceptance remain unresolved/unverified. No version bump/publication.
+
 ## October 17: composition design scope
 
 The owner selected existing-project composition as the next product milestone:

@@ -143,7 +143,7 @@ impl Draft {
     fn invalidate(&mut self, node: Node) {
         let dropped = self.graph.dropped.clone();
         self.graph.invalidate(node);
-        if self.setup_mode {
+        if self.setup_mode || self.project_mode {
             self.graph.dropped = dropped;
         }
     }
@@ -396,15 +396,21 @@ impl Draft {
     }
 
     fn review(&mut self) {
-        if !self.setup_mode {
+        if !self.setup_mode && !self.project_mode {
             new::apply_derived_packages(&mut self.graph);
+        } else if self.project_mode {
+            for key in self.graph.derived().packages {
+                if !self.graph.packages.contains(&key) {
+                    self.graph.packages.push(key);
+                }
+            }
         }
         self.revision = None;
         self.open(Step::Review);
     }
 
     fn packages(&mut self, from: usize) {
-        if from == 0 && !self.setup_mode {
+        if from == 0 && !self.setup_mode && !self.project_mode {
             self.graph.mode = if self.graph.package_workflow == PackageWorkflow::None {
                 "none"
             } else if self.guided {

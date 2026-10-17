@@ -1,5 +1,6 @@
 //! Shared project composition; no terminal, window, process or filesystem state.
 
+mod composition;
 mod draft;
 pub mod graph;
 #[doc(hidden)]
@@ -8,6 +9,7 @@ use crate::catalog::{
     capabilities,
     wally_packages::{PackageSpec, companions_for},
 };
+pub use composition::*;
 pub use draft::*;
 pub use graph::ProjectGraph;
 use serde::{Deserialize, Serialize};
