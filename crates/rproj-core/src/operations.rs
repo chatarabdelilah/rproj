@@ -17,6 +17,17 @@ use std::{
 pub const WORKER_FLAG: &str = "--rproj-workbench";
 const QUERY_LIMIT: usize = 2 * 1024 * 1024 + 4096;
 
+// Only failures after a successful spawn can leave owned teardown unconfirmed.
+// Keep startup errors distinct so frontends can recover without a close lock.
+#[derive(Debug)]
+struct OwnedTeardownUnconfirmed;
+impl std::fmt::Display for OwnedTeardownUnconfirmed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Owned worker teardown was not confirmed")
+    }
+}
+impl std::error::Error for OwnedTeardownUnconfirmed {}
+
 #[path = "operations/composition.rs"]
 mod composition;
 #[path = "operations/creation.rs"]
@@ -321,36 +332,40 @@ fn execute_owned_os(
         let mut child = command
             .spawn()
             .context("Could not start owned CLI operation")?;
-        let stdout = tokio::spawn(drain(
-            child.stdout().take().context("Missing worker stdout")?,
-            false,
-            sink.clone(),
-        ));
-        let stderr = tokio::spawn(drain(
-            child.stderr().take().context("Missing worker stderr")?,
-            true,
-            sink,
-        ));
-        let result = loop {
-            if let Some(status) = child.try_wait()? {
-                break if status.success() {
-                    OperationOutcome::Succeeded
-                } else {
-                    OperationOutcome::Failed {
-                        code: status.code(),
-                    }
-                };
-            }
-            if cancellation.is_cancelled() {
-                break OperationOutcome::Cancelled;
-            }
-            tokio::time::sleep(Duration::from_millis(30)).await;
-        };
-        // Closing the job also terminates grandchildren and releases inherited pipes.
-        drop(child);
-        stdout.await??;
-        stderr.await??;
-        Ok(result)
+        async move {
+            let stdout = tokio::spawn(drain(
+                child.stdout().take().context("Missing worker stdout")?,
+                false,
+                sink.clone(),
+            ));
+            let stderr = tokio::spawn(drain(
+                child.stderr().take().context("Missing worker stderr")?,
+                true,
+                sink,
+            ));
+            let result = loop {
+                if let Some(status) = child.try_wait()? {
+                    break if status.success() {
+                        OperationOutcome::Succeeded
+                    } else {
+                        OperationOutcome::Failed {
+                            code: status.code(),
+                        }
+                    };
+                }
+                if cancellation.is_cancelled() {
+                    break OperationOutcome::Cancelled;
+                }
+                tokio::time::sleep(Duration::from_millis(30)).await;
+            };
+            // Closing the job also terminates grandchildren and releases inherited pipes.
+            drop(child);
+            stdout.await??;
+            stderr.await??;
+            Ok::<_, anyhow::Error>(result)
+        }
+        .await
+        .context(OwnedTeardownUnconfirmed)
     })
 }
 

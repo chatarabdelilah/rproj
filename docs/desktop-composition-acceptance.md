@@ -43,14 +43,16 @@ title bar, assets/notices and CLI/Ratatui entrypoints are unchanged.
 
 ## Automated evidence
 
-The local desktop suite passes **48 headless tests** (32 existing, two new
-composition-state tests and 14 new GPUI interaction tests). New coverage includes
+The local desktop suite passes **50 headless tests** (32 existing, two new
+composition-state tests and 16 new GPUI interaction tests). New coverage includes
 three-step navigation, locked original choices, reversible additions, keyboard
 activation/focus, both dependency layouts, retained drafts, default-Keep reload/
 close, unavailable worker explanations, stale confirmations/events, Watch
 conflicts, captured operation ownership, uncertain outcomes, acknowledged close
 cancellation, teardown failure, concurrent context-load guards and preservation
-of each draft when the other operation closes. Existing Activity bounds/filtering,
+of each draft when the other operation closes. Startup failures allow recovery
+and normal close; actual unconfirmed teardown visibly explains the close lock.
+Existing Activity bounds/filtering,
 height, inspection recovery, Watch controls and creation tests remain in the suite.
 
 Headless geometry confirms that narrow details are reachable by scrolling while

@@ -30,9 +30,10 @@ The [private composition worker](desktop-composition-worker.md) merged in
 PR #121 at `661ffb3`; all seven executed reviewed-head jobs passed. PR #120
 merged-main CI passed all seven executed jobs at `bf29098`, and its merged branch
 is cleaned up. Final worker CodeRabbit review found only an evidence-count
-correction, now fixed; worker merged-main CI verification remains pending.
+correction, now fixed. Worker merged-main CI passed all seven executed jobs at
+`661ffb3`, and its local/remote merged branches are removed.
 Native controls are implemented on
-`codex/native-composition-editor`, with 48 headless tests and strict Clippy passing;
+`codex/native-composition-editor`, with 50 headless tests passing;
 review and final-head validation/delivery remain pending. [Composition acceptance](desktop-composition-acceptance.md)
 keeps all real-window and memory-stability checks deferred.
 The [composition design](desktop-composition-design.md)

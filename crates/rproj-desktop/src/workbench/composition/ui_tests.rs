@@ -484,6 +484,83 @@ fn composition_keyboard_activation_keeps_focus_in_the_flow(cx: &mut TestAppConte
 }
 
 #[gpui_kit::test]
+fn startup_failures_allow_recovery_and_normal_close(cx: &mut TestAppContext) {
+    let (_project, handle, view) = fixture(cx);
+    for operation in [Operation::PrepareComposition, Operation::ApplyComposition] {
+        cx.update(|cx| {
+            view.update(cx, |this, cx| {
+                let project = this.composition.project.clone().unwrap();
+                let id = this.operations.begin(operation, project.clone());
+                this.running = Some((operation, Cancellation::default()));
+                let event = if operation == Operation::PrepareComposition {
+                    Event::CompositionPrepared(
+                        id,
+                        this.composition.revision,
+                        Ok(CompositionPreparation::Failed(
+                            "Worker could not start; no project changes".into(),
+                        )),
+                    )
+                } else {
+                    Event::CompositionApplied(
+                        id,
+                        Ok(CompositionOutcome {
+                            project,
+                            status: CompositionStatus::Failed,
+                            writes: WriteState::NotStarted,
+                            message: Some("Worker could not start; no composition writes".into()),
+                        }),
+                    )
+                };
+                this.sender.send(event).unwrap();
+                this.drain(cx);
+                assert!(!this.composition.teardown_uncertain);
+                assert!(this.running.is_none());
+            })
+        });
+        cx.update_window(handle, |_, window, cx| {
+            view.update(cx, |this, cx| assert!(this.request_close(window, cx)));
+        })
+        .unwrap();
+    }
+}
+
+#[gpui_kit::test]
+fn unconfirmed_teardown_explains_the_close_lock_without_a_pending_close(cx: &mut TestAppContext) {
+    let (_project, handle, view) = fixture(cx);
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            let id = this.operations.begin(
+                Operation::PrepareComposition,
+                this.composition.project.clone().unwrap(),
+            );
+            this.running = Some((Operation::PrepareComposition, Cancellation::default()));
+            this.sender
+                .send(Event::CompositionPrepared(
+                    id,
+                    this.composition.revision,
+                    Err("Owned worker teardown was not confirmed".into()),
+                ))
+                .unwrap();
+            this.drain(cx);
+            assert!(this.composition.teardown_uncertain);
+            assert!(
+                this.composition
+                    .error
+                    .as_ref()
+                    .unwrap()
+                    .contains("Closing and new operations are disabled")
+            );
+        })
+    });
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| assert!(!this.request_close(window, cx)));
+        window.render_frame(cx);
+        assert!(window.find("composition-error").visible());
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
 fn composition_uncertain_result_keeps_navigation_and_other_watch(cx: &mut TestAppContext) {
     let (_project, handle, view) = fixture(cx);
     cx.update(|cx| {

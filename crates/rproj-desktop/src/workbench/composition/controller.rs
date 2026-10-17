@@ -206,10 +206,15 @@ impl Workbench {
                     self.composition.error =
                         Some("Preparation cancelled; preparation made no project changes".into())
                 }
-                Ok(CompositionPreparation::Failed(e)) | Err(e) => {
+                Ok(CompositionPreparation::Failed(e)) => {
                     self.composition.error = Some(format!(
                         "Review could not be prepared: {e}. Changed source files require explicit Reload; missing tools can be installed with rproj setup, then prepare again."
                     ))
+                }
+                Err(e) => {
+                    self.composition.error = Some(format!(
+                        "Worker teardown is unconfirmed: {e}. Closing and new operations are disabled because owned processes may still be running. Inspect Activity; this window must stay open."
+                    ));
                 }
             }
         }
@@ -285,7 +290,8 @@ impl Workbench {
             return;
         }
         let owner = self.operations.latest.as_ref().unwrap().project.clone();
-        let result = result.and_then(|result| if result.project == owner { Ok(result) } else { Err("Composition result belongs to another project; outcome/teardown are unconfirmed".into()) });
+        let result = result.and_then(|result| if result.project == owner { Ok(result) } else { Err("Composition result belongs to another project; outcome/teardown are unconfirmed".into()) })
+            .map_err(|error| format!("Worker teardown is unconfirmed: {error}. Closing and new operations are disabled because owned processes may still be running. Inspect Activity; this window must stay open."));
         let outcome = match &result {
             Ok(result) => match result.status {
                 CompositionStatus::Succeeded => Ok(OperationOutcome::Succeeded),

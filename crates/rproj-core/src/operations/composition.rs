@@ -30,12 +30,20 @@ impl WorkbenchClient {
         sink: impl Fn(OperationEvent) + Send + Sync + 'static,
     ) -> Result<CompositionPreparation> {
         let project = prepare.context.project.clone();
-        let report = self.composition_operation(
+        let report = match self.composition_operation(
             project,
             CompositionAction::Prepare(prepare),
             cancellation,
             sink,
-        )?;
+        ) {
+            Ok(report) => report,
+            Err(error) if error.is::<OwnedTeardownUnconfirmed>() => return Err(error),
+            Err(error) => {
+                return Ok(CompositionPreparation::Failed(format!(
+                    "Preparation could not start; no project changes were made: {error:#}"
+                )));
+            }
+        };
         if report.status == Some(CompositionStatus::Cancelled) {
             return Ok(CompositionPreparation::Cancelled);
         }
@@ -60,12 +68,25 @@ impl WorkbenchClient {
         sink: impl Fn(OperationEvent) + Send + Sync + 'static,
     ) -> Result<CompositionOutcome> {
         let project = plan.project.clone();
-        let report = self.composition_operation(
+        let report = match self.composition_operation(
             project.clone(),
             CompositionAction::Apply(plan),
             cancellation,
             sink,
-        )?;
+        ) {
+            Ok(report) => report,
+            Err(error) if error.is::<OwnedTeardownUnconfirmed>() => return Err(error),
+            Err(error) => {
+                return Ok(CompositionOutcome {
+                    project,
+                    status: CompositionStatus::Failed,
+                    writes: WriteState::NotStarted,
+                    message: Some(format!(
+                        "Apply could not start; no composition writes were made: {error:#}"
+                    )),
+                });
+            }
+        };
         Ok(CompositionOutcome {
             project,
             status: report.status.unwrap_or(CompositionStatus::Uncertain),
