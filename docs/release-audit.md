@@ -1,5 +1,17 @@
 # Release-Hardening Audit
 
+## October 17: native preview memory-exhaustion blocker
+
+The owner reports native preview use followed by system out-of-memory warnings
+or failure to wake the display. The allocating component, potential capture/
+overlay interactions and the display failure's cause remain unverified. Detailed
+host diagnostics are retained locally, outside this record. No reproduction
+window or settings change was made.
+
+Further native acceptance is paused pending isolation and a bounded investigation;
+the functional observations below do not establish memory stability. See the
+[memory investigation](desktop-memory-investigation.md) for evidence and next steps.
+
 ## October 17: native creation fixture acceptance
 
 In the isolated native preview built from clean main `dfe336d`, the owner

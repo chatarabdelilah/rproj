@@ -17,7 +17,16 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 17: native guided New Project acceptance.**
+**Current priority, October 17: native preview memory-exhaustion investigation.**
+The owner reports system out-of-memory errors and display-wake failures after
+native preview use. The allocating component and potential capture/overlay
+interactions are not yet isolated. Detailed host diagnostics remain local.
+[Memory investigation](desktop-memory-investigation.md)
+records the evidence and pauses further native launches. Resolve this blocker
+before continuing real-tool/Watch or other native acceptance. Earlier functional
+checks remain scoped observations, not memory-stability evidence.
+
+**Native guided New Project acceptance:**
 The native Soft workbench is merged. The owner confirmed Activity containment and
 retained height, themes/System changes, scaling, and real Watch Start/Switch/Stop.
 [PR #111](https://github.com/chatarabdelilah/rproj/pull/111), merged at `9910df1`,
