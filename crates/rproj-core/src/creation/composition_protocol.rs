@@ -134,6 +134,7 @@ impl CompositionReport {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CompositionPreparation {
     Prepared(Box<CompositionPlan>),
+    Failed(String),
     Cancelled,
 }
 

@@ -39,14 +39,13 @@ impl WorkbenchClient {
         if report.status == Some(CompositionStatus::Cancelled) {
             return Ok(CompositionPreparation::Cancelled);
         }
-        ensure!(
-            report.status == Some(CompositionStatus::Succeeded),
-            "{}",
-            report
-                .message
-                .as_deref()
-                .unwrap_or("Composition preparation failed; preparation made no project changes")
-        );
+        if report.status != Some(CompositionStatus::Succeeded) {
+            return Ok(CompositionPreparation::Failed(
+                report.message.unwrap_or_else(|| {
+                    "Composition preparation failed; preparation made no project changes".into()
+                }),
+            ));
+        }
         Ok(CompositionPreparation::Prepared(Box::new(
             report
                 .prepared

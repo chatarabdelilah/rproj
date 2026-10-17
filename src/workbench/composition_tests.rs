@@ -164,11 +164,13 @@ fn stale_draft_sources_and_stale_review_targets_require_explicit_reload() {
     let fixture = Fixture::new();
     let request = fixture.request();
     fs::write(fixture.project.join("stylua.toml"), "custom = true\n").unwrap();
-    let error = fixture
+    let outcome = fixture
         .client
         .prepare_composition(request, &Cancellation::default(), |_| {})
-        .unwrap_err()
-        .to_string();
+        .unwrap();
+    let CompositionPreparation::Failed(error) = outcome else {
+        panic!("Expected a structured preparation failure")
+    };
     assert!(error.contains("explicitly reload"), "{error}");
     let prepared = fixture.prepared();
     fs::write(fixture.project.join("stylua.toml"), "changed = true\n").unwrap();
