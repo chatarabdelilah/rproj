@@ -61,10 +61,12 @@ simulation/DOM checks, 28 numeric contrast comparisons and unchanged hashes of
 both earlier working wireframes. Rendering remains unverified: no supported
 inline inspection route is exposed. Browser/native automation was not attempted.
 
-This proposal awaits owner design approval. Review the selected file diff and
-the default-Keep Apply-all confirmation; native implementation planning follows
-that review. No Rust extraction, worker interface or native acceptance is approved
-by completing this documentation/prototype milestone.
+The owner approved the unified-diff layout and default-Keep Apply-all confirmation
+on October 18, 2026, then approved three sequential implementation PRs: shared
+review/execution, private worker, and native Soft controls. Implementation starts
+from `9f7c0b2`. Native launches remain paused; automated/headless evidence does not
+establish real-window or memory-stability acceptance. No version bump or
+publication belongs to this implementation milestone.
 
 Documentation delivery and exact head/main CI evidence are tracked in
 [PR #123](https://github.com/chatarabdelilah/rproj/pull/123).
