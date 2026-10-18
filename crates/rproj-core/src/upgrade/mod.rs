@@ -8,6 +8,7 @@ use std::{
 };
 
 pub mod diff;
+pub mod protocol;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UpgradeFile {

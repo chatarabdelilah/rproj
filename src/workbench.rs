@@ -9,6 +9,7 @@ use rproj_core::operations::WORKER_FLAG;
 
 mod composition;
 mod creation;
+mod upgrade;
 
 pub(crate) fn internal_entry() -> Option<Result<()>> {
     let mut args = std::env::args_os().skip(1);
@@ -63,6 +64,18 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::CompositionJob(directory) => composition::job(&directory),
+        Operation::UpgradeSupport => {
+            println!("{}", rproj_core::upgrade::protocol::UPGRADE_PROTOCOL);
+            Ok(())
+        }
+        Operation::UpgradeContext => {
+            println!(
+                "{}",
+                serde_json::to_string(&upgrade::context(&std::env::current_dir()?)?)?
+            );
+            Ok(())
+        }
+        Operation::UpgradeJob(directory) => upgrade::job(&directory),
     }
 }
 
@@ -83,23 +96,30 @@ enum Operation {
     CreationJob(std::path::PathBuf),
     CompositionContext,
     CompositionJob(std::path::PathBuf),
+    UpgradeSupport,
+    UpgradeContext,
+    UpgradeJob(std::path::PathBuf),
 }
 
 fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation> {
     let verb = args.next().context("missing workbench operation")?;
-    if verb == "creation-job" || verb == "composition-job" {
+    if verb == "creation-job" || verb == "composition-job" || verb == "upgrade-job" {
         let directory = args.next().context("missing creation IPC directory")?;
         ensure!(args.next().is_none(), "unexpected workbench argument");
         return Ok(if verb == "creation-job" {
             Operation::CreationJob(directory.into())
-        } else {
+        } else if verb == "composition-job" {
             Operation::CompositionJob(directory.into())
+        } else {
+            Operation::UpgradeJob(directory.into())
         });
     }
     ensure!(args.next().is_none(), "unexpected workbench argument");
     match verb.to_str() {
         Some("creation-context") => Ok(Operation::CreationContext),
         Some("composition-context") => Ok(Operation::CompositionContext),
+        Some("upgrade-support") => Ok(Operation::UpgradeSupport),
+        Some("upgrade-context") => Ok(Operation::UpgradeContext),
         Some("catalog") => Ok(Operation::Catalog),
         Some("status") => Ok(Operation::Status),
         Some("logs") => Ok(Operation::Logs),

@@ -32,6 +32,8 @@ impl std::error::Error for OwnedTeardownUnconfirmed {}
 mod composition;
 #[path = "operations/creation.rs"]
 mod creation;
+#[path = "operations/upgrade.rs"]
+mod upgrade;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum WatchState {
@@ -468,6 +470,33 @@ mod tests {
         assert!(
             start.elapsed() < Duration::from_secs(10),
             "Inherited output pipes remained open after cancellation"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn owned_errors_distinguish_pre_spawn_from_post_spawn_reader_failure() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = execute_owned(
+            &root.path().join("missing.exe"),
+            &[],
+            root.path(),
+            &Cancellation::default(),
+            Arc::new(|_| {}),
+        )
+        .unwrap_err();
+        assert!(!missing.is::<OwnedTeardownUnconfirmed>());
+        let reader_failure = execute_owned(
+            Path::new("cmd.exe"),
+            &["/D", "/C", "echo fault-fixture"],
+            root.path(),
+            &Cancellation::default(),
+            Arc::new(|_| panic!("fixture output sink failure")),
+        )
+        .unwrap_err();
+        assert!(
+            reader_failure.is::<OwnedTeardownUnconfirmed>(),
+            "{reader_failure:#}"
         );
     }
 }

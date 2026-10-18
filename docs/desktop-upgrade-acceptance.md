@@ -18,6 +18,16 @@ storage placeholders are not rejected merely for being reparse points.
 Native controls/worker coverage and real-window acceptance remain separate.
 Native previews stay paused; no memory-stability pass is claimed.
 
+## Worker implementation checkpoint
+
+The [private worker](desktop-upgrade-worker.md) adds nine Windows behavior fixtures
+and their subprocess driver, plus two core protocol tests. These exercise real
+process ownership with disposable data and test-only workers; they do not run a
+native window or claim acceptance of external tools. Preparation remains read-only,
+including oversized/malformed source failures. Report and teardown uncertainty
+remain distinct. A replacement fault fixture verifies actual partial-write
+reporting and explicit retry planning. Delivery/CI evidence belongs to each PR.
+
 ## Confirmed automated evidence
 
 The local deterministic suite passes **30 checks**, with **28 numeric palette
