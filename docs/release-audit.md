@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## October 18: shared Upgrade delivered; private worker
+
+PR #124 merged at `7512771`. Reviewed head `3f8cc14` (run `39087235164`)
+and merged main (run `39087514571`) passed all seven executed CI jobs; merged
+local/remote branches are removed. Final local CodeRabbit review found zero
+findings across all ten changed files. The [private worker](desktop-upgrade-worker.md)
+now implements captured preparation and checked Apply with correlated, bounded
+reports and owned cancellation teardown. Worker/native delivery evidence remains
+separate from this completed shared checkpoint. Native launches remain paused.
+
 ## October 18: approved Upgrade shared implementation
 
 The owner approved the Soft unified-diff proposal and three implementation PRs

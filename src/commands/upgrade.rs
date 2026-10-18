@@ -173,6 +173,21 @@ impl UpgradePlan {
         identity: &str,
         before_write: &mut impl FnMut() -> Result<()>,
     ) -> Result<()> {
+        self.apply_with(project_dir, identity, before_write, &mut |pending, path| {
+            pending
+                .persist(path)
+                .map(|_| ())
+                .map_err(|error| error.error.into())
+        })
+    }
+
+    fn apply_with(
+        &self,
+        project_dir: &Path,
+        identity: &str,
+        before_write: &mut impl FnMut() -> Result<()>,
+        save: &mut impl FnMut(tempfile::NamedTempFile, &Path) -> Result<()>,
+    ) -> Result<()> {
         crate::interrupt::check()?;
         self.verify(project_dir)?;
         if self.rewrites.is_empty() {
@@ -211,7 +226,7 @@ impl UpgradePlan {
                 "{} changed before replacement; {saved} earlier upgrade files were updated",
                 path.display()
             );
-            pending.persist(&path).map_err(|error| error.error).with_context(|| {
+            save(pending, &path).with_context(|| {
                 format!("failed to save {}; {saved} earlier upgrade files were updated. Fix the error and re-run `rproj upgrade`.", path.display())
             })?;
             ui::ok(&format!("wrote {}", rewrite.relative));
@@ -250,7 +265,7 @@ fn ensure_unlinked(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn project_identity(project: &Path) -> Result<String> {
+pub(crate) fn project_identity(project: &Path) -> Result<String> {
     ensure_unlinked(project)?;
     let meta = fs::metadata(project)?;
     ensure!(meta.is_dir(), "Captured project is no longer a directory");
@@ -284,6 +299,19 @@ pub(crate) fn execute_review(
             false,
         )?)
     };
+    verify_review(review)?;
+    let current = prepare(&review.project)?;
+    ensure!(
+        current.review() == *review,
+        "Project files or generated configuration changed; explicitly Refresh review before applying. Nothing written."
+    );
+    current
+        .plan
+        .apply(&review.project, &review.identity, before_write)
+}
+
+pub(crate) fn verify_review(review: &UpgradeReview) -> Result<()> {
+    review.validate()?;
     ensure!(
         review.project.canonicalize()? == review.project
             && project_identity(&review.project)? == review.identity,
@@ -296,14 +324,7 @@ pub(crate) fn execute_review(
             relative
         );
     }
-    let current = prepare(&review.project)?;
-    ensure!(
-        current.review() == *review,
-        "Project files or generated configuration changed; explicitly Refresh review before applying. Nothing written."
-    );
-    current
-        .plan
-        .apply(&review.project, &review.identity, before_write)
+    Ok(())
 }
 
 fn require_released_wpt(manifest: Option<&str>) -> Result<()> {

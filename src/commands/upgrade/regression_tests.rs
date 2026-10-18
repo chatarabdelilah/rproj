@@ -149,3 +149,34 @@ fn linked_parent_is_refused_during_read_only_preparation() {
     assert!(format!("{error:#}").contains("linked"));
     assert_eq!(fs::read_dir(external.path()).unwrap().count(), 0);
 }
+
+#[test]
+fn failure_after_a_replacement_reports_partial_changes_and_preserves_record() {
+    let root = fixture();
+    let prepared = prepare(root.path()).unwrap();
+    let mut saved = 0;
+    let error = prepared
+        .plan
+        .apply_with(
+            &prepared.project_dir,
+            &prepared.identity,
+            &mut || Ok(()),
+            &mut |pending, path| {
+                if saved == 1 {
+                    anyhow::bail!("fixture replacement failure");
+                }
+                pending.persist(path).map_err(|e| e.error)?;
+                saved += 1;
+                Ok(())
+            },
+        )
+        .unwrap_err();
+    assert!(format!("{error:#}").contains("1 earlier upgrade files were updated"));
+    assert!(root.path().join(".gitignore").exists());
+    assert!(!root.path().join(".luaurc").exists());
+    assert_eq!(
+        fs::read_to_string(root.path().join("rproj.toml")).unwrap(),
+        "mode='expert'\npackage_workflow='none'\n"
+    );
+    assert_eq!(prepare(root.path()).unwrap().plan.rewrites.len(), 1);
+}
