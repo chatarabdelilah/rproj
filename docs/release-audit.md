@@ -1,5 +1,18 @@
 # Release-Hardening Audit
 
+## October 18: approved Upgrade shared implementation
+
+The owner approved the Soft unified-diff proposal and three implementation PRs
+against `9f7c0b2`. Shared review types and structured line numbers now live in
+core; terminal and future worker execution use the same checked CLI executor.
+New regression fixtures establish housekeeping bytes before extraction and cover
+read-only preparation, safe skips, tampered/stale plans, missing-target races,
+staging failures and linked parents. All 34 terminal Upgrade integration tests,
+the full CLI/core suite and strict Clippy pass locally. CodeRabbit's initial
+Windows reparse-point compatibility finding was corrected and the disposable
+junction test passes. Final review and exact delivery evidence belong to the PR.
+No native preview, release, publication or project-format change occurred.
+
 ## October 18: Upgrade design prototype
 
 Composition PR #122 merged at `490e2ee`: reviewed head `7c4639b` (run

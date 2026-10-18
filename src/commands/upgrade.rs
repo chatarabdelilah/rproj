@@ -39,9 +39,13 @@ use crate::config::PackageWorkflow;
 use crate::graph::{ProjectGraph, TestRunner};
 use crate::steps::{gitignore, jest, quality, testez, vscode};
 use crate::ui;
+use rproj_core::upgrade::{SkippedFile, UpgradeFile, UpgradeReview};
 
 mod diff;
 mod review;
+
+#[cfg(test)]
+mod regression_tests;
 
 pub(super) enum ReviewOutcome {
     Apply(PreparedUpgrade),
@@ -49,24 +53,56 @@ pub(super) enum ReviewOutcome {
     UpToDate(PreparedUpgrade),
 }
 
-pub(super) struct PreparedUpgrade {
+pub(crate) struct PreparedUpgrade {
     project_dir: PathBuf,
+    identity: String,
     plan: UpgradePlan,
 }
 
 impl PreparedUpgrade {
     pub(super) fn execute(self) -> Result<()> {
         self.summary();
+        execute_review(&self.review(), &mut || Ok(()))?;
         if self.plan.rewrites.is_empty() {
-            self.plan.verify(&self.project_dir)?;
             if self.plan.skipped.is_empty() {
                 ui::ok("already up to date - no upgrade changes needed");
             } else {
                 ui::skip("no applicable upgrade changes; skipped files were left unchanged");
             }
-            Ok(())
-        } else {
-            self.plan.apply(&self.project_dir)
+        }
+        Ok(())
+    }
+
+    pub(crate) fn review(&self) -> UpgradeReview {
+        UpgradeReview {
+            project: self.project_dir.clone(),
+            identity: self.identity.clone(),
+            originals: self.plan.originals.clone(),
+            files: self
+                .plan
+                .rewrites
+                .iter()
+                .map(|f| UpgradeFile {
+                    relative: f.relative.clone(),
+                    contents: f.contents.clone(),
+                    reason: f.reason.into(),
+                    creating: f.creating,
+                })
+                .collect(),
+            skipped: self
+                .plan
+                .skipped
+                .iter()
+                .map(|reason| SkippedFile {
+                    relative: if reason.starts_with("tests/") {
+                        "tests/.luaurc"
+                    } else {
+                        ".luaurc"
+                    }
+                    .into(),
+                    reason: (*reason).into(),
+                })
+                .collect(),
         }
     }
 
@@ -124,20 +160,31 @@ impl UpgradePlan {
             let path = project_dir.join(relative);
             ensure!(
                 read_optional(&path)? == *original,
-                "{} changed while upgrade was being reviewed. Nothing written; re-run `rproj upgrade` to review the current files.",
+                "{} changed while upgrade was being reviewed. Nothing written to upgrade targets; staging directories may remain. Re-run `rproj upgrade` to review the current files.",
                 path.display()
             );
         }
         Ok(())
     }
 
-    fn apply(&self, project_dir: &Path) -> Result<()> {
-        let _guard = crate::background_watch::mutation_guard(Some(project_dir), false)?;
+    fn apply(
+        &self,
+        project_dir: &Path,
+        identity: &str,
+        before_write: &mut impl FnMut() -> Result<()>,
+    ) -> Result<()> {
+        crate::interrupt::check()?;
         self.verify(project_dir)?;
+        if self.rewrites.is_empty() {
+            return Ok(());
+        }
+        // Staging may create parent directories, even before a target is replaced.
+        before_write()?;
         let staged: Vec<_> = self
             .rewrites
             .iter()
             .map(|rewrite| {
+                crate::interrupt::check()?;
                 let path = project_dir.join(&rewrite.relative);
                 let existing = self.originals[&rewrite.relative].is_some();
                 crate::file_replace::stage(&path, rewrite.contents.as_bytes(), existing)
@@ -153,7 +200,17 @@ impl UpgradePlan {
         self.verify(project_dir)?;
         ui::section(&format!("Upgrading {}", project_dir.display()));
         for (saved, (rewrite, pending)) in self.rewrites.iter().zip(staged).enumerate() {
+            crate::interrupt::check().with_context(|| format!("Upgrade cancelled; {saved} earlier upgrade files were updated; partial changes may remain"))?;
+            ensure!(
+                project_identity(project_dir)? == identity,
+                "Captured project changed during Upgrade; {saved} earlier upgrade files were updated"
+            );
             let path = project_dir.join(&rewrite.relative);
+            ensure!(
+                read_optional(&path)? == self.originals[&rewrite.relative],
+                "{} changed before replacement; {saved} earlier upgrade files were updated",
+                path.display()
+            );
             pending.persist(&path).map_err(|error| error.error).with_context(|| {
                 format!("failed to save {}; {saved} earlier upgrade files were updated. Fix the error and re-run `rproj upgrade`.", path.display())
             })?;
@@ -164,11 +221,89 @@ impl UpgradePlan {
 }
 
 fn read_optional(path: &Path) -> Result<Option<String>> {
+    ensure_unlinked(path)?;
     match fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
     }
+}
+
+fn ensure_unlinked(path: &Path) -> Result<()> {
+    for cursor in path.ancestors() {
+        match fs::symlink_metadata(cursor) {
+            Ok(meta) => {
+                // Cloud-storage reparse points are not necessarily links.
+                let linked = meta.file_type().is_symlink();
+                ensure!(
+                    !linked,
+                    "{} is linked; use regular project files before Upgrade",
+                    cursor.display()
+                );
+            }
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(error).with_context(|| format!("Cannot inspect {}", cursor.display()));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn project_identity(project: &Path) -> Result<String> {
+    ensure_unlinked(project)?;
+    let meta = fs::metadata(project)?;
+    ensure!(meta.is_dir(), "Captured project is no longer a directory");
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        Ok(format!("created:{}", meta.creation_time()))
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        Ok(format!("{}:{}", meta.dev(), meta.ino()))
+    }
+    #[cfg(not(any(windows, unix)))]
+    {
+        Ok(format!("{:?}", meta.created()?))
+    }
+}
+
+pub(crate) fn execute_review(
+    review: &UpgradeReview,
+    before_write: &mut impl FnMut() -> Result<()>,
+) -> Result<()> {
+    review.validate()?;
+    crate::interrupt::check()?;
+    let _guard = if review.files.is_empty() {
+        None
+    } else {
+        Some(crate::background_watch::mutation_guard(
+            Some(&review.project),
+            false,
+        )?)
+    };
+    ensure!(
+        review.project.canonicalize()? == review.project
+            && project_identity(&review.project)? == review.identity,
+        "Captured project changed; explicitly Refresh review before applying"
+    );
+    for (relative, original) in &review.originals {
+        ensure!(
+            read_optional(&review.project.join(relative))? == *original,
+            "{} changed while upgrade was being reviewed. Nothing written; explicitly Refresh review or re-run `rproj upgrade`.",
+            relative
+        );
+    }
+    let current = prepare(&review.project)?;
+    ensure!(
+        current.review() == *review,
+        "Project files or generated configuration changed; explicitly Refresh review before applying. Nothing written."
+    );
+    current
+        .plan
+        .apply(&review.project, &review.identity, before_write)
 }
 
 fn require_released_wpt(manifest: Option<&str>) -> Result<()> {
@@ -301,7 +436,12 @@ fn record_choice(apply: bool, assumed: bool) {
     );
 }
 
-fn prepare(project_dir: &Path) -> Result<PreparedUpgrade> {
+pub(crate) fn prepare(project_dir: &Path) -> Result<PreparedUpgrade> {
+    let project_dir = project_dir
+        .canonicalize()
+        .context("Cannot open the captured project")?;
+    let identity = project_identity(&project_dir)?;
+    let project_dir = project_dir.as_path();
     let mut upgrade = UpgradePlan::default();
     if upgrade.read(project_dir, "default.project.json")?.is_none() {
         bail!(
@@ -335,6 +475,7 @@ fn prepare(project_dir: &Path) -> Result<PreparedUpgrade> {
     let upgrade = plan(project_dir, &project, &packages, workflow, runner, upgrade)?;
     Ok(PreparedUpgrade {
         project_dir: project_dir.to_owned(),
+        identity,
         plan: upgrade,
     })
 }

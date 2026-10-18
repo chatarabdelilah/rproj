@@ -7,6 +7,8 @@ pub mod creation;
 pub mod desktop_state;
 pub mod inspection;
 pub mod operations;
+#[doc(hidden)]
+pub mod upgrade;
 
 pub use inspection::{
     ActionAvailability, Diagnostic, DiagnosticSeverity, FileSnapshot, FileState, PackageDependency,

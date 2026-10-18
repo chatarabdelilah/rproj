@@ -3,7 +3,20 @@
 October 18, 2026. This records design-prototype validation, not native execution
 or Windows acceptance. The owner selected native Upgrade as the next parity gap,
 wireframe-first delivery and unified diffs. The [design](desktop-upgrade-design.md)
-records the proposed behavior; visual approval remains pending.
+records the behavior approved by the owner for native implementation.
+
+## Shared implementation checkpoint
+
+The first implementation PR extracts the existing bounded diff into core with
+old/new line positions and captured review data. Six focused core checks and
+twelve CLI Upgrade unit/terminal checks pass, including six executor regression
+fixtures. All 34 Upgrade integration cases and the full CLI/core suite pass;
+strict CLI/core Clippy passes. Fixtures use disposable projects and no network
+tools. The junction fixture confirms that linked parents are refused; cloud
+storage placeholders are not rejected merely for being reparse points.
+
+Native controls/worker coverage and real-window acceptance remain separate.
+Native previews stay paused; no memory-stability pass is claimed.
 
 ## Confirmed automated evidence
 
