@@ -1,7 +1,8 @@
 # Upgrade proposal acceptance
 
-October 18, 2026. This records design-prototype validation, not native execution
-or Windows acceptance. The owner selected native Upgrade as the next parity gap,
+Updated October 19, 2026. This records conversation-prototype validation and
+automated worker/native checkpoints, without claiming real-window acceptance.
+The owner selected native Upgrade as the next parity gap,
 wireframe-first delivery and unified diffs. The [design](desktop-upgrade-design.md)
 records the behavior approved by the owner for native implementation.
 
@@ -29,6 +30,22 @@ remain distinct. A replacement fault fixture verifies actual partial-write
 reporting and explicit retry planning. Delivery/CI evidence belongs to each PR.
 
 ## Confirmed automated evidence
+
+### Native implementation
+
+The [native controls](desktop-upgrade-native.md) pass all 64 desktop tests,
+including four new pure checks and ten new headless GPUI interactions. These
+exercise actual Kit controls and viewport layout, not native preview launches.
+The captured path stays fixed while scrolling, minimum-size Activity and both
+themes remain usable in the headless layout, and keyboard End reaches the last
+row of a 2,203-row wrapped diff. The FileText action icon is bundled. An actual
+bundled-CLI test passes support/context/preparation without changing its project;
+the complete workbench integration suite has four passing cases.
+
+Real-window/memory-stability acceptance remains deferred. The following earlier
+evidence describes the separate conversation proposal, not these native tests.
+
+### Conversation proposal
 
 The local deterministic suite passes **30 checks**, with **28 numeric palette
 comparisons** across Soft Light/Dark text, disabled labels, selection, diff rows,
@@ -74,8 +91,10 @@ host Lucide rendering, System appearance changes and scaling are not passes.
 Native preview launches remain paused. The existing memory-stability problem is
 unresolved; no OS troubleshooting or VM setup belongs to this milestone. Real
 project mutation, external-tool behavior, process-tree teardown and other-platform
-desktop acceptance are not established by this local simulation. No Rust, public
-API, protocol, persisted format, preference schema, version or publication changed.
+desktop acceptance are not established by the conversation simulation. The
+prototype pass changed no Rust, public API, protocol, persisted format,
+preference schema, version or publication; native runtime changes are recorded
+in the implementation checkpoints above.
 
 ## One-minute design review
 
@@ -86,6 +105,10 @@ API, protocol, persisted format, preference schema, version or publication chang
 3. Choose Changes and a skipped file, then select `.luaurc`; check that it shows
    an explanation and stays separate from proposed writes (20 seconds).
 
-Native implementation planning follows the owner's design decision. Delivery
-evidence, including exact head/main CI and merged-branch cleanup, belongs to the
-[design documentation PR #123](https://github.com/chatarabdelilah/rproj/pull/123).
+The owner approved the design and native implementation plan. The
+[design documentation PR #123](https://github.com/chatarabdelilah/rproj/pull/123)
+records prototype delivery. Implementation delivery evidence, including exact
+head/main CI and merged-branch cleanup, belongs to the shared review/executor
+[PR #124](https://github.com/chatarabdelilah/rproj/pull/124), private worker
+[PR #125](https://github.com/chatarabdelilah/rproj/pull/125) and subsequent native
+controls PR. These automated checkpoints do not establish real-window acceptance.

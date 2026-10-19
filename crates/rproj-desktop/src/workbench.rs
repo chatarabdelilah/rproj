@@ -4,6 +4,7 @@ mod operation;
 mod theme;
 #[cfg(test)]
 mod ui_tests;
+mod upgrade;
 mod view;
 use operation::{OperationPresentation, RunStatus, WatchSwitch};
 
@@ -47,6 +48,8 @@ enum Operation {
     CreateProject,
     PrepareComposition,
     ApplyComposition,
+    PrepareUpgrade,
+    ApplyUpgrade,
 }
 impl Operation {
     fn cancellable(self) -> bool {
@@ -58,6 +61,8 @@ impl Operation {
                 | Self::CreateProject
                 | Self::PrepareComposition
                 | Self::ApplyComposition
+                | Self::PrepareUpgrade
+                | Self::ApplyUpgrade
         )
     }
     fn worker(self) -> Option<WorkerOperation> {
@@ -70,7 +75,9 @@ impl Operation {
             Self::PrepareCreation
             | Self::CreateProject
             | Self::PrepareComposition
-            | Self::ApplyComposition => return None,
+            | Self::ApplyComposition
+            | Self::PrepareUpgrade
+            | Self::ApplyUpgrade => return None,
         })
     }
 }
@@ -107,6 +114,12 @@ impl Section {
 }
 
 enum Event {
+    UpgradeSupport(Result<(), String>),
+    UpgradePrepared(u64, u64, Result<upgrade::Preparation, String>),
+    UpgradeApplied(
+        u64,
+        Result<rproj_core::upgrade::protocol::UpgradeOutcome, String>,
+    ),
     CompositionContext(
         u64,
         Box<
@@ -300,6 +313,11 @@ impl Activity {
 }
 
 pub struct Workbench {
+    upgrade: upgrade::UpgradeSession,
+    upgrade_focus: FocusHandle,
+    upgrade_diff_focus: FocusHandle,
+    upgrade_list: ListState,
+    upgrade_list_width: Pixels,
     composition: composition::CompositionSession,
     composition_inputs: composition::CompositionInputs,
     creation: creation::CreationSession,
@@ -404,6 +422,11 @@ impl Workbench {
             }
         });
         let mut view = Self {
+            upgrade: upgrade::UpgradeSession::default(),
+            upgrade_focus: cx.focus_handle(),
+            upgrade_diff_focus: cx.focus_handle().tab_stop(true),
+            upgrade_list: ListState::new(0, ListAlignment::Top, px(40.)),
+            upgrade_list_width: px(0.),
             composition: composition::CompositionSession::default(),
             composition_inputs,
             creation: creation::CreationSession::default(),
@@ -465,6 +488,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.upgrade.visible = false;
         self.composition.visible = false;
         self.creation.visible = false;
         self.pending_switch = None;
@@ -481,6 +505,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.upgrade.visible = false;
         self.composition.visible = false;
         self.pending_switch = None;
         self.watch_log_request.invalidate();
@@ -588,6 +613,11 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::UpgradeSupport(result) => self.upgrade.support = Some(result),
+                Event::UpgradePrepared(id, revision, result) => {
+                    self.accept_upgrade_prepared(id, revision, result, cx)
+                }
+                Event::UpgradeApplied(id, result) => self.accept_upgrade_result(id, result, cx),
                 Event::CompositionContext(id, result) => {
                     self.composition.accept_context(id, *result)
                 }
@@ -634,6 +664,7 @@ impl Workbench {
                         Ok(client) => {
                             self.client = Some(client);
                             self.client_error = None;
+                            self.probe_upgrade();
                             self.poll_status();
                             self.load_creation_context(cx);
                         }
@@ -894,7 +925,7 @@ impl Workbench {
     }
 
     fn start_for(&mut self, operation: Operation, project: PathBuf, cx: &mut Context<Self>) {
-        if self.running.is_some() {
+        if self.running.is_some() || self.teardown_uncertain() {
             return;
         }
         let Some(client) = self.client.clone() else {
@@ -944,6 +975,8 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::CreateProject => "Creating project",
         Operation::PrepareComposition => "Preparing composition",
         Operation::ApplyComposition => "Applying composition",
+        Operation::PrepareUpgrade => "Preparing configuration review",
+        Operation::ApplyUpgrade => "Applying configuration changes",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

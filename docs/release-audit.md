@@ -1,5 +1,24 @@
 # Release-Hardening Audit
 
+## October 19: native Upgrade automated checkpoint
+
+Private worker PR #125 merged at `2439696`: reviewed head `bc8b7f3` (run
+`39088122424`) and merged main (run `39088376942`) passed all seven executed
+jobs, and merged branches are removed. Final local CodeRabbit review found zero
+findings across all thirteen files; a new runner fixture confirmed the existing
+pre-spawn/post-spawn error distinction raised by the initial review.
+
+The [native Soft controls](desktop-upgrade-native.md) implement the approved
+captured review and Apply-all flow. All 64 desktop tests pass, including ten new
+headless GPUI interactions and four pure state/diff checks. A new actual bundled
+CLI boundary test verifies read-only Upgrade support/context/preparation; all
+four workbench integration tests pass. Initial headless failures exposed a
+zero-height diff parent and keyboard scrolling through unmeasured rows; both are
+corrected and covered. Kit disabled-state flags are absent for these buttons,
+so tests exercise blocked activation rather than treating absence as a pass.
+Native launches stay paused; real-window/memory/scaling acceptance remains
+unverified. No release/version/publication or configuration schema changed.
+
 ## October 18: shared Upgrade delivered; private worker
 
 PR #124 merged at `7512771`. Reviewed head `3f8cc14` (run `39087235164`)

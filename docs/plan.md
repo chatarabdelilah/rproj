@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 18, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 19, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 18: approved native Upgrade implementation.**
+**Current priority, October 19: approved native Upgrade implementation.**
 Existing-project composition delivery is complete through PR #122 at `490e2ee`;
 all seven executed reviewed-head and merged-main CI jobs passed, and its merged
 branches are removed. The owner selected native Upgrade next, with a separate
@@ -29,8 +29,13 @@ simulation/DOM checks and 28 numeric contrast comparisons pass; the
 native previews paused. The owner approved the design and three sequential PRs:
 shared review/execution, private worker, then native controls. The first PR adds
 captured review data and shared structured diffs, retaining the authoritative
-CLI planner/executor. Native controls and real-window acceptance are not yet
-complete; the memory-stability pause remains in force.
+CLI planner/executor. Shared work merged in PR #124 (`7512771`), followed by the
+private worker in PR #125 (`2439696`); all seven executed head/main CI jobs passed
+for each, and their merged branches are removed. The [native controls](desktop-upgrade-native.md)
+now pass 64 desktop tests and the actual bundled-CLI read-only preparation test.
+Automated native checks and local review pass; exact delivery evidence belongs
+to the implementation PR. Real-window acceptance remains unverified; the
+memory-stability pause stays in force.
 
 **Completed existing-project composition implementation:**
 The owner selected additions-only editing with an impact review and a wireframe

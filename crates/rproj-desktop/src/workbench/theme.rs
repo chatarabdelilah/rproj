@@ -115,6 +115,14 @@ mod tests {
             let a = luminance(&c.primary);
             let b = luminance(&c.primary_foreground);
             assert!((a.max(b) + 0.05) / (a.min(b) + 0.05) >= 4.5);
+            for text in [&c.primary, &c.danger] {
+                let a = luminance(&c.background);
+                let b = luminance(text);
+                assert!(
+                    (a.max(b) + 0.05) / (a.min(b) + 0.05) >= 4.5,
+                    "Diff text must remain readable"
+                );
+            }
         }
     }
 }

@@ -20,6 +20,39 @@ fn matching_cli_worker_serves_the_shared_catalog() {
     assert!(!profile.caveats.is_empty());
 }
 
+#[cfg(windows)]
+#[test]
+fn real_bundled_worker_prepares_upgrade_read_only() {
+    use rproj_core::{operations::Cancellation, upgrade::protocol::UpgradePreparation};
+    let project = tempfile::Builder::new()
+        .prefix("rproj real Upgrade 世界 ")
+        .tempdir()
+        .unwrap();
+    let record = "mode='expert'\npackage_workflow='none'\n";
+    fs::write(project.path().join("rproj.toml"), record).unwrap();
+    fs::write(project.path().join("default.project.json"), "{}\n").unwrap();
+    let client = WorkbenchClient::new(cli()).unwrap();
+    client.upgrade_support().unwrap();
+    let context = client.upgrade_context(project.path()).unwrap();
+    let prepared = client
+        .prepare_upgrade(context, &Cancellation::default(), |_| {})
+        .unwrap();
+    let UpgradePreparation::Prepared(review) = prepared else {
+        panic!("Expected a real worker review: {prepared:?}")
+    };
+    assert_eq!(review.files.len(), 2);
+    assert!(review.diff(0).is_some());
+    assert_eq!(
+        fs::read_to_string(project.path().join("rproj.toml")).unwrap(),
+        record
+    );
+    assert_eq!(
+        fs::read_to_string(project.path().join("default.project.json")).unwrap(),
+        "{}\n"
+    );
+    assert_eq!(fs::read_dir(project.path()).unwrap().count(), 2);
+}
+
 #[test]
 fn differently_versioned_worker_is_rejected_before_operations() {
     let fixture = tempfile::Builder::new()
