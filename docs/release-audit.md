@@ -1,5 +1,23 @@
 # Release-Hardening Audit
 
+## October 19: Configure Tools conversation proposal
+
+Native Upgrade PR #126 merged at `820dae7`: reviewed head `b7f35fb` (run
+`39192608337`) and merged main (run `39192967246`) passed all seven executed jobs
+on their first attempts; merged branches are removed. Final local CodeRabbit
+review found zero issues across seventeen files. Version remains 0.22.0.
+
+The approved next scope is a separate Soft Settings → Review wireframe for the
+four existing configuration targets, one captured draft and wait-for-Save close
+behavior. The [design](desktop-tool-configuration-design.md) and
+[acceptance](desktop-tool-configuration-acceptance.md) record 38 passing local
+checks and 28 numeric contrast comparisons. Initial dialog focus-restoration
+failures were fixed and regression checks pass. Source-change races and explicit
+JSON null values receive dedicated fixtures. Earlier wireframes remain unchanged.
+Actual inline rendering and native behavior remain unverified. No Rust, APIs,
+worker protocols, configuration formats or release state changed; native previews
+remain paused and the memory-stability problem remains unresolved.
+
 ## October 19: native Upgrade automated checkpoint
 
 Private worker PR #125 merged at `2439696`: reviewed head `bc8b7f3` (run
