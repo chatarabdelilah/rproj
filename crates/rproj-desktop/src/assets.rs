@@ -1,7 +1,10 @@
 use gpui_kit::{AssetSource, SharedString};
 use std::borrow::Cow;
 
-gpui_kit::assets::icon_assets!(WorkbenchIcons, [Package, Wrench, FlaskConical, Plus]);
+gpui_kit::assets::icon_assets!(
+    WorkbenchIcons,
+    [Package, Wrench, FlaskConical, Plus, FileText]
+);
 
 pub(crate) struct Assets;
 
@@ -37,6 +40,7 @@ mod tests {
             IconName::FolderOpen,
             IconName::ChevronDown,
             IconName::ChevronUp,
+            IconName::FileText,
         ] {
             assert!(!Assets.load(&icon.path()).unwrap().unwrap().is_empty());
         }

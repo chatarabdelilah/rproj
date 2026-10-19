@@ -48,6 +48,7 @@ impl Workbench {
     }
     pub(in super::super) fn show_creation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.composition.visible = false;
+        self.upgrade.visible = false;
         if self.creation.draft.is_none() {
             self.creation.draft = Some(CreationDraft::new(String::new()));
             self.creation.step = Step::Project;
@@ -146,7 +147,7 @@ impl Workbench {
         &mut self,
         operation: Operation,
     ) -> Option<(u64, Cancellation, WorkbenchClient)> {
-        if self.creation.teardown_uncertain || self.composition.teardown_uncertain {
+        if self.teardown_uncertain() {
             self.creation.error = Some("Worker teardown is unconfirmed. Inspect Activity and the destination; new creation remains disabled until cleanup can be confirmed.".into());
             return None;
         }
@@ -407,13 +408,16 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if self.creation.teardown_uncertain || self.composition.teardown_uncertain {
+        if self.teardown_uncertain() {
             self.operations.expanded = true;
             cx.notify();
             return false;
         }
         if self.creation.close_pending || self.creation.close_dialog {
             return false;
+        }
+        if let Some(decision) = self.upgrade_close(window, cx) {
+            return decision;
         }
         if !self.creation_running()
             && let Some(decision) = self.composition_close(window, cx)

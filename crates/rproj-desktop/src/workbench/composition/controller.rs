@@ -24,6 +24,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         self.creation.visible = false;
+        self.upgrade.visible = false;
         self.composition.visible = true;
         self.focus_composition(window, cx);
         cx.notify();
@@ -62,6 +63,7 @@ impl Workbench {
         };
         let id = self.composition.begin_load(project.clone());
         self.creation.visible = false;
+        self.upgrade.visible = false;
         self.composition_inputs
             .query
             .update(cx, |input, cx| input.set_value("", window, cx));
@@ -125,10 +127,7 @@ impl Workbench {
         &mut self,
         operation: Operation,
     ) -> Option<(u64, Cancellation, WorkbenchClient)> {
-        if self.running.is_some()
-            || self.composition.teardown_uncertain
-            || self.creation.teardown_uncertain
-        {
+        if self.running.is_some() || self.teardown_uncertain() {
             return None;
         }
         let project = self.composition.project.clone()?;
