@@ -25,6 +25,8 @@ impl Workbench {
             .map(|c| c.name.clone())
             .unwrap_or_else(|| "captured project".into());
         let has_composition = self.composition.project.is_some();
+        let has_settings = self.settings.project.is_some();
+        let settings_name = self.settings.name();
         let has_upgrade = self.upgrade.project.is_some();
         let upgrade_name = self.upgrade.name();
         let can_recheck = self.client.is_some() && !self.creation_running();
@@ -84,6 +86,16 @@ impl Workbench {
                 let create = owner.clone();
                 let recheck = owner.clone();
                 let composition = owner.clone();
+                if has_settings {
+                    let settings = owner.clone();
+                    menu = menu.item(
+                        PopupMenuItem::new(format!("Resume settings for {settings_name}"))
+                            .on_click(move |_, window, cx| {
+                                let _ =
+                                    settings.update(cx, |this, cx| this.show_settings(window, cx));
+                            }),
+                    );
+                }
                 if has_upgrade {
                     let upgrade = owner.clone();
                     menu = menu.item(
@@ -181,12 +193,14 @@ impl Workbench {
                                 self.section == section
                                     && !self.creation.visible
                                     && !self.composition.visible
-                                    && !self.upgrade.visible,
+                                    && !self.upgrade.visible
+                                    && !self.settings.visible,
                             )
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.section = section;
                                 this.creation.visible = false;
                                 this.composition.visible = false;
+                                this.settings.visible = false;
                                 this.upgrade.visible = false;
                                 cx.notify();
                             }))
@@ -591,27 +605,34 @@ impl Workbench {
                     .tooltip(move |window, cx| Tooltip::new(summary.clone()).build(window, cx))
                     .child(self.operations.compact_summary()),
             )
-            .when_some(self.running.as_ref(), |view, (operation, _)| {
-                view.child(
-                    Button::new("cancel-operation")
-                        .label("Cancel")
-                        .disabled(
-                            !operation.cancellable()
-                                || self
-                                    .operations
-                                    .latest
-                                    .as_ref()
-                                    .is_some_and(|run| run.status == RunStatus::Cancelling),
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            if let Some((_, cancellation)) = &this.running {
-                                cancellation.cancel();
-                                this.operations.cancel();
-                                cx.notify();
-                            }
-                        })),
-                )
-            })
+            .when_some(
+                self.running
+                    .as_ref()
+                    .filter(|(operation, _)| operation.cancellable()),
+                |view, (operation, _)| {
+                    view.child(
+                        Button::new("cancel-operation")
+                            .label("Cancel")
+                            .disabled(
+                                !operation.cancellable()
+                                    || self
+                                        .operations
+                                        .latest
+                                        .as_ref()
+                                        .is_some_and(|run| run.status == RunStatus::Cancelling),
+                            )
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                if let Some((operation, cancellation)) = &this.running
+                                    && operation.cancellable()
+                                {
+                                    cancellation.cancel();
+                                    this.operations.cancel();
+                                    cx.notify();
+                                }
+                            })),
+                    )
+                },
+            )
             .into_any_element()
     }
 
@@ -671,11 +692,16 @@ impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.upgrade_list_width != window.viewport_size().width {
             self.upgrade_list_width = window.viewport_size().width;
+            let settings_offset = self.settings_list.logical_scroll_top();
+            self.settings_list.reset(self.settings.row_count());
+            self.settings_list.scroll_to(settings_offset);
             let offset = self.upgrade_list.logical_scroll_top();
             self.upgrade_list.reset(self.upgrade.row_count());
             self.upgrade_list.scroll_to(offset);
         }
-        let title = if self.upgrade.visible {
+        let title = if self.settings.visible {
+            format!("Tool settings for {}", self.settings.name())
+        } else if self.upgrade.visible {
             format!("Review configuration for {}", self.upgrade.name())
         } else if self.composition.visible {
             self.composition
@@ -691,7 +717,13 @@ impl Render for Workbench {
                 .and_then(|snapshot| snapshot.name.clone())
                 .unwrap_or_else(|| "Project workspace".into())
         };
-        let content = if self.upgrade.visible {
+        let content = if self.settings.visible {
+            self.render_settings(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            )
+        } else if self.upgrade.visible {
             self.render_upgrade(
                 window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
                     < px(600.),
@@ -721,6 +753,7 @@ impl Render for Workbench {
         let content = if !self.composition.visible
             && !self.creation.visible
             && !self.upgrade.visible
+            && !self.settings.visible
             && matches!(self.section, Section::Overview | Section::Dependencies)
         {
             div()
@@ -736,7 +769,24 @@ impl Render for Workbench {
         } else {
             content
         };
-        let content = if self.composition.visible
+        let content = if !self.settings.visible
+            && !self.creation.visible
+            && !self.composition.visible
+            && !self.upgrade.visible
+            && self.section == Section::Tools
+        {
+            div()
+                .v_flex()
+                .size_full()
+                .min_h_0()
+                .child(self.settings_entry(cx))
+                .child(div().flex_1().min_h_0().child(content))
+                .into_any_element()
+        } else {
+            content
+        };
+        let content = if self.settings.visible
+            || self.composition.visible
             || self.creation.visible
             || self.upgrade.visible
             || self.section == Section::Dependencies
@@ -837,7 +887,8 @@ impl Render for Workbench {
                                                         self.inspecting
                                                             || self.project.is_none()
                                                             || self.composition.visible
-                                                            || self.upgrade.visible,
+                                                            || self.upgrade.visible
+                                                            || self.settings.visible,
                                                     )
                                                     .on_click(cx.listener(|this, _, _, cx| {
                                                         this.inspect();
@@ -851,6 +902,7 @@ impl Render for Workbench {
                                             !self.creation.visible
                                                 && !self.composition.visible
                                                 && !self.upgrade.visible
+                                                && !self.settings.visible
                                         }),
                                         |view, path| {
                                             view.child(

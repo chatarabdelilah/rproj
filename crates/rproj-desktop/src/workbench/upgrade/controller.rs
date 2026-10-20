@@ -13,6 +13,7 @@ impl Workbench {
         self.creation.teardown_uncertain
             || self.composition.teardown_uncertain
             || self.upgrade.teardown_uncertain
+            || self.settings.teardown_uncertain
     }
     pub(in super::super) fn upgrade_running(&self) -> bool {
         self.running.as_ref().is_some_and(|(op, _)| {
@@ -31,6 +32,7 @@ impl Workbench {
         });
     }
     pub(in super::super) fn show_upgrade(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.settings.visible = false;
         self.creation.visible = false;
         self.composition.visible = false;
         self.upgrade.visible = true;

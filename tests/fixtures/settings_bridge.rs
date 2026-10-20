@@ -9,7 +9,7 @@ fn main() {
     let mode = fs::read_to_string(root.join("mode")).unwrap();
     if mode == "old-worker" { eprintln!("unknown workbench operation"); std::process::exit(2); }
     assert_eq!(args[0], "--rproj-workbench");
-    if args[1] == "settings-support" { println!("1"); return; }
+    if args[1] == "settings-support" { println!("2"); return; }
     assert_eq!(args[1], "settings-job");
     let report = std::path::Path::new(&args[2]).join("report.json");
     if mode == "missing-report" { println!("Succeeded (untrustworthy fixture log)"); return; }

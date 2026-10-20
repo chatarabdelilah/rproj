@@ -1,5 +1,17 @@
 # Release-Hardening Audit
 
+## October 21: Native Configure Tools controls
+
+PR #129 merged at `e680b77`; actual reviewed head `16e7858` (CI `39388513452`)
+and merged main (CI `39443772804`) passed all seven executed jobs on first
+attempts, and branches were removed. The third branch adds the four-target native
+Settings → Review flow, retained ownership, typed controls, complete wrapped diffs
+and uncancellable Save/close protection. Local CLI/core: 676 passed, 24 ignored;
+headless desktop: 83 passed. Failed attempts and recovery are recorded in
+[acceptance](desktop-tool-configuration-acceptance.md). Final review, packaging
+and head/main CI evidence belong to the delivery PR. Native launches remain
+paused; version 0.22.0 is unchanged.
+
 ## October 20: Configure Tools private worker
 
 Shared PR #128 merged at `95bf7b2`. Reviewed head `b4b116d` (run `39348443855`)
@@ -3147,7 +3159,7 @@ the implementing PR.
 
 [PR #40](https://github.com/chatarabdelilah/rproj/pull/40) merged at `efe6615`.
 Final local CodeRabbit review reported zero findings on `096b004`; reviewed-head
-CI `36751976197` and merged-main CI `36760836260` passed. Completed branches
+CI `36761976197` and merged-main CI `36760836260` passed. Completed branches
 were removed.
 
 ## Unreleased: shared creation choices and validation

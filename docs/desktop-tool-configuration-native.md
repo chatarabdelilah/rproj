@@ -73,6 +73,39 @@ saving and confirms that this becomes uncertain. A separate integration test use
 the real bundled CLI for read-only preparation in a disposable directory. Save
 fixtures isolate Watch storage through the test bridge.
 
-Native controls remain the third PR. This checkpoint does not claim native
-rendering, memory stability, Windows real-window/scaling acceptance or macOS/Linux
-desktop acceptance. Native previews remain paused.
+Private worker PR #129 merged at `e680b77`. Reviewed head `16e7858`
+(CI `39388513452`) and merged main (CI `39443772804`) passed all seven executed
+jobs on their first attempts; merged branches are removed.
+
+## Native controls — third PR
+
+Tools now offers Configure tool settings for recorded and unrecorded folders.
+The four catalog targets use explicit typed choices, exact signed-integer input,
+per-field Revert and default-Keep consent for unfamiliar values. Current values,
+suggested defaults and pending edits stay separate. The worker supplies blocked
+field explanations by probing the existing writer against captured bytes, without
+filesystem writes or a second legacy-key policy. This extends the unreleased
+private settings protocol to version 2; older workers disable only this editor.
+
+A session-only draft retains its original owner across browsing and closure.
+Creation/composition drafts and the Upgrade review remain independent. Preparation
+runs off-thread; editing invalidates Review. Missing/empty files, actual writer
+formatting and cleanup appear in the complete wrapped diff. Settings and Upgrade
+share viewport rendering, retaining all rows while measuring visible rows only.
+Targets stack below 600 logical pixels of main-content width. Long paths remain
+horizontally accessible; fields scroll at the minimum window size.
+
+Named Save confirmation defaults to Keep reviewing and rechecks review/Watch
+identity. Same-project Watch blocks Save, with Stop separate; other Watch ownership
+is unchanged. Save has no Cancel action. Captured Activity output, height, filtering
+and manual collapse remain intact. Success advances the parsed baseline; failure
+keeps edits; uncertainty requires explicit reload. Close after save waits for
+confirmed completion and then protects every remaining dirty draft. Unconfirmed
+teardown blocks closing and mutations. Dismissals restore workbench/flow focus.
+
+Local validation: 676 CLI/core tests passed, 24 ignored; 83 headless desktop tests
+passed. Formatting, strict CLI/core/desktop Clippy, fresh archive verification and portable
+non-window smoke checks pass; final local CodeRabbit reports zero findings.
+Actual reviewed-head/main CI identities are recorded on the delivery PR. No native previews were launched. Headless evidence
+does not establish native memory stability, real-window rendering/scaling,
+assistive-technology acceptance, or macOS/Linux desktop acceptance.

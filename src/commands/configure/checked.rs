@@ -141,7 +141,9 @@ pub(crate) fn values(context: &SettingsContext) -> Result<Vec<Option<Value>>> {
 fn verify(context: &SettingsContext) -> Result<()> {
     context.validate()?;
     ensure!(
-        capture(&context.project, &context.tool)? == *context,
+        capture(&context.project, &context.tool).map_err(|error| anyhow::anyhow!(
+            "Could not revalidate captured settings: {error:#}. Reload from file"
+        ))? == *context,
         "The file or project changed outside this editor; Reload from file before saving"
     );
     Ok(())
@@ -209,6 +211,42 @@ fn merge(
         }
     }
     Ok(merged)
+}
+
+/// Diagnose field-specific writer refusals from captured bytes, without filesystem reads.
+pub(crate) fn field_problems(context: &SettingsContext) -> Result<BTreeMap<usize, String>> {
+    use crate::catalog::tool_settings::SettingKind;
+    let tool = context.target()?;
+    let current = values(context)?;
+    let mut problems = BTreeMap::new();
+    for (index, setting) in tool.settings.iter().enumerate() {
+        let mut probe = SettingsDraft::new(current.clone());
+        let mut value = setting.kind.default_value();
+        if current[index].as_ref() == Some(&value) {
+            value = match &setting.kind {
+                SettingKind::Bool { default } => serde_json::json!(!default),
+                SettingKind::Integer { default } => {
+                    serde_json::json!(
+                        default
+                            .checked_add(1)
+                            .unwrap_or_else(|| default.saturating_sub(1))
+                    )
+                }
+                SettingKind::Choice { options, .. } => {
+                    let Some(other) = options.iter().find(|o| Some(o.value) != value.as_str())
+                    else {
+                        continue;
+                    };
+                    serde_json::json!(other.value)
+                }
+            };
+        }
+        probe.set(index, value);
+        if let Err(error) = merge(context, &probe, tool) {
+            problems.insert(index, format!("{error:#}"));
+        }
+    }
+    Ok(problems)
 }
 
 pub(crate) fn execute(

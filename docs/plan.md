@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 19, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 21, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,16 +17,18 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 20: native Configure Tools implementation.**
+**Current priority, October 21: native Configure Tools delivery.**
 The owner approved the Soft design against clean main `3ccade4` and three
 sequential reviewed PRs: shared settings planning/checked saving, private worker,
 then native controls. Shared execution merged in PR #128 at `95bf7b2`, with all
 seven executed reviewed-head/main CI jobs passing and merged branches removed.
-The second branch adds the private settings worker, correlated atomic reports,
-read-only preparation and uncancellable checked Save. Native controls remain next.
-Ineffective legacy edits are refused; catalog
-modernization is deferred. Native previews remain paused. Delivery and automated
-evidence are recorded separately from unverified real-window acceptance.
+Private worker PR #129 merged at `e680b77`, with reviewed-head CI `39388513452`
+and main CI `39443772804` passing all seven executed jobs on their first attempts;
+merged branches are removed. The native controls implement Settings → Review
+for all four targets, retained drafts, wrapped diffs and wait-for-Save closing.
+Ineffective legacy edits are refused; catalog modernization is deferred. Native
+previews remain paused. Automated evidence and remaining delivery are recorded in
+[the native implementation record](desktop-tool-configuration-native.md).
 
 **Completed Configure Tools design:**
 Native Upgrade PR #126 merged at `820dae7`; reviewed head `b7f35fb` (CI
