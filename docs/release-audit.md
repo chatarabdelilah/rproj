@@ -1,5 +1,32 @@
 # Release-Hardening Audit
 
+## October 20: Configure Tools private worker
+
+Shared PR #128 merged at `95bf7b2`. Reviewed head `b4b116d` (run `39348443855`)
+and merged main (run `39386051451`) passed all seven executed CI jobs on their
+first attempts; merged branches are removed. Shared local evidence: 660 CLI/core
+tests passed, 24 ignored, 64 desktop tests passed, strict Clippy passed. Final
+CodeRabbit reported zero findings. Archive verification initially reused stale
+same-version registry content; a fresh target directory passed. Portable packaging
+and non-window smoke checks passed, retaining three existing dependency notices.
+
+The private settings worker adds support/context/preparation/Save without changing
+public commands or preference/project formats. Save exposes no cancellation.
+The first worker test run failed because its test bridge moved a borrowed path;
+the bridge was corrected and all ten initial worker tests passed on rerun.
+IPC round-trip coverage found and fixed the `Option<Value>` null/absence ambiguity
+before exposing drafts to native controls. Further protocol and real bundled-CLI
+checks accompany this branch. Local review prompted a defensive identity lookup
+and removal of the real bundled CLI Save from its integration fixture: Save tests
+use isolated Watch storage, while the real binary boundary test stays read-only.
+The full CLI/core suite passed 674 tests (24 ignored), and all 64 desktop tests
+passed. Strict CLI/core and desktop Clippy, formatting, fresh-directory archive
+verification and portable non-window smoke checks passed. Final CodeRabbit
+reported zero findings across twelve files; subsequent Clippy required the
+equivalent `contains_key` spelling in the defensive lookup, corrected on rerun.
+Actual reviewed-head/main CI identities belong to the delivery PR.
+Native previews remain paused and real-window/memory acceptance unverified.
+
 ## October 20: Configure Tools shared implementation
 
 The owner approved the native design against `3ccade4`, with ineffective legacy

@@ -53,6 +53,33 @@ fn real_bundled_worker_prepares_upgrade_read_only() {
     assert_eq!(fs::read_dir(project.path()).unwrap().count(), 2);
 }
 
+#[cfg(windows)]
+#[test]
+fn real_bundled_settings_worker_prepares_without_record_setup_or_executable() {
+    use rproj_core::operations::Cancellation;
+    let project = tempfile::Builder::new()
+        .prefix("rproj real Settings 世界 ")
+        .tempdir()
+        .unwrap();
+    let client = WorkbenchClient::new(cli()).unwrap();
+    client.settings_support().unwrap();
+    let loaded = client
+        .settings_context(project.path(), "stylua", &Cancellation::default(), |_| {})
+        .unwrap();
+    let mut draft = loaded.draft;
+    let target = loaded.context.target().unwrap();
+    draft.set(0, target.settings[0].kind.default_value());
+    let review = client
+        .prepare_settings(loaded.context, draft, &Cancellation::default(), |_| {})
+        .unwrap();
+    assert_eq!(fs::read_dir(project.path()).unwrap().count(), 0);
+    assert!(!review.diff().unwrap().is_empty());
+    assert!(review.contents.is_some());
+    // Save is covered by the owned bridge with isolated Watch storage. The real
+    // bundled CLI has no test-root override, so this boundary check stays read-only.
+    assert_eq!(fs::read_dir(project.path()).unwrap().count(), 0);
+}
+
 #[test]
 fn differently_versioned_worker_is_rejected_before_operations() {
     let fixture = tempfile::Builder::new()

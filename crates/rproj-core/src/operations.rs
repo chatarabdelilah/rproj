@@ -32,6 +32,7 @@ impl std::error::Error for OwnedTeardownUnconfirmed {}
 mod composition;
 #[path = "operations/creation.rs"]
 mod creation;
+mod settings;
 #[path = "operations/upgrade.rs"]
 mod upgrade;
 
