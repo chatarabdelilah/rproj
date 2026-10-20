@@ -9,6 +9,7 @@ use rproj_core::operations::WORKER_FLAG;
 
 mod composition;
 mod creation;
+mod settings;
 mod upgrade;
 
 pub(crate) fn internal_entry() -> Option<Result<()>> {
@@ -64,6 +65,14 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::CompositionJob(directory) => composition::job(&directory),
+        Operation::SettingsSupport => {
+            println!(
+                "{}",
+                rproj_core::tool_configuration::protocol::SETTINGS_PROTOCOL
+            );
+            Ok(())
+        }
+        Operation::SettingsJob(directory) => settings::job(&directory),
         Operation::UpgradeSupport => {
             println!("{}", rproj_core::upgrade::protocol::UPGRADE_PROTOCOL);
             Ok(())
@@ -96,6 +105,8 @@ enum Operation {
     CreationJob(std::path::PathBuf),
     CompositionContext,
     CompositionJob(std::path::PathBuf),
+    SettingsSupport,
+    SettingsJob(std::path::PathBuf),
     UpgradeSupport,
     UpgradeContext,
     UpgradeJob(std::path::PathBuf),
@@ -103,13 +114,19 @@ enum Operation {
 
 fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation> {
     let verb = args.next().context("missing workbench operation")?;
-    if verb == "creation-job" || verb == "composition-job" || verb == "upgrade-job" {
+    if verb == "creation-job"
+        || verb == "composition-job"
+        || verb == "upgrade-job"
+        || verb == "settings-job"
+    {
         let directory = args.next().context("missing creation IPC directory")?;
         ensure!(args.next().is_none(), "unexpected workbench argument");
         return Ok(if verb == "creation-job" {
             Operation::CreationJob(directory.into())
         } else if verb == "composition-job" {
             Operation::CompositionJob(directory.into())
+        } else if verb == "settings-job" {
+            Operation::SettingsJob(directory.into())
         } else {
             Operation::UpgradeJob(directory.into())
         });
@@ -118,6 +135,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
     match verb.to_str() {
         Some("creation-context") => Ok(Operation::CreationContext),
         Some("composition-context") => Ok(Operation::CompositionContext),
+        Some("settings-support") => Ok(Operation::SettingsSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),
         Some("upgrade-context") => Ok(Operation::UpgradeContext),
         Some("catalog") => Ok(Operation::Catalog),
@@ -191,6 +209,7 @@ mod tests {
             ("stop", Operation::Stop),
             ("check", Operation::Check),
             ("test", Operation::Test),
+            ("settings-support", Operation::SettingsSupport),
         ] {
             assert_eq!(
                 parse_operation([OsString::from(verb)].into_iter()).unwrap(),

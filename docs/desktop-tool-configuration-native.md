@@ -40,6 +40,39 @@ Windows junctions, forged reviews, legacy-key refusal/recovery, malformed/unsafe
 inputs, Watch conflicts, locked/read-only files and failed replacement recovery.
 Final command results and review/CI identities belong to the delivery PR.
 
-Private worker and native controls are subsequent PRs. This shared checkpoint
-does not claim native implementation, rendering, memory stability, Windows
-real-window/scaling acceptance or macOS/Linux desktop acceptance.
+Shared execution merged in PR #128 at `95bf7b2`. Reviewed head `b4b116d`
+(CI `39348443855`) and merged main (CI `39386051451`) passed all seven executed
+jobs on their first attempts. Local CodeRabbit reported zero final findings.
+The merged local/remote branches are removed.
+
+## Private settings worker
+
+Versioned support, Context, Prepare and Save operations use the matching bundled
+CLI. Context accepts a regular project directory without a record, setup flag or
+installed tool. It loads the selected catalog target only. Preparation remains
+read-only; Save reuses the shared checked executor and Watch guard.
+
+Requests and atomic reports retain the operation, canonical project and target.
+The 2 MiB per-message limit applies before execution and to complete responses;
+oversized reviews fail rather than truncating changes. Explicit JSON null survives
+IPC as a present custom value, distinct from an absent setting. Worker-provided
+output is re-derived authoritatively before writing.
+
+Save has no caller cancellation token. The owned Windows job must finish and
+drain its streams before interpreting the report. Pre-spawn failure reports no
+writes; missing, invalid or mismatched completion reports report uncertainty.
+Unconfirmed teardown remains a distinct error that must block closing and further
+mutations. Successful reports carry the exact saved bytes and parsed baseline.
+Logs remain output, never evidence of successful saving.
+
+Worker tests exercise Unicode/spaced paths, absent records/tools/setup, explicit
+null, stale/tampered requests, Watch ownership, malformed/missing/mismatched
+reports, contradictory process exit, size bounds and descendant cleanup. A
+completion-loss fixture deliberately replaces a successful report after actual
+saving and confirms that this becomes uncertain. A separate integration test uses
+the real bundled CLI for read-only preparation in a disposable directory. Save
+fixtures isolate Watch storage through the test bridge.
+
+Native controls remain the third PR. This checkpoint does not claim native
+rendering, memory stability, Windows real-window/scaling acceptance or macOS/Linux
+desktop acceptance. Native previews remain paused.

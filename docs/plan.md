@@ -20,9 +20,11 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 **Current priority, October 20: native Configure Tools implementation.**
 The owner approved the Soft design against clean main `3ccade4` and three
 sequential reviewed PRs: shared settings planning/checked saving, private worker,
-then native controls. The first branch extracts the authoritative catalog and
-draft validation, adds captured single-file reviews, and routes terminal saves
-through checked execution. Ineffective legacy edits are refused; catalog
+then native controls. Shared execution merged in PR #128 at `95bf7b2`, with all
+seven executed reviewed-head/main CI jobs passing and merged branches removed.
+The second branch adds the private settings worker, correlated atomic reports,
+read-only preparation and uncancellable checked Save. Native controls remain next.
+Ineffective legacy edits are refused; catalog
 modernization is deferred. Native previews remain paused. Delivery and automated
 evidence are recorded separately from unverified real-window acceptance.
 

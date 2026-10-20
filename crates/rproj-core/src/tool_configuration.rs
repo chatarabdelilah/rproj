@@ -28,9 +28,48 @@ impl SettingKind {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SettingsDraft {
+    #[serde(with = "value_slots")]
     pub current: Vec<Option<Value>>,
+    #[serde(with = "value_slots")]
     pub changes: Vec<Option<Value>>,
 }
+
+// JSON null is a present, unfamiliar setting; Option<Value>'s ordinary JSON
+// representation would deserialize it as absence at the worker boundary.
+mod value_slots {
+    use super::*;
+    #[derive(Serialize, Deserialize)]
+    enum Slot {
+        Absent,
+        Present(Value),
+    }
+    pub fn serialize<S: serde::Serializer>(
+        values: &[Option<Value>],
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        values
+            .iter()
+            .map(|v| match v {
+                Some(value) => Slot::Present(value.clone()),
+                None => Slot::Absent,
+            })
+            .collect::<Vec<_>>()
+            .serialize(serializer)
+    }
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Vec<Option<Value>>, D::Error> {
+        Ok(Vec::<Slot>::deserialize(deserializer)?
+            .into_iter()
+            .map(|v| match v {
+                Slot::Absent => None,
+                Slot::Present(value) => Some(value),
+            })
+            .collect())
+    }
+}
+
+pub mod protocol;
 
 impl SettingsDraft {
     pub fn new(current: Vec<Option<Value>>) -> Self {
@@ -218,6 +257,13 @@ mod tests {
         ]);
         draft.validate(tool).unwrap();
         assert!(!draft.dirty());
+        let text = serde_json::to_string(&draft).unwrap();
+        assert_eq!(serde_json::from_str::<SettingsDraft>(&text).unwrap(), draft);
+    }
+
+    #[test]
+    fn worker_round_trip_preserves_explicit_null_distinct_from_absence() {
+        let draft = SettingsDraft::new(vec![Some(Value::Null), None]);
         let text = serde_json::to_string(&draft).unwrap();
         assert_eq!(serde_json::from_str::<SettingsDraft>(&text).unwrap(), draft);
     }
