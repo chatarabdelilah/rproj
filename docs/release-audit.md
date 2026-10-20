@@ -1,5 +1,24 @@
 # Release-Hardening Audit
 
+## October 20: Configure Tools shared implementation
+
+The owner approved the native design against `3ccade4`, with ineffective legacy
+edits refused and catalog modernization deferred. Shared catalog/draft/review
+types now feed terminal configuration through one checked executor. All 27
+configuration tests, three new core draft tests and strict CLI/core Clippy pass;
+the full CLI/core suite passes after restoring the existing parse-error wording.
+Initial sandbox-denied Windows mutex tests were rerun with required access.
+The first writer fixture corrected its expected trailing-comment spacing before
+extraction; an early test-only missing helper/module error was corrected.
+
+Local CodeRabbit identified overly broad ancestor-link refusal. It is narrowed
+to the project leaf and project-relative configuration paths, allowing a regular
+project below a linked workspace ancestor. Regression checks cover both cases.
+Final review, packaging and actual reviewed-head/main CI evidence belongs to the
+delivery PR. [Implementation](desktop-tool-configuration-native.md) separates this
+shared checkpoint from worker/native delivery. Native previews remain paused;
+memory stability and real-window acceptance remain unresolved/unverified.
+
 ## October 19: Configure Tools conversation proposal
 
 Native Upgrade PR #126 merged at `820dae7`: reviewed head `b7f35fb` (run

@@ -17,7 +17,16 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 19: Configure Tools design review.**
+**Current priority, October 20: native Configure Tools implementation.**
+The owner approved the Soft design against clean main `3ccade4` and three
+sequential reviewed PRs: shared settings planning/checked saving, private worker,
+then native controls. The first branch extracts the authoritative catalog and
+draft validation, adds captured single-file reviews, and routes terminal saves
+through checked execution. Ineffective legacy edits are refused; catalog
+modernization is deferred. Native previews remain paused. Delivery and automated
+evidence are recorded separately from unverified real-window acceptance.
+
+**Completed Configure Tools design:**
 Native Upgrade PR #126 merged at `820dae7`; reviewed head `b7f35fb` (CI
 `39192608337`) and merged main (CI `39192967246`) passed all seven executed jobs
 on their first attempts, with merged branches removed. The owner selected a
@@ -25,8 +34,8 @@ separate Soft [Configure Tools proposal](desktop-tool-configuration-design.md):
 four existing targets, one captured draft, Settings → Review, and wait-for-Save
 close behavior. All 38 local simulation/DOM checks and 28 numeric contrast
 comparisons pass. [Acceptance](desktop-tool-configuration-acceptance.md) keeps
-rendering unverified and native controls out of this pass. Owner design approval
-precedes native implementation planning. Native previews remain paused.
+rendering unverified and native controls out of the design pass. PR #127 merged
+at `3ccade4`; reviewed-head and merged-main CI passed. Native previews remain paused.
 
 **Completed native Upgrade implementation:**
 Existing-project composition delivery is complete through PR #122 at `490e2ee`;

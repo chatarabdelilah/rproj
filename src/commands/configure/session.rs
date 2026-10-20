@@ -1,151 +1,113 @@
-use std::fs;
-use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
-
-use anyhow::{Context, Result, ensure};
+use super::checked;
+use crate::catalog::tool_settings::ConfigurableTool;
+use anyhow::Result;
+use rproj_core::tool_configuration::{SettingsContext, SettingsDraft};
 use serde_json::Value;
-
-use super::target_description;
-use crate::catalog::tool_settings::{self, ConfigTarget, ConfigurableTool};
-use crate::steps::vscode;
+use std::path::{Path, PathBuf};
 
 pub(super) struct EditSession {
     pub tool: &'static ConfigurableTool,
-    pub current: Vec<Option<Value>>,
-    pub changes: Vec<Option<Value>>,
-    project: PathBuf,
+    draft: SettingsDraft,
     path: PathBuf,
-    baseline: Option<String>,
+    context: SettingsContext,
 }
-
+impl std::ops::Deref for EditSession {
+    type Target = SettingsDraft;
+    fn deref(&self) -> &Self::Target {
+        &self.draft
+    }
+}
+impl std::ops::DerefMut for EditSession {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.draft
+    }
+}
 impl EditSession {
     pub fn load(project: &Path, tool: &'static ConfigurableTool) -> Result<Self> {
-        let path = project.join(target_description(&tool.target));
-        let baseline = read_snapshot(&path)?;
-        // Defaults and conflict detection must describe the same read of the file.
-        let text = baseline.as_deref().unwrap_or("");
-        let current = match tool.target {
-            ConfigTarget::ProjectToml { .. } => {
-                toml::from_str::<toml::Table>(text).with_context(|| {
-                    format!(
-                        "could not parse {} - fix or delete it, then re-run",
-                        path.display()
-                    )
-                })?;
-                tool_settings::current_toml_values(tool, text)
-            }
-            ConfigTarget::VsCodeSettings => {
-                let settings = vscode::parse_settings(&path, text)?;
-                tool.settings
-                    .iter()
-                    .map(|setting| settings.get(setting.key).cloned())
-                    .collect()
-            }
-        };
+        let context = checked::capture(project, tool.key)?;
+        let draft = SettingsDraft::new(checked::values(&context)?);
         Ok(Self {
             tool,
-            changes: vec![None; current.len()],
-            current,
-            project: project.to_owned(),
-            path,
-            baseline,
+            path: context.project.join(tool.target.relative()),
+            draft,
+            context,
         })
     }
-
     pub fn path(&self) -> &Path {
         &self.path
     }
-
     pub fn dirty(&self) -> bool {
-        self.changes.iter().any(Option::is_some)
+        self.draft.dirty()
     }
-
     pub fn value(&self, index: usize) -> Option<&Value> {
-        self.changes[index]
-            .as_ref()
-            .or(self.current[index].as_ref())
+        self.draft.value(index)
     }
-
     pub fn set(&mut self, index: usize, value: Value) {
-        self.changes[index] = (self.current[index].as_ref() != Some(&value)).then_some(value);
+        self.draft.set(index, value);
     }
-
-    fn ensure_current(&self) -> Result<()> {
-        ensure!(
-            self.project.is_dir(),
-            "The project directory no longer exists."
-        );
-        ensure!(
-            read_snapshot(&self.path)? == self.baseline,
-            "The file changed outside this editor: {}. Reopen it or re-run configure before saving.",
-            self.path.display()
-        );
-        Ok(())
-    }
-
     pub fn save(&mut self) -> Result<bool> {
-        self.save_with(|pending, path| {
-            pending.persist(path).map_err(|error| error.error)?;
-            Ok(())
-        })
+        let review = checked::prepare(&self.context, &self.draft)?;
+        let changed = review.contents.is_some();
+        let saved = checked::execute(&review, &mut || Ok(()))?;
+        self.draft = SettingsDraft::new(checked::values(&saved)?);
+        self.context = saved;
+        Ok(changed)
     }
-
+    #[cfg(test)]
     fn save_with(
         &mut self,
         persist: impl FnOnce(tempfile::NamedTempFile, &Path) -> Result<()>,
     ) -> Result<bool> {
-        self.ensure_current()?;
-        if !self.dirty() {
-            return Ok(false);
-        }
-        let _guard = crate::background_watch::mutation_guard(Some(&self.project), false)?;
-        let answers: Vec<_> = self
-            .tool
-            .settings
-            .iter()
-            .zip(&self.changes)
-            .filter_map(|(setting, value)| value.clone().map(|value| (setting, value)))
-            .collect();
-        let text = self.baseline.as_deref().unwrap_or("");
-        let merged = match self.tool.target {
-            ConfigTarget::ProjectToml { .. } => tool_settings::checked_toml_merge(text, &answers)?,
-            ConfigTarget::VsCodeSettings => vscode::merge_settings_values(
-                vscode::parse_settings(&self.path, text)?,
-                &answers
-                    .iter()
-                    .map(|(setting, value)| (setting.key, value.clone()))
-                    .collect::<Vec<_>>(),
-            )?,
-        };
-        let pending =
-            crate::file_replace::stage(&self.path, merged.as_bytes(), self.baseline.is_some())?;
-        // Catch edits made during merging/writing too. This is optimistic conflict
-        // detection; arbitrary external writers do not participate in a file lock.
-        self.ensure_current()?;
-        persist(pending, &self.path)
-            .with_context(|| format!("failed to save {}", self.path.display()))?;
-        for (current, change) in self.current.iter_mut().zip(&mut self.changes) {
-            if let Some(value) = change.take() {
-                *current = Some(value);
-            }
-        }
-        self.baseline = Some(merged);
-        Ok(true)
-    }
-}
-
-fn read_snapshot(path: &Path) -> Result<Option<String>> {
-    match fs::read_to_string(path) {
-        Ok(text) => Ok(Some(text)),
-        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error).with_context(|| format!("failed to read {}", path.display())),
+        let review = checked::prepare(&self.context, &self.draft)?;
+        let changed = review.contents.is_some();
+        let saved = checked::execute_with(&review, &mut || Ok(()), persist)?;
+        self.draft = SettingsDraft::new(checked::values(&saved)?);
+        self.context = saved;
+        Ok(changed)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    fn read_snapshot(path: &std::path::Path) -> std::io::Result<Option<String>> {
+        match std::fs::read_to_string(path) {
+            Ok(text) => Ok(Some(text)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+    #[test]
+    fn captured_writer_fixtures_before_extraction() {
+        use crate::catalog::tool_settings;
+        use serde_json::json;
+        let tool = tool_settings::find("stylua").unwrap();
+        let width = tool
+            .settings
+            .iter()
+            .find(|s| s.key == "column_width")
+            .unwrap();
+        assert_eq!(
+            tool_settings::checked_toml_merge(
+                "# team\ncolumn_width = 91 # keep\ncustom = 'yes'\n",
+                &[(width, json!(120))]
+            )
+            .unwrap(),
+            "# team\ncolumn_width = 120   # keep\ncustom = 'yes'\n"
+        );
+        let values = serde_json::from_str(r#"{"custom":[1,2],"luau-lsp.plugin.enabled":false,"luau-lsp.studioPlugin.enabled":true}"#).unwrap();
+        assert_eq!(
+            crate::steps::vscode::merge_settings_values(
+                values,
+                &[("editor.formatOnSave", json!(true))]
+            )
+            .unwrap(),
+            "{\n  \"custom\": [\n    1,\n    2\n  ],\n  \"editor.formatOnSave\": true,\n  \"luau-lsp.studioPlugin.enabled\": true\n}\n"
+        );
+    }
     use super::*;
+    use crate::catalog::tool_settings;
     use serde_json::json;
+    use std::fs;
 
     #[test]
     #[cfg(windows)]

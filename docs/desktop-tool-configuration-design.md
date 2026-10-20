@@ -1,5 +1,15 @@
 # Native Configure Tools proposal
 
+## Native implementation approval — October 20, 2026
+
+The owner approved Settings → Review against main `3ccade4`, delivered through
+three sequential reviewed PRs: shared planning/checked saving, private worker,
+then native Soft controls. Ineffective legacy-setting edits must be refused,
+not silently discarded; catalog modernization is deferred. Save has no Cancel
+action, and Close after save waits for confirmed completion before protecting
+other dirty drafts. Native previews remain paused. Automated evidence and
+real-window acceptance remain separate; no version bump or publication is planned.
+
 Approved scope, October 19, 2026, main `820dae7`: a separate Soft conversation
 wireframe for **Settings → Review**, before native implementation. This approves
 prototype scope and behavior; the interface still needs owner design review.
