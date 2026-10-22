@@ -6,18 +6,23 @@ use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-pub const SETTINGS_PROTOCOL: u32 = 1;
+pub const SETTINGS_PROTOCOL: u32 = 2;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SettingsLoaded {
     pub context: SettingsContext,
     pub draft: SettingsDraft,
+    pub blocked: std::collections::BTreeMap<usize, String>,
 }
 impl SettingsLoaded {
     pub fn validate(&self) -> Result<()> {
         self.context.validate()?;
         self.draft.validate(self.context.target()?)?;
         ensure!(!self.draft.dirty(), "Loaded settings contain pending edits");
+        ensure!(
+            self.blocked.keys().all(|i| *i < self.draft.current.len()),
+            "Blocked field is outside the settings catalog"
+        );
         Ok(())
     }
 }
@@ -298,6 +303,7 @@ mod tests {
         report.loaded = Some(SettingsLoaded {
             context,
             draft: SettingsDraft::new(vec![None, None]),
+            blocked: BTreeMap::new(),
         });
         report.check(&request).unwrap();
         let original = report.clone();

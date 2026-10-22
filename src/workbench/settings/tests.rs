@@ -226,6 +226,32 @@ fn old_worker_and_missing_executable_are_recoverable() {
 }
 
 #[test]
+fn preparation_cancellation_keeps_draft_but_missing_project_requires_reload() {
+    let f = Fixture::new();
+    let review = f.prepared();
+    let token = Cancellation::default();
+    token.cancel();
+    let error = f
+        .client
+        .prepare_settings(review.context.clone(), review.draft.clone(), &token, |_| {})
+        .unwrap_err();
+    assert!(error.to_string().contains("cancelled"));
+    assert!(!error.to_string().contains("Reload from file"));
+    fs::remove_dir(&f.project).unwrap();
+    let error = f
+        .client
+        .prepare_settings(
+            review.context,
+            review.draft,
+            &Cancellation::default(),
+            |_| {},
+        )
+        .unwrap_err();
+    assert!(error.to_string().contains("Reload from file"));
+    assert!(!f.project.exists());
+}
+
+#[test]
 fn same_project_watch_blocks_save_and_other_project_watch_is_untouched() {
     let f = Fixture::new();
     let review = f.prepared();

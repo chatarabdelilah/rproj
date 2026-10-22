@@ -39,7 +39,12 @@ fn perform(request: &SettingsRequest, path: &Path, report: &mut SettingsReport) 
             let draft = SettingsDraft::new(checked::values(&context)?);
             // Revalidate the exact read, including missing files, before returning it.
             checked::prepare(&context, &draft)?;
-            report.loaded = Some(SettingsLoaded { context, draft });
+            let blocked = checked::field_problems(&context)?;
+            report.loaded = Some(SettingsLoaded {
+                context,
+                draft,
+                blocked,
+            });
         }
         SettingsAction::Prepare { context, draft } => {
             report.prepared = Some(checked::prepare(context, draft)?);
@@ -60,7 +65,12 @@ fn perform(request: &SettingsRequest, path: &Path, report: &mut SettingsReport) 
                 write_atomic(path, report)
             })?;
             let draft = SettingsDraft::new(checked::values(&context)?);
-            report.loaded = Some(SettingsLoaded { context, draft });
+            let blocked = checked::field_problems(&context)?;
+            report.loaded = Some(SettingsLoaded {
+                context,
+                draft,
+                blocked,
+            });
             report.writes = if review.contents.is_some() {
                 WriteState::Completed
             } else {

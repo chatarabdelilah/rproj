@@ -1,6 +1,8 @@
 mod composition;
 mod creation;
+mod diff_view;
 mod operation;
+mod settings;
 mod theme;
 #[cfg(test)]
 mod ui_tests;
@@ -50,6 +52,9 @@ enum Operation {
     ApplyComposition,
     PrepareUpgrade,
     ApplyUpgrade,
+    LoadSettings,
+    PrepareSettings,
+    SaveSettings,
 }
 impl Operation {
     fn cancellable(self) -> bool {
@@ -63,6 +68,8 @@ impl Operation {
                 | Self::ApplyComposition
                 | Self::PrepareUpgrade
                 | Self::ApplyUpgrade
+                | Self::LoadSettings
+                | Self::PrepareSettings
         )
     }
     fn worker(self) -> Option<WorkerOperation> {
@@ -77,7 +84,10 @@ impl Operation {
             | Self::PrepareComposition
             | Self::ApplyComposition
             | Self::PrepareUpgrade
-            | Self::ApplyUpgrade => return None,
+            | Self::ApplyUpgrade
+            | Self::LoadSettings
+            | Self::PrepareSettings
+            | Self::SaveSettings => return None,
         })
     }
 }
@@ -114,6 +124,17 @@ impl Section {
 }
 
 enum Event {
+    SettingsSupport(Result<(), String>),
+    SettingsLoaded(
+        u64,
+        u64,
+        Result<rproj_core::tool_configuration::protocol::SettingsLoaded, settings::ReadFailure>,
+    ),
+    SettingsPrepared(u64, u64, Result<settings::Prepared, settings::ReadFailure>),
+    SettingsSaved(
+        u64,
+        Result<rproj_core::tool_configuration::protocol::SettingsOutcome, String>,
+    ),
     UpgradeSupport(Result<(), String>),
     UpgradePrepared(u64, u64, Result<upgrade::Preparation, String>),
     UpgradeApplied(
@@ -313,6 +334,11 @@ impl Activity {
 }
 
 pub struct Workbench {
+    settings: settings::SettingsSession,
+    settings_focus: FocusHandle,
+    settings_diff_focus: FocusHandle,
+    settings_list: ListState,
+    settings_integer: Entity<InputState>,
     upgrade: upgrade::UpgradeSession,
     upgrade_focus: FocusHandle,
     upgrade_diff_focus: FocusHandle,
@@ -378,6 +404,10 @@ impl Workbench {
                 cx.notify();
             }
         });
+        let settings_integer =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Exact whole number"));
+        let settings_subscription =
+            cx.subscribe(&settings_integer, |_, _, _: &InputEvent, cx| cx.notify());
         let appearance_subscription = cx.observe_window_appearance(window, |this, window, cx| {
             if this.preferences.appearance == Appearance::System {
                 Theme::sync_system_appearance(Some(window), cx);
@@ -422,6 +452,11 @@ impl Workbench {
             }
         });
         let mut view = Self {
+            settings: settings::SettingsSession::default(),
+            settings_focus: cx.focus_handle(),
+            settings_diff_focus: cx.focus_handle().tab_stop(true),
+            settings_list: ListState::new(0, ListAlignment::Top, px(40.)),
+            settings_integer,
             upgrade: upgrade::UpgradeSession::default(),
             upgrade_focus: cx.focus_handle(),
             upgrade_diff_focus: cx.focus_handle().tab_stop(true),
@@ -469,6 +504,7 @@ impl Workbench {
             last_poll: Instant::now(),
             _subscriptions: vec![
                 subscription,
+                settings_subscription,
                 appearance_subscription,
                 composition_subscription,
             ]
@@ -488,6 +524,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.settings.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
         self.creation.visible = false;
@@ -505,6 +542,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.settings.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
         self.pending_switch = None;
@@ -601,9 +639,12 @@ impl Workbench {
     }
 
     fn changing_watch(&self) -> bool {
-        self.running
-            .as_ref()
-            .is_some_and(|(operation, _)| !operation.cancellable())
+        self.running.as_ref().is_some_and(|(operation, _)| {
+            matches!(
+                operation,
+                Operation::StartWatch | Operation::StopWatch | Operation::SwitchWatch
+            )
+        })
     }
 
     fn drain(&mut self, cx: &mut Context<Self>) {
@@ -613,6 +654,14 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::SettingsSupport(result) => self.settings.support = Some(result),
+                Event::SettingsLoaded(id, revision, result) => {
+                    self.accept_settings_loaded(id, revision, result, cx)
+                }
+                Event::SettingsPrepared(id, revision, result) => {
+                    self.accept_settings_prepared(id, revision, result, cx)
+                }
+                Event::SettingsSaved(id, result) => self.accept_settings_saved(id, result, cx),
                 Event::UpgradeSupport(result) => self.upgrade.support = Some(result),
                 Event::UpgradePrepared(id, revision, result) => {
                     self.accept_upgrade_prepared(id, revision, result, cx)
@@ -665,6 +714,7 @@ impl Workbench {
                             self.client = Some(client);
                             self.client_error = None;
                             self.probe_upgrade();
+                            self.probe_settings();
                             self.poll_status();
                             self.load_creation_context(cx);
                         }
@@ -977,6 +1027,9 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::ApplyComposition => "Applying composition",
         Operation::PrepareUpgrade => "Preparing configuration review",
         Operation::ApplyUpgrade => "Applying configuration changes",
+        Operation::LoadSettings => "Loading tool settings",
+        Operation::PrepareSettings => "Preparing settings review",
+        Operation::SaveSettings => "Saving tool settings",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

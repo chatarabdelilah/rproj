@@ -28,6 +28,11 @@ impl std::fmt::Display for OwnedTeardownUnconfirmed {
 }
 impl std::error::Error for OwnedTeardownUnconfirmed {}
 
+#[doc(hidden)]
+pub fn owned_teardown_unconfirmed(error: &anyhow::Error) -> bool {
+    error.is::<OwnedTeardownUnconfirmed>()
+}
+
 #[path = "operations/composition.rs"]
 mod composition;
 #[path = "operations/creation.rs"]

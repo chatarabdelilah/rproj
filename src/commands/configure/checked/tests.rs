@@ -15,6 +15,34 @@ fn changed(context: &SettingsContext, key: &str, value: Value) -> SettingsDraft 
 }
 
 #[test]
+fn field_diagnostics_identify_legacy_conflicts_without_changing_captured_bytes() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join(".vscode")).unwrap();
+    let original = r#"{"luau-lsp.plugin.enabled":true,"luau-lsp.studioPlugin.enabled":true,"luau-lsp.types.roblox":true,"luau-lsp.platform.type":"roblox","editor.rulers":[90]}"#;
+    fs::write(root.path().join(".vscode/settings.json"), original).unwrap();
+    let context = capture(root.path(), "luau-lsp").unwrap();
+    let blocked = field_problems(&context).unwrap();
+    let keys: Vec<_> = blocked
+        .keys()
+        .map(|i| context.target().unwrap().settings[*i].key)
+        .collect();
+    assert_eq!(keys.len(), 2);
+    assert!(keys.contains(&"luau-lsp.plugin.enabled"));
+    assert!(keys.contains(&"luau-lsp.types.roblox"));
+    assert!(
+        blocked
+            .values()
+            .all(|reason| reason.contains("replacement"))
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join(".vscode/settings.json")).unwrap(),
+        original
+    );
+    let other = capture(root.path(), "stylua-vscode").unwrap();
+    assert!(field_problems(&other).unwrap().is_empty());
+}
+
+#[test]
 fn preparation_is_read_only_for_every_target_without_setup_or_record() {
     for (tool, key, value) in [
         ("stylua", "column_width", json!(120)),
