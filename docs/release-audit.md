@@ -1,5 +1,17 @@
 # Release-Hardening Audit
 
+## October 23: Machine Setup design
+
+Configure Tools PR #130 merged at `3519bab`; reviewed-head CI `39509474778`
+and merged-main CI `39710977499` passed all seven executed jobs on their first
+attempts. Merged branches were removed. The next milestone is a separate
+[Machine Setup wireframe](desktop-machine-setup-design.md), with simulated
+selection/review/results and no real installations. Local validation passes 41
+checks and 24 contrast comparisons; one initial focus-restoration failure was
+fixed. [Acceptance](desktop-machine-setup-acceptance.md) distinguishes DOM/source
+evidence from unverified rendering. The documentation PR records its own exact
+head/main CI. Native launches remain paused; version 0.22.0 is unchanged.
+
 ## October 21: Native Configure Tools controls
 
 PR #129 merged at `e680b77`; actual reviewed head `16e7858` (CI `39388513452`)

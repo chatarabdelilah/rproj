@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 21, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 23, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,17 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 21: native Configure Tools delivery.**
+**Current priority, October 23: Machine Setup design review.**
+Configure Tools delivery completed in PR #130 at `3519bab`; actual reviewed head
+`ad3b2cd` (CI `39509474778`) and main (CI `39710977499`) passed all seven executed
+jobs, and merged branches were removed. The next milestone is the separate Soft
+[Machine Setup proposal](desktop-machine-setup-design.md): Selections → Review →
+Results, machine-owned choices, acknowledged Watch stopping and Stop-then-close.
+All actions are simulated; [acceptance](desktop-machine-setup-acceptance.md)
+records 41 local checks and 24 contrast comparisons. Owner design review precedes
+native implementation. Native previews remain paused; published 0.22.0 is unchanged.
+
+**Completed Configure Tools implementation:**
 The owner approved the Soft design against clean main `3ccade4` and three
 sequential reviewed PRs: shared settings planning/checked saving, private worker,
 then native controls. Shared execution merged in PR #128 at `95bf7b2`, with all
@@ -27,7 +37,7 @@ and main CI `39443772804` passing all seven executed jobs on their first attempt
 merged branches are removed. The native controls implement Settings → Review
 for all four targets, retained drafts, wrapped diffs and wait-for-Save closing.
 Ineffective legacy edits are refused; catalog modernization is deferred. Native
-previews remain paused. Automated evidence and remaining delivery are recorded in
+previews remain paused. Automated evidence and delivery are recorded in
 [the native implementation record](desktop-tool-configuration-native.md).
 
 **Completed Configure Tools design:**
