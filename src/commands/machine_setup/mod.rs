@@ -2,7 +2,7 @@ pub(crate) mod checked;
 #[cfg(test)]
 mod fixtures;
 mod model;
-mod worker;
+pub(crate) mod worker;
 
 use rproj_core::machine_setup::{Persistence, SetupResult};
 use std::collections::{BTreeSet, VecDeque};

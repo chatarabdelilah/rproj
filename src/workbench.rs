@@ -10,6 +10,7 @@ use rproj_core::operations::WORKER_FLAG;
 mod composition;
 mod creation;
 mod settings;
+mod setup;
 mod upgrade;
 
 pub(crate) fn internal_entry() -> Option<Result<()>> {
@@ -73,6 +74,11 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::SettingsJob(directory) => settings::job(&directory),
+        Operation::SetupSupport => {
+            println!("{}", rproj_core::machine_setup::protocol::SETUP_PROTOCOL);
+            Ok(())
+        }
+        Operation::SetupJob(directory) => setup::job(&directory),
         Operation::UpgradeSupport => {
             println!("{}", rproj_core::upgrade::protocol::UPGRADE_PROTOCOL);
             Ok(())
@@ -107,6 +113,8 @@ enum Operation {
     CompositionJob(std::path::PathBuf),
     SettingsSupport,
     SettingsJob(std::path::PathBuf),
+    SetupSupport,
+    SetupJob(std::path::PathBuf),
     UpgradeSupport,
     UpgradeContext,
     UpgradeJob(std::path::PathBuf),
@@ -118,6 +126,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         || verb == "composition-job"
         || verb == "upgrade-job"
         || verb == "settings-job"
+        || verb == "setup-job"
     {
         let directory = args.next().context("missing creation IPC directory")?;
         ensure!(args.next().is_none(), "unexpected workbench argument");
@@ -127,6 +136,8 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
             Operation::CompositionJob(directory.into())
         } else if verb == "settings-job" {
             Operation::SettingsJob(directory.into())
+        } else if verb == "setup-job" {
+            Operation::SetupJob(directory.into())
         } else {
             Operation::UpgradeJob(directory.into())
         });
@@ -136,6 +147,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         Some("creation-context") => Ok(Operation::CreationContext),
         Some("composition-context") => Ok(Operation::CompositionContext),
         Some("settings-support") => Ok(Operation::SettingsSupport),
+        Some("setup-support") => Ok(Operation::SetupSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),
         Some("upgrade-context") => Ok(Operation::UpgradeContext),
         Some("catalog") => Ok(Operation::Catalog),
@@ -210,6 +222,7 @@ mod tests {
             ("check", Operation::Check),
             ("test", Operation::Test),
             ("settings-support", Operation::SettingsSupport),
+            ("setup-support", Operation::SetupSupport),
         ] {
             assert_eq!(
                 parse_operation([OsString::from(verb)].into_iter()).unwrap(),

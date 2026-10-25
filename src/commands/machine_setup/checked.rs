@@ -103,6 +103,25 @@ fn capture_at(config_path: &Path, default_root: &Path) -> Result<SetupContext> {
     Ok(context)
 }
 
+#[cfg(all(test, windows))]
+pub(crate) fn test_capture(config: &Path, root: &Path) -> Result<SetupContext> {
+    capture_at(config, root)
+}
+
+#[cfg(all(test, windows))]
+pub(crate) fn test_execute(
+    review: &SetupReview,
+    lock: &Path,
+    stop: &(dyn Fn() -> bool + Sync),
+    emit: Arc<dyn Fn(Event) + Send + Sync>,
+    mutation: &mut dyn FnMut() -> Result<()>,
+    external: impl Fn(&Item, &Selection, &Reporter) -> Result<()>,
+) -> Result<SetupResult> {
+    guarded(lock, || {
+        execute_with(review, stop, emit, mutation, external, |_| Ok(()))
+    })
+}
+
 fn verify_identities(paths: &[PathIdentity]) -> Result<()> {
     for path in paths {
         ensure!(
@@ -137,6 +156,13 @@ fn verify(context: &SetupContext) -> Result<()> {
 pub(crate) fn prepare(context: &SetupContext, selection: &Selection) -> Result<SetupReview> {
     verify(context)?;
     SetupReview::new(context.clone(), selection.clone())
+}
+
+pub(crate) fn prepare_ready(context: &SetupContext, selection: &Selection) -> Result<SetupReview> {
+    authoritative(context)?;
+    let review = prepare(context, selection)?;
+    prerequisites(selection)?;
+    Ok(review)
 }
 
 fn authoritative(context: &SetupContext) -> Result<()> {

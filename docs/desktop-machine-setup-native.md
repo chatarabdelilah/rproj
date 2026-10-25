@@ -42,8 +42,7 @@ no installation probes; detected presence remains Not verified until checked.
 
 Tests use disposable paths and fake installers. No native preview or real
 installation has been launched. Validation and exact reviewed-head/merged-main
-CI identities will be recorded when this first PR is delivered. Worker and
-native controls are not yet implemented by this branch.
+CI identities are recorded below. Native controls remain the third PR.
 
 Initial attempts: the extraction script had a syntax error before any writes;
 the corrected extraction preserved all three fixtures. Early test adaptation
@@ -66,6 +65,63 @@ Clippy run required moving a test module after production items. Subsequent
 full tests and strict Clippy passed. Fresh final crate archives and the corrected portable package pass their build
 and non-window smoke checks. Three pre-existing dependency-notice gaps remain.
 Exact reviewed-head and merged-main CI identities belong to the delivery PR.
+
+PR #132 merged at `921f0ca550728d5f19d8eeb6369e66d605714335`. Reviewed head
+`16539987ce51a1ea02a11dbea9dc46cee3c0f772` (run `40145034639`) and merged
+main (run `40145395391`) passed all seven executed CI jobs on their first
+attempts. Badge freshness was intentionally skipped. The merged tree matches
+the reviewed tree; both merged branches were removed.
+
+## Private cooperative worker — second PR
+
+Versioned `setup-support` and `setup-job` operations expose read-only context,
+preparation and checked Apply through the matching CLI. Public commands and
+configuration formats remain unchanged. Preparation verifies the actual machine
+configuration and prerequisites off the UI thread; it creates no destination.
+Apply revalidates those inputs and acquires the existing any-Watch mutation guard.
+
+An operation-owned directory holds bounded, atomic request/progress/result and
+Stop messages. Reports identify the machine, operation, ordered item states,
+possible effects, persistence and final outcome. Unknown or contradictory
+completion is uncertain, regardless of stdout. The 2 MiB limit remains intact.
+Successful saved contents are checked against the reviewed selections.
+
+Stop has a separate cooperative token. The worker acknowledges it while an item
+is running, then finishes that item, skips the remainder and avoids saving.
+Confirmed persistence wins a late Stop race. The Windows owner waits on one
+retained job-completion future and drains both streams; it never converts normal
+Stop into process termination. Unconfirmed teardown retains operation storage
+and is a distinct error for the native close/mutation guard. External services
+or elevated installers outside the owned job remain unverified.
+
+Initial worker validation exposed transient Windows Access denied while sampled
+reports were replaced. A bounded retry applies only to transient IPC sharing
+errors; a held-reader regression covers it. A separate Watch test compared
+verbatim-prefixed and ordinary Windows fixture paths; canonicalizing the test
+driver root corrected the fixture without weakening production identity checks.
+The first formatting attempt also preceded creation of its test module; the
+missing fixture was added before validation. No failures were marked as passes.
+
+The first CodeRabbit review found that stdout/stderr disconnection could panic
+the active worker. Logging now ignores pipe write failures; reports remain the
+authority. An additional failure-path test exposed Windows blocking pipe reads
+delaying runtime destruction after failed Stop delivery. The error path now
+shuts down the runtime in the background, retains IPC storage and reports
+unconfirmed teardown without killing the installer. The finite fake installer
+then finishes normally and writes its terminal report. Its first test compile
+used a nonexistent logging enum name; that fixture typo was corrected. Clippy
+also required boxing the larger progress-event payload.
+
+Final local validation passes 720 CLI/core tests (24 prerequisite-dependent
+tests ignored), all 83 headless desktop tests, formatting and strict CLI/core/
+desktop Clippy. Crate archive verification and portable version/inspection smoke
+checks pass; three pre-existing notice gaps remain. The final source diff was
+inspected directly. CodeRabbit's second review has no code findings; its single
+minor documentation finding incorrectly identifies the creation PRs #113–115 as
+Machine Setup delivery. Git history confirms #132 is shared Machine Setup, so
+that finding is dismissed. Exact reviewed-head and merged-main CI belong to
+this PR's delivery record. Native controls and real-window acceptance remain
+pending; no preview or real installer is used in this PR.
 
 Real installers/UAC, native rendering, memory stability, assistive technology,
 and macOS/Linux desktop acceptance remain unverified. Installer services outside

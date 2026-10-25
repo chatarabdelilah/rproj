@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## October 25: private Machine Setup worker
+
+Shared PR #132 merged at `921f0ca`; reviewed head `1653998` (CI `40145034639`)
+and merged main (CI `40145395391`) passed all seven executed jobs on their first
+attempts. Merged branches were removed. The second branch adds versioned context,
+preparation, cooperative Stop and typed progress/results with owned descendant
+completion. [Implementation evidence](desktop-machine-setup-native.md) records
+tests and failed attempts. Native launches and real installation acceptance stay
+paused; published version 0.22.0 is unchanged.
+
 ## October 24: shared Machine Setup implementation
 
 The owner approved native Machine Setup against `a56533a`, through three

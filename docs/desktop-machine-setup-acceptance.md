@@ -69,3 +69,13 @@ The [implementation record](desktop-machine-setup-native.md) records review fixe
 failed attempts and remaining delivery. These disposable fake-installer checks
 do not establish real installation, process-tree or native-window acceptance.
 No native previews or real installers were launched.
+
+## Private worker checkpoint
+
+Shared PR #132 and its exact-head/main CI are recorded in the implementation
+document. The second PR adds private worker tests with disposable configuration
+and fake installers: read-only preparation, Stop acknowledgement during an item,
+no save after Stop, confirmed persistence despite late Stop, any-Watch refusal,
+uncertain reports and waiting for finite descendants to complete normally.
+These automated checks do not establish real-installer/UAC or native-window
+acceptance. Native controls remain the next implementation PR.
