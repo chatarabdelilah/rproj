@@ -17,7 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 23: Machine Setup design review.**
+**Current priority, October 24: native Machine Setup implementation.**
+The owner approved the design and three sequential reviewed PRs against clean
+main `a56533a`: shared planning/execution, cooperative-Stop worker, then native
+Soft controls. The [implementation record](desktop-machine-setup-native.md)
+tracks progress and evidence. Native previews and real installations stay paused.
+
+**Completed Machine Setup design:**
 Configure Tools delivery completed in PR #130 at `3519bab`; actual reviewed head
 `ad3b2cd` (CI `39509474778`) and main (CI `39710977499`) passed all seven executed
 jobs, and merged branches were removed. The next milestone is the separate Soft

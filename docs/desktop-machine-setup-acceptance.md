@@ -59,3 +59,13 @@ persisted-format changes belong to this milestone. Version 0.22.0 is unchanged.
 The documentation PR records final reviewed-head/main CI and branch cleanup.
 Those checks do not establish rendering or native acceptance. Native implementation
 planning follows owner design approval.
+
+## Native implementation — shared execution checkpoint
+
+The design is approved. The first runtime PR extracts the catalog and selection
+model, adds captured checked execution and guards, and preserves terminal behavior.
+702 CLI/core tests pass (24 ignored); all 83 headless desktop tests pass.
+The [implementation record](desktop-machine-setup-native.md) records review fixes,
+failed attempts and remaining delivery. These disposable fake-installer checks
+do not establish real installation, process-tree or native-window acceptance.
+No native previews or real installers were launched.

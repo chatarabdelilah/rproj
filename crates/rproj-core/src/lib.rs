@@ -17,3 +17,6 @@ pub use inspection::{
     PackagePresence, PresenceState, ProjectActions, ProjectFiles, ProjectKind, ProjectSnapshot,
     Realm, ResolutionState, ResolvedPackage, ToolPin, inspect,
 };
+
+#[doc(hidden)]
+pub mod machine_setup;

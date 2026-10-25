@@ -2,7 +2,7 @@ use std::process::Command;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, AtomicUsize, Ordering},
-    mpsc::{self, Receiver, SyncSender},
+    mpsc::{self, Receiver},
 };
 use std::thread::JoinHandle;
 
@@ -10,91 +10,18 @@ use crate::catalog::tool_catalog::{self, ToolKind};
 use crate::steps::execution::{MessageKind, Reporter};
 use crate::steps::{blender, bootstrap, studio_plugin, toolchain, vscode};
 
-use super::model::{Category, Selection};
+use super::model::Selection;
+#[cfg(test)]
+use super::model::SelectionConfig;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Item {
-    Rokit,
-    App(String),
-    ProjectsFolder,
-    Tool(String),
-    Plugin(String),
-    Extension(String),
-}
-
-impl Item {
-    pub fn label(&self) -> &str {
-        match self {
-            Self::Rokit => "Rokit bootstrap",
-            Self::ProjectsFolder => "Projects folder",
-            Self::App(key) | Self::Tool(key) | Self::Plugin(key) | Self::Extension(key) => key,
-        }
-    }
-    fn fatal(&self) -> bool {
-        matches!(self, Self::Rokit | Self::ProjectsFolder)
-    }
-}
-
-pub fn plan(selection: &Selection) -> Vec<Item> {
-    let mut items = vec![Item::Rokit];
-    for entry in tool_catalog::SYSTEM_APPS
-        .iter()
-        .filter(|entry| selection.apps.contains(entry.key))
-    {
-        items.push(Item::App(entry.key.into()));
-    }
-    items.push(Item::ProjectsFolder);
-    for entry in tool_catalog::ROKIT_TOOLS
-        .iter()
-        .filter(|entry| selection.tools.contains(entry.key))
-    {
-        items.push(Item::Tool(entry.key.into()));
-    }
-    for category in [Category::Plugins, Category::Blender] {
-        if selection.active(category) {
-            for entry in tool_catalog::PLUGINS
-                .iter()
-                .filter(|entry| category.contains(entry) && selection.plugins.contains(entry.key))
-            {
-                items.push(Item::Plugin(entry.key.into()));
-            }
-        }
-    }
-    if selection.active(Category::Extensions) {
-        for entry in tool_catalog::VSCODE_EXTENSIONS
-            .iter()
-            .filter(|entry| selection.extensions.contains(entry.key))
-        {
-            items.push(Item::Extension(entry.key.into()));
-        }
-    }
-    items
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Status {
-    Pending,
-    Running,
-    Already,
-    Installed,
-    Manual,
-    Failed,
-    Skipped,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Outcome {
-    Completed,
-    Warnings,
-    Cancelled,
-    Failed,
-}
+pub use rproj_core::machine_setup::{Item, Outcome, Status, plan};
 
 pub enum Event {
     Started(usize),
     Message(MessageKind, String),
     Finished(usize, Status),
     Done(Outcome),
+    Completed(rproj_core::machine_setup::SetupResult),
 }
 
 pub struct Worker {
@@ -105,13 +32,40 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn start(selection: Selection) -> Self {
-        Self::spawn(selection, execute)
+    pub fn start(context: rproj_core::machine_setup::SetupContext, selection: Selection) -> Self {
+        Self::launch(move |stop, emit| {
+            let review = super::checked::prepare(&context, &selection)?;
+            super::checked::execute(
+                &review,
+                &|| stop.load(Ordering::SeqCst) || crate::interrupt::requested(),
+                emit,
+                &mut || Ok(()),
+            )
+        })
     }
 
+    #[cfg(test)]
     pub(super) fn spawn(
         selection: Selection,
         execute: impl Fn(&Item, &Selection, &Reporter) -> anyhow::Result<()> + Send + 'static,
+    ) -> Self {
+        Self::launch(move |stop, emit| {
+            Ok(run_items(
+                &selection,
+                &|| stop.load(Ordering::SeqCst),
+                emit,
+                execute,
+            ))
+        })
+    }
+
+    fn launch(
+        run: impl FnOnce(
+            &AtomicBool,
+            Arc<dyn Fn(Event) + Send + Sync>,
+        ) -> anyhow::Result<rproj_core::machine_setup::SetupResult>
+        + Send
+        + 'static,
     ) -> Self {
         let (sender, receiver) = mpsc::sync_channel(128);
         let stop = Arc::new(AtomicBool::new(false));
@@ -119,16 +73,30 @@ impl Worker {
         let cancellation = stop.clone();
         let lost = dropped.clone();
         let handle = std::thread::spawn(move || {
-            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                run(&selection, &cancellation, &sender, &lost, execute)
-            }));
-            if result.is_err() {
-                let _ = sender.send(Event::Message(
-                    MessageKind::Warning,
-                    "Setup worker failed unexpectedly; completed installations remain in place."
-                        .into(),
-                ));
-                let _ = sender.send(Event::Done(Outcome::Failed));
+            let events = sender.clone();
+            let emit: Arc<dyn Fn(Event) + Send + Sync> = Arc::new(move |event| {
+                if matches!(event, Event::Message(MessageKind::Output, _)) {
+                    if events.try_send(event).is_err() {
+                        lost.fetch_add(1, Ordering::Relaxed);
+                    }
+                } else {
+                    let _ = events.send(event);
+                }
+            });
+            let result =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(&cancellation, emit)));
+            match result {
+                Ok(Ok(result)) => {
+                    let _ = sender.send(Event::Completed(result));
+                }
+                other => {
+                    let message = match other {
+                        Ok(Err(error)) => format!("Setup failed: {error:#}"),
+                        _ => "Setup worker failed unexpectedly; completed installations may remain in place.".into(),
+                    };
+                    let _ = sender.send(Event::Message(MessageKind::Warning, message));
+                    let _ = sender.send(Event::Done(Outcome::Failed));
+                }
             }
         });
         Self {
@@ -155,26 +123,29 @@ impl Drop for Worker {
     }
 }
 
-fn run(
+pub(super) fn run_items(
     selection: &Selection,
-    stop: &AtomicBool,
-    sender: &SyncSender<Event>,
-    dropped: &Arc<AtomicUsize>,
+    stop: &(dyn Fn() -> bool + Sync),
+    emit: Arc<dyn Fn(Event) + Send + Sync>,
     execute: impl Fn(&Item, &Selection, &Reporter) -> anyhow::Result<()>,
-) {
-    let mut warnings = false;
-    for (index, item) in plan(selection).iter().enumerate() {
-        if stop.load(Ordering::SeqCst) {
-            let _ = sender.send(Event::Done(Outcome::Cancelled));
-            return;
+) -> rproj_core::machine_setup::SetupResult {
+    use rproj_core::machine_setup::{Persistence, SetupResult};
+    let items = plan(selection);
+    let mut result = SetupResult {
+        outcome: Outcome::Completed,
+        statuses: vec![Status::Skipped; items.len()],
+        changes_may_have_begun: false,
+        persistence: Persistence::NotSaved,
+    };
+    for (index, item) in items.iter().enumerate() {
+        if stop() {
+            result.outcome = Outcome::Cancelled;
+            return result;
         }
-        if sender.send(Event::Started(index)).is_err() {
-            return;
-        }
+        emit(Event::Started(index));
         let status = Arc::new(std::sync::Mutex::new(Status::Installed));
         let observed = status.clone();
-        let events = sender.clone();
-        let dropped = dropped.clone();
+        let events = emit.clone();
         let reporter = Reporter(Arc::new(move |kind, text| {
             let next = match kind {
                 MessageKind::Already => Some(Status::Already),
@@ -183,44 +154,47 @@ fn run(
                 _ => None,
             };
             if let Some(next) = next {
-                *observed.lock().unwrap_or_else(|error| error.into_inner()) = next;
-            }
-            let event = Event::Message(kind, text.into());
-            if kind == MessageKind::Output {
-                if events.try_send(event).is_err() {
-                    dropped.fetch_add(1, Ordering::Relaxed);
+                let mut current = observed.lock().unwrap_or_else(|error| error.into_inner());
+                // A later informational message must not erase a warning/manual step.
+                if *current != Status::Failed
+                    && (*current != Status::Manual || next == Status::Failed)
+                {
+                    *current = next;
                 }
-            } else {
-                let _ = events.send(event);
             }
+            events(Event::Message(kind, text.into()));
         }));
-        let result = execute(item, selection, &reporter);
-        if let Err(error) = &result {
-            let _ = sender.send(Event::Message(
+        result.changes_may_have_begun = true;
+        let executed = execute(item, selection, &reporter);
+        if let Err(error) = &executed {
+            emit(Event::Message(
                 MessageKind::Warning,
                 format!("{}: {error:#}", item.label()),
             ));
             *status.lock().unwrap_or_else(|error| error.into_inner()) = Status::Failed;
         }
         let status = *status.lock().unwrap_or_else(|error| error.into_inner());
-        warnings |= matches!(status, Status::Failed | Status::Manual | Status::Skipped);
-        let _ = sender.send(Event::Finished(index, status));
-        if result.is_err() && item.fatal() {
-            let _ = sender.send(Event::Done(Outcome::Failed));
-            return;
+        result.statuses[index] = status;
+        if matches!(status, Status::Failed | Status::Manual | Status::Skipped) {
+            result.outcome = Outcome::Warnings;
+        }
+        emit(Event::Finished(index, status));
+        if status == Status::Failed && item.fatal() {
+            result.outcome = Outcome::Failed;
+            return result;
         }
     }
-    let outcome = if stop.load(Ordering::SeqCst) {
-        Outcome::Cancelled
-    } else if warnings {
-        Outcome::Warnings
-    } else {
-        Outcome::Completed
-    };
-    let _ = sender.send(Event::Done(outcome));
+    if stop() {
+        result.outcome = Outcome::Cancelled;
+    }
+    result
 }
 
-fn execute(item: &Item, selection: &Selection, reporter: &Reporter) -> anyhow::Result<()> {
+pub(super) fn execute(
+    item: &Item,
+    selection: &Selection,
+    reporter: &Reporter,
+) -> anyhow::Result<()> {
     match item {
         Item::Rokit => bootstrap::ensure_rokit_with(Some(reporter)),
         Item::ProjectsFolder => {
@@ -343,7 +317,8 @@ mod tests {
     fn fixture_worker_finishes_without_machine_operations() {
         let worker = Worker::spawn(selection(), |_, _, _| Ok(()));
         loop {
-            if let Event::Done(outcome) = worker.receiver.as_ref().unwrap().recv().unwrap() {
+            if let Event::Completed(result) = worker.receiver.as_ref().unwrap().recv().unwrap() {
+                let outcome = result.outcome;
                 assert_eq!(outcome, Outcome::Completed);
                 break;
             }
@@ -381,7 +356,8 @@ mod tests {
         loop {
             match worker.receiver.as_ref().unwrap().recv().unwrap() {
                 Event::Finished(index, status) => finished.push((index, status)),
-                Event::Done(outcome) => {
+                Event::Completed(result) => {
+                    let outcome = result.outcome;
                     assert_eq!(outcome, Outcome::Warnings);
                     break;
                 }
@@ -401,7 +377,8 @@ mod tests {
         loop {
             match worker.receiver.as_ref().unwrap().recv().unwrap() {
                 Event::Started(_) => starts += 1,
-                Event::Done(outcome) => {
+                Event::Completed(result) => {
+                    let outcome = result.outcome;
                     assert_eq!(outcome, Outcome::Failed);
                     break;
                 }
@@ -420,7 +397,8 @@ mod tests {
             Ok(())
         });
         loop {
-            if let Event::Done(outcome) = worker.receiver.as_ref().unwrap().recv().unwrap() {
+            if let Event::Completed(result) = worker.receiver.as_ref().unwrap().recv().unwrap() {
+                let outcome = result.outcome;
                 assert_eq!(outcome, Outcome::Completed);
                 break;
             }
@@ -441,7 +419,8 @@ mod tests {
         worker.request_stop();
         release.send(()).unwrap();
         loop {
-            if let Event::Done(outcome) = worker.receiver.as_ref().unwrap().recv().unwrap() {
+            if let Event::Completed(result) = worker.receiver.as_ref().unwrap().recv().unwrap() {
+                let outcome = result.outcome;
                 assert_eq!(outcome, Outcome::Cancelled);
                 break;
             }

@@ -1,0 +1,326 @@
+[
+  {
+    "key": "git",
+    "category": "Apps",
+    "description": "Version control - required for any real team workflow",
+    "docs": "https://git-scm.com/",
+    "source": "Git.Git",
+    "manual": "",
+    "kind": "SystemApp"
+  },
+  {
+    "key": "vscode",
+    "category": "Apps",
+    "description": "Code editor",
+    "docs": "https://code.visualstudio.com/",
+    "source": "Microsoft.VisualStudioCode",
+    "manual": "",
+    "kind": "SystemApp"
+  },
+  {
+    "key": "studio",
+    "category": "Apps",
+    "description": "Roblox Studio, the game editor",
+    "docs": "https://create.roblox.com/",
+    "source": "Roblox.RobloxStudio",
+    "manual": "",
+    "kind": "SystemApp"
+  },
+  {
+    "key": "roblox",
+    "category": "Apps",
+    "description": "Roblox client - needed to play/test published games",
+    "docs": "https://www.roblox.com/",
+    "source": "Roblox.Roblox",
+    "manual": "",
+    "kind": "SystemApp"
+  },
+  {
+    "key": "blender",
+    "category": "Apps",
+    "description": "3D modeling tool, for building custom meshes/animations (optional, heavier install)",
+    "docs": "https://www.blender.org/",
+    "source": "BlenderFoundation.Blender",
+    "manual": "",
+    "kind": "SystemApp"
+  },
+  {
+    "key": "figma",
+    "category": "Apps",
+    "description": "UI design tool - for laying out interfaces before building them (optional)",
+    "docs": "https://www.figma.com/",
+    "source": "Figma.Figma",
+    "manual": "",
+    "kind": "SystemApp"
+  },
+  {
+    "key": "rojo",
+    "category": "Tools",
+    "description": "Syncs your filesystem code into Roblox Studio",
+    "docs": "https://rojo.space/",
+    "source": "rojo",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "wally",
+    "category": "Tools",
+    "description": "Package manager for Roblox/Luau, similar to npm or cargo",
+    "docs": "https://wally.run/",
+    "source": "wally",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "wally-package-types",
+    "category": "Tools",
+    "description": "Generates Luau type definitions for your installed Wally packages",
+    "docs": "https://github.com/JohnnyMorganz/wally-package-types",
+    "source": "wally-package-types",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "selene",
+    "category": "Tools",
+    "description": "Static analysis linter for Luau",
+    "docs": "https://kampfkarren.github.io/selene/",
+    "source": "selene",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "stylua",
+    "category": "Tools",
+    "description": "Deterministic code formatter for Luau",
+    "docs": "https://github.com/JohnnyMorganz/StyLua",
+    "source": "JohnnyMorganz/StyLua",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "lute",
+    "category": "Tools",
+    "description": "Standalone Luau runtime - runs the project's `.lute/check.luau` quality gate locally and in CI",
+    "docs": "https://lute.luau.org/",
+    "source": "luau-lang/lute",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "luau-lsp-cli",
+    "category": "Tools",
+    "description": "Luau language server as a command-line type checker - this is what `luau-lsp analyze` in the quality gate runs, separate from the VS Code extension of the same name",
+    "docs": "https://github.com/JohnnyMorganz/luau-lsp",
+    "source": "JohnnyMorganz/luau-lsp",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "jest-roblox",
+    "category": "Tools",
+    "description": "Runs Jest Roblox suites through Studio locally or Open Cloud in CI",
+    "docs": "https://github.com/christopher-buss/jest-roblox-cli",
+    "source": "christopher-buss/jest-roblox-cli",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "asphalt",
+    "category": "Tools",
+    "description": "Modern Roblox asset-sync tool with Open Cloud, Studio/debug targets, and Luau/TypeScript code generation",
+    "docs": "https://github.com/jackTabsCode/asphalt",
+    "source": "jacktabscode/asphalt",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "tungsten",
+    "category": "Tools",
+    "description": "Roblox asset-sync tool with Open Cloud targets, watch mode, Luau/TypeScript code generation, and spritesheet packing",
+    "docs": "https://pwnwrkz.github.io/tungsten-docs/",
+    "source": "pwnwrkz/tungsten",
+    "manual": "",
+    "kind": "RokitTool"
+  },
+  {
+    "key": "scribe-studio",
+    "category": "Plugins",
+    "description": "Scribe Studio - inspect Scribe player data and diagnostics during Studio playtests",
+    "docs": "https://scribe.ericplane.dev/studio-plugin/",
+    "source": "ericplane/Scribe",
+    "manual": "https://create.roblox.com/store/asset/113609038046646/Scribe-Studio",
+    "kind": "StudioPluginManual"
+  },
+  {
+    "key": "jest-roblox-plugin",
+    "category": "Plugins",
+    "description": "Studio runner required by jest-roblox's hidden local Studio backend",
+    "docs": "https://github.com/christopher-buss/jest-roblox-cli",
+    "source": "christopher-buss/jest-roblox-cli",
+    "manual": "",
+    "kind": "StudioPlugin"
+  },
+  {
+    "key": "rojo-plugin",
+    "category": "Plugins",
+    "description": "Studio-side companion for Rojo's file sync (installed via `rojo plugin install`)",
+    "docs": "https://rojo.space/",
+    "source": "rojo-rbx/rojo",
+    "manual": "",
+    "kind": "StudioPluginViaCli"
+  },
+  {
+    "key": "hoarcekat",
+    "category": "Plugins",
+    "description": "Storybook-style previewer for isolated UI components, especially useful with React/Roact",
+    "docs": "https://github.com/Kampfkarren/hoarcekat",
+    "source": "Kampfkarren/hoarcekat",
+    "manual": "",
+    "kind": "StudioPlugin"
+  },
+  {
+    "key": "luau-lsp-plugin",
+    "category": "Plugins",
+    "description": "Companion for the Luau language server - exposes Studio's live DataModel (instances not in your Rojo files) for better autocomplete",
+    "docs": "https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md",
+    "source": "JohnnyMorganz/luau-lsp",
+    "manual": "",
+    "kind": "StudioPlugin"
+  },
+  {
+    "key": "ui-labs",
+    "category": "Plugins",
+    "description": "Storybook-style UI component previewer - the actively developed successor to Hoarcekat",
+    "docs": "https://pepeeltoro41.github.io/ui-labs/",
+    "source": "PepeElToro41/ui-labs",
+    "manual": "",
+    "kind": "StudioPlugin"
+  },
+  {
+    "key": "resurface",
+    "category": "Plugins",
+    "description": "Converts surface GUIs to studs and back, plus alignment and sizing helpers",
+    "docs": "https://github.com/cxmeel/resurface-plugin",
+    "source": "cxmeel/resurface-plugin",
+    "manual": "https://create.roblox.com/store/asset/5070921519",
+    "kind": "StudioPluginManual"
+  },
+  {
+    "key": "blender-plugin",
+    "category": "Blender",
+    "description": "Roblox's official Blender add-on (\"Roblox Upload\") - uploads meshes/assets to Roblox via the Open Cloud API",
+    "docs": "https://create.roblox.com/docs/art/modeling/roblox-blender-plugin",
+    "source": "Roblox/roblox-blender-plugin",
+    "manual": "",
+    "kind": "BlenderAddon"
+  },
+  {
+    "key": "luau-lsp",
+    "category": "Extensions",
+    "description": "Luau language server - autocomplete, type checking, go-to-definition",
+    "docs": "https://github.com/JohnnyMorganz/luau-lsp",
+    "source": "JohnnyMorganz.luau-lsp",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "vscode-rojo",
+    "category": "Extensions",
+    "description": "Rojo commands and status from inside the editor - hasn't been updated since 2022, but still functions",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=evaera.vscode-rojo",
+    "source": "evaera.vscode-rojo",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "selene-vscode",
+    "category": "Extensions",
+    "description": "Inline Selene lint diagnostics",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=Kampfkarren.selene-vscode",
+    "source": "Kampfkarren.selene-vscode",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "stylua-vscode",
+    "category": "Extensions",
+    "description": "Format Luau files with StyLua on save",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.stylua",
+    "source": "JohnnyMorganz.stylua",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "roblox-ui",
+    "category": "Extensions",
+    "description": "Explorer panel for your Rojo project inside VS Code - browse the file tree as the Roblox instances it becomes",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=filiptibell.roblox-ui",
+    "source": "filiptibell.roblox-ui",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "testez-companion",
+    "category": "Extensions",
+    "description": "Runs your TestEZ tests from VS Code and shows the results inline, talking to a Studio-side plugin",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=tacheometrist.testez-companion",
+    "source": "tacheometrist.testez-companion",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "github-actions",
+    "category": "Extensions",
+    "description": "Shows CI workflow runs and their logs in the editor, and gives you completion when editing workflow YAML",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=github.vscode-github-actions",
+    "source": "github.vscode-github-actions",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "theme-one-dark",
+    "category": "Themes",
+    "description": "Atom One Dark Theme, by Mahmoud Ali - a faithful port of Atom's iconic dark theme",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=akamud.vscode-theme-onedark",
+    "source": "akamud.vscode-theme-onedark",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "theme-monospace",
+    "category": "Themes",
+    "description": "Monospace Theme, by Keksi - a minimalistic theme with subtle purple accents",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=keksiqc.idx-monospace-theme",
+    "source": "keksiqc.idx-monospace-theme",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "theme-horizon",
+    "category": "Themes",
+    "description": "Horizon Theme, by Alexander Nanberg - a warm dual (light/dark) theme",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=alexandernanberg.horizon-theme-vscode",
+    "source": "alexandernanberg.horizon-theme-vscode",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "theme-catppuccin",
+    "category": "Themes",
+    "description": "Catppuccin, four pastel themes (Latte, Frappe, Macchiato, Mocha) with a large ecosystem",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc",
+    "source": "Catppuccin.catppuccin-vsc",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  },
+  {
+    "key": "theme-catppuccin-icons",
+    "category": "Themes",
+    "description": "Catppuccin's matching file-icon set - only worth it alongside the theme",
+    "docs": "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc-icons",
+    "source": "Catppuccin.catppuccin-vsc-icons",
+    "manual": "",
+    "kind": "VsCodeExtension"
+  }
+]

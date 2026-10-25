@@ -17,6 +17,7 @@ mod diagnostics;
 mod file_replace;
 mod graph;
 mod interrupt;
+mod path_identity;
 mod project_editor;
 mod steps;
 mod tui;
