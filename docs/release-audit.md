@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## October 24: shared Machine Setup implementation
+
+The owner approved native Machine Setup against `a56533a`, through three
+sequential reviewed PRs. The first branch extracts the frozen catalog/selection
+model and adds checked, execution-scoped locking, cooperative Stop and atomic
+selection persistence. [Implementation evidence](desktop-machine-setup-native.md)
+records tests and failed attempts separately from pending review/CI delivery.
+No native windows or real installers are launched; version 0.22.0 is unchanged.
+
 ## October 23: Machine Setup design
 
 Configure Tools PR #130 merged at `3519bab`; reviewed-head CI `39509474778`

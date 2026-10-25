@@ -1,5 +1,15 @@
 # Native Machine Setup proposal
 
+## Native implementation approval — October 24, 2026
+
+The owner approved this design against clean main `a56533a` and three sequential
+reviewed PRs: shared planning/checked execution, private cooperative-stop worker,
+then native Soft controls. Preserve the terminal catalog, selection/persistence
+semantics and installation order. Stop finishes the active item; it must not use
+the existing process-killing cancellation path. Native previews and real
+installations remain paused. Validation uses isolated storage and fake installers;
+no version bump, publication, OS troubleshooting or VM provisioning is included.
+
 Approved design scope, October 23, 2026, against clean main `3519bab`:
 an independent Soft conversation wireframe for **Selections → Review → Results**.
 This approves the prototype scope, not native implementation or visual acceptance.

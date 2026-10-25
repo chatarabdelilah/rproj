@@ -19,6 +19,7 @@ pub struct CatalogEntry {
 
 pub mod artifacts;
 pub mod capabilities;
+pub mod tool_catalog;
 pub mod tool_settings;
 pub mod wally_packages;
 

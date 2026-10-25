@@ -1,10 +1,16 @@
+pub(crate) mod checked;
+#[cfg(test)]
+mod fixtures;
 mod model;
 mod worker;
 
+use rproj_core::machine_setup::{Persistence, SetupResult};
 use std::collections::{BTreeSet, VecDeque};
 use std::io::{self, IsTerminal};
 use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
+#[cfg(test)]
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
 use crossterm::event::{Event as TerminalEvent, KeyCode, KeyEvent, KeyModifiers};
@@ -21,13 +27,14 @@ use crate::tui::{
     ACCENT, ConfirmState, ERROR, MUTED, PickerItem, PickerState, TerminalSession,
     render_confirm_default_no,
 };
-use model::{Category, Selection};
+use model::{Category, Selection, SelectionConfig};
 use worker::{Event, Outcome, Status, Worker};
 
 #[derive(Clone, Copy)]
 enum Confirmation {
     Apply,
     Stop,
+    Reload,
 }
 
 struct CategoryDraft {
@@ -346,11 +353,11 @@ impl App {
         let keys = if self.running {
             "Esc/Ctrl+C Stop   Tab focus   PgUp/PgDn scroll   ? Help"
         } else if self.outcome.is_some() {
-            "Enter Done   Esc Review   Tab focus   PgUp/PgDn scroll   ? Help"
+            "Enter Done   Esc Review   R Reload saved selections   Tab focus   ? Help"
         } else if self.draft.is_some() {
             "Space toggle   Enter accept   Esc cancel   Tab focus   ? Help"
         } else {
-            "Arrows select   Enter edit/apply   Esc Back   Tab focus   ? Help"
+            "Arrows select   Enter edit/apply   R Reload   Esc Back   Tab focus   ? Help"
         };
         frame.render_widget(
             Paragraph::new(format!("{}\n{keys}", self.error.as_deref().unwrap_or("")))
@@ -360,7 +367,7 @@ impl App {
         );
         if self.help {
             frame.render_widget(ratatui::widgets::Clear, bands[1]);
-            frame.render_widget(Paragraph::new("Machine Setup\n\nReview categories, then Apply Setup and confirm. Space toggles a choice; Enter accepts a category, Esc abandons its edits. Typing filters without changing checks.\n\nTab switches list/details focus. Arrows and Page Up/Down scroll details. Home/End jump.\n\nDuring installation, stopping waits for the active item; already installed software remains. Installer and UAC dialogs may appear separately. Results include failures and manual steps. Rerun from Review to retry.\n\n? or Esc closes Help.").wrap(Wrap { trim: false }).block(Block::default().borders(Borders::ALL).title(" Help ")), bands[1]);
+            frame.render_widget(Paragraph::new("Machine Setup\n\nReview categories, then Apply Setup and confirm. Space toggles a choice; Enter accepts a category, Esc abandons its edits. Typing filters without changing checks.\n\nTab switches list/details focus. Arrows and Page Up/Down scroll details. Home/End jump.\n\nDuring installation, stopping waits for the active item; already installed software remains. Installer and UAC dialogs may appear separately. Results include failures and manual steps. Use R to reload saved selections with confirmation, review them, then Apply again.\n\n? or Esc closes Help.").wrap(Wrap { trim: false }).block(Block::default().borders(Borders::ALL).title(" Help ")), bands[1]);
         }
         if self.confirmation.is_some() {
             self.render_confirmation(frame);
@@ -371,6 +378,7 @@ impl App {
         let text = match self.confirmation.unwrap() {
             Confirmation::Apply => format!("Apply these selections? Rokit is required. Projects: {}. Some plugins require manual steps. Nothing is uninstalled.", self.selection.root.display()),
             Confirmation::Stop => "Stop after the current item? Completed installations remain; machine configuration will not be saved.".into(),
+            Confirmation::Reload => "Reload saved selections and return to Review? Unsaved choices will be discarded. Choose No to keep your draft.".into(),
         };
         render_confirm_default_no(frame, frame.area(), &ConfirmState::new(text));
     }
@@ -424,8 +432,41 @@ fn ctrl_c(key: KeyEvent) -> bool {
 }
 
 pub fn run_in(terminal: &mut TerminalSession, config: &mut GlobalConfig) -> Result<bool> {
-    let _guard = crate::background_watch::mutation_guard(None, false)?;
-    let result = run_with(terminal, config, Worker::start, GlobalConfig::save);
+    let context = checked::capture()?;
+    // Keep the selected root identical to the captured absolute review path.
+    *config = match &context.original {
+        Some(contents) => toml::from_str(contents)?,
+        None => GlobalConfig::default(),
+    };
+    config.roblox_projects_root = Some(context.saved.root.clone());
+    let context = std::cell::RefCell::new(context);
+    let result = run_with(
+        terminal,
+        config,
+        |selection| Worker::start(context.borrow().clone(), selection),
+        |result, config| match &result.persistence {
+            Persistence::Saved { contents } => {
+                *config = toml::from_str(contents)?;
+                Ok(())
+            }
+            Persistence::Failed { message } => anyhow::bail!("{message}"),
+            Persistence::NotSaved => {
+                anyhow::bail!("Setup did not confirm configuration persistence")
+            }
+        },
+        |config| {
+            let fresh = checked::capture()?;
+            let mut loaded = match &fresh.original {
+                Some(contents) => toml::from_str(contents)?,
+                None => GlobalConfig::default(),
+            };
+            loaded.roblox_projects_root = Some(fresh.saved.root.clone());
+            let selection = fresh.saved.clone();
+            *config = loaded;
+            *context.borrow_mut() = fresh;
+            Ok(selection)
+        },
+    );
     if matches!(result, Ok(true)) {
         crate::steps::notify::summary(
             "rproj setup",
@@ -439,7 +480,8 @@ fn run_with(
     terminal: &mut TerminalSession,
     config: &mut GlobalConfig,
     start: impl Fn(Selection) -> Worker,
-    save: impl Fn(&GlobalConfig) -> Result<()>,
+    finish: impl Fn(&SetupResult, &mut GlobalConfig) -> Result<()>,
+    reload: impl Fn(&mut GlobalConfig) -> Result<Selection>,
 ) -> Result<bool> {
     let mut app = App::new(Selection::load(config)?);
     let mut worker: Option<Worker> = None;
@@ -462,9 +504,19 @@ fn run_with(
                         }
                     }
                     Event::Finished(index, status) => app.statuses[index] = status,
+                    Event::Completed(result) => {
+                        app.elapsed = app.started.map(|started| started.elapsed());
+                        app.statuses = result.statuses.clone();
+                        pending_outcome = Some(result);
+                    }
                     Event::Done(outcome) => {
                         app.elapsed = app.started.map(|started| started.elapsed());
-                        pending_outcome = Some(outcome);
+                        pending_outcome = Some(SetupResult {
+                            outcome,
+                            statuses: app.statuses.clone(),
+                            changes_may_have_begun: true,
+                            persistence: Persistence::NotSaved,
+                        });
                     }
                 }
             }
@@ -478,13 +530,11 @@ fn run_with(
                 app.stopping = true;
             }
             if pending_outcome.is_some() && app.confirmation.is_none() {
-                let mut outcome = pending_outcome.take().unwrap();
-                if active.stop.load(Ordering::SeqCst) {
-                    outcome = Outcome::Cancelled;
-                }
+                let result = pending_outcome.take().unwrap();
+                let mut outcome = result.outcome;
                 app.running = false;
                 if matches!(outcome, Outcome::Completed | Outcome::Warnings)
-                    && let Err(error) = persist(&app.selection, config, &save)
+                    && let Err(error) = finish(&result, config)
                 {
                     app.message(&format!("Configuration could not be saved: {error:#}"));
                     outcome = Outcome::Failed;
@@ -558,6 +608,15 @@ fn run_with(
                         worker = Some(start(app.selection.clone()));
                         crate::diagnostics::event("setup.apply", "confirmed");
                     }
+                    Confirmation::Reload => match reload(config) {
+                        Ok(selection) => {
+                            app = App::new(selection);
+                            last_outcome = None;
+                        }
+                        Err(error) => {
+                            app.error = Some(format!("Reload failed: {error:#}"));
+                        }
+                    },
                     Confirmation::Stop => {
                         if let Some(worker) = &worker {
                             worker.request_stop();
@@ -580,6 +639,13 @@ fn run_with(
             continue;
         }
         if app.too_small && key.code != KeyCode::Esc && !ctrl_c(key) {
+            continue;
+        }
+        if !app.running
+            && app.draft.is_none()
+            && matches!(key.code, KeyCode::Char('r') | KeyCode::Char('R'))
+        {
+            app.confirmation = Some(Confirmation::Reload);
             continue;
         }
         if key.code == KeyCode::Tab || key.code == KeyCode::BackTab {
@@ -694,6 +760,7 @@ fn exit_result(outcome: Option<Outcome>) -> Result<bool> {
     }
 }
 
+#[cfg(test)]
 fn persist(
     selection: &Selection,
     config: &mut GlobalConfig,
@@ -776,12 +843,19 @@ mod tests {
                     Ok(())
                 })
             },
-            |updated| {
+            |_, config| {
                 if mode == "save-failure" {
                     anyhow::bail!("fixture save failure");
                 }
-                std::fs::write(root.join("saved.toml"), toml::to_string(updated).unwrap())?;
-                Ok(())
+                let selection = Selection::load(config)?;
+                persist(&selection, config, |updated| {
+                    std::fs::write(root.join("saved.toml"), toml::to_string(updated).unwrap())?;
+                    Ok(())
+                })
+            },
+            |config| {
+                std::fs::write(root.join("reloaded"), "")?;
+                Selection::load(config)
             },
         );
         drop(terminal);
@@ -837,6 +911,34 @@ mod tests {
         session.wait_for("Setup returned: Ok(false)");
         assert_eq!(session.finish().code, 0);
         assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn pty_reload_defaults_to_keep_and_requires_explicit_acceptance() {
+        let root = tempfile::tempdir().unwrap();
+        let mut session = fixture_session(root.path(), "");
+        session.wait_for("Apply Setup");
+        session.send("r");
+        session.wait_for("Reload saved selections and return to Review?");
+        session.send(crate::test_common::ENTER);
+        session.wait_for_screen("reload dialog dismissed", |screen| {
+            let text = screen.contents();
+            text.contains("Enter edit/apply")
+                && !text.contains("Reload saved selections and return to Review?")
+        });
+        assert!(!root.path().join("reloaded").exists());
+        session.send("r");
+        session.wait_for("[No]");
+        session.send("y");
+        session.wait_for_screen("reload dialog dismissed", |screen| {
+            let text = screen.contents();
+            text.contains("Enter edit/apply")
+                && !text.contains("Reload saved selections and return to Review?")
+        });
+        assert!(root.path().join("reloaded").exists());
+        session.send(crate::test_common::ESC);
+        session.wait_for("Setup returned: Ok(false)");
+        assert_eq!(session.finish().code, 0);
     }
 
     #[test]

@@ -7,7 +7,7 @@ pub mod tool_catalog;
 pub mod tool_settings;
 pub mod tool_usage;
 pub mod wally_packages;
-
+#[cfg(test)]
 pub use rproj_core::catalog::Maintenance;
 
 #[cfg(test)]
