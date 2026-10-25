@@ -38,6 +38,8 @@ mod composition;
 #[path = "operations/creation.rs"]
 mod creation;
 mod settings;
+mod setup;
+pub use setup::{SetupEvent, SetupStop};
 #[path = "operations/upgrade.rs"]
 mod upgrade;
 

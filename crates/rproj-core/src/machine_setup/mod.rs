@@ -1,5 +1,6 @@
 //! Shared machine selections and deterministic execution order.
 mod model;
+pub mod protocol;
 #[cfg(test)]
 mod tests;
 use crate::catalog::tool_catalog;
