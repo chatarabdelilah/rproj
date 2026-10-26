@@ -3,6 +3,7 @@ mod creation;
 mod diff_view;
 mod operation;
 mod settings;
+mod setup;
 mod theme;
 #[cfg(test)]
 mod ui_tests;
@@ -55,8 +56,17 @@ enum Operation {
     LoadSettings,
     PrepareSettings,
     SaveSettings,
+    LoadSetup,
+    PrepareSetup,
+    ApplySetup,
 }
 impl Operation {
+    fn is_setup(self) -> bool {
+        matches!(
+            self,
+            Self::LoadSetup | Self::PrepareSetup | Self::ApplySetup
+        )
+    }
     fn cancellable(self) -> bool {
         matches!(
             self,
@@ -87,7 +97,10 @@ impl Operation {
             | Self::ApplyUpgrade
             | Self::LoadSettings
             | Self::PrepareSettings
-            | Self::SaveSettings => return None,
+            | Self::SaveSettings
+            | Self::LoadSetup
+            | Self::PrepareSetup
+            | Self::ApplySetup => return None,
         })
     }
 }
@@ -124,6 +137,22 @@ impl Section {
 }
 
 enum Event {
+    SetupSupport(Result<(), String>),
+    SetupLoaded(
+        u64,
+        u64,
+        Result<rproj_core::machine_setup::SetupContext, setup::Failure>,
+    ),
+    SetupPrepared(
+        u64,
+        u64,
+        Result<rproj_core::machine_setup::SetupReview, setup::Failure>,
+    ),
+    SetupProgress(u64, Box<rproj_core::machine_setup::protocol::SetupReport>),
+    SetupApplied(
+        u64,
+        Box<Result<rproj_core::machine_setup::protocol::SetupReport, setup::Failure>>,
+    ),
     SettingsSupport(Result<(), String>),
     SettingsLoaded(
         u64,
@@ -334,6 +363,9 @@ impl Activity {
 }
 
 pub struct Workbench {
+    setup: setup::SetupSession,
+    setup_focus: FocusHandle,
+    setup_query: Entity<InputState>,
     settings: settings::SettingsSession,
     settings_focus: FocusHandle,
     settings_diff_focus: FocusHandle,
@@ -406,6 +438,9 @@ impl Workbench {
         });
         let settings_integer =
             cx.new(|cx| InputState::new(window, cx).placeholder("Exact whole number"));
+        let setup_query =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Search setup choices"));
+        let setup_subscription = cx.subscribe(&setup_query, |_, _, _: &InputEvent, cx| cx.notify());
         let settings_subscription =
             cx.subscribe(&settings_integer, |_, _, _: &InputEvent, cx| cx.notify());
         let appearance_subscription = cx.observe_window_appearance(window, |this, window, cx| {
@@ -453,6 +488,9 @@ impl Workbench {
         });
         let mut view = Self {
             settings: settings::SettingsSession::default(),
+            setup: setup::SetupSession::default(),
+            setup_focus: cx.focus_handle(),
+            setup_query,
             settings_focus: cx.focus_handle(),
             settings_diff_focus: cx.focus_handle().tab_stop(true),
             settings_list: ListState::new(0, ListAlignment::Top, px(40.)),
@@ -505,6 +543,7 @@ impl Workbench {
             _subscriptions: vec![
                 subscription,
                 settings_subscription,
+                setup_subscription,
                 appearance_subscription,
                 composition_subscription,
             ]
@@ -524,6 +563,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.setup.visible = false;
         self.settings.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
@@ -542,6 +582,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.setup.visible = false;
         self.settings.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
@@ -654,6 +695,15 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::SetupSupport(result) => self.setup.support = Some(result),
+                Event::SetupLoaded(id, revision, result) => {
+                    self.accept_setup_loaded(id, revision, result, cx)
+                }
+                Event::SetupPrepared(id, revision, result) => {
+                    self.accept_setup_prepared(id, revision, result, cx)
+                }
+                Event::SetupProgress(id, report) => self.accept_setup_progress(id, report),
+                Event::SetupApplied(id, result) => self.accept_setup_applied(id, *result, cx),
                 Event::SettingsSupport(result) => self.settings.support = Some(result),
                 Event::SettingsLoaded(id, revision, result) => {
                     self.accept_settings_loaded(id, revision, result, cx)
@@ -715,6 +765,7 @@ impl Workbench {
                             self.client_error = None;
                             self.probe_upgrade();
                             self.probe_settings();
+                            self.probe_setup();
                             self.poll_status();
                             self.load_creation_context(cx);
                         }
@@ -794,13 +845,7 @@ impl Workbench {
                     if self.operations.accepts(id) =>
                 {
                     self.activity
-                        .set_origin(self.operations.latest.as_ref().map(|run| {
-                            format!(
-                                "{} · {}",
-                                run.project.display(),
-                                operation_label(run.operation)
-                            )
-                        }));
+                        .set_origin(self.operations.latest.as_ref().map(|run| run.origin()));
                     self.activity.append_stream(stderr, &text);
                 }
                 Event::Progress(_, _) => continue,
@@ -810,13 +855,7 @@ impl Workbench {
                     }
                     self.running = None;
                     self.activity
-                        .set_origin(self.operations.latest.as_ref().map(|run| {
-                            format!(
-                                "{} · {}",
-                                run.project.display(),
-                                operation_label(run.operation)
-                            )
-                        }));
+                        .set_origin(self.operations.latest.as_ref().map(|run| run.origin()));
                     self.activity.flush();
                     self.activity.append(&self.operations.summary());
                     self.activity.set_origin(None);
@@ -1030,6 +1069,9 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::LoadSettings => "Loading tool settings",
         Operation::PrepareSettings => "Preparing settings review",
         Operation::SaveSettings => "Saving tool settings",
+        Operation::LoadSetup => "Loading machine selections",
+        Operation::PrepareSetup => "Preparing setup review",
+        Operation::ApplySetup => "Applying machine setup",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 23, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 26, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,14 +17,17 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 25: native Machine Setup implementation.**
+**Current priority, October 26: native Machine Setup controls and delivery.**
 The owner approved the design and three sequential reviewed PRs against clean
 main `a56533a`: shared planning/execution, cooperative-Stop worker, then native
 Soft controls. The [implementation record](desktop-machine-setup-native.md)
 tracks progress and evidence. Native previews and real installations stay paused.
 Shared PR #132 merged at `921f0ca`; reviewed-head and merged-main CI passed all
-seven executed jobs, and its branches are removed. The private cooperative-Stop
-worker is the second PR; native Soft controls follow its reviewed delivery.
+seven executed jobs, and its branches are removed. Private cooperative-Stop worker
+PR #133 merged at `a26b916`; reviewed-head CI `40226382180` and merged-main CI
+`40226736261` passed all seven executed jobs on first attempts; its branches are
+removed. The third PR adds native Soft selections, review, results and cooperative
+Stop/close controls. Automated evidence is separate from paused native acceptance.
 
 **Completed Machine Setup design:**
 Configure Tools delivery completed in PR #130 at `3519bab`; actual reviewed head

@@ -163,11 +163,12 @@ impl Workbench {
             .child(div().id("creation-destination").role(Role::Group).aria_label(self.creation.destination().map(|p| p.display().to_string()).unwrap_or_else(|| "Destination unavailable".into())).test_support()
                 .min_w_0().overflow_x_scroll().whitespace_nowrap().text_sm().child(self.creation.destination().map(|p| format!("Destination: {}", p.display())).unwrap_or_else(|| "Destination: waiting for configured project root".into())))
             .child(self.creation.context.as_ref().map(|context| {
-                if !context.machine_ready { "Machine setup is missing. Run rproj setup in a terminal, then Recheck.".into() }
+                if !context.machine_ready { "Machine setup is missing. Open Machine Setup below, or run rproj setup in a terminal, then Recheck.".into() }
                 else if let Some(problem) = &context.template_problem { format!("Template needs attention: {problem}. Use the existing terminal configuration workflow, then Recheck.") }
                 else if context.template.is_some() { "Using your configured Rojo template. Preparation validates it without creating the destination.".into() }
                 else { "Using the standard Rojo project template.".into() }
             }).unwrap_or_else(|| if self.creation.loading { "Loading creation context…".into() } else { "New Project needs a bundled CLI with creation support. Existing workbench actions remain available.".into() }))
+            .when(self.creation.context.as_ref().is_some_and(|c|!c.machine_ready),|view|view.child(self.setup_entry("creation-machine-setup",cx)))
             .child(Button::new("creation-recheck").label(if self.creation.loading { "Rechecking…" } else { "Recheck" }).disabled(self.creation.loading || self.creation_running() || self.client.is_none())
                 .on_click(cx.listener(|this, _, _, cx| this.load_creation_context(cx))))
             .child("Opening or creating a project never changes the active Watch.")

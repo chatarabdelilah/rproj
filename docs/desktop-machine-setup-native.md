@@ -126,3 +126,70 @@ pending; no preview or real installer is used in this PR.
 Real installers/UAC, native rendering, memory stability, assistive technology,
 and macOS/Linux desktop acceptance remain unverified. Installer services outside
 an owned process tree must not be described as owned or safely terminated.
+
+PR #133 merged at `a26b91666fdc0f29bf2189dbdab60e13b43473c1`. Reviewed head
+`3d5e4e5fe78919e8a89eb4a230966c7eb7ff3a30` (run `40226382180`) and merged
+main (run `40226736261`) passed all seven executed CI jobs on their first
+attempts. Badge freshness was intentionally skipped. Merged and reviewed trees
+match; both merged branches were removed.
+
+## Native Soft controls — third PR
+
+The app-level Machine Setup action and New Project prerequisite shortcut open
+Selections → Review → Results. All six catalog categories support search,
+details, sources and documentation. Saved selections, pending choices and
+unverified installation presence remain distinct. The projects folder is
+read-only. Unknown choices are retained without execution; inactive add-ons or
+extensions remain selected but excluded until their parent app is selected.
+List/detail panes stack below 600 logical pixels of main-content width.
+
+The machine draft is session-only and independent of project browsing, closure
+and other drafts. Review shows the authoritative ordered queue and effects.
+Apply defaults to Keep reviewing and rechecks review identity and any observed
+Watch. Stop Watch is separate. Unsupported workers disable setup operations
+with an explanation while other workbench functions remain available.
+
+Machine Setup owns its Activity output and typed results. Progress uses bounded
+delivery; the reliable final report still expands Activity for a new failure
+whose intermediate progress was dropped. Normal progress and success preserve
+manual collapse and panel height. Installation outcome and selection persistence
+are separate; stopped/fatal runs do not claim saved selections. Explicit retry
+reloads configuration and its read-only root while retaining proposed software,
+then prepares a new review; another explicit Apply is always required. Changed
+unknown saved choices block that retry until saved selections are reloaded.
+
+Stop has its own confirmed action and cooperative token, never the generic
+process-killing cancellation path. Close defaults to Keep open; Stop and close
+waits for the active item, owned descendants and streams before checking other
+dirty drafts. Completion while a dialog is open cannot overwrite a saved result
+with a late Stop. Unconfirmed teardown blocks closing and further mutations.
+
+Automated fixtures launch no native windows or real installers. Initial test
+compilation exposed an imported test macro conflict and incorrect test helper
+imports; explicit imports fixed both. A resize test tried clicking the clipped
+part of a scrollable control; centering it in the viewport fixed the fixture.
+Clippy required boxing the terminal report event. A new category test used a
+borrowed identifier where GPUI requires an owned/static identifier; it now uses
+SharedString. Keyboard tests explicitly establish Tab focus before activation.
+These failed attempts are not acceptance passes. The first CodeRabbit review
+reported zero findings; final reviewed-head/main CI belongs to the delivery PR.
+
+Final automated behavior checks pass **100 headless desktop tests** and **720
+CLI/core tests**, with **24 prerequisite-dependent tests ignored**. Formatting
+and strict desktop/CLI/core Clippy pass. Headless checks cover all categories,
+keyboard selection and search retention, minimum/default layouts, long Unicode
+roots and expanded Activity in Light/Dark, retry read failure without losing
+choices, new failures in reliable results, and completion while Stop is open.
+These checks do not establish native rendering or real-installer acceptance.
+
+Direct final inspection also identified a recovery edge: after a retry's context
+read failed, retained proposed choices lacked a baseline for the dirty check.
+Such choices now remain dirty and protected by the close/discard confirmation.
+The regression clears the old context before injecting that read failure.
+Pre-spawn failure is described as not started rather than uncertain installation.
+Fresh crate archives and portable version/inspection smoke checks pass; three
+pre-existing dependency-notice gaps remain. No version or publication changes.
+Final CodeRabbit review reports zero findings across all 18 changed files.
+The portable archive was rebuilt after the recovery fix and its non-window
+version/inspection smoke checks passed again. Final diff inspection and formatting
+passed; reviewed-head/main CI identities will be retained in the delivery PR.
