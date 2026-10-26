@@ -500,5 +500,23 @@ fn failed_stop_delivery_does_not_kill_active_installer_or_claim_teardown() {
         Some(SetupStatus::Succeeded),
         "Disconnected logging interrupted the worker"
     );
-    fs::remove_dir_all(ipc).unwrap();
+    let ipc = ipc.canonicalize().unwrap();
+    let temporary_root = std::env::temp_dir().canonicalize().unwrap();
+    assert_eq!(ipc.parent(), Some(temporary_root.as_path()));
+    // The completion marker precedes process exit. Windows can briefly retain
+    // handles while the disconnected worker/runtime finishes releasing them.
+    let cleanup_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match fs::remove_dir_all(&ipc) {
+            Ok(()) => break,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+            Err(error)
+                if matches!(error.raw_os_error(), Some(5 | 32 | 33))
+                    && Instant::now() < cleanup_deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(error) => panic!("Could not clean up finished setup fixture: {error}"),
+        }
+    }
 }

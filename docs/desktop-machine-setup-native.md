@@ -193,3 +193,15 @@ Final CodeRabbit review reports zero findings across all 18 changed files.
 The portable archive was rebuilt after the recovery fix and its non-window
 version/inspection smoke checks passed again. Final diff inspection and formatting
 passed; reviewed-head/main CI identities will be retained in the delivery PR.
+
+PR #134's first head (`cc5efbd`, run `40259539971`) passed the Windows 1.89
+suite but failed Windows stable in the existing failed-Stop-delivery fixture.
+All behavior assertions passed; temporary-directory cleanup hit Windows sharing
+error 32 after the fake worker's completion marker. Cleanup now verifies its
+operation directory is directly under the temporary root and retries only
+transient Windows sharing/access errors for at most five seconds. Behavioral
+assertions and production execution are unchanged. This is a corrected-head run,
+not an unchanged-commit rerun; final CI evidence belongs to the delivery PR.
+All six other executed jobs passed, including the desktop portable job. The
+isolated cleanup regression, strict CLI/core Clippy and formatting pass locally;
+CodeRabbit's post-correction review reports zero findings across 19 files.
