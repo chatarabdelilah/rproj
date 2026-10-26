@@ -36,6 +36,7 @@ impl Workbench {
         });
     }
     pub(in super::super) fn show_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.setup.visible = false;
         self.creation.visible = false;
         self.composition.visible = false;
         self.upgrade.visible = false;

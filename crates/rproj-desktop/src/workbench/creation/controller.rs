@@ -47,6 +47,7 @@ impl Workbench {
         }
     }
     pub(in super::super) fn show_creation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.setup.visible = false;
         self.composition.visible = false;
         self.settings.visible = false;
         self.upgrade.visible = false;
@@ -416,6 +417,9 @@ impl Workbench {
         }
         if self.creation.close_pending || self.creation.close_dialog {
             return false;
+        }
+        if let Some(decision) = self.setup_close(window, cx) {
+            return decision;
         }
         if let Some(decision) = self.settings_close(window, cx) {
             return decision;

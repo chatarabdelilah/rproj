@@ -79,3 +79,25 @@ no save after Stop, confirmed persistence despite late Stop, any-Watch refusal,
 uncertain reports and waiting for finite descendants to complete normally.
 These automated checks do not establish real-installer/UAC or native-window
 acceptance. Native controls remain the next implementation PR.
+
+## Native controls checkpoint — October 26
+
+The third implementation PR adds the approved native flow. Headless GPUI tests
+cover retained machine ownership, six categories/search, responsive panes,
+default-Keep dialogs and focus return, stale context/completion, explicit retry,
+unknown-choice conflicts, any-Watch blocking, separate cooperative Stop,
+completion during dialogs, other dirty drafts, Activity ownership/height and
+unconfirmed-teardown protection. CLI/core tests use disposable fake installers.
+Exact validation and failed attempts belong to the
+[implementation record](desktop-machine-setup-native.md) and delivery PR.
+
+Local suites pass 100 headless desktop tests and 720 CLI/core tests; 24 tests
+with unmet prerequisites remain ignored. Formatting and strict Clippy pass.
+Headless minimum-size Light/Dark checks keep the long projects path accessible
+and Apply above expanded Activity. These are headless layout assertions only.
+
+This is automated evidence only. No native preview or real installation was
+launched. Rendering, scaling, UAC/elevated installer ownership, assistive
+technology, memory stability and macOS/Linux desktop acceptance stay unverified.
+The existing native-preview pause remains in force; no new manual checklist is
+requested while it is paused. Earlier working wireframes are unchanged.

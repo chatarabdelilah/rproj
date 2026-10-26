@@ -194,10 +194,12 @@ impl Workbench {
                                     && !self.creation.visible
                                     && !self.composition.visible
                                     && !self.upgrade.visible
-                                    && !self.settings.visible,
+                                    && !self.settings.visible
+                                    && !self.setup.visible,
                             )
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.section = section;
+                                this.setup.visible = false;
                                 this.creation.visible = false;
                                 this.composition.visible = false;
                                 this.settings.visible = false;
@@ -207,6 +209,7 @@ impl Workbench {
                     }),
                 ),
             )
+            .child(self.setup_entry("machine-setup", cx))
             .child(
                 div()
                     .text_sm()
@@ -605,6 +608,16 @@ impl Workbench {
                     .tooltip(move |window, cx| Tooltip::new(summary.clone()).build(window, cx))
                     .child(self.operations.compact_summary()),
             )
+            .when(self.setup_applying(), |view| {
+                view.child(
+                    Button::new("activity-stop-setup")
+                        .label("Stop setup…")
+                        .disabled(self.setup_stop_requested())
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.confirm_setup_stop(false, window, cx)
+                        })),
+                )
+            })
             .when_some(
                 self.running
                     .as_ref()
@@ -699,7 +712,9 @@ impl Render for Workbench {
             self.upgrade_list.reset(self.upgrade.row_count());
             self.upgrade_list.scroll_to(offset);
         }
-        let title = if self.settings.visible {
+        let title = if self.setup.visible {
+            "Machine Setup".into()
+        } else if self.settings.visible {
             format!("Tool settings for {}", self.settings.name())
         } else if self.upgrade.visible {
             format!("Review configuration for {}", self.upgrade.name())
@@ -717,7 +732,13 @@ impl Render for Workbench {
                 .and_then(|snapshot| snapshot.name.clone())
                 .unwrap_or_else(|| "Project workspace".into())
         };
-        let content = if self.settings.visible {
+        let content = if self.setup.visible {
+            self.render_setup(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            )
+        } else if self.settings.visible {
             self.render_settings(
                 window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
                     < px(600.),
@@ -751,6 +772,7 @@ impl Render for Workbench {
             }
         };
         let content = if !self.composition.visible
+            && !self.setup.visible
             && !self.creation.visible
             && !self.upgrade.visible
             && !self.settings.visible
@@ -770,6 +792,7 @@ impl Render for Workbench {
             content
         };
         let content = if !self.settings.visible
+            && !self.setup.visible
             && !self.creation.visible
             && !self.composition.visible
             && !self.upgrade.visible
@@ -785,7 +808,8 @@ impl Render for Workbench {
         } else {
             content
         };
-        let content = if self.settings.visible
+        let content = if self.setup.visible
+            || self.settings.visible
             || self.composition.visible
             || self.creation.visible
             || self.upgrade.visible
@@ -884,7 +908,8 @@ impl Render for Workbench {
                                                     .ghost()
                                                     .label("Refresh")
                                                     .disabled(
-                                                        self.inspecting
+                                                        self.setup.visible
+                                                            || self.inspecting
                                                             || self.project.is_none()
                                                             || self.composition.visible
                                                             || self.upgrade.visible
@@ -903,6 +928,7 @@ impl Render for Workbench {
                                                 && !self.composition.visible
                                                 && !self.upgrade.visible
                                                 && !self.settings.visible
+                                                && !self.setup.visible
                                         }),
                                         |view, path| {
                                             view.child(

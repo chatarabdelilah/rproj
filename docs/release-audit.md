@@ -1,5 +1,16 @@
 # Release-Hardening Audit
 
+## October 26: native Machine Setup controls
+
+Private worker PR #133 merged at `a26b916`; reviewed head `3d5e4e5` (CI
+`40226382180`) and merged main (CI `40226736261`) passed all seven executed jobs
+on their first attempts. Merged trees match and both branches are removed.
+The third PR adds the Soft Selections → Review → Results flow, independent
+machine ownership, default-Keep dialogs, explicit reload/retry and cooperative
+Stop-then-close. [Implementation evidence](desktop-machine-setup-native.md)
+separates headless checks and failed attempts from unverified native acceptance.
+No native previews or real installers were launched; version 0.22.0 is unchanged.
+
 ## October 25: private Machine Setup worker
 
 Shared PR #132 merged at `921f0ca`; reviewed head `1653998` (CI `40145034639`)

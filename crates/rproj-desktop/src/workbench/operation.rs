@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 pub(super) enum RunStatus {
     Running,
     Cancelling,
+    StoppingAfterItem,
+    Stopped,
     Succeeded,
     Failed(String),
     Cancelled,
@@ -16,6 +18,8 @@ impl RunStatus {
         match self {
             Self::Running => "Running",
             Self::Cancelling => "Cancellation requested…",
+            Self::StoppingAfterItem => "Stopping after active item…",
+            Self::Stopped => "Stopped",
             Self::Succeeded => "Succeeded",
             Self::Failed(message) => message,
             Self::Cancelled => "Cancelled",
@@ -28,6 +32,16 @@ pub(super) struct Run {
     pub(super) operation: Operation,
     pub(super) project: PathBuf,
     pub(super) status: RunStatus,
+}
+impl Run {
+    pub(super) fn origin(&self) -> String {
+        let owner = if self.operation.is_setup() {
+            "Machine Setup".into()
+        } else {
+            self.project.display().to_string()
+        };
+        format!("{owner} · {}", super::operation_label(self.operation))
+    }
 }
 
 #[derive(Default)]
@@ -52,7 +66,11 @@ impl OperationPresentation {
 
     pub(super) fn accepts(&self, id: u64) -> bool {
         self.latest.as_ref().is_some_and(|run| {
-            run.id == id && matches!(run.status, RunStatus::Running | RunStatus::Cancelling)
+            run.id == id
+                && matches!(
+                    run.status,
+                    RunStatus::Running | RunStatus::Cancelling | RunStatus::StoppingAfterItem
+                )
         })
     }
 
@@ -64,6 +82,14 @@ impl OperationPresentation {
             run.status = RunStatus::Cancelling;
         }
     }
+    pub(super) fn stop_setup(&mut self) {
+        if let Some(run) = self.latest.as_mut()
+            && run.operation == Operation::ApplySetup
+            && run.status == RunStatus::Running
+        {
+            run.status = RunStatus::StoppingAfterItem;
+        }
+    }
 
     pub(super) fn finish(&mut self, id: u64, result: &Result<OperationOutcome, String>) -> bool {
         if !self.accepts(id) {
@@ -71,6 +97,11 @@ impl OperationPresentation {
         }
         let status = match result {
             Ok(OperationOutcome::Succeeded) => RunStatus::Succeeded,
+            Ok(OperationOutcome::Cancelled)
+                if self.latest.as_ref().unwrap().operation == Operation::ApplySetup =>
+            {
+                RunStatus::Stopped
+            }
             Ok(OperationOutcome::Cancelled) => RunStatus::Cancelled,
             Ok(OperationOutcome::Failed { code: Some(code) }) => {
                 RunStatus::Failed(format!("Failed (exit code {code})"))
@@ -90,14 +121,7 @@ impl OperationPresentation {
     pub(super) fn summary(&self) -> String {
         self.latest
             .as_ref()
-            .map(|run| {
-                format!(
-                    "{} · {} · {}",
-                    run.project.display(),
-                    super::operation_label(run.operation),
-                    run.status.label()
-                )
-            })
+            .map(|run| format!("{} · {}", run.origin(), run.status.label()))
             .unwrap_or_else(|| "No operations yet".into())
     }
 
@@ -105,11 +129,14 @@ impl OperationPresentation {
         self.latest
             .as_ref()
             .map(|run| {
-                let project = run
-                    .project
-                    .file_name()
-                    .unwrap_or(run.project.as_os_str())
-                    .to_string_lossy();
+                let project = if run.operation.is_setup() {
+                    std::borrow::Cow::Borrowed("Machine Setup")
+                } else {
+                    run.project
+                        .file_name()
+                        .unwrap_or(run.project.as_os_str())
+                        .to_string_lossy()
+                };
                 let status = match &run.status {
                     RunStatus::Failed(_) => "Failed",
                     other => other.label(),
