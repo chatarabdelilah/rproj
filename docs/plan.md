@@ -25,6 +25,10 @@ its validated composition; unknown choices/exclusions still block reuse.
 [Implementation](desktop-saved-setups-native.md) records progress and evidence.
 Native previews remain paused; version 0.22.0 is unchanged.
 
+Shared PR #136 merged at `5c3c72e`; reviewed head `592ffa8` and merged main
+passed all seven executed CI jobs on first attempts and merged branches are
+removed. The private Saved Setups worker is the active second implementation PR.
+
 **Completed Saved Setups design:**
 The owner approved a separate Soft [Saved Setups proposal](desktop-saved-setups-design.md)
 against clean main `d035610`: review-first composition editing, byte-preserving
