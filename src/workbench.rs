@@ -9,6 +9,7 @@ use rproj_core::operations::WORKER_FLAG;
 
 mod composition;
 mod creation;
+mod saved_setups;
 mod settings;
 mod setup;
 mod upgrade;
@@ -66,6 +67,14 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::CompositionJob(directory) => composition::job(&directory),
+        Operation::SavedSetupsSupport => {
+            println!(
+                "{}",
+                rproj_core::saved_setups::protocol::SAVED_SETUPS_PROTOCOL
+            );
+            Ok(())
+        }
+        Operation::SavedSetupsJob(directory) => saved_setups::job(&directory),
         Operation::SettingsSupport => {
             println!(
                 "{}",
@@ -111,6 +120,8 @@ enum Operation {
     CreationJob(std::path::PathBuf),
     CompositionContext,
     CompositionJob(std::path::PathBuf),
+    SavedSetupsSupport,
+    SavedSetupsJob(std::path::PathBuf),
     SettingsSupport,
     SettingsJob(std::path::PathBuf),
     SetupSupport,
@@ -125,6 +136,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
     if verb == "creation-job"
         || verb == "composition-job"
         || verb == "upgrade-job"
+        || verb == "saved-setups-job"
         || verb == "settings-job"
         || verb == "setup-job"
     {
@@ -134,6 +146,8 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
             Operation::CreationJob(directory.into())
         } else if verb == "composition-job" {
             Operation::CompositionJob(directory.into())
+        } else if verb == "saved-setups-job" {
+            Operation::SavedSetupsJob(directory.into())
         } else if verb == "settings-job" {
             Operation::SettingsJob(directory.into())
         } else if verb == "setup-job" {
@@ -146,6 +160,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
     match verb.to_str() {
         Some("creation-context") => Ok(Operation::CreationContext),
         Some("composition-context") => Ok(Operation::CompositionContext),
+        Some("saved-setups-support") => Ok(Operation::SavedSetupsSupport),
         Some("settings-support") => Ok(Operation::SettingsSupport),
         Some("setup-support") => Ok(Operation::SetupSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),

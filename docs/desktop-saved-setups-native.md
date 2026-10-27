@@ -64,3 +64,45 @@ three legacy dependency archives, as recorded in THIRD-PARTY.md. Local CodeRabbi
 review completed with no findings across all eleven changed files; the final diff
 was inspected directly. Reviewed-head/main CI evidence follows after delivery.
 No native acceptance is claimed. Native memory stability remains unresolved.
+
+PR #136 merged at `5c3c72e`. Reviewed head `592ffa8` (CI `40472652485`) and
+merged main (CI `40473410829`) passed all seven executed jobs on first attempts.
+Reviewed and merged trees match; both merged branches were removed.
+
+### PR 2: private worker (in progress)
+
+The worker derives storage from the CLI's own configuration location, bounds
+document reads and IPC at 2 MiB, and shares the checked executor. Browsing missing
+storage creates nothing; missing machine context remains a visible warning.
+Separate support, browsing, loading, preparation, mutation and reuse operations
+retain captured document ownership. Mutations have no cancellation API.
+
+The initial compile check caught an unnecessary serialization requirement on
+shared diff rows. Reviews now transport the existing document model; diff rows
+are computed off the UI thread, matching the other editors. Ten focused core
+tests and four direct worker tests pass; owned-process validation is in progress.
+An approval-service usage limit prevented one Git alignment command from running.
+After the owner asked to continue, the approved retry succeeded without bypassing
+the review boundary or changing repository data to work around it.
+
+Owned-worker tests first passed 10/11: one corruption fixture reused a source
+already changed by an earlier case, so its final case correctly returned a stale
+source failure rather than a contradictory-exit result. Each corruption case now
+captures a fresh review. A new Watch comparison initially attempted equality on
+a type without PartialEq; it now compares serialized state and is Windows-gated.
+All thirteen focused worker tests pass. Strict Clippy requested boxing the large
+Execute variant; that correction passes Clippy without changing the wire format.
+
+Local CodeRabbit reviewed all fourteen files and raised one minor verification
+question about errors after spawning. Direct inspection confirmed the existing
+`execute_owned_os` wraps its entire post-spawn body with `OwnedTeardownUnconfirmed`;
+the worker preserves that typed error. Existing regression
+`owned_errors_distinguish_pre_spawn_from_post_spawn_reader_failure` exercises the
+boundary. No code correction was required for that finding.
+
+Final validation passed 754 CLI/core tests (24 prerequisite-dependent tests
+ignored), 100 headless desktop tests, formatting, strict CLI/core and desktop
+Clippy, fresh core/CLI package verification and portable version/inspection smoke.
+The three previously recorded legacy dependency notice gaps remain. Final diff
+inspection found no unresolved defect. Reviewed-head/main CI follows delivery;
+no native or real-window acceptance is claimed.

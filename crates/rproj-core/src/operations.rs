@@ -37,6 +37,7 @@ pub fn owned_teardown_unconfirmed(error: &anyhow::Error) -> bool {
 mod composition;
 #[path = "operations/creation.rs"]
 mod creation;
+mod saved_setups;
 mod settings;
 mod setup;
 pub use setup::{SetupEvent, SetupStop};

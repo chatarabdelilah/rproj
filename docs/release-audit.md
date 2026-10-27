@@ -2,6 +2,13 @@
 
 ## October 27: shared Saved Setups implementation
 
+Shared PR #136 merged at `5c3c72e`. Reviewed head `592ffa8` (CI `40472652485`)
+and main (CI `40473410829`) passed all seven executed jobs on first attempts;
+their trees match and both merged branches are removed. The private worker now
+has focused coverage for bounded read-only preparation, exact saved baselines,
+source identity, Watch preservation and owned-process report/teardown behavior.
+Final worker validation and review are tracked in the implementation record.
+
 Design PR #135 merged at `58d08e0`; reviewed head `21f40f2` (CI `40429001152`)
 and merged main (CI `40429486567`) passed all seven executed jobs on first attempts.
 Reviewed/merged trees match and both merged branches were removed. The owner

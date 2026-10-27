@@ -3,9 +3,17 @@ use super::{setup_path, unlinked};
 use crate::path_identity::identity;
 use anyhow::{Context, Result, ensure};
 use rproj_core::saved_setups::*;
-use std::{fs, path::Path};
+use std::{fs, io::Read, path::Path};
 
 pub(crate) fn capture(root: &Path, name: &str) -> Result<CapturedSetup> {
+    capture_with_limit(root, name, None)
+}
+
+pub(crate) fn capture_with_limit(
+    root: &Path,
+    name: &str,
+    limit: Option<u64>,
+) -> Result<CapturedSetup> {
     unlinked(root)?;
     let root = root
         .canonicalize()
@@ -13,7 +21,15 @@ pub(crate) fn capture(root: &Path, name: &str) -> Result<CapturedSetup> {
     let storage_identity = identity(&root, true)?.context("Saved setup storage disappeared")?;
     let path = setup_path(&root, name)?;
     let source_identity = identity(&path, false)?.context("Saved setup disappeared")?;
-    let bytes = fs::read(&path).with_context(|| format!("Cannot read {}", path.display()))?;
+    let mut bytes = Vec::new();
+    fs::File::open(&path)
+        .with_context(|| format!("Cannot read {}", path.display()))?
+        .take(limit.map_or(u64::MAX, |n| n + 1))
+        .read_to_end(&mut bytes)?;
+    ensure!(
+        limit.is_none_or(|n| bytes.len() as u64 <= n),
+        "Saved document exceeds the 2 MiB worker limit; use terminal Saved Setups"
+    );
     ensure!(
         identity(&root, true)?.as_ref() == Some(&storage_identity)
             && identity(&path, false)?.as_ref() == Some(&source_identity),
@@ -28,9 +44,9 @@ pub(crate) fn capture(root: &Path, name: &str) -> Result<CapturedSetup> {
     })
 }
 
-pub(crate) fn verify(source: &CapturedSetup) -> Result<()> {
+fn verify(source: &CapturedSetup, limit: Option<u64>) -> Result<()> {
     ensure!(
-        capture(&source.root, &source.name)? == *source,
+        capture_with_limit(&source.root, &source.name, limit)? == *source,
         "Saved setup or storage changed; refresh with Reload from file before retrying"
     );
     Ok(())
@@ -53,7 +69,15 @@ fn destination(source: &CapturedSetup, name: &str) -> Result<std::path::PathBuf>
 }
 
 pub(crate) fn prepare(source: &CapturedSetup, action: SetupAction) -> Result<ManagementReview> {
-    verify(source)?;
+    prepare_with_limit(source, action, None)
+}
+
+pub(crate) fn prepare_with_limit(
+    source: &CapturedSetup,
+    action: SetupAction,
+    limit: Option<u64>,
+) -> Result<ManagementReview> {
+    verify(source, limit)?;
     let (document, target) = match &action {
         SetupAction::Save(graph) => (Some(DocumentReview::prepare(&source.bytes, graph)?), None),
         SetupAction::Rename(name) if name == &source.name => {
@@ -71,13 +95,21 @@ pub(crate) fn prepare(source: &CapturedSetup, action: SetupAction) -> Result<Man
         destination: target,
     };
     review.validate()?;
-    verify(source)?;
+    verify(source, limit)?;
     Ok(review)
 }
 
 pub(crate) fn execute(
     review: &ManagementReview,
     progress: &mut impl FnMut(MutationState) -> Result<()>,
+) -> ManagementOutcome {
+    execute_with_limit(review, progress, None)
+}
+
+pub(crate) fn execute_with_limit(
+    review: &ManagementReview,
+    progress: &mut impl FnMut(MutationState) -> Result<()>,
+    limit: Option<u64>,
 ) -> ManagementOutcome {
     let mut outcome = ManagementOutcome {
         status: ManagementStatus::Failed,
@@ -90,7 +122,7 @@ pub(crate) fn execute(
         saved: None,
         message: None,
     };
-    let result = execute_inner(review, &mut outcome, progress);
+    let result = execute_inner(review, &mut outcome, progress, limit);
     match result {
         Ok(()) => outcome.status = ManagementStatus::Succeeded,
         Err(error) => {
@@ -119,10 +151,11 @@ fn execute_inner(
     review: &ManagementReview,
     outcome: &mut ManagementOutcome,
     progress: &mut impl FnMut(MutationState) -> Result<()>,
+    limit: Option<u64>,
 ) -> Result<()> {
     review.validate()?;
     ensure!(
-        prepare(&review.source, review.action.clone())? == *review,
+        prepare_with_limit(&review.source, review.action.clone(), limit)? == *review,
         "Reviewed setup action changed; review again"
     );
     let source = &review.source;
@@ -137,7 +170,7 @@ fn execute_inner(
     progress(outcome.mutation)?;
     // The callback may persist a worker report or allow a concurrent writer to run.
     ensure!(
-        prepare(source, review.action.clone())? == *review,
+        prepare_with_limit(source, review.action.clone(), limit)? == *review,
         "Setup changed before staging; Reload from file"
     );
     match &review.action {
@@ -150,12 +183,12 @@ fn execute_inner(
                 .as_ref()
                 .unwrap();
             let pending = crate::file_replace::stage(&outcome.source, contents.as_bytes(), true)?;
-            verify(source)?;
+            verify(source, limit)?;
             pending
                 .persist(&outcome.source)
                 .context("Could not replace saved setup")?;
             outcome.mutation = MutationState::Completed;
-            let saved = capture(&source.root, &source.name)?;
+            let saved = capture_with_limit(&source.root, &source.name, limit)?;
             ensure!(
                 saved.storage_identity == source.storage_identity
                     && saved.bytes == contents.as_bytes(),
@@ -166,7 +199,7 @@ fn execute_inner(
         SetupAction::Rename(name) | SetupAction::Duplicate(name) => {
             let target = review.destination.as_ref().unwrap();
             let pending = crate::file_replace::stage(target, &source.bytes, false)?;
-            verify(source)?;
+            verify(source, limit)?;
             ensure!(
                 destination(source, name)? == *target,
                 "Destination changed before copying"
@@ -176,21 +209,21 @@ fn execute_inner(
             )?;
             outcome.mutation = MutationState::Copied;
             progress(outcome.mutation)?;
-            let saved = capture(&source.root, name)?;
+            let saved = capture_with_limit(&source.root, name, limit)?;
             ensure!(
                 saved.storage_identity == source.storage_identity && saved.bytes == source.bytes,
                 "Destination changed after copying; inspect both paths"
             );
             if matches!(review.action, SetupAction::Rename(_)) {
-                verify(source)?;
-                verify(&saved)?;
+                verify(source, limit)?;
+                verify(&saved, limit)?;
                 fs::remove_file(&outcome.source).context("Could not remove rename source")?;
             }
             outcome.mutation = MutationState::Completed;
             outcome.saved = Some(saved);
         }
         SetupAction::Delete => {
-            verify(source)?;
+            verify(source, limit)?;
             fs::remove_file(&outcome.source).context("Could not delete setup")?;
             outcome.mutation = MutationState::Completed;
             ensure!(

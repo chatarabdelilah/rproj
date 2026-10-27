@@ -7,6 +7,7 @@ use crate::{
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+pub mod protocol;
 
 pub struct DecodedDocument {
     pub parsed: Option<toml::Value>,
@@ -349,6 +350,7 @@ impl ManagementReview {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MutationState {
+    Unknown,
     NotStarted,
     MayHaveBegun,
     Copied,
