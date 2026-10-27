@@ -17,7 +17,15 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 27: review native Saved Setups design.**
+**Current priority, October 27: implement native Saved Setups.**
+The owner approved the review-first flow and three sequential reviewed PRs against
+clean main `58d08e0`: shared planning/execution, private worker, then native Soft
+controls. Extra metadata may remain in a saved document while New Project reuses
+its validated composition; unknown choices/exclusions still block reuse.
+[Implementation](desktop-saved-setups-native.md) records progress and evidence.
+Native previews remain paused; version 0.22.0 is unchanged.
+
+**Completed Saved Setups design:**
 The owner approved a separate Soft [Saved Setups proposal](desktop-saved-setups-design.md)
 against clean main `d035610`: review-first composition editing, byte-preserving
 management, explicit reuse in New Project, and wait-for-completion closing.

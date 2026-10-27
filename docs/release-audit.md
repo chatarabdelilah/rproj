@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## October 27: shared Saved Setups implementation
+
+Design PR #135 merged at `58d08e0`; reviewed head `21f40f2` (CI `40429001152`)
+and merged main (CI `40429486567`) passed all seven executed jobs on first attempts.
+Reviewed/merged trees match and both merged branches were removed. The owner
+approved native implementation and metadata-compatible New Project reuse.
+[Implementation evidence](desktop-saved-setups-native.md) tracks shared document
+planning and checked management before worker/native PRs. Native previews and
+real-window acceptance remain paused; version 0.22.0 is unchanged.
+
 ## October 27: Saved Setups design
 
 Native Machine Setup PR #134 merged at `d035610`. Final reviewed head `5a4c01d`

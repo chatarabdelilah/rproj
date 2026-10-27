@@ -2,12 +2,14 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 
-use crate::catalog::{capabilities, wally_packages};
 use crate::graph::ProjectGraph;
 
 pub use rproj_core::creation::validate_name;
+pub use rproj_core::saved_setups::unsupported;
+use rproj_core::saved_setups::{CapturedSetup, SetupAction};
+pub(crate) mod checked;
 
 fn unlinked(path: &Path) -> Result<()> {
     for ancestor in path.ancestors() {
@@ -89,8 +91,11 @@ pub fn list(root: &Path) -> Result<Vec<Entry>> {
 
 pub struct Document {
     pub name: String,
+    #[cfg(test)]
     path: PathBuf,
+    captured: CapturedSetup,
     pub bytes: Vec<u8>,
+    #[cfg(test)]
     pub parsed: Option<toml::Value>,
     pub graph: Option<ProjectGraph>,
     pub problem: Option<String>,
@@ -98,129 +103,49 @@ pub struct Document {
 
 impl Document {
     pub fn load(root: &Path, name: &str) -> Result<Self> {
-        let path = setup_path(root, name)?;
-        ensure!(
-            fs::metadata(&path)?.is_file(),
-            "Setup is not a regular file"
-        );
-        let bytes = fs::read(&path).with_context(|| format!("Cannot read {}", path.display()))?;
-        let parsed = std::str::from_utf8(&bytes)
-            .context("Setup is not UTF-8")
-            .and_then(|text| toml::from_str::<toml::Value>(text).context("Malformed setup TOML"));
-        let (parsed, graph, problem) = match parsed {
-            Ok(value) => match value.clone().try_into::<ProjectGraph>() {
-                Ok(graph) => (Some(value), Some(graph), None),
-                Err(error) => (
-                    Some(value),
-                    None,
-                    Some(format!("Unsupported setup structure: {error}")),
-                ),
-            },
-            Err(error) => (None, None, Some(format!("{error:#}"))),
-        };
-        Ok(Self {
-            name: name.into(),
-            path,
-            bytes,
-            parsed,
-            graph,
-            problem,
-        })
+        let captured = checked::capture(root, name)?;
+        Ok(Self::from_captured(captured))
     }
 
-    pub fn check_current(&self) -> Result<()> {
-        unlinked(&self.path)?;
-        ensure!(
-            fs::read(&self.path)
-                .context("Setup was removed or cannot be read; refresh before retrying")?
-                == self.bytes,
-            "Setup changed outside rproj; refresh before retrying. Nothing was overwritten."
-        );
-        Ok(())
+    fn from_captured(captured: CapturedSetup) -> Self {
+        let decoded = rproj_core::saved_setups::decode(&captured.bytes);
+        Self {
+            name: captured.name.clone(),
+            #[cfg(test)]
+            path: captured.root.join(format!("{}.toml", captured.name)),
+            bytes: captured.bytes.clone(),
+            captured,
+            #[cfg(test)]
+            parsed: decoded.parsed,
+            graph: decoded.graph,
+            problem: decoded.problem,
+        }
     }
 
     pub fn save(&mut self, graph: &ProjectGraph) -> Result<bool> {
-        let original = self
-            .graph
-            .as_ref()
-            .context("Guided editing is unavailable for this document")?;
-        validate_changes(original, graph)?;
-        let old = toml::Value::try_from(original)?;
-        let new = toml::Value::try_from(graph)?;
-        self.check_current()?;
-        if old == new {
-            return Ok(false);
-        }
-        let mut merged = self.parsed.clone().context("Malformed setup TOML")?;
-        for key in ["package_workflow", "packages", "dropped", "capabilities"] {
-            if old.get(key) != new.get(key) {
-                merged
-                    .as_table_mut()
-                    .context("Expected a setup table")?
-                    .insert(key.into(), new[key].clone());
-            }
-        }
-        let bytes = toml::to_string_pretty(&merged)?.into_bytes();
-        let mut staged = stage(&self.path, &bytes)?;
-        self.check_current()?;
-        staged.flush()?;
-        staged
-            .persist(&self.path)
-            .context("Could not replace setup; saved content was not changed")?;
-        self.bytes = bytes;
-        self.parsed = Some(merged);
-        self.graph = Some(graph.clone());
-        Ok(true)
+        let review = checked::prepare(&self.captured, SetupAction::Save(graph.clone()))?;
+        let changed = review.document.as_ref().unwrap().replacement.is_some();
+        let outcome = checked::completed(checked::execute(&review, &mut |_| Ok(())))?;
+        *self = Self::from_captured(outcome.saved.context("Missing saved setup baseline")?);
+        Ok(changed)
     }
 
     pub fn duplicate(&self, name: &str) -> Result<PathBuf> {
-        let destination = self.destination(name)?;
-        let staged = stage(&destination, &self.bytes)?;
-        self.check_current()?;
-        staged
-            .persist_noclobber(&destination)
-            .context("Destination already exists or cannot be created; no setup was replaced")?;
-        Ok(destination)
+        let review = checked::prepare(&self.captured, SetupAction::Duplicate(name.into()))?;
+        let outcome = checked::completed(checked::execute(&review, &mut |_| Ok(())))?;
+        outcome.destination.context("Missing duplicate destination")
     }
 
     pub fn rename(&self, name: &str) -> Result<()> {
-        if self.name == name {
-            return self.check_current();
-        }
-        ensure!(
-            self.name.to_lowercase() != name.to_lowercase(),
-            "Case-only rename is not supported; rename to an intermediate distinct name first."
-        );
-        let destination = self.duplicate(name)?;
-        self.remove_after_copy(&destination)
-    }
-
-    fn remove_after_copy(&self, destination: &Path) -> Result<()> {
-        self.check_current().and_then(|()| fs::remove_file(&self.path).map_err(Into::into))
-            .with_context(|| format!("Copy saved at {}, but source could not be removed. Both copies may remain; refresh and inspect them.", destination.display()))
+        let review = checked::prepare(&self.captured, SetupAction::Rename(name.into()))?;
+        checked::completed(checked::execute(&review, &mut |_| Ok(())))?;
+        Ok(())
     }
 
     pub fn delete(&self) -> Result<()> {
-        self.check_current()?;
-        fs::remove_file(&self.path).context("Could not delete setup")
-    }
-
-    fn destination(&self, name: &str) -> Result<PathBuf> {
-        let root = self
-            .path
-            .parent()
-            .context("Setup has no storage directory")?;
-        let destination = setup_path(root, name)?;
-        let collision = fs::read_dir(root)?.try_fold(false, |found, entry| -> Result<bool> {
-            Ok(found
-                || entry?.file_name().to_string_lossy().to_lowercase()
-                    == format!("{name}.toml").to_lowercase())
-        })?;
-        ensure!(
-            !collision,
-            "A setup with this name already exists; choose another name."
-        );
-        Ok(destination)
+        let review = checked::prepare(&self.captured, SetupAction::Delete)?;
+        checked::completed(checked::execute(&review, &mut |_| Ok(())))?;
+        Ok(())
     }
 }
 
@@ -242,68 +167,48 @@ pub(super) fn replace(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-pub fn unsupported(graph: &ProjectGraph) -> bool {
-    graph
-        .packages
-        .iter()
-        .any(|key| wally_packages::find(key).is_none())
-        || graph.capabilities.iter().any(|(key, value)| {
-            capabilities::find(key)
-                .is_none_or(|capability| capability.implementation(value).is_none())
-        })
-}
-
-fn validate_changes(original: &ProjectGraph, graph: &ProjectGraph) -> Result<()> {
-    ensure!(
-        original.mode == graph.mode,
-        "Setup provenance must not change"
-    );
-    if unsupported(original) {
-        ensure!(
-            original.packages == graph.packages
-                && original.capabilities == graph.capabilities
-                && original.package_workflow == graph.package_workflow
-                && original.dropped == graph.dropped,
-            "Unsupported choices are read-only; their editing consequences cannot be resolved safely."
-        );
-    }
-    ensure!(
-        graph.testing_is_compatible(),
-        "Jest Roblox requires Wally; select TestEZ or disable Testing."
-    );
-    for (key, implementation) in &graph.capabilities {
-        if let Some(capability) = capabilities::find(key)
-            && capability.implementation(implementation).is_some()
-        {
-            ensure!(
-                capability
-                    .implementations_for(graph.package_workflow)
-                    .iter()
-                    .any(|item| item.key == implementation),
-                "{key}/{implementation} is incompatible with the selected dependencies"
-            );
-            ensure!(
-                capability
-                    .requires
-                    .iter()
-                    .all(|required| graph.capabilities.contains_key(*required)),
-                "{key} requires {}",
-                capability.requires.join(", ")
-            );
-        }
-    }
-    if graph.package_workflow == super::PackageWorkflow::None && !graph.packages.is_empty() {
-        bail!("Dependency-free setups cannot contain packages");
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const SOURCE: &str = "# preserved until edited\nmode = 'like:original'\npackage_workflow = 'wally'\npackages = []\ndropped = ['future-file']\nfuture = { enabled = true }\n[capabilities]\ntest = 'testez'\n";
+
+    #[test]
+    fn metadata_fixture_preserves_bytes_and_unknown_toml_types() {
+        let bytes = include_bytes!("setups/fixtures/metadata.toml");
+        let (_root, mut document) = fixture(bytes);
+        let original = document.parsed.clone().unwrap();
+        let graph = document.graph.clone().unwrap();
+        assert!(!document.save(&graph).unwrap());
+        assert_eq!(document.bytes, bytes);
+        let mut changed = graph.clone();
+        changed.capabilities.remove("format");
+        assert!(document.save(&changed).unwrap());
+        let saved = document.parsed.as_ref().unwrap();
+        for key in ["mode", "team", "future", "dropped", "packages"] {
+            assert_eq!(saved[key], original[key], "{key}");
+        }
+        assert!(saved["capabilities"].get("format").is_none());
+        assert_eq!(saved["future"]["release_date"].type_str(), "datetime");
+        assert!(!document.save(&changed).unwrap());
+    }
+
+    #[test]
+    fn reverting_in_memory_and_management_preserve_crlf_and_missing_final_newline() {
+        let bytes = SOURCE.replace('\n', "\r\n").trim_end().as_bytes().to_vec();
+        let (root, mut document) = fixture(&bytes);
+        let original = document.graph.clone().unwrap();
+        let mut revised = original.clone();
+        revised.capabilities.clear();
+        revised = original;
+        assert!(!document.save(&revised).unwrap());
+        document.duplicate("日本語 copy").unwrap();
+        assert_eq!(
+            fs::read(root.path().join("日本語 copy.toml")).unwrap(),
+            bytes
+        );
+        assert_eq!(document.bytes, bytes);
+    }
 
     fn fixture(bytes: &[u8]) -> (tempfile::TempDir, Document) {
         let root = tempfile::tempdir().unwrap();
@@ -382,10 +287,19 @@ mod tests {
         let (root, document) = fixture(SOURCE.as_bytes());
         document.rename("sample").unwrap();
         assert!(document.rename("SAMPLE").is_err());
-        let copy = document.duplicate("copy").unwrap();
-        fs::write(&document.path, "external = true").unwrap();
-        let error = document.remove_after_copy(&copy).unwrap_err();
-        assert!(error.to_string().contains("Both copies"));
+        let review =
+            checked::prepare(&document.captured, SetupAction::Rename("copy".into())).unwrap();
+        let outcome = checked::execute(&review, &mut |state| {
+            if state == rproj_core::saved_setups::MutationState::Copied {
+                fs::write(&document.path, "external = true")?;
+            }
+            Ok(())
+        });
+        assert_eq!(
+            outcome.status,
+            rproj_core::saved_setups::ManagementStatus::Partial
+        );
+        assert!(outcome.message.unwrap().contains("Both copies"));
         assert!(root.path().join("copy.toml").exists());
         assert!(document.path.exists());
     }
