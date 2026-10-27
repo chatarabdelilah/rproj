@@ -1,0 +1,18 @@
+# Retain this comment until a changed save.
+mode = 'like:original-team'
+package_workflow = 'wally'
+packages = ['react', 'reactRoblox']
+dropped = ['future-team-file', '.gitignore']
+team = 'Équipe 日本語'
+
+[capabilities]
+format = 'stylua'
+test = 'testez'
+
+[future]
+enabled = true
+release_date = 2026-10-27
+labels = ['one', 'two']
+
+[future.nested]
+count = 9223372036854775807

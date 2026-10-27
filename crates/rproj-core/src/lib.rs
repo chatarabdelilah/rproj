@@ -8,6 +8,8 @@ pub mod desktop_state;
 pub mod inspection;
 pub mod operations;
 #[doc(hidden)]
+pub mod saved_setups;
+#[doc(hidden)]
 pub mod tool_configuration;
 #[doc(hidden)]
 pub mod upgrade;

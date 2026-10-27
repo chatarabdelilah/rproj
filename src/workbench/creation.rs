@@ -3,7 +3,9 @@ use crate::{
     config::{GlobalConfig, Setups, project_template, setups},
 };
 use anyhow::{Context, Result, ensure};
-use rproj_core::creation::{CreationDraft, CreationEnvironment, protocol::*};
+#[cfg(test)]
+use rproj_core::creation::CreationDraft;
+use rproj_core::creation::{CreationEnvironment, protocol::*};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -85,34 +87,7 @@ fn saved(storage: &Storage) -> Result<Vec<SavedComposition>> {
         let loaded = (|| -> Result<(SourceSnapshot, crate::graph::ProjectGraph)> {
             let source = snapshot(&setups::setup_path(&storage.setups, &name)?)?;
             let bytes = source.bytes.as_ref().context("Saved setup disappeared")?;
-            let value: toml::Value =
-                toml::from_str(std::str::from_utf8(bytes)?).map_err(|error: toml::de::Error| {
-                    anyhow::anyhow!(
-                        "Malformed saved setup TOML near byte {}",
-                        error.span().map_or(0, |span| span.start)
-                    )
-                })?;
-            let table = value.as_table().context("Saved setup is not a table")?;
-            ensure!(
-                table.keys().all(|k| [
-                    "mode",
-                    "package_workflow",
-                    "packages",
-                    "dropped",
-                    "capabilities"
-                ]
-                .contains(&k.as_str())),
-                "Saved setup contains unsupported fields; inspect it with Saved Setups"
-            );
-            let graph: crate::graph::ProjectGraph = value
-                .try_into()
-                .map_err(|_| anyhow::anyhow!("Unsupported saved setup structure"))?;
-            CreationDraft {
-                name: "Validation".into(),
-                graph: graph.clone(),
-                save_setup: None,
-            }
-            .validate()?;
+            let graph = rproj_core::saved_setups::reusable_graph(bytes)?;
             Ok((source, graph))
         })();
         match loaded {
@@ -412,7 +387,7 @@ mod tests {
         fs::create_dir_all(&storage.setups).unwrap();
         for (name, bytes) in [
             ("malformed", "not [toml"),
-            ("future", "future = true\n"),
+            ("future", "dropped = ['future-file']\n"),
             ("unknown", "packages=['future-package']\n"),
         ] {
             let path = storage.setups.join(format!("{name}.toml"));
@@ -423,6 +398,36 @@ mod tests {
             assert!(context.sources(Some(name)).is_err());
             assert_eq!(fs::read_to_string(path).unwrap(), bytes);
         }
+    }
+
+    #[test]
+    fn extra_metadata_is_preserved_while_known_composition_can_be_reused() {
+        let (_directory, storage) = fixture();
+        fs::create_dir(&storage.setups).unwrap();
+        let bytes = "# preserved\nmode='like:team'\npackage_workflow='none'\nteam='日本語'\n[future]\nenabled=true\n";
+        let path = storage.setups.join("Metadata.toml");
+        fs::write(&path, bytes).unwrap();
+        let context = context_at(&storage).unwrap();
+        let saved = context
+            .setups
+            .iter()
+            .find(|s| s.name == "Metadata")
+            .unwrap();
+        assert!(saved.problem.is_none());
+        let draft = CreationDraft {
+            name: "Reuse metadata".into(),
+            graph: saved.graph.clone().unwrap(),
+            save_setup: None,
+        };
+        let request = PrepareCreation {
+            draft,
+            sources: context.sources(Some("Metadata")).unwrap(),
+        };
+        prepare_at(&storage, &request, |_| Ok(())).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), bytes.as_bytes());
+        fs::write(&path, bytes.replace("日本語", "changed metadata")).unwrap();
+        assert!(prepare_at(&storage, &request, |_| Ok(())).is_err());
+        assert!(!storage.setups.join("Reuse metadata.toml").exists());
     }
 
     #[test]
