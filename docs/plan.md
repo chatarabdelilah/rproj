@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 26, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 27, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,15 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 26: native Machine Setup controls and delivery.**
+**Current priority, October 27: review native Saved Setups design.**
+The owner approved a separate Soft [Saved Setups proposal](desktop-saved-setups-design.md)
+against clean main `d035610`: review-first composition editing, byte-preserving
+management, explicit reuse in New Project, and wait-for-completion closing.
+[Acceptance](desktop-saved-setups-acceptance.md) records 47 passing local checks
+and 34 contrast comparisons. Rendering remains unverified. Owner flow review
+precedes native implementation; previews remain paused and 0.22.0 is unchanged.
+
+**Completed native Machine Setup delivery:**
 The owner approved the design and three sequential reviewed PRs against clean
 main `a56533a`: shared planning/execution, cooperative-Stop worker, then native
 Soft controls. The [implementation record](desktop-machine-setup-native.md)
@@ -26,8 +34,11 @@ Shared PR #132 merged at `921f0ca`; reviewed-head and merged-main CI passed all
 seven executed jobs, and its branches are removed. Private cooperative-Stop worker
 PR #133 merged at `a26b916`; reviewed-head CI `40226382180` and merged-main CI
 `40226736261` passed all seven executed jobs on first attempts; its branches are
-removed. The third PR adds native Soft selections, review, results and cooperative
-Stop/close controls. Automated evidence is separate from paused native acceptance.
+removed. Native controls PR #134 merged at `d035610`. Reviewed head `5a4c01d`
+(CI `40260152745`) and main (CI `40260585799`) passed all seven executed jobs;
+merged branches are removed. An initial Windows test-cleanup failure was corrected
+before final review; the implementation record retains that evidence. Automated
+coverage is separate from paused native acceptance.
 
 **Completed Machine Setup design:**
 Configure Tools delivery completed in PR #130 at `3519bab`; actual reviewed head

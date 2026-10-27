@@ -1,5 +1,23 @@
 # Release-Hardening Audit
 
+## October 27: Saved Setups design
+
+Native Machine Setup PR #134 merged at `d035610`. Final reviewed head `5a4c01d`
+(CI `40260152745`) and merged main (CI `40260585799`) passed all seven executed
+jobs on their first attempts; reviewed and merged trees match and both merged
+branches were removed. Initial head `cc5efbd` had a Windows test cleanup sharing
+error in CI `40259539971`, after behavioral assertions passed. The corrected
+bounded test cleanup was reviewed and validated; no unchanged-head rerun is
+claimed. Native preview and real installation acceptance remain paused.
+
+The next approved design milestone is the separate Soft
+[Saved Setups proposal](desktop-saved-setups-design.md): review-first editing,
+byte-preserving management, explicit New Project reuse and noncancellable
+wait-for-completion closing. [Acceptance](desktop-saved-setups-acceptance.md)
+records 47 passing local checks and 34 contrast comparisons, including one found
+and fixed stale-dialog focus regression. Rendering remains unverified. No native,
+Rust/API/worker/format or release changes; published version remains 0.22.0.
+
 ## October 26: native Machine Setup controls
 
 Private worker PR #133 merged at `a26b916`; reviewed head `3d5e4e5` (CI
