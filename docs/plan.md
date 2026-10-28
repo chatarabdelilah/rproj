@@ -27,7 +27,11 @@ Native previews remain paused; version 0.22.0 is unchanged.
 
 Shared PR #136 merged at `5c3c72e`; reviewed head `592ffa8` and merged main
 passed all seven executed CI jobs on first attempts and merged branches are
-removed. The private Saved Setups worker is the active second implementation PR.
+removed. Worker PR #137 merged at `b683ffb`; reviewed head `d79b742` (CI
+`40548779626`) and main (CI `40550000483`) passed all seven executed jobs on
+first attempts. Its merged branches are removed. Native Soft controls are the
+active third implementation PR, with headless validation and paused real-window
+acceptance recorded separately.
 
 **Completed Saved Setups design:**
 The owner approved a separate Soft [Saved Setups proposal](desktop-saved-setups-design.md)

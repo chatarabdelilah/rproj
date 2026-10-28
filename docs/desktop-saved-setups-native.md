@@ -69,7 +69,7 @@ PR #136 merged at `5c3c72e`. Reviewed head `592ffa8` (CI `40472652485`) and
 merged main (CI `40473410829`) passed all seven executed jobs on first attempts.
 Reviewed and merged trees match; both merged branches were removed.
 
-### PR 2: private worker (in progress)
+### PR 2: private worker
 
 The worker derives storage from the CLI's own configuration location, bounds
 document reads and IPC at 2 MiB, and shares the checked executor. Browsing missing
@@ -106,3 +106,58 @@ Clippy, fresh core/CLI package verification and portable version/inspection smok
 The three previously recorded legacy dependency notice gaps remain. Final diff
 inspection found no unresolved defect. Reviewed-head/main CI follows delivery;
 no native or real-window acceptance is claimed.
+
+PR #137 merged at `b683ffb`. Reviewed head `d79b742` (CI `40548779626`)
+and merged main (CI `40550000483`) passed all seven executed jobs on first
+attempts. Reviewed and merged trees match; both merged branches were removed.
+
+### PR 3: native Soft controls
+
+The app-level Saved Setups browser now keeps its selection separate from one
+captured editing draft. The review-first editor shares package, capability,
+companion and required-file rules, preserves provenance/metadata/exclusions, and
+renders the complete wrapped diff through the existing viewport renderer.
+Rename, Duplicate and Delete use the checked worker; default-Keep dialogs protect
+dirty edits. Explicit reuse protects an occupied New Project draft and starts at
+Project with the captured saved bytes. Browsing and mutations leave Watch alone.
+
+Activity retains setup ownership across navigation. Mutations have no Cancel
+control. Close after operation waits for confirmed completion and then protects
+other drafts; uncertain teardown blocks closing and further mutations. Reload
+requirements are tracked per document and clear only for an explicit reload or
+confirmed result for that document, never because another setup completes.
+
+Initial test compilation exposed a glob-import collision with GPUI's test macro,
+incorrect theme imports and test-helper visibility; explicit imports and scoped
+visibility corrected them. The first behavioral run passed 12/15: three failures
+were missing observation identifiers. After exposing those, 14/15 passed; the
+remaining assertion needed to scroll the narrow details pane to its action.
+All fifteen focused checks then passed. Additional ownership/recovery coverage
+brought the full suite to 118 passing tests. Strict Clippy found three collapsible
+conditions, a large task variant and ambiguous assignment spacing; these were
+corrected without lint suppression. Final validation and review follow below.
+
+An approval-service usage limit prevented an earlier patch/test call from running.
+After the owner's Continue, the normal approved retry ran. No approval bypass or
+native preview was used. Native memory stability and real-window acceptance remain
+unresolved/unverified; headless evidence does not replace those gates.
+
+The first CodeRabbit review covered all seventeen changed files and found one
+minor recovery defect: failed Edit initialization could prepare the prior clean
+draft and erase the error. The controller now prepares only after successful
+initialization, with a regression test. Direct review also corrected reopening a
+hidden editor from a close prompt and resetting diff rows when preparation
+finishes while browsing. Dedicated controls tests cover both. One new test first
+omitted the shared diff helper's filename argument; that compilation-only error
+was corrected before the final suite. The final CodeRabbit rerun is recorded
+separately, rather than presenting the first review as clean.
+
+Final local validation passed 122 headless desktop tests, 754 CLI/core tests
+(24 prerequisite-dependent cases remain ignored), formatting, strict Clippy for
+both toolchains, fresh core/CLI package verification and portable version and
+inspection smoke. Portable smoke was repeated after the final runtime fixes.
+The final CodeRabbit rerun reviewed all seventeen files with zero findings;
+the final diff was also inspected directly. Three pre-existing legacy dependency
+notice gaps remain documented. Actual reviewed-head and merged-main CI and branch
+cleanup are recorded in the delivery PR after they finish. No real-window,
+memory-stability or macOS/Linux desktop acceptance is claimed.

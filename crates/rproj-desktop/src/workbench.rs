@@ -2,6 +2,7 @@ mod composition;
 mod creation;
 mod diff_view;
 mod operation;
+mod saved_setups;
 mod settings;
 mod setup;
 mod theme;
@@ -59,6 +60,10 @@ enum Operation {
     LoadSetup,
     PrepareSetup,
     ApplySetup,
+    LoadSaved,
+    PrepareSaved,
+    ManageSaved,
+    ReuseSaved,
 }
 impl Operation {
     fn is_setup(self) -> bool {
@@ -100,7 +105,11 @@ impl Operation {
             | Self::SaveSettings
             | Self::LoadSetup
             | Self::PrepareSetup
-            | Self::ApplySetup => return None,
+            | Self::ApplySetup
+            | Self::LoadSaved
+            | Self::PrepareSaved
+            | Self::ManageSaved
+            | Self::ReuseSaved => return None,
         })
     }
 }
@@ -137,6 +146,12 @@ impl Section {
 }
 
 enum Event {
+    SavedSupport(Result<(), String>),
+    SavedResponse(
+        u64,
+        u64,
+        Box<Result<saved_setups::Response, saved_setups::Failure>>,
+    ),
     SetupSupport(Result<(), String>),
     SetupLoaded(
         u64,
@@ -363,6 +378,13 @@ impl Activity {
 }
 
 pub struct Workbench {
+    saved: saved_setups::SavedSession,
+    saved_focus: FocusHandle,
+    saved_diff_focus: FocusHandle,
+    saved_list: ListState,
+    saved_query: Entity<InputState>,
+    saved_package_query: Entity<InputState>,
+    saved_name: Entity<InputState>,
     setup: setup::SetupSession,
     setup_focus: FocusHandle,
     setup_query: Entity<InputState>,
@@ -438,6 +460,16 @@ impl Workbench {
         });
         let settings_integer =
             cx.new(|cx| InputState::new(window, cx).placeholder("Exact whole number"));
+        let saved_query =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Search saved setups"));
+        let saved_package_query =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Search packages"));
+        let saved_name = cx.new(|cx| InputState::new(window, cx).placeholder("New setup name"));
+        let saved_subscription = cx.subscribe(&saved_query, |_, _, _: &InputEvent, cx| cx.notify());
+        let saved_package_subscription =
+            cx.subscribe(&saved_package_query, |_, _, _: &InputEvent, cx| cx.notify());
+        let saved_name_subscription =
+            cx.subscribe(&saved_name, |_, _, _: &InputEvent, cx| cx.notify());
         let setup_query =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search setup choices"));
         let setup_subscription = cx.subscribe(&setup_query, |_, _, _: &InputEvent, cx| cx.notify());
@@ -488,6 +520,13 @@ impl Workbench {
         });
         let mut view = Self {
             settings: settings::SettingsSession::default(),
+            saved: saved_setups::SavedSession::default(),
+            saved_focus: cx.focus_handle(),
+            saved_diff_focus: cx.focus_handle().tab_stop(true),
+            saved_list: ListState::new(0, ListAlignment::Top, px(40.)),
+            saved_query,
+            saved_package_query,
+            saved_name,
             setup: setup::SetupSession::default(),
             setup_focus: cx.focus_handle(),
             setup_query,
@@ -544,6 +583,9 @@ impl Workbench {
                 subscription,
                 settings_subscription,
                 setup_subscription,
+                saved_subscription,
+                saved_package_subscription,
+                saved_name_subscription,
                 appearance_subscription,
                 composition_subscription,
             ]
@@ -563,6 +605,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
         self.upgrade.visible = false;
@@ -582,6 +625,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
         self.upgrade.visible = false;
@@ -695,6 +739,10 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::SavedSupport(result) => self.saved.support = Some(result),
+                Event::SavedResponse(id, revision, result) => {
+                    self.accept_saved(id, revision, *result, cx)
+                }
                 Event::SetupSupport(result) => self.setup.support = Some(result),
                 Event::SetupLoaded(id, revision, result) => {
                     self.accept_setup_loaded(id, revision, result, cx)
@@ -766,6 +814,7 @@ impl Workbench {
                             self.probe_upgrade();
                             self.probe_settings();
                             self.probe_setup();
+                            self.probe_saved();
                             self.poll_status();
                             self.load_creation_context(cx);
                         }
@@ -1072,6 +1121,10 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::LoadSetup => "Loading machine selections",
         Operation::PrepareSetup => "Preparing setup review",
         Operation::ApplySetup => "Applying machine setup",
+        Operation::LoadSaved => "Reading Saved Setups",
+        Operation::PrepareSaved => "Reviewing saved setup changes",
+        Operation::ManageSaved => "Updating saved setup",
+        Operation::ReuseSaved => "Loading saved composition",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {
