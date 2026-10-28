@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## October 28: native Saved Setups controls
+
+Worker PR #137 merged at `b683ffb`. Reviewed head `d79b742` (CI `40548779626`)
+and main (CI `40550000483`) passed all seven executed jobs on first attempts;
+their trees match and both merged branches are removed. The third PR adds the
+Soft browser, review-first editor, checked management, explicit New Project
+handoff and cross-draft close protection. [Implementation evidence](desktop-saved-setups-native.md)
+records headless tests and failed attempts. Native launches remain paused;
+published version 0.22.0 is unchanged.
+
 ## October 27: shared Saved Setups implementation
 
 Shared PR #136 merged at `5c3c72e`. Reviewed head `592ffa8` (CI `40472652485`)

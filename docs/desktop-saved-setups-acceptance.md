@@ -49,7 +49,8 @@ automation route was retried.
 Document writing, source identity checks, operations, completion, Watch and process
 termination are simulated. The sample TOML writer demonstrates effects for frozen
 fixtures; it does not establish production writer equivalence or atomicity.
-Native Saved Setups remains unimplemented. Native memory stability is unresolved;
+This design-only record predates the separate [native implementation](desktop-saved-setups-native.md).
+Its automated evidence is recorded there. Native memory stability is unresolved;
 Windows real-window/scaling and macOS/Linux desktop acceptance remain paused or
 unverified. No Rust/API/worker/configuration format/version/publication changes
 belong to this milestone. Version 0.22.0 is unchanged.
