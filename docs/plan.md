@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 27, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated October 29, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -17,7 +17,16 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 27: implement native Saved Setups.**
+**Current priority, October 29: review the Project Template design.**
+The separate Soft [Project Template proposal](desktop-project-template-design.md)
+implements Explorer / Advanced JSON → Review → Save with local sample data.
+It preserves protected mounts and unfamiliar fields, separates Save from override
+removal, and models wait-for-completion closing. [Acceptance](desktop-project-template-acceptance.md)
+records 56 passing simulation/DOM checks and 26 contrast comparisons. Rendering
+remains unverified. Owner review precedes native implementation planning; native
+previews remain paused and published version 0.22.0 is unchanged.
+
+**Completed native Saved Setups delivery:**
 The owner approved the review-first flow and three sequential reviewed PRs against
 clean main `58d08e0`: shared planning/execution, private worker, then native Soft
 controls. Extra metadata may remain in a saved document while New Project reuses
@@ -29,9 +38,11 @@ Shared PR #136 merged at `5c3c72e`; reviewed head `592ffa8` and merged main
 passed all seven executed CI jobs on first attempts and merged branches are
 removed. Worker PR #137 merged at `b683ffb`; reviewed head `d79b742` (CI
 `40548779626`) and main (CI `40550000483`) passed all seven executed jobs on
-first attempts. Its merged branches are removed. Native Soft controls are the
-active third implementation PR, with headless validation and paused real-window
-acceptance recorded separately.
+first attempts. Its merged branches are removed. Native Soft controls PR #138
+merged at `f70da78`; reviewed head `647efe2` (CI `40646615845`) and merged main
+(CI `40647112205`) passed all seven executed jobs on first attempts. Their trees
+match and merged branches are removed. Headless validation remains separate from
+paused real-window and memory-stability acceptance.
 
 **Completed Saved Setups design:**
 The owner approved a separate Soft [Saved Setups proposal](desktop-saved-setups-design.md)
