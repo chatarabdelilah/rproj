@@ -22,7 +22,7 @@ The separate Soft [Project Template proposal](desktop-project-template-design.md
 implements Explorer / Advanced JSON → Review → Save with local sample data.
 It preserves protected mounts and unfamiliar fields, separates Save from override
 removal, and models wait-for-completion closing. [Acceptance](desktop-project-template-acceptance.md)
-records 56 passing simulation/DOM checks and 26 contrast comparisons. Rendering
+records 57 passing simulation/DOM checks and 26 contrast comparisons. Rendering
 remains unverified. Owner review precedes native implementation planning; native
 previews remain paused and published version 0.22.0 is unchanged.
 

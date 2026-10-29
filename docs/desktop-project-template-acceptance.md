@@ -6,7 +6,7 @@ real-window acceptance. Owner review of this specific proposal is pending.
 
 ## Confirmed local evidence
 
-`node target/project-template-design/validate.cjs` passes **56 checks** and
+`node target/project-template-design/validate.cjs` passes **57 checks** and
 **26 numeric Light/Dark contrast comparisons**. `node --check` passes for the
 model and controller; the assembled inline script parses independently.
 The new fragment is `rproj-project-template-wireframe.html`. The ignored local
@@ -44,7 +44,10 @@ corrected operation-fixture replacement, tree-selection focus, uncertainty's
 pending-close state and in-dialog stale-action explanations. The expanded run
 passed 55/56: dismissal of a stale Save dialog returned to Project Template
 instead of Reload because the fallback trigger was selected too early. After
-correcting that ordering, all 56 checks passed. No failed run is counted as a pass.
+correcting that ordering, all 56 checks passed. A final source review also guarded
+structured Undo/Redo against discarding unapplied Advanced JSON; its added
+regression brings the final run to 57 passing checks. No failed run is counted
+as a pass.
 
 ## Unverified and deferred
 

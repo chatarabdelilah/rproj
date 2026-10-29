@@ -10,7 +10,7 @@ The final local evidence remains in [its implementation record](desktop-saved-se
 The new [Project Template proposal](desktop-project-template-design.md) uses local
 sample data for Explorer / Advanced JSON → Review → Save, separate reset removal,
 retained machine ownership and wait-for-completion closing. [Acceptance](desktop-project-template-acceptance.md)
-records 56 passing checks, 26 contrast comparisons and the corrected stale-dialog
+records 57 passing checks, 26 contrast comparisons and the corrected stale-dialog
 focus failure. Six earlier working wireframes are unchanged. Browser rendering
 remains unverified because no supported inline inspection route is available.
 No native preview, Rust/API/worker/format/release changes or real template/tool
