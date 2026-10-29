@@ -161,3 +161,9 @@ the final diff was also inspected directly. Three pre-existing legacy dependency
 notice gaps remain documented. Actual reviewed-head and merged-main CI and branch
 cleanup are recorded in the delivery PR after they finish. No real-window,
 memory-stability or macOS/Linux desktop acceptance is claimed.
+
+PR #138 merged at `f70da78`. Reviewed head `647efe23438981c2c2a1c0bad04593a26323306b`
+(CI `40646615845`) and merged main (CI `40647112205`) passed all seven executed
+jobs on their first attempts; the badge job was intentionally skipped. Reviewed
+and merged trees match. Both merged branches were removed. This completes the
+three-PR implementation delivery, without changing the paused acceptance gates.

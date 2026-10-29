@@ -1,5 +1,22 @@
 # Release-Hardening Audit
 
+## October 29: Project Template design
+
+Native Saved Setups PR #138 merged at `f70da78`. Reviewed head `647efe2`
+(CI `40646615845`) and main (CI `40647112205`) passed all seven executed jobs
+on first attempts; reviewed and merged trees match and merged branches are removed.
+The final local evidence remains in [its implementation record](desktop-saved-setups-native.md).
+
+The new [Project Template proposal](desktop-project-template-design.md) uses local
+sample data for Explorer / Advanced JSON → Review → Save, separate reset removal,
+retained machine ownership and wait-for-completion closing. [Acceptance](desktop-project-template-acceptance.md)
+records 57 passing checks, 26 contrast comparisons and the corrected stale-dialog
+focus failure. Six earlier working wireframes are unchanged. Browser rendering
+remains unverified because no supported inline inspection route is available.
+No native preview, Rust/API/worker/format/release changes or real template/tool
+operations were performed. Version 0.22.0 remains unchanged. Owner review precedes
+native implementation; memory stability and real-window acceptance stay unresolved.
+
 ## October 28: native Saved Setups controls
 
 Worker PR #137 merged at `b683ffb`. Reviewed head `d79b742` (CI `40548779626`)
