@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## October 30: shared Project Template implementation
+
+The owner approved the native plan against `2f19bb0`, including machine/global
+Rojo for native validation and unchanged terminal tool resolution. The first
+`codex/project-template-core` PR extracts the editor, bundled metadata and rules,
+establishes eight generation snapshots, and introduces captured Save/Reset plans
+and checked persistence. [Implementation evidence](desktop-project-template-native.md)
+records validation and failures as they complete. Worker and native controls
+remain subsequent PRs; no real-window acceptance or publication is claimed.
+
 ## October 29: Project Template design
 
 Native Saved Setups PR #138 merged at `f70da78`. Reviewed head `647efe2`

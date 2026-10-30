@@ -19,38 +19,7 @@ use crate::tui::{
     render_confirm, render_footer, render_input, render_picker, responsive_panes,
 };
 
-const SETTINGS: &[(&str, &str, SettingKind)] = &[
-    ("servePort", "Serve port", SettingKind::Port),
-    ("serveAddress", "Serve address", SettingKind::Text),
-    (
-        "servePlaceIds",
-        "Allowed place IDs",
-        SettingKind::IntegerList,
-    ),
-    ("placeId", "Place ID", SettingKind::Integer),
-    ("gameId", "Game ID", SettingKind::Integer),
-    ("serveAllowedHosts", "Allowed hosts", SettingKind::TextList),
-    (
-        "globIgnorePaths",
-        "Ignored path globs",
-        SettingKind::TextList,
-    ),
-    (
-        "emitLegacyScripts",
-        "Emit legacy scripts",
-        SettingKind::Bool,
-    ),
-];
-
-#[derive(Clone, Copy)]
-enum SettingKind {
-    Port,
-    Text,
-    Integer,
-    IntegerList,
-    TextList,
-    Bool,
-}
+use rproj_core::project_template::values::*;
 
 pub enum Outcome {
     Reset,
@@ -1162,132 +1131,6 @@ fn apply_pick(app: &mut App, action: PickAction, picked: PickOption) -> Result<(
     Ok(())
 }
 
-fn set_attribute(model: &mut EditorModel, path: &[String], name: &str, value: Value) -> Result<()> {
-    let mut attributes = model
-        .node(path)
-        .and_then(|n| n.get("$properties"))
-        .and_then(|p| p.get("Attributes"))
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
-    attributes.insert(name.into(), value);
-    model.set_property(path, "Attributes", Value::Object(attributes))
-}
-
-fn attribute_value(kind: &ValueKind, value: Value) -> Value {
-    let label = match kind {
-        ValueKind::Bool => "Bool",
-        ValueKind::String => "String",
-        ValueKind::Integer | ValueKind::Number => "Float64",
-        ValueKind::BrickColor => return value,
-        ValueKind::Color3 => "Color3",
-        ValueKind::Vector2 => "Vector2",
-        ValueKind::Vector3 => "Vector3",
-        ValueKind::UDim | ValueKind::UDim2 | ValueKind::Rect => return value,
-        ValueKind::CFrame => {
-            return json!({"CFrame": {
-                "position": [value[0], value[1], value[2]],
-                "orientation": [[value[3], value[4], value[5]], [value[6], value[7], value[8]], [value[9], value[10], value[11]]]
-            }});
-        }
-        ValueKind::NumberRange => "NumberRange",
-        ValueKind::Enum(_) => "String",
-    };
-    json!({ label: value })
-}
-
-fn explicit_inner(value: &Value) -> Option<&Value> {
-    value.as_object().and_then(|object| {
-        if object.len() == 1 {
-            object.values().next()
-        } else {
-            None
-        }
-    })
-}
-
-fn attribute_kind(value: &Value) -> Option<ValueKind> {
-    let object = value.as_object()?;
-    let (kind, _) = object.iter().next()?;
-    if object.len() != 1 {
-        return None;
-    }
-    match kind.as_str() {
-        "Bool" => Some(ValueKind::Bool),
-        "String" => Some(ValueKind::String),
-        "Float64" | "Float32" | "Int32" | "Int64" => Some(ValueKind::Number),
-        "BrickColor" => Some(ValueKind::BrickColor),
-        "Color3" => Some(ValueKind::Color3),
-        "Vector2" => Some(ValueKind::Vector2),
-        "Vector3" => Some(ValueKind::Vector3),
-        "UDim" => Some(ValueKind::UDim),
-        "UDim2" => Some(ValueKind::UDim2),
-        "CFrame" => Some(ValueKind::CFrame),
-        "NumberRange" => Some(ValueKind::NumberRange),
-        "Rect" => Some(ValueKind::Rect),
-        _ => None,
-    }
-}
-
-fn attribute_kinds() -> Vec<(&'static str, ValueKind)> {
-    vec![
-        ("Boolean", ValueKind::Bool),
-        ("String", ValueKind::String),
-        ("Number", ValueKind::Number),
-        ("BrickColor", ValueKind::BrickColor),
-        ("Color3", ValueKind::Color3),
-        ("Vector2", ValueKind::Vector2),
-        ("Vector3", ValueKind::Vector3),
-        ("UDim", ValueKind::UDim),
-        ("UDim2", ValueKind::UDim2),
-        ("CFrame", ValueKind::CFrame),
-        ("NumberRange", ValueKind::NumberRange),
-        ("Rect", ValueKind::Rect),
-    ]
-}
-
-fn parse_setting(kind: SettingKind, text: &str) -> std::result::Result<Option<Value>, String> {
-    let text = text.trim();
-    if text.is_empty() {
-        return Ok(None);
-    }
-    let value = match kind {
-        SettingKind::Text => json!(text),
-        SettingKind::Port => {
-            let port = text
-                .parse::<u16>()
-                .map_err(|_| "enter a port from 0 to 65535")?;
-            json!(port)
-        }
-        SettingKind::Integer => {
-            let number = text
-                .parse::<u64>()
-                .map_err(|_| "enter a non-negative integer")?;
-            json!(number)
-        }
-        SettingKind::IntegerList => {
-            let values: Result<Vec<_>, _> =
-                text.split(',').map(|v| v.trim().parse::<u64>()).collect();
-            json!(values.map_err(|_| "enter comma-separated non-negative integers")?)
-        }
-        SettingKind::TextList => json!(
-            text.split(',')
-                .map(|v| v.trim())
-                .filter(|v| !v.is_empty())
-                .collect::<Vec<_>>()
-        ),
-        SettingKind::Bool => unreachable!("booleans toggle directly"),
-    };
-    Ok(Some(value))
-}
-
-fn parse_explorer_json(text: &str) -> Result<Value> {
-    let value: Value = serde_json::from_str(text).context("invalid JSON")?;
-    representable(&value)?;
-    rojo::validate_template_structure(&value)?;
-    Ok(value)
-}
-
 fn select_path(app: &mut App, path: &[String]) {
     if let Some(index) = app.visible_rows().iter().position(|row| row.path == path) {
         app.selected_tree = index;
@@ -1849,6 +1692,21 @@ mod tests {
                 Some(bytes) => std::fs::write(&path, bytes).unwrap(),
                 None => std::fs::remove_file(&path).unwrap(),
             }
+            if scenario == "deleted" {
+                // Restoring bytes cannot restore the captured file identity.
+                session.send("\x12");
+                session.wait_for("Restore the built-in");
+                session.send("y");
+                session.wait_for("Template was not reset");
+                session.send(common::ESC);
+                session.send("\x03");
+                session.wait_for("Discard changes and exit?");
+                session.send("y");
+                session.wait_for("Editor returned");
+                assert_eq!(session.finish().code, 0);
+                session = pty_editor(&path);
+                session.wait_for("rproj project template");
+            }
             session.send("\x12");
             session.wait_for("Restore the built-in");
             session.send("y");
@@ -2118,6 +1976,11 @@ mod tests {
     fn pty_repeated_save_stays_open_then_exit_and_reset_return() {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("template.json");
+        std::fs::write(
+            &path,
+            serde_json::to_string(&rojo::builtin_project_template()).unwrap(),
+        )
+        .unwrap();
         let mut session = pty_editor(&path);
         session.wait_for("rproj project template");
         session.send("\x13");

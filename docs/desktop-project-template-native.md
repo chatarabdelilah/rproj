@@ -1,0 +1,102 @@
+# Native Project Template implementation
+
+Approved October 30, 2026, against clean main `2f19bb0`. Published version remains
+0.22.0. The owner approved Explorer / Advanced JSON → Review → Save and selected
+machine/global Rojo for native validation, independent of the browsed project.
+
+## Delivery sequence
+
+1. Shared editor/metadata/policy and captured Save/Reset planning with checked
+   persistence; retain terminal entry points and existing generation behavior.
+2. Private matching-worker context, preparation, Save and Reset; bounded reports,
+   owned descendants, explicit uncertainty and wait-for-completion closing.
+3. Native Soft controls, retained machine draft, complete diffs, protected source
+   mounts, JSON repair and independent cross-draft close protection.
+
+Each PR receives appropriate tests, Clippy, package checks, local CodeRabbit and
+direct diff review, followed by reviewed-head/main CI and merged-branch cleanup.
+
+## Settled boundaries
+
+Editing requires no setup or installed Rojo. Changed native saves require global
+Rojo validation of all eight generation variants; Reset removes the override
+without Rojo. Missing/changed sources require explicit reload. No-op/reverted
+edits preserve bytes. Unfamiliar fields survive; incompatible properties require
+explicit repair. Source and parent identities are checked before mutation.
+
+Validation, Save and Reset expose no cancellation. Ordinary navigation remains
+responsive; template edits freeze during the operation. Close waits for confirmed
+completion, then protects other drafts. Unconfirmed teardown blocks closing and
+further mutations. Watch remains independent. Earlier wireframes stay unchanged.
+
+## Evidence
+
+PR 1 is in progress. Regression fixtures preceded extraction; actual test and
+review outcomes follow below. No native preview is authorized.
+Native memory stability remains unresolved; real-window and macOS/Linux desktop
+acceptance remain unverified. No installation, version bump or publication.
+
+### PR 1 progress
+
+The built-in template and all eight generated variants were captured before
+extraction. The first snapshot command used an incorrect exact filter (zero
+matching tests); the corrected named test ran one test and passed. Generation
+still matches that fixture after extraction. Tree/history, bundled reflection
+metadata, structural policy, project settings and typed attributes now live in
+an optional core feature used by the CLI. Cross-platform core CI enables it.
+
+Save/Reset capture original bytes and file/ancestor identities, including missing
+parents. Preparation creates no destination; no-op saves preserve bytes and do
+not create an override. Changed saves stage with existing permissions, exclusively
+claim missing directories, recheck before replacement, and confirm saved bytes.
+Reset needs no validator. Mutation reporting precedes staging. Replaced identities
+require reload even when restored bytes are equal. Integer attributes retain exact
+signed 64-bit values; unfamiliar attribute shapes require explicit repair.
+
+Initial extraction checks caught a module import, missing diff filename argument,
+and test-only policy import; each was corrected. Three persistence fixtures used
+invalid placeholder documents and now use valid templates. The first full CLI
+run passed 525 tests with two failures: replacement errors lost their context,
+and a terminal recovery test assumed recreating equal bytes restored identity.
+Error context and explicit reopen recovery were corrected; all eleven focused
+terminal PTY tests then passed (one real-Rojo test remains ignored). Strict Clippy
+also identified one nested condition, corrected without suppressions. A local
+documentation write used the wrong encoding; the affected file was restored from
+Git and updated as UTF-8. Those initial checks did not establish final validation;
+the later runs are recorded below. Reviewed-head/main CI remains pending.
+
+The first full corrected run passed 767 CLI/core tests, with 24 prerequisite-based
+tests ignored. Core without the optional editor feature, strict Clippy and fresh
+core/CLI package verification also passed. A further regression test covers
+preserving an unfamiliar Attributes container during an attempted addition.
+
+CodeRabbit's first review returned two findings. Terminal stale-source errors now
+explain that this frontend has no Reload action and requires preserving desired
+draft changes separately before exiting/reopening. The fixture line-ending
+concern required no code change: the existing `.gitattributes` sets
+`* text=auto eol=lf`, and `git check-attr` confirms this fixture uses LF.
+Subsequent review and validation results follow below.
+
+The second review found two pre-existing model defects exposed by extraction:
+missing/stale paths could panic several mutators, and moving an inferred root
+service did not materialize its class. Mutators now refuse missing selections
+without changing history, and moves retain the class. Dedicated regression tests
+cover both. The preceding full run passed 768 CLI/core tests; package verification
+and portable version/inspection smoke passed, retaining the three pre-existing
+legacy notice gaps. Validation is rerun after these final model corrections.
+
+The third review identified inconsistent root-service uniqueness: Duplicate and
+Move could bypass the existing Add/Change Class checks. Both now use bundled
+service metadata to refuse a second root service of the same class. The regression
+also verifies that ordinary folders remain duplicable. This correction is included
+in the final validation and review rather than treating earlier runs as final.
+
+Final CLI/core validation passed 770 tests (24 prerequisite-dependent tests remain
+ignored), strict Clippy and formatting. Core without the optional feature also
+passed. Core/CLI package verification and portable version/inspection smoke passed
+after the final model corrections. The three legacy notice gaps remain unchanged.
+The fourth CodeRabbit review found no runtime issue and one documentation wording
+issue about pending evidence; the wording and final results are corrected here
+and inspected directly. All 122 existing headless desktop tests and desktop
+Clippy also passed. Reviewed-head/main CI remains pending delivery. No native
+preview or real-window acceptance is claimed.
