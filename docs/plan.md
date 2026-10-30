@@ -17,13 +17,12 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 29: review the Project Template design.**
-The separate Soft [Project Template proposal](desktop-project-template-design.md)
-implements Explorer / Advanced JSON → Review → Save with local sample data.
-It preserves protected mounts and unfamiliar fields, separates Save from override
-removal, and models wait-for-completion closing. [Acceptance](desktop-project-template-acceptance.md)
-records 57 passing simulation/DOM checks and 26 contrast comparisons. Rendering
-remains unverified. Owner review precedes native implementation planning; native
+**Current priority, October 30: implement native Project Template.**
+The owner approved the Soft Explorer / Advanced JSON → Review → Save design
+and machine/global Rojo validation, independent of the browsed project.
+[Implementation](desktop-project-template-native.md) follows three reviewed PRs:
+shared model/checked persistence, private worker, then native controls. PR 1 is in
+progress against `2f19bb0`; the earlier sample wireframe is unchanged. Native
 previews remain paused and published version 0.22.0 is unchanged.
 
 **Completed native Saved Setups delivery:**

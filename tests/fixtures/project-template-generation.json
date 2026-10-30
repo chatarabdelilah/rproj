@@ -1,0 +1,649 @@
+{
+  "builtin": {
+    "name": "ProjectName",
+    "tree": {
+      "$className": "DataModel",
+      "Lighting": {
+        "$className": "Lighting",
+        "$properties": {
+          "Ambient": [
+            0.7843137254901961,
+            0.6274509803921569,
+            0.8823529411764706
+          ],
+          "Brightness": 2.5,
+          "ColorShift_Bottom": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "ColorShift_Top": [
+            0.8392156862745098,
+            0.7411764705882353,
+            0.5294117647058824
+          ],
+          "EnvironmentDiffuseScale": 0.5,
+          "EnvironmentSpecularScale": 1.0,
+          "FogColor": [
+            0.7843137254901961,
+            0.6666666666666666,
+            0.9764705882352941
+          ],
+          "FogEnd": 2500.0,
+          "FogStart": 0.0,
+          "OutdoorAmbient": [
+            0.48627450980392156,
+            0.39215686274509803,
+            0.5843137254901961
+          ]
+        },
+        "ColorCorrection": {
+          "$className": "ColorCorrectionEffect",
+          "$properties": {
+            "Brightness": 0.05,
+            "Contrast": 0.1,
+            "Saturation": 0.15,
+            "TintColor": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        }
+      },
+      "ReplicatedStorage": {
+        "shared": {
+          "$path": "src/shared"
+        }
+      },
+      "ServerScriptService": {
+        "server": {
+          "$path": "src/server"
+        }
+      },
+      "StarterPlayer": {
+        "$className": "StarterPlayer",
+        "StarterPlayerScripts": {
+          "$className": "StarterPlayerScripts",
+          "client": {
+            "$path": "src/client"
+          }
+        }
+      }
+    }
+  },
+  "variants": {
+    "jest": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "ReplicatedStorage": {
+          "devPackages": {
+            "$path": "DevPackages"
+          },
+          "packages": {
+            "$path": "Packages"
+          },
+          "shared": {
+            "$path": "src/shared"
+          },
+          "test": {
+            "$path": "tests/shared"
+          }
+        },
+        "ServerScriptService": {
+          "$properties": {
+            "LoadStringEnabled": true
+          },
+          "server": {
+            "$path": "src/server"
+          },
+          "test": {
+            "$path": "tests/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            },
+            "test": {
+              "$path": "tests/client"
+            }
+          }
+        }
+      }
+    },
+    "jest-server": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "ReplicatedStorage": {
+          "devPackages": {
+            "$path": "DevPackages"
+          },
+          "packages": {
+            "$path": "Packages"
+          },
+          "shared": {
+            "$path": "src/shared"
+          },
+          "test": {
+            "$path": "tests/shared"
+          }
+        },
+        "ServerScriptService": {
+          "$properties": {
+            "LoadStringEnabled": true
+          },
+          "server": {
+            "$path": "src/server"
+          },
+          "serverPackages": {
+            "$path": "ServerPackages"
+          },
+          "test": {
+            "$path": "tests/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            },
+            "test": {
+              "$path": "tests/client"
+            }
+          }
+        }
+      }
+    },
+    "plain": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "Lighting": {
+          "$className": "Lighting",
+          "$properties": {
+            "Ambient": [
+              0.7843137254901961,
+              0.6274509803921569,
+              0.8823529411764706
+            ],
+            "Brightness": 2.5,
+            "ColorShift_Bottom": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "ColorShift_Top": [
+              0.8392156862745098,
+              0.7411764705882353,
+              0.5294117647058824
+            ],
+            "EnvironmentDiffuseScale": 0.5,
+            "EnvironmentSpecularScale": 1.0,
+            "FogColor": [
+              0.7843137254901961,
+              0.6666666666666666,
+              0.9764705882352941
+            ],
+            "FogEnd": 2500.0,
+            "FogStart": 0.0,
+            "OutdoorAmbient": [
+              0.48627450980392156,
+              0.39215686274509803,
+              0.5843137254901961
+            ]
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.05,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        },
+        "ReplicatedStorage": {
+          "shared": {
+            "$path": "src/shared"
+          }
+        },
+        "ServerScriptService": {
+          "server": {
+            "$path": "src/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            }
+          }
+        }
+      }
+    },
+    "plain-tests": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "Lighting": {
+          "$className": "Lighting",
+          "$properties": {
+            "Ambient": [
+              0.7843137254901961,
+              0.6274509803921569,
+              0.8823529411764706
+            ],
+            "Brightness": 2.5,
+            "ColorShift_Bottom": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "ColorShift_Top": [
+              0.8392156862745098,
+              0.7411764705882353,
+              0.5294117647058824
+            ],
+            "EnvironmentDiffuseScale": 0.5,
+            "EnvironmentSpecularScale": 1.0,
+            "FogColor": [
+              0.7843137254901961,
+              0.6666666666666666,
+              0.9764705882352941
+            ],
+            "FogEnd": 2500.0,
+            "FogStart": 0.0,
+            "OutdoorAmbient": [
+              0.48627450980392156,
+              0.39215686274509803,
+              0.5843137254901961
+            ]
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.05,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        },
+        "ReplicatedStorage": {
+          "shared": {
+            "$path": "src/shared"
+          },
+          "test": {
+            "$path": "tests/shared"
+          }
+        },
+        "ServerScriptService": {
+          "server": {
+            "$path": "src/server"
+          },
+          "test": {
+            "$path": "tests/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            },
+            "test": {
+              "$path": "tests/client"
+            }
+          }
+        }
+      }
+    },
+    "wally": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "Lighting": {
+          "$className": "Lighting",
+          "$properties": {
+            "Ambient": [
+              0.7843137254901961,
+              0.6274509803921569,
+              0.8823529411764706
+            ],
+            "Brightness": 2.5,
+            "ColorShift_Bottom": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "ColorShift_Top": [
+              0.8392156862745098,
+              0.7411764705882353,
+              0.5294117647058824
+            ],
+            "EnvironmentDiffuseScale": 0.5,
+            "EnvironmentSpecularScale": 1.0,
+            "FogColor": [
+              0.7843137254901961,
+              0.6666666666666666,
+              0.9764705882352941
+            ],
+            "FogEnd": 2500.0,
+            "FogStart": 0.0,
+            "OutdoorAmbient": [
+              0.48627450980392156,
+              0.39215686274509803,
+              0.5843137254901961
+            ]
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.05,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        },
+        "ReplicatedStorage": {
+          "packages": {
+            "$path": "Packages"
+          },
+          "shared": {
+            "$path": "src/shared"
+          }
+        },
+        "ServerScriptService": {
+          "server": {
+            "$path": "src/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            }
+          }
+        }
+      }
+    },
+    "wally-server": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "Lighting": {
+          "$className": "Lighting",
+          "$properties": {
+            "Ambient": [
+              0.7843137254901961,
+              0.6274509803921569,
+              0.8823529411764706
+            ],
+            "Brightness": 2.5,
+            "ColorShift_Bottom": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "ColorShift_Top": [
+              0.8392156862745098,
+              0.7411764705882353,
+              0.5294117647058824
+            ],
+            "EnvironmentDiffuseScale": 0.5,
+            "EnvironmentSpecularScale": 1.0,
+            "FogColor": [
+              0.7843137254901961,
+              0.6666666666666666,
+              0.9764705882352941
+            ],
+            "FogEnd": 2500.0,
+            "FogStart": 0.0,
+            "OutdoorAmbient": [
+              0.48627450980392156,
+              0.39215686274509803,
+              0.5843137254901961
+            ]
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.05,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        },
+        "ReplicatedStorage": {
+          "packages": {
+            "$path": "Packages"
+          },
+          "shared": {
+            "$path": "src/shared"
+          }
+        },
+        "ServerScriptService": {
+          "server": {
+            "$path": "src/server"
+          },
+          "serverPackages": {
+            "$path": "ServerPackages"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            }
+          }
+        }
+      }
+    },
+    "wally-tests": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "Lighting": {
+          "$className": "Lighting",
+          "$properties": {
+            "Ambient": [
+              0.7843137254901961,
+              0.6274509803921569,
+              0.8823529411764706
+            ],
+            "Brightness": 2.5,
+            "ColorShift_Bottom": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "ColorShift_Top": [
+              0.8392156862745098,
+              0.7411764705882353,
+              0.5294117647058824
+            ],
+            "EnvironmentDiffuseScale": 0.5,
+            "EnvironmentSpecularScale": 1.0,
+            "FogColor": [
+              0.7843137254901961,
+              0.6666666666666666,
+              0.9764705882352941
+            ],
+            "FogEnd": 2500.0,
+            "FogStart": 0.0,
+            "OutdoorAmbient": [
+              0.48627450980392156,
+              0.39215686274509803,
+              0.5843137254901961
+            ]
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.05,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        },
+        "ReplicatedStorage": {
+          "packages": {
+            "$path": "Packages"
+          },
+          "shared": {
+            "$path": "src/shared"
+          },
+          "test": {
+            "$path": "tests/shared"
+          }
+        },
+        "ServerScriptService": {
+          "server": {
+            "$path": "src/server"
+          },
+          "test": {
+            "$path": "tests/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            },
+            "test": {
+              "$path": "tests/client"
+            }
+          }
+        }
+      }
+    },
+    "wally-tests-server": {
+      "name": "Fixture",
+      "tree": {
+        "$className": "DataModel",
+        "Lighting": {
+          "$className": "Lighting",
+          "$properties": {
+            "Ambient": [
+              0.7843137254901961,
+              0.6274509803921569,
+              0.8823529411764706
+            ],
+            "Brightness": 2.5,
+            "ColorShift_Bottom": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "ColorShift_Top": [
+              0.8392156862745098,
+              0.7411764705882353,
+              0.5294117647058824
+            ],
+            "EnvironmentDiffuseScale": 0.5,
+            "EnvironmentSpecularScale": 1.0,
+            "FogColor": [
+              0.7843137254901961,
+              0.6666666666666666,
+              0.9764705882352941
+            ],
+            "FogEnd": 2500.0,
+            "FogStart": 0.0,
+            "OutdoorAmbient": [
+              0.48627450980392156,
+              0.39215686274509803,
+              0.5843137254901961
+            ]
+          },
+          "ColorCorrection": {
+            "$className": "ColorCorrectionEffect",
+            "$properties": {
+              "Brightness": 0.05,
+              "Contrast": 0.1,
+              "Saturation": 0.15,
+              "TintColor": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          }
+        },
+        "ReplicatedStorage": {
+          "packages": {
+            "$path": "Packages"
+          },
+          "shared": {
+            "$path": "src/shared"
+          },
+          "test": {
+            "$path": "tests/shared"
+          }
+        },
+        "ServerScriptService": {
+          "server": {
+            "$path": "src/server"
+          },
+          "serverPackages": {
+            "$path": "ServerPackages"
+          },
+          "test": {
+            "$path": "tests/server"
+          }
+        },
+        "StarterPlayer": {
+          "$className": "StarterPlayer",
+          "StarterPlayerScripts": {
+            "$className": "StarterPlayerScripts",
+            "client": {
+              "$path": "src/client"
+            },
+            "test": {
+              "$path": "tests/client"
+            }
+          }
+        }
+      }
+    }
+  }
+}

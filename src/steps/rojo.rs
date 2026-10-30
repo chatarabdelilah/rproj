@@ -1,3 +1,5 @@
+#[cfg(test)]
+use rproj_core::project_template::RESERVED_DYNAMIC_PATHS;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -6,7 +8,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
 
-use crate::catalog::place_template;
 use crate::config::PackageWorkflow;
 use crate::steps::capture;
 use crate::ui;
@@ -44,19 +45,8 @@ const STARTER_FILES: &[(&str, &str)] = &[
     ),
 ];
 
-pub const TEMPLATE_PROJECT_NAME: &str = "ProjectName";
-
-const ALWAYS_CREATED_TEMPLATE_PATHS: &[&str] = &["src/shared", "src/server", "src/client"];
-
-const RESERVED_DYNAMIC_PATHS: &[&[&str]] = &[
-    &["tree", "ReplicatedStorage", "packages"],
-    &["tree", "ReplicatedStorage", "test"],
-    &["tree", "ReplicatedStorage", "DevPackages"],
-    &["tree", "ReplicatedStorage", "devPackages"],
-    &["tree", "ServerScriptService", "serverPackages"],
-    &["tree", "ServerScriptService", "test"],
-    &["tree", "StarterPlayer", "StarterPlayerScripts", "test"],
-];
+use rproj_core::project_template::ALWAYS_CREATED_TEMPLATE_PATHS;
+pub use rproj_core::project_template::{builtin_project_template, validate_template_structure};
 
 pub fn scaffold_project_json(
     project_dir: &Path,
@@ -92,31 +82,45 @@ pub fn scaffold_project_json(
     Ok(())
 }
 
-pub fn builtin_project_template() -> Value {
-    let mut tree = Map::new();
-    tree.insert("$className".to_string(), json!("DataModel"));
-    tree.insert(
-        "ReplicatedStorage".to_string(),
-        json!({ "shared": { "$path": "src/shared" } }),
-    );
-    tree.insert(
-        "ServerScriptService".to_string(),
-        json!({ "server": { "$path": "src/server" } }),
-    );
-    tree.insert(
-        "StarterPlayer".to_string(),
-        json!({
-            "$className": "StarterPlayer",
-            "StarterPlayerScripts": {
-                "$className": "StarterPlayerScripts",
-                "client": { "$path": "src/client" }
-            }
-        }),
-    );
-    for (name, node) in place_template::render() {
-        tree.insert(name, node);
+#[cfg(test)]
+#[test]
+fn template_generation_before_extraction_fixture() {
+    let builtin = builtin_project_template();
+    let mut variants = Map::new();
+    for (name, workflow, tests, server) in [
+        ("plain", PackageWorkflow::None, false, false),
+        ("plain-tests", PackageWorkflow::None, true, false),
+        ("wally", PackageWorkflow::Wally, false, false),
+        ("wally-server", PackageWorkflow::Wally, false, true),
+        ("wally-tests", PackageWorkflow::Wally, true, false),
+        ("wally-tests-server", PackageWorkflow::Wally, true, true),
+    ] {
+        variants.insert(
+            name.into(),
+            project_document("Fixture", workflow, tests, server, Some(&builtin)).unwrap(),
+        );
     }
-    json!({ "name": TEMPLATE_PROJECT_NAME, "tree": tree })
+    for (name, server) in [("jest", false), ("jest-server", true)] {
+        let production = project_document(
+            "Fixture",
+            PackageWorkflow::Wally,
+            false,
+            server,
+            Some(&builtin),
+        )
+        .unwrap();
+        variants.insert(
+            name.into(),
+            crate::steps::jest::project_document(&production).unwrap(),
+        );
+    }
+    let actual = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&json!({"builtin": builtin, "variants": variants})).unwrap()
+    );
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/project-template-generation.json");
+    assert_eq!(actual, fs::read_to_string(path).unwrap());
 }
 
 pub fn project_document(
@@ -207,120 +211,6 @@ fn apply_dynamic_mounts(
         client_scripts.insert("test".into(), json!({ "$path": "tests/client" }));
     }
     Ok(())
-}
-
-pub fn validate_template_structure(template: &Value) -> Result<()> {
-    let object = template
-        .as_object()
-        .context("project template must be a JSON object")?;
-    if object.get("name") != Some(&json!(TEMPLATE_PROJECT_NAME)) {
-        bail!("`name` is managed by rproj and must remain `{TEMPLATE_PROJECT_NAME}`");
-    }
-    let tree = object
-        .get("tree")
-        .and_then(Value::as_object)
-        .context("project template `tree` must be an object")?;
-    if tree.get("$className") != Some(&json!("DataModel")) {
-        bail!("`tree.$className` is managed by rproj and must remain `DataModel`");
-    }
-
-    for (path, expected) in [
-        (
-            &["tree", "ReplicatedStorage", "shared", "$path"][..],
-            "src/shared",
-        ),
-        (
-            &["tree", "ServerScriptService", "server", "$path"][..],
-            "src/server",
-        ),
-        (
-            &[
-                "tree",
-                "StarterPlayer",
-                "StarterPlayerScripts",
-                "client",
-                "$path",
-            ][..],
-            "src/client",
-        ),
-    ] {
-        if value_at(template, path) != Some(&json!(expected)) {
-            bail!(
-                "`{}` is managed by rproj and must remain `{expected}`",
-                path.join(".")
-            );
-        }
-    }
-
-    for path in RESERVED_DYNAMIC_PATHS {
-        if value_at(template, path).is_some() {
-            bail!(
-                "`{}` is reserved for dependency or testing mounts and must be removed",
-                path.join(".")
-            );
-        }
-    }
-    validate_instance_names(tree, "tree")?;
-    validate_paths(template, "")
-}
-
-fn validate_instance_names(node: &Map<String, Value>, location: &str) -> Result<()> {
-    if node
-        .get("$properties")
-        .and_then(Value::as_object)
-        .is_some_and(|properties| properties.contains_key("Name"))
-    {
-        bail!(
-            "`{location}.$properties.Name` cannot be set manually; rename the `{location}` tree key instead"
-        );
-    }
-    for (name, child) in node.iter().filter(|(name, _)| !name.starts_with('$')) {
-        if let Some(child) = child.as_object() {
-            validate_instance_names(child, &format!("{location}.{name}"))?;
-        }
-    }
-    Ok(())
-}
-
-fn validate_paths(value: &Value, location: &str) -> Result<()> {
-    match value {
-        Value::Object(object) => {
-            if let Some(path) = object.get("$path") {
-                let path = match path {
-                    Value::String(path) => path.as_str(),
-                    Value::Object(optional) if optional.len() == 1 => optional
-                        .get("optional")
-                        .and_then(Value::as_str)
-                        .context("optional `$path` must contain a string")?,
-                    _ => bail!("`{location}.$path` must be a string or an optional path"),
-                };
-                if !ALWAYS_CREATED_TEMPLATE_PATHS.contains(&path) {
-                    bail!(
-                        "`{location}.$path` points to `{path}`; custom paths may only use the always-created `src/shared`, `src/server`, or `src/client` directories"
-                    );
-                }
-            }
-            for (key, child) in object {
-                let next = if location.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{location}.{key}")
-                };
-                validate_paths(child, &next)?;
-            }
-        }
-        Value::Array(values) => {
-            for (index, child) in values.iter().enumerate() {
-                validate_paths(child, &format!("{location}[{index}]"))?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
-    path.iter().try_fold(value, |current, key| current.get(key))
 }
 
 fn child_object_mut<'a>(

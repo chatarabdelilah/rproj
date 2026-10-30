@@ -7,6 +7,9 @@ pub mod creation;
 pub mod desktop_state;
 pub mod inspection;
 pub mod operations;
+#[cfg(feature = "template-editor")]
+#[doc(hidden)]
+pub mod project_template;
 #[doc(hidden)]
 pub mod saved_setups;
 #[doc(hidden)]
