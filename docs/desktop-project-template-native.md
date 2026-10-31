@@ -143,7 +143,9 @@ uses a fresh overlay for the corrected archives.
 
 PR #141 corrected the startup race on main at `41f2d69`. Its reviewed head
 `08ff9d5` passed seven executed jobs in run `41203098152` on the first attempt.
-The merged tree matches the reviewed one. Main verification is recorded separately.
+The merged tree matches the reviewed one. All seven executed main jobs passed
+in run `41203644146`, attempt 1. Both merged branches for #140 and #141
+were removed after verifying their trees.
 
 The matching CLI serves bounded context, preparation and confirmed Save/Reset
 requests. The destination always comes from the machine template configuration.
@@ -180,3 +182,9 @@ persistence as well as at the IPC boundary. The formatted replacement is now
 measured before invoking Rojo and again before reporting possible mutation.
 A small-limit regression verifies that neither validation nor staging starts
 and the missing template directory stays absent.
+
+The final worker revision passed 786 CLI/core tests, with 24 prerequisite-based
+tests ignored. Strict CLI/core Clippy, formatting and fresh joint Cargo package
+verification passed. The third local CodeRabbit review returned zero findings.
+Windows portable smoke covers version and inspection only. The three known
+legacy notice gaps and paused real-window acceptance remain separate.
