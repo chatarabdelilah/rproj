@@ -354,3 +354,30 @@ fn path_lookup_skips_known_project_aware_launchers_and_relative_directories() {
     assert!(machine.resolve().is_err());
     assert!(!machine.rokit_root.exists());
 }
+
+#[test]
+fn relative_machine_destination_matches_the_absolute_source_loaded_by_context() {
+    let ipc = tempfile::tempdir().unwrap();
+    let destination = Path::new(".")
+        .join(ipc.path().file_name().unwrap())
+        .join("default.project.json");
+    assert!(!destination.exists());
+    let source = template_checked::capture(&destination, Some(IPC_LIMIT)).unwrap();
+    let request = TemplateRequest {
+        protocol: TEMPLATE_PROTOCOL,
+        id: "relative-fixture".into(),
+        action: TemplateJob::Prepare {
+            source,
+            action: TemplateAction::Reset,
+        },
+    };
+    write_atomic(&ipc.path().join("request.json"), &request).unwrap();
+    job_at(ipc.path(), &destination, &|| {
+        panic!("Reset needs no validator")
+    })
+    .unwrap();
+    let report: TemplateReport = read_json(&ipc.path().join("report.json")).unwrap();
+    report.check(&request).unwrap();
+    assert_eq!(report.status, Some(TemplateStatus::Succeeded));
+    assert!(!destination.exists());
+}

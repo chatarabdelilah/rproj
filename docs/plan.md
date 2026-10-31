@@ -23,7 +23,7 @@ and machine/global Rojo validation, independent of the browsed project.
 [Implementation](desktop-project-template-native.md) follows three reviewed PRs:
 shared model/checked persistence, private worker, then native controls. PR #140
 merged at `17d50f1`; main CI exposed a pre-requested Machine Setup Stop race.
-Correct that race before worker PR 2; the earlier sample wireframe is unchanged. Native
+PR #141 fixed the race at `41f2d69`. The private template worker is in progress. Native
 previews remain paused and published version 0.22.0 is unchanged.
 
 **Completed native Saved Setups delivery:**

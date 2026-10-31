@@ -137,3 +137,40 @@ correction. The archived CLI compiled against the older core, which produced
 warnings about unbound pattern names. The startup markers now use qualified
 constant paths so an incompatible core fails to compile. Package verification
 uses a fresh overlay for the corrected archives.
+
+
+### PR 2 — matching private worker
+
+PR #141 corrected the startup race on main at `41f2d69`. Its reviewed head
+`08ff9d5` passed seven executed jobs in run `41203098152` on the first attempt.
+The merged tree matches the reviewed one. Main verification is recorded separately.
+
+The matching CLI serves bounded context, preparation and confirmed Save/Reset
+requests. The destination always comes from the machine template configuration.
+The worker verifies the captured source and all parent identities even when the
+override or its directory was absent. An unchanged Save preserves the original
+bytes. Reset can remove a malformed override without Rojo. Changed saves validate
+the same six production and two Jest variants as the terminal editor, with both
+sourcemap and build for each variant in a disposable directory.
+
+Native validation resolves the installed executable named by the global Rokit
+manifest, or a standalone Rojo from absolute PATH directories when no pin exists.
+Known project-aware launcher directories are excluded. Preparation captures the
+global manifest, executable identity and content digest. Execution resolves them
+again and repeats validation before changing the override. The terminal still
+uses its existing tool lookup. No installation or Watch action is involved.
+
+The CLI writes a bounded atomic report before possible mutation and returns
+the exact saved baseline on success. The client waits for the complete Windows
+job and both output streams. A lost or contradictory terminal report yields an
+uncertain outcome. Unconfirmed teardown preserves operation storage. The fake
+worker covers missing, malformed and foreign reports, a real fixture write
+followed by report loss, finite descendants, JSON repair/reset, missing or
+rejecting Rojo, saved-byte fidelity, stale inputs and 2 MiB refusal.
+
+Before replaying the worker on corrected main, 782 CLI/core tests passed, 24
+prerequisite-dependent tests were ignored, and strict Clippy and joint packaging
+passed. The first local worker review found two issues. Started now follows a
+successful spawn, and the worker compares the reviewed and authoritative paths
+after applying the same normalization used during capture. Both have regression
+coverage. Final rebased validation and delivery are tracked separately.
