@@ -31,8 +31,8 @@ further mutations. Watch remains independent. Earlier wireframes stay unchanged.
 
 ## Evidence
 
-PR 1 is in progress. Regression fixtures preceded extraction; actual test and
-review outcomes follow below. No native preview is authorized.
+PR 1 merged. Regression fixtures preceded extraction. Test and review outcomes
+follow below. No native preview is authorized.
 Native memory stability remains unresolved; real-window and macOS/Linux desktop
 acceptance remain unverified. No installation, version bump or publication.
 
@@ -98,5 +98,42 @@ after the final model corrections. The three legacy notice gaps remain unchanged
 The fourth CodeRabbit review found no runtime issue and one documentation wording
 issue about pending evidence; the wording and final results are corrected here
 and inspected directly. All 122 existing headless desktop tests and desktop
-Clippy also passed. Reviewed-head/main CI remains pending delivery. No native
+Clippy also passed. PR #140 reviewed-head CI passed; the merged-main failure is recorded below. No native
 preview or real-window acceptance is claimed.
+
+
+### PR 1 delivery and Machine Setup Stop correction
+
+PR #140 merged at `17d50f1`; reviewed head `3e00d2e` passed all seven
+executed CI jobs in run `41043744364`, attempt 1. The merged tree is identical.
+Merged-main run `41046504749`, attempt 1, exposed a real scheduling race in
+`pre_requested_stop_skips_every_item_without_saving`: the first installer could
+start before an already-requested Stop reached the worker. The stable Windows
+job failed with `MayHaveBegun` instead of `NotStarted`. This is not counted as a
+pass or dismissed as a flaky test; worker PR 2 is paused for a corrective PR.
+
+The first correction wrote a pending Stop before launch. All 14 focused worker
+tests, the full CLI/core suite, strict Clippy and joint package verification
+passed. CodeRabbit identified a remaining interval between checking Stop and
+spawning the process. The earlier callback regression initially needed a
+qualified event type to compile.
+
+The revised private setup protocol requires a one-byte startup decision on
+the owned Apply worker's stdin. The parent samples Stop after spawning the
+process and delivering Started. The worker waits for this decision before
+entering the installer backend. A pending Stop skips every item. An invalid
+decision or disconnected pipe produces a failed report before installation.
+Later Stop requests still let the active item finish. Context and preparation
+use their existing paths. The matching-worker check rejects the old protocol.
+
+Tests cover Stop in the post-spawn Started callback, disconnected and malformed
+startup input, active-item completion and late Stop after save. The revised
+suite passed 772 CLI/core tests with 24 prerequisite-dependent tests ignored,
+plus all 122 headless desktop tests. Formatting and strict CLI/core Clippy
+passed. The second local CodeRabbit review reported no findings.
+
+An initial package recheck reused a Cargo registry overlay from the first
+correction. The archived CLI compiled against the older core, which produced
+warnings about unbound pattern names. The startup markers now use qualified
+constant paths so an incompatible core fails to compile. Package verification
+uses a fresh overlay for the corrected archives.

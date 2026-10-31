@@ -105,7 +105,7 @@ fn driver() {
     let root = PathBuf::from(root).canonicalize().unwrap();
     let ipc = PathBuf::from(std::env::var_os("RPROJ_TEST_SETUP_IPC").unwrap());
     let result = crate::background_watch::with_test_root(&root.join("watch"), || {
-        job_with(&ipc, &Fake { root: root.clone() })
+        job_with(&ipc, &Fake { root: root.clone() }, std::io::stdin().lock())
     });
     std::process::exit(i32::from(crate::internal_result_exit_code(result)));
 }
@@ -342,7 +342,8 @@ fn any_watch_blocks_apply_but_not_preparation() {
                 ipc.path(),
                 &Fake {
                     root: f.root.clone()
-                }
+                },
+                &[START_SETUP][..],
             )
             .is_err()
         );
@@ -417,6 +418,59 @@ fn pre_requested_stop_skips_every_item_without_saving() {
     );
     assert!(!f.root.join("installer-started").exists());
     assert!(!review.context.config_path.exists());
+    assert!(report.stop_acknowledged);
+}
+
+#[test]
+fn stop_from_started_callback_reaches_worker_before_first_item() {
+    let f = Fixture::new();
+    let review = f.prepared();
+    let stop = SetupStop::default();
+    let send = stop.clone();
+    let report = f
+        .client
+        .apply_setup(review.clone(), &stop, move |event| {
+            if matches!(
+                event,
+                SetupEvent::Output(rproj_core::operations::OperationEvent::Started)
+            ) {
+                send.request();
+            }
+        })
+        .unwrap();
+    assert_eq!(
+        (report.status, report.effects),
+        (Some(SetupStatus::Stopped), WriteState::NotStarted)
+    );
+    assert!(report.stop_acknowledged);
+    assert!(!f.root.join("installer-started").exists());
+    assert!(!review.context.config_path.exists());
+}
+
+#[test]
+fn missing_or_invalid_startup_decision_refuses_every_item() {
+    let f = Fixture::new();
+    let review = f.prepared();
+    for signal in [&[][..], &b"?"[..]] {
+        let ipc = f.request(SetupAction::Apply(review.clone()));
+        assert!(
+            job_with(
+                ipc.path(),
+                &Fake {
+                    root: f.root.clone()
+                },
+                signal
+            )
+            .is_err()
+        );
+        let report: SetupReport = read_json(&ipc.path().join("report.json")).unwrap();
+        assert_eq!(
+            (report.status, report.effects),
+            (Some(SetupStatus::Failed), WriteState::NotStarted)
+        );
+        assert!(!f.root.join("installer-started").exists());
+        assert!(!review.context.config_path.exists());
+    }
 }
 
 #[test]

@@ -21,8 +21,9 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 The owner approved the Soft Explorer / Advanced JSON → Review → Save design
 and machine/global Rojo validation, independent of the browsed project.
 [Implementation](desktop-project-template-native.md) follows three reviewed PRs:
-shared model/checked persistence, private worker, then native controls. PR 1 is in
-progress against `2f19bb0`; the earlier sample wireframe is unchanged. Native
+shared model/checked persistence, private worker, then native controls. PR #140
+merged at `17d50f1`; main CI exposed a pre-requested Machine Setup Stop race.
+Correct that race before worker PR 2; the earlier sample wireframe is unchanged. Native
 previews remain paused and published version 0.22.0 is unchanged.
 
 **Completed native Saved Setups delivery:**

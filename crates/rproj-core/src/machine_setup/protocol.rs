@@ -29,7 +29,10 @@ use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-pub const SETUP_PROTOCOL: u32 = 1;
+pub const SETUP_PROTOCOL: u32 = 2;
+/// Apply waits on its owned stdin pipe before entering the installer backend.
+pub const START_SETUP: u8 = b'G';
+pub const STOP_BEFORE_SETUP: u8 = b'S';
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SetupAction {

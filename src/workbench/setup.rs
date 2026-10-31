@@ -2,10 +2,11 @@
 use crate::commands::machine_setup::{checked, worker::Event};
 use anyhow::{Context, Result, ensure};
 use rproj_core::machine_setup::{
-    Outcome, Persistence, Selection, SetupContext, SetupResult, SetupReview, Status, protocol::*,
+    Outcome, Persistence, Selection, SetupContext, SetupResult, SetupReview, Status,
+    protocol::{self, *},
 };
 use std::{
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
@@ -45,7 +46,7 @@ impl Backend for Machine {
 }
 
 pub(super) fn job(directory: &Path) -> Result<()> {
-    job_with(directory, &Machine)
+    job_with(directory, &Machine, std::io::stdin().lock())
 }
 
 struct Progress {
@@ -99,6 +100,21 @@ impl Progress {
             );
         }
     }
+    fn await_start(&self, startup: &mut impl Read) -> Result<()> {
+        let mut signal = [0u8];
+        startup
+            .read_exact(&mut signal)
+            .context("Machine Setup owner disconnected before authorizing the first item")?;
+        match signal[0] {
+            protocol::START_SETUP => Ok(()),
+            protocol::STOP_BEFORE_SETUP => {
+                self.stop.store(true, Ordering::Release);
+                self.update(|report| report.stop_acknowledged = true)
+            }
+            _ => anyhow::bail!("Invalid Machine Setup startup decision"),
+        }
+    }
+
     fn observe_stop(&self, directory: &Path, request: &SetupRequest) {
         if self.stop.load(Ordering::Acquire) {
             return;
@@ -117,7 +133,7 @@ impl Progress {
     }
 }
 
-fn job_with(directory: &Path, backend: &impl Backend) -> Result<()> {
+fn job_with(directory: &Path, backend: &impl Backend, mut startup: impl Read) -> Result<()> {
     let request: SetupRequest = read_json(&directory.join("request.json"))?;
     request.validate()?;
     let progress = Arc::new(Progress {
@@ -133,7 +149,7 @@ fn job_with(directory: &Path, backend: &impl Backend) -> Result<()> {
         SetupAction::Prepare { context, selection } => backend
             .prepare(context, selection)
             .and_then(|prepared| progress.update(|r| r.prepared = Some(prepared))),
-        SetupAction::Apply(review) => {
+        SetupAction::Apply(review) => progress.await_start(&mut startup).and_then(|_| {
             progress.observe_stop(directory, &request);
             let finished = AtomicBool::new(false);
             std::thread::scope(|scope| {
@@ -162,7 +178,7 @@ fn job_with(directory: &Path, backend: &impl Backend) -> Result<()> {
                     })
                 })
             })
-        }
+        }),
     };
     let mut report = progress
         .report
