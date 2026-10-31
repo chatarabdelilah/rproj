@@ -1,5 +1,13 @@
 # Release-Hardening Audit
 
+## October 31: native Project Template controls
+
+Worker PR #142 merged at `897cd4d`. Its reviewed head and merged main passed
+all seven executed jobs on their first attempts. The native app now integrates
+the retained machine draft, bundled reflection data, complete review diff and
+wait-for-completion closing. [Implementation evidence](desktop-project-template-native.md)
+records headless validation separately from paused native window acceptance.
+
 ## October 31: private Project Template worker
 
 Corrective PR #141 merged at `41f2d69` after seven passing reviewed-head jobs.

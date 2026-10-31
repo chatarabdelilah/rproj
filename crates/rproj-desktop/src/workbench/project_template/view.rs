@@ -1,5 +1,6 @@
 use super::*;
 use controller::Intent;
+use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::{
     button::*,
     input::{Input, Textarea},
@@ -7,7 +8,7 @@ use gpui_kit::component::{
 use gpui_kit::prelude::FluentBuilder;
 
 #[derive(Clone)]
-enum Act {
+pub(super) enum Act {
     Show,
     Reload,
     Discard,
@@ -55,6 +56,28 @@ fn display(value: Option<&Value>) -> String {
     }
 }
 impl Workbench {
+    pub(super) fn template_field_changed(&mut self, cx: &mut Context<Self>) {
+        if self.template.page != Page::Explorer || !self.template.editable() {
+            return;
+        }
+        if let Some(d) = &mut self.template.draft
+            && d.field.is_some()
+        {
+            let value = self.template_inputs.value.read(cx).value();
+            let name = self.template_inputs.name.read(cx).value();
+            d.field_dirty = value.as_ref() != d.field_origin.0 || name.as_ref() != d.field_origin.1;
+            cx.notify();
+        }
+    }
+
+    fn template_field_blocks(&self, act: &Act) -> bool {
+        self.template.page == Page::Explorer
+            && self.template.draft.as_ref().is_some_and(|d| d.field_dirty)
+            && !matches!(
+                act,
+                Act::Set | Act::CancelField | Act::Show | Act::Discard | Act::Reload | Act::Reset
+            )
+    }
     fn template_button(
         &self,
         id: impl Into<SharedString>,
@@ -63,6 +86,7 @@ impl Workbench {
         disabled: bool,
         cx: &mut Context<Self>,
     ) -> Button {
+        let disabled = disabled || self.template_field_blocks(&act);
         Button::new(id.into())
             .label(label.into())
             .disabled(disabled)
@@ -82,7 +106,10 @@ impl Workbench {
         .selected(self.template.visible)
         .into_any_element()
     }
-    fn template_action(&mut self, action: Act, w: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn template_action(&mut self, action: Act, w: &mut Window, cx: &mut Context<Self>) {
+        if self.template_field_blocks(&action) {
+            return;
+        }
         match action {
             Act::Show => self.show_template(w, cx),
             Act::Reload => self.template_decision(Intent::Reload, w, cx),
@@ -147,6 +174,12 @@ impl Workbench {
                             Field::Setting(key, _) => display(model.value().get(key)),
                             _ => String::new(),
                         };
+                        let initial_name = match &field {
+                            Field::Attribute(key, _) => key.clone(),
+                            _ => String::new(),
+                        };
+                        d.field_origin = (current.clone(), initial_name);
+                        d.field_dirty = false;
                         self.template_inputs
                             .value
                             .update(cx, |input, cx| input.set_value(current, w, cx));
@@ -162,7 +195,11 @@ impl Workbench {
                         });
                         d.field = Some(field);
                     }
-                    Act::CancelField => self.template.draft.as_mut().unwrap().field = None,
+                    Act::CancelField => {
+                        let d = self.template.draft.as_mut().unwrap();
+                        d.field = None;
+                        d.field_dirty = false;
+                    }
                     act => self.edit_template(
                         |d| {
                             let m = d.model.as_mut().ok_or_else(|| {
@@ -295,7 +332,16 @@ impl Workbench {
             })
             .unwrap_or_else(|| "Machine-wide template for future projects".into());
         body = body
-            .child(div().child(identity))
+            .child(
+                div()
+                    .id("template-path")
+                    .role(Role::Group)
+                    .aria_label(identity.clone())
+                    .test_support()
+                    .overflow_x_scroll()
+                    .whitespace_nowrap()
+                    .child(identity),
+            )
             .child("Changes apply to future projects.")
             .child(
                 div()
@@ -358,17 +404,25 @@ impl Workbench {
                     "The override is written as formatted JSON. Review every changed line below."
                 });
             if reset {
-                body = body.child(format!(
-                    "Built-in tree: {}",
-                    builtin_project_template()["tree"]
-                        .as_object()
-                        .unwrap()
-                        .keys()
-                        .filter(|s| !s.starts_with('$'))
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ));
+                let built_in =
+                    EditorModel::new(builtin_project_template()).expect("valid built-in template");
+                let tree = built_in
+                    .rows()
+                    .into_iter()
+                    .filter(|row| !row.path.is_empty())
+                    .map(|row| row.path.join(" / "))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                body = body.child(
+                    div()
+                        .id("template-reset-tree")
+                        .role(Role::Group)
+                        .aria_label("Resulting built-in tree")
+                        .test_support()
+                        .max_h(px(80.))
+                        .overflow_y_scroll()
+                        .child(format!("Resulting built-in tree\n{tree}")),
+                );
             }
             body = body.child(self.template.summary.clone());
             if !plan.review.changes() {
@@ -549,6 +603,7 @@ impl Workbench {
         let query = self.template_inputs.query.read(cx).value().to_lowercase();
         let find = |text: &str| text.to_lowercase().contains(&query);
         let protected = !m.can_restructure(&d.selected);
+        let mount = !m.can_add_children(&d.selected);
         let mut out = div()
             .id("template-inspector")
             .v_flex()
@@ -652,7 +707,8 @@ impl Workbench {
                             cx,
                         ));
                     for (i, row) in m.rows().into_iter().enumerate().filter(|(_, r)| {
-                        m.can_add_children(&r.path)
+                        !r.path.is_empty()
+                            && m.can_add_children(&r.path)
                             && !r.path.starts_with(&d.selected)
                             && find(&r.path.join("/"))
                     }) {
@@ -677,6 +733,39 @@ impl Workbench {
                         _ => "New node name".into(),
                     };
                     pane = pane.child(hint);
+                    let choices = match field {
+                        Field::Property(_, ValueKind::Enum(items))
+                        | Field::Attribute(_, ValueKind::Enum(items)) => items.clone(),
+                        Field::Property(_, ValueKind::Bool)
+                        | Field::Attribute(_, ValueKind::Bool)
+                        | Field::Setting(_, SettingKind::Bool) => {
+                            vec!["true".into(), "false".into()]
+                        }
+                        _ => Vec::new(),
+                    };
+                    if !choices.is_empty() {
+                        let input = self.template_inputs.value.clone();
+                        pane = pane.child(
+                            Button::new("template-value-choices")
+                                .label("Choose value…")
+                                .disabled(locked)
+                                .dropdown_menu(move |mut menu, _, _| {
+                                    for choice in &choices {
+                                        let state = input.clone();
+                                        let value = choice.clone();
+                                        menu =
+                                            menu.item(PopupMenuItem::new(value.clone()).on_click(
+                                                move |_, w, cx| {
+                                                    state.update(cx, |input, cx| {
+                                                        input.replace_all(value.clone(), w, cx)
+                                                    });
+                                                },
+                                            ));
+                                    }
+                                    menu
+                                }),
+                        );
+                    }
                     if matches!(field,Field::Attribute(key,_) if key.is_empty()) {
                         pane = pane.child(Input::new(&self.template_inputs.name).disabled(locked));
                     }
@@ -691,9 +780,17 @@ impl Workbench {
                         ));
                 }
             }
+            if d.field_dirty {
+                pane = pane
+                    .child("Apply or discard this field before editing another part of the draft.");
+            }
             return out.child(pane.child(self.template_button(
                 "template-cancel-field",
-                "Back to inspector",
+                if d.field_dirty {
+                    "Discard field input"
+                } else {
+                    "Back to inspector"
+                },
                 Act::CancelField,
                 locked,
                 cx,
@@ -716,7 +813,7 @@ impl Workbench {
                             format!("template-drop-property-{i}"),
                             "Remove",
                             Act::RemoveProperty(key.clone()),
-                            locked,
+                            locked || mount,
                             cx,
                         )),
                 );
@@ -738,7 +835,7 @@ impl Workbench {
                 format!("template-property-{i}"),
                 p.name.clone(),
                 Act::Field(Field::Property(p.name, p.kind)),
-                locked,
+                locked || mount,
                 cx,
             ));
         }
@@ -758,7 +855,7 @@ impl Workbench {
                         format!("template-attribute-edit-{i}"),
                         "Edit",
                         Act::Field(Field::Attribute(key.clone(), kind)),
-                        locked,
+                        locked || mount,
                         cx,
                     ));
                 }
@@ -766,7 +863,7 @@ impl Workbench {
                     format!("template-attribute-remove-{i}"),
                     "Remove",
                     Act::RemoveAttribute(key.clone()),
-                    locked,
+                    locked || mount,
                     cx,
                 )));
             }
@@ -777,7 +874,7 @@ impl Workbench {
                 format!("template-attribute-add-{i}"),
                 format!("Add {label}"),
                 Act::Field(Field::Attribute(String::new(), kind)),
-                locked,
+                locked || mount,
                 cx,
             ));
         }
@@ -791,7 +888,7 @@ impl Workbench {
                 "template-ignore",
                 format!("Ignore unknown instances: {ignore}"),
                 Act::Ignore(!ignore),
-                locked,
+                locked || mount,
                 cx,
             ))
             .child("Project settings");

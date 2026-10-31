@@ -71,6 +71,12 @@ enum Operation {
     ReuseSaved,
 }
 impl Operation {
+    fn is_template(self) -> bool {
+        matches!(
+            self,
+            Self::LoadTemplate | Self::PrepareTemplate | Self::SaveTemplate | Self::ResetTemplate
+        )
+    }
     fn is_setup(self) -> bool {
         matches!(
             self,

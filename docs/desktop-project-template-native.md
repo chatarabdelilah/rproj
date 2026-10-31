@@ -188,3 +188,35 @@ tests ignored. Strict CLI/core Clippy, formatting and fresh joint Cargo package
 verification passed. The third local CodeRabbit review returned zero findings.
 Windows portable smoke covers version and inspection only. The three known
 legacy notice gaps and paused real-window acceptance remain separate.
+
+
+### PR 3 — native controls
+
+The private worker merged in PR #142 at `897cd4d`. Reviewed head `af6ee2c`
+(run `41230495071`) and merged main (run `41231123470`) passed all seven
+executed CI jobs on their first attempts. The reviewed and merged trees match.
+
+Project Template opens below project navigation. Explorer and Advanced JSON
+share a session draft and the core model's undo/redo history. The inspector
+uses bundled Roblox class/property metadata and the existing parsers for
+properties, attributes and project settings. Applying invalid JSON preserves
+the last structured draft. Malformed saved text can be repaired or reset.
+Unapplied field input survives browsing and participates in discard protection.
+Managed mounts are read-only and incompatible properties stay visible for repair.
+
+Review captures the machine template path, shows semantic changes and a complete
+wrapped diff, and requires explicit confirmation. Reset has a separate removal
+review and shows the resulting built-in tree. Activity retains the outcome and
+source across navigation. Worker operations have no Cancel action. The close
+dialog defaults to Keep open, waits for a confirmed result, and then checks other
+dirty drafts. Unconfirmed teardown blocks closing and further mutations.
+
+During headless validation the first builds caught an ambiguous test attribute,
+a missing element ID on an accessibility alert, and incomplete wiring for the
+review summary and worker capability response. Two focus assertions required
+registering test support before tracking the focus handle. A field test used
+a silent setter and was corrected to use GPUI's change-emitting replacement.
+A full run caught hidden Light/Dark controls in the minimum window after adding
+the new sidebar entry. Scrolling is now confined to navigation. The first local
+native CodeRabbit review also identified a missing Activity completion line and
+a duplicate unlabeled root entry in Move. Both were corrected.

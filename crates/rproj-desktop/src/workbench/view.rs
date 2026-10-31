@@ -158,6 +158,8 @@ impl Workbench {
             });
         let appearance = self.preferences.appearance;
         div()
+            .id("workbench-sidebar")
+            .min_h_0()
             .v_flex()
             .w(theme::SIDEBAR_WIDTH)
             .h_full()
@@ -175,47 +177,54 @@ impl Workbench {
             )
             .child(switcher)
             .child(
-                div().v_flex().flex_1().gap_2().children(
-                    [
-                        Section::Overview,
-                        Section::Dependencies,
-                        Section::Tools,
-                        Section::Checks,
-                    ]
-                    .into_iter()
-                    .map(|section| {
-                        Button::new(section.title())
-                            .ghost()
-                            .w_full()
-                            .label(section.title())
-                            .icon(section.icon())
-                            .selected(
-                                self.section == section
-                                    && !self.creation.visible
-                                    && !self.composition.visible
-                                    && !self.upgrade.visible
-                                    && !self.settings.visible
-                                    && !self.setup.visible
-                                    && !self.template.visible
-                                    && !self.saved.visible,
-                            )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.section = section;
-                                this.template.visible = false;
-                                this.saved.visible = false;
-                                this.setup.visible = false;
-                                this.creation.visible = false;
-                                this.composition.visible = false;
-                                this.settings.visible = false;
-                                this.upgrade.visible = false;
-                                cx.notify();
-                            }))
-                    }),
-                ),
+                div()
+                    .id("sidebar-navigation")
+                    .v_flex()
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .gap_2()
+                    .children(
+                        [
+                            Section::Overview,
+                            Section::Dependencies,
+                            Section::Tools,
+                            Section::Checks,
+                        ]
+                        .into_iter()
+                        .map(|section| {
+                            Button::new(section.title())
+                                .ghost()
+                                .w_full()
+                                .label(section.title())
+                                .icon(section.icon())
+                                .selected(
+                                    self.section == section
+                                        && !self.creation.visible
+                                        && !self.composition.visible
+                                        && !self.upgrade.visible
+                                        && !self.settings.visible
+                                        && !self.setup.visible
+                                        && !self.template.visible
+                                        && !self.saved.visible,
+                                )
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.section = section;
+                                    this.template.visible = false;
+                                    this.saved.visible = false;
+                                    this.setup.visible = false;
+                                    this.creation.visible = false;
+                                    this.composition.visible = false;
+                                    this.settings.visible = false;
+                                    this.upgrade.visible = false;
+                                    cx.notify();
+                                }))
+                        }),
+                    )
+                    .child(self.setup_entry("machine-setup", cx))
+                    .child(self.saved_entry(cx))
+                    .child(self.template_entry(cx)),
             )
-            .child(self.setup_entry("machine-setup", cx))
-            .child(self.saved_entry(cx))
-            .child(self.template_entry(cx))
             .child(
                 div()
                     .text_sm()

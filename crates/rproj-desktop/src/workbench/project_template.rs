@@ -41,6 +41,8 @@ struct Draft {
     raw_base: String,
     selected: Vec<String>,
     field: Option<Field>,
+    field_origin: (String, String),
+    field_dirty: bool,
 }
 impl Draft {
     fn new(loaded: LoadedTemplate) -> Self {
@@ -60,10 +62,13 @@ impl Draft {
             raw,
             selected: Vec::new(),
             field: None,
+            field_origin: Default::default(),
+            field_dirty: false,
         }
     }
     fn dirty(&self) -> bool {
-        self.raw != self.raw_base
+        self.field_dirty
+            || self.raw != self.raw_base
             || self
                 .model
                 .as_ref()
@@ -87,6 +92,7 @@ impl Draft {
             }
         }
         self.field = None;
+        self.field_dirty = false;
     }
 }
 
@@ -178,6 +184,16 @@ impl Inputs {
         let value = cx.new(|cx| InputState::new(w, cx).placeholder("Value"));
         let name = cx.new(|cx| InputState::new(w, cx).placeholder("Attribute or instance name"));
         let json = cx.new(|cx| TextareaState::new(w, cx).rows(12));
+        let field_value = cx.subscribe(&value, |this, _, event: &InputEvent, cx| {
+            if matches!(event, InputEvent::Change) {
+                this.template_field_changed(cx);
+            }
+        });
+        let field_name = cx.subscribe(&name, |this, _, event: &InputEvent, cx| {
+            if matches!(event, InputEvent::Change) {
+                this.template_field_changed(cx);
+            }
+        });
         let search = cx.subscribe(&query, |_, _, _: &InputEvent, cx| cx.notify());
         let text = cx.subscribe(&json, |this, entity, event: &InputEvent, cx| {
             if matches!(event, InputEvent::Change)
@@ -202,7 +218,7 @@ impl Inputs {
             value,
             name,
             json,
-            _subscriptions: vec![search, text],
+            _subscriptions: vec![search, text, field_value, field_name],
         }
     }
 }

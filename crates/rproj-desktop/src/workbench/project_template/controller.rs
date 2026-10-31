@@ -167,6 +167,8 @@ impl Workbench {
         self.operations.finish(id, &outcome);
         self.running = None;
         self.activity.flush();
+        self.activity.append(&self.operations.summary());
+        self.activity.set_origin(None);
         self.template.last = Some((id, confirmed));
         if self.template.close_after.take() == Some(id) && confirmed {
             self.continue_close(cx);
