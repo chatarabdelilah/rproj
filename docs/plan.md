@@ -17,15 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**Current priority, October 30: implement native Project Template.**
-The owner approved the Soft Explorer / Advanced JSON → Review → Save design
-and machine/global Rojo validation, independent of the browsed project.
-[Implementation](desktop-project-template-native.md) follows three reviewed PRs:
-shared model/checked persistence, private worker, then native controls. PR #140
-merged at `17d50f1`; main CI exposed a pre-requested Machine Setup Stop race.
-PR #141 fixed the race at `41f2d69`. Worker PR #142 merged at `897cd4d` with green reviewed-head and main CI. The
-native controls are in validation. Native
-previews remain paused and published version 0.22.0 is unchanged.
+**Native Project Template, October 31.** Explorer and Advanced JSON share a
+machine-wide draft. Changed saves validate all eight generation variants with
+global Rojo, then require review and confirmation. The shared editor merged
+in #140, the Machine Setup Stop correction in #141, and the private worker in
+#142. The native controls passed local headless and packaging checks.
+[Implementation and verification](desktop-project-template-native.md) records
+the evidence. Real-window acceptance remains paused. Published version is 0.22.0.
 
 **Completed native Saved Setups delivery:**
 The owner approved the review-first flow and three sequential reviewed PRs against

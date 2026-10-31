@@ -220,3 +220,14 @@ A full run caught hidden Light/Dark controls in the minimum window after adding
 the new sidebar entry. Scrolling is now confined to navigation. The first local
 native CodeRabbit review also identified a missing Activity completion line and
 a duplicate unlabeled root entry in Move. Both were corrected.
+
+Final local validation passed all 132 headless desktop tests and 786 CLI/core
+tests. Another 24 tests were ignored for missing prerequisites. Formatting,
+strict Clippy for all three crates, and verification of fresh CLI/core package
+archives passed. The Windows portable package passed its version and inspection
+checks. It retained notices for 590 dependencies, with the same three legacy
+notice gaps. The second local CodeRabbit review had one documentation finding:
+record these final results. The evidence correction was inspected directly.
+
+Windows real-window and memory-stability acceptance remain paused. macOS and
+Linux desktop acceptance is unverified. Published version remains 0.22.0.
