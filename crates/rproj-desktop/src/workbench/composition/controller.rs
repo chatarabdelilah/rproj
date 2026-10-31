@@ -23,6 +23,7 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
         self.creation.visible = false;

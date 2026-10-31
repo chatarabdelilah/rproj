@@ -28,6 +28,7 @@ impl Workbench {
         self.upgrade.visible = false;
         self.settings.visible = false;
         self.setup.visible = false;
+        self.template.visible = false;
         self.saved.visible = true;
         self.focus_saved(window, cx);
         if self.saved.listing.is_none() && self.saved.pending.is_none() {

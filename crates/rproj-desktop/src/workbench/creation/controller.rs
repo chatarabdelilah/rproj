@@ -47,6 +47,7 @@ impl Workbench {
         }
     }
     pub(in super::super) fn show_creation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
         self.composition.visible = false;
@@ -418,6 +419,9 @@ impl Workbench {
         }
         if self.creation.close_pending || self.creation.close_dialog {
             return false;
+        }
+        if let Some(decision) = self.template_close(window, cx) {
+            return decision;
         }
         if let Some(decision) = self.saved_close(window, cx) {
             return decision;

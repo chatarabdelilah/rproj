@@ -7,6 +7,16 @@ use std::path::PathBuf;
 
 pub const TEMPLATE_PROTOCOL: u32 = 1;
 
+/// The worker exited, but its read-only completion report could not be confirmed.
+#[derive(Debug)]
+pub struct UnconfirmedCompletion;
+impl std::fmt::Display for UnconfirmedCompletion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Template operation completion is unconfirmed")
+    }
+}
+impl std::error::Error for UnconfirmedCompletion {}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LoadedTemplate {
     pub source: TemplateSource,

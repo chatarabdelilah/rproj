@@ -37,6 +37,8 @@ impl Run {
     pub(super) fn origin(&self) -> String {
         let owner = if self.operation.is_setup() {
             "Machine Setup".into()
+        } else if self.operation.is_template() {
+            format!("Project Template · {}", self.project.display())
         } else {
             self.project.display().to_string()
         };
@@ -131,6 +133,8 @@ impl OperationPresentation {
             .map(|run| {
                 let project = if run.operation.is_setup() {
                     std::borrow::Cow::Borrowed("Machine Setup")
+                } else if run.operation.is_template() {
+                    std::borrow::Cow::Borrowed("Project Template")
                 } else {
                     run.project
                         .file_name()

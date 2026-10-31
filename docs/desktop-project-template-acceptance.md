@@ -81,3 +81,18 @@ API, worker protocol, project/configuration format or release. Published version
 
 Choose whether Explorer / Advanced JSON, the mandatory review and reset treatment
 are ready for native implementation planning. No native launch is needed.
+
+
+## Native automated acceptance
+
+The native regression suite checks creating and repairing draft JSON, typed
+values, resize retention, explicit reload, default-Keep dialogs, operation
+ownership, and closing while completion arrives. It uses GPUI test windows
+and disposable fixtures. See the [native implementation record](desktop-project-template-native.md)
+for test results, failures and delivery evidence.
+
+Real-window Windows acceptance and native memory stability remain unverified.
+The paused real-window checklist covers opening the machine template in both
+themes, editing a disposable override through Explorer and JSON, inspecting
+the Save/Reset diffs, and checking focus and content at minimum/default size.
+macOS and Linux desktop acceptance remain unverified.

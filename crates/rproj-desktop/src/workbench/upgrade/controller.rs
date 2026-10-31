@@ -15,6 +15,7 @@ impl Workbench {
             || self.upgrade.teardown_uncertain
             || self.settings.teardown_uncertain
             || self.setup.teardown_uncertain
+            || self.template.teardown_uncertain
             || self.saved.teardown_uncertain
     }
     pub(in super::super) fn upgrade_running(&self) -> bool {
@@ -34,6 +35,7 @@ impl Workbench {
         });
     }
     pub(in super::super) fn show_upgrade(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
