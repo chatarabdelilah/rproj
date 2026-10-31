@@ -9,6 +9,7 @@ use rproj_core::operations::WORKER_FLAG;
 
 mod composition;
 mod creation;
+mod project_template;
 mod saved_setups;
 mod settings;
 mod setup;
@@ -83,6 +84,14 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::SettingsJob(directory) => settings::job(&directory),
+        Operation::TemplateSupport => {
+            println!(
+                "{}",
+                rproj_core::project_template::protocol::TEMPLATE_PROTOCOL
+            );
+            Ok(())
+        }
+        Operation::TemplateJob(directory) => project_template::job(&directory),
         Operation::SetupSupport => {
             println!("{}", rproj_core::machine_setup::protocol::SETUP_PROTOCOL);
             Ok(())
@@ -124,6 +133,8 @@ enum Operation {
     SavedSetupsJob(std::path::PathBuf),
     SettingsSupport,
     SettingsJob(std::path::PathBuf),
+    TemplateSupport,
+    TemplateJob(std::path::PathBuf),
     SetupSupport,
     SetupJob(std::path::PathBuf),
     UpgradeSupport,
@@ -138,6 +149,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         || verb == "upgrade-job"
         || verb == "saved-setups-job"
         || verb == "settings-job"
+        || verb == "template-job"
         || verb == "setup-job"
     {
         let directory = args.next().context("missing creation IPC directory")?;
@@ -150,6 +162,8 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
             Operation::SavedSetupsJob(directory.into())
         } else if verb == "settings-job" {
             Operation::SettingsJob(directory.into())
+        } else if verb == "template-job" {
+            Operation::TemplateJob(directory.into())
         } else if verb == "setup-job" {
             Operation::SetupJob(directory.into())
         } else {
@@ -162,6 +176,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         Some("composition-context") => Ok(Operation::CompositionContext),
         Some("saved-setups-support") => Ok(Operation::SavedSetupsSupport),
         Some("settings-support") => Ok(Operation::SettingsSupport),
+        Some("template-support") => Ok(Operation::TemplateSupport),
         Some("setup-support") => Ok(Operation::SetupSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),
         Some("upgrade-context") => Ok(Operation::UpgradeContext),
@@ -237,6 +252,7 @@ mod tests {
             ("check", Operation::Check),
             ("test", Operation::Test),
             ("settings-support", Operation::SettingsSupport),
+            ("template-support", Operation::TemplateSupport),
             ("setup-support", Operation::SetupSupport),
         ] {
             assert_eq!(

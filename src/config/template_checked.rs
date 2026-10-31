@@ -73,10 +73,10 @@ fn verify_identities(source: &TemplateSource) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn verify(source: &TemplateSource) -> Result<()> {
+pub(crate) fn verify_with_limit(source: &TemplateSource, limit: Option<u64>) -> Result<()> {
     source.validate()?;
     ensure!(
-        capture(&source.path, None).with_context(|| format!(
+        capture(&source.path, limit).with_context(|| format!(
             "The template changed outside this editor: {}. Reload from file",
             source.path.display()
         ))? == *source,
@@ -91,14 +91,23 @@ pub(crate) fn prepare(
     action: TemplateAction,
     validate: impl FnOnce(&serde_json::Value) -> Result<()>,
 ) -> Result<TemplateReview> {
-    verify(source)?;
+    prepare_with_limit(source, action, validate, None)
+}
+
+pub(crate) fn prepare_with_limit(
+    source: &TemplateSource,
+    action: TemplateAction,
+    validate: impl FnOnce(&serde_json::Value) -> Result<()>,
+    limit: Option<u64>,
+) -> Result<TemplateReview> {
+    verify_with_limit(source, limit)?;
     let review = TemplateReview::prepare(source.clone(), action)?;
     if let TemplateAction::Save(value) = &review.action
         && review.changes()
     {
         validate(value)?;
     }
-    verify(source)?;
+    verify_with_limit(source, limit)?;
     Ok(review)
 }
 
@@ -106,7 +115,15 @@ pub(crate) fn execute(
     review: &TemplateReview,
     before_write: &mut impl FnMut() -> Result<()>,
 ) -> Result<TemplateSource> {
-    execute_with(review, before_write, |pending, path, existing| {
+    execute_with_limit(review, before_write, None)
+}
+
+pub(crate) fn execute_with_limit(
+    review: &TemplateReview,
+    before_write: &mut impl FnMut() -> Result<()>,
+    limit: Option<u64>,
+) -> Result<TemplateSource> {
+    execute_with(review, before_write, limit, |pending, path, existing| {
         if existing {
             pending.persist(path).map_err(|e| e.error)?;
         } else {
@@ -119,16 +136,17 @@ pub(crate) fn execute(
 fn execute_with(
     review: &TemplateReview,
     before_write: &mut impl FnMut() -> Result<()>,
+    limit: Option<u64>,
     persist: impl FnOnce(tempfile::NamedTempFile, &Path, bool) -> Result<()>,
 ) -> Result<TemplateSource> {
     review.validate()?;
-    verify(&review.source)?;
+    verify_with_limit(&review.source, limit)?;
     if !review.changes() {
         return Ok(review.source.clone());
     }
     // Staging may create directories, so report potential mutation first.
     before_write()?;
-    verify(&review.source)?;
+    verify_with_limit(&review.source, limit)?;
     let mut expected = review.source.clone();
     match review.action {
         TemplateAction::Save(_) => {
@@ -141,7 +159,7 @@ fn execute_with(
                 .rev()
             {
                 if expected.parents.get(parent) == Some(&None) {
-                    verify(&expected)?;
+                    verify_with_limit(&expected, limit)?;
                     fs::create_dir(parent)
                         .context("Could not claim template directory; Reload from file")?;
                     expected
@@ -149,23 +167,23 @@ fn execute_with(
                         .insert(parent.to_owned(), identity(parent, true)?);
                 }
             }
-            verify(&expected)?;
+            verify_with_limit(&expected, limit)?;
             let contents = review.replacement.as_ref().context("Missing Save bytes")?;
             let pending = crate::file_replace::stage(
                 &expected.path,
                 contents.as_bytes(),
                 expected.original.is_some(),
             )?;
-            verify(&expected)?;
+            verify_with_limit(&expected, limit)?;
             persist(pending, &expected.path, expected.original.is_some())
                 .with_context(|| format!("failed to replace {}", expected.path.display()))?;
         }
         TemplateAction::Reset => {
-            verify(&expected)?;
+            verify_with_limit(&expected, limit)?;
             fs::remove_file(&expected.path).context("Could not remove the template override")?;
         }
     }
-    let saved = capture(&expected.path, None)?;
+    let saved = capture(&expected.path, limit)?;
     ensure!(
         saved.parents == expected.parents
             && match review.action {
@@ -289,7 +307,7 @@ mod tests {
         let source = capture(&path, None).unwrap();
         let review = prepare(&source, TemplateAction::Save(changed()), |_| Ok(())).unwrap();
         assert!(
-            execute_with(&review, &mut || Ok(()), |_, _, _| anyhow::bail!(
+            execute_with(&review, &mut || Ok(()), None, |_, _, _| anyhow::bail!(
                 "replacement failure"
             ))
             .is_err()

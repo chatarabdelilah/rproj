@@ -159,5 +159,6 @@ fn value_at<'a>(value: &'a Value, path: &[&str]) -> Option<&'a Value> {
     path.iter().try_fold(value, |current, key| current.get(key))
 }
 
+pub mod protocol;
 pub mod review;
 pub mod values;

@@ -19,6 +19,8 @@ keywords = ["roblox", "luau", "rojo", "wally", "scaffold"]
 categories = ["command-line-utilities", "development-tools", "game-development"]
 
 [dependencies]
+blake3 = "1.8"
+semver = "1.0"
 rproj-core = { path = "crates/rproj-core", version = "=0.22.0", features = ["template-editor"] }
 anyhow = "1.0.104"
 arboard = { version = "3.6.1", default-features = false }

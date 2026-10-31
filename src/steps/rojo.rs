@@ -1,9 +1,8 @@
 #[cfg(test)]
 use rproj_core::project_template::RESERVED_DYNAMIC_PATHS;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::{Context, Result, bail};
 use serde_json::{Map, Value, json};
@@ -226,7 +225,16 @@ fn child_object_mut<'a>(
 pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
     validate_template_structure(template)?;
     ensure_rojo_available()?;
-    let workspace = ValidationWorkspace::new()?;
+    validate_template_variants(template, validate_rojo_project)
+}
+
+pub(crate) fn validate_template_variants(
+    template: &Value,
+    validate: impl Fn(&str, &Path, &Path) -> Result<()>,
+) -> Result<()> {
+    let workspace = tempfile::Builder::new()
+        .prefix("rproj-template-validation-")
+        .tempdir()?;
     for (label, workflow, tests, server_packages) in [
         ("plain", PackageWorkflow::None, false, false),
         ("plain-tests", PackageWorkflow::None, true, false),
@@ -235,7 +243,7 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         ("wally-tests", PackageWorkflow::Wally, true, false),
         ("wally-tests-server", PackageWorkflow::Wally, true, true),
     ] {
-        let dir = workspace.path.join(label);
+        let dir = workspace.path().join(label);
         materialize_validation_project(&dir, workflow, tests, server_packages)?;
         let document = project_document(
             "TemplateValidation",
@@ -246,10 +254,10 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         )?;
         let project_file = dir.join("default.project.json");
         fs::write(&project_file, serde_json::to_string_pretty(&document)?)?;
-        validate_rojo_project(label, &project_file, &dir)?;
+        validate(label, &project_file, &dir)?;
     }
     for (label, server_packages) in [("jest", false), ("jest-server", true)] {
-        let dir = workspace.path.join(label);
+        let dir = workspace.path().join(label);
         materialize_validation_project(&dir, PackageWorkflow::Wally, true, server_packages)?;
         materialize_validation_path(&dir, "DevPackages")?;
         let production = project_document(
@@ -262,7 +270,7 @@ pub fn validate_template_with_rojo(template: &Value) -> Result<()> {
         let document = crate::steps::jest::project_document(&production)?;
         let project_file = dir.join("jest.project.json");
         fs::write(&project_file, serde_json::to_string_pretty(&document)?)?;
-        validate_rojo_project(label, &project_file, &dir)?;
+        validate(label, &project_file, &dir)?;
     }
     Ok(())
 }
@@ -338,30 +346,6 @@ fn materialize_validation_path(dir: &Path, path: &str) -> Result<()> {
     fs::create_dir_all(&path)?;
     fs::write(path.join("template.luau"), "return nil\n")?;
     Ok(())
-}
-
-struct ValidationWorkspace {
-    path: PathBuf,
-}
-
-impl ValidationWorkspace {
-    fn new() -> Result<Self> {
-        static COUNTER: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!(
-            "rproj-template-validation-{}-{}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        ));
-        let _ = fs::remove_dir_all(&path);
-        fs::create_dir_all(&path)?;
-        Ok(Self { path })
-    }
-}
-
-impl Drop for ValidationWorkspace {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
-    }
 }
 
 /// Generates `sourcemap.json` once.
