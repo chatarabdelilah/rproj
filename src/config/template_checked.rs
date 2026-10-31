@@ -102,6 +102,7 @@ pub(crate) fn prepare_with_limit(
 ) -> Result<TemplateReview> {
     verify_with_limit(source, limit)?;
     let review = TemplateReview::prepare(source.clone(), action)?;
+    check_output_size(&review, limit)?;
     if let TemplateAction::Save(value) = &review.action
         && review.changes()
     {
@@ -133,6 +134,16 @@ pub(crate) fn execute_with_limit(
     })
 }
 
+fn check_output_size(review: &TemplateReview, limit: Option<u64>) -> Result<()> {
+    if let (Some(bytes), Some(limit)) = (&review.replacement, limit) {
+        ensure!(
+            bytes.len() as u64 <= limit,
+            "Formatted template exceeds the worker size limit; use the terminal editor"
+        );
+    }
+    Ok(())
+}
+
 fn execute_with(
     review: &TemplateReview,
     before_write: &mut impl FnMut() -> Result<()>,
@@ -140,6 +151,7 @@ fn execute_with(
     persist: impl FnOnce(tempfile::NamedTempFile, &Path, bool) -> Result<()>,
 ) -> Result<TemplateSource> {
     review.validate()?;
+    check_output_size(review, limit)?;
     verify_with_limit(&review.source, limit)?;
     if !review.changes() {
         return Ok(review.source.clone());
@@ -203,6 +215,35 @@ mod tests {
         let mut value = rproj_core::project_template::builtin_project_template();
         value["servePort"] = serde_json::json!(40001);
         value
+    }
+
+    #[test]
+    fn oversized_formatted_output_precedes_validation_and_staging() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("missing/default.project.json");
+        let source = capture(&path, Some(32)).unwrap();
+        let action = TemplateAction::Save(changed());
+        let result = prepare_with_limit(
+            &source,
+            action.clone(),
+            |_| panic!("must not invoke Rojo"),
+            Some(32),
+        );
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Formatted template")
+        );
+        let review = TemplateReview::prepare(source, action).unwrap();
+        let result = execute_with_limit(&review, &mut || panic!("must not stage"), Some(32));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Formatted template")
+        );
+        assert!(!path.parent().unwrap().exists());
     }
 
     #[test]

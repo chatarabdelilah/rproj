@@ -174,3 +174,9 @@ passed. The first local worker review found two issues. Started now follows a
 successful spawn, and the worker compares the reviewed and authoritative paths
 after applying the same normalization used during capture. Both have regression
 coverage. Final rebased validation and delivery are tracked separately.
+
+The second review identified an output-size check that belonged in checked
+persistence as well as at the IPC boundary. The formatted replacement is now
+measured before invoking Rojo and again before reporting possible mutation.
+A small-limit regression verifies that neither validation nor staging starts
+and the missing template directory stays absent.
