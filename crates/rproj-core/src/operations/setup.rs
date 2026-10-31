@@ -95,7 +95,6 @@ impl WorkbenchClient {
         );
         write_atomic(&directory.path().join("request.json"), &request)?;
         let sink: Arc<dyn Fn(SetupEvent) + Send + Sync> = Arc::new(sink);
-        sink(SetupEvent::Output(OperationEvent::Started));
         let outcome = match run_setup(&self.worker, directory.path(), &request, stop, sink.clone())
         {
             Ok(outcome) => outcome,
@@ -154,6 +153,8 @@ fn run_setup(
     sink: Arc<dyn Fn(SetupEvent) + Send + Sync>,
 ) -> Result<OperationOutcome> {
     use process_wrap::tokio::{CommandWrap, CreationFlags, JobObject};
+    use tokio::io::AsyncWriteExt;
+    let applying = matches!(request.action, SetupAction::Apply(_));
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
@@ -166,7 +167,11 @@ fn run_setup(
                     directory.as_os_str(),
                 ])
                 .current_dir(directory)
-                .stdin(Stdio::null())
+                .stdin(if applying {
+                    Stdio::piped()
+                } else {
+                    Stdio::null()
+                })
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
         });
@@ -191,7 +196,29 @@ fn run_setup(
                 true,
                 output,
             ));
+            sink(SetupEvent::Output(OperationEvent::Started));
             let mut sent_stop = false;
+            let mut startup_delivered = true;
+            if applying {
+                // The child cannot enter its first installer until we sample Stop
+                // after spawn. EOF also refuses Apply if the owner disconnects.
+                let mut input = child.stdin().take().context("Missing setup startup pipe")?;
+                sent_stop = stop.requested();
+                let signal = if sent_stop {
+                    STOP_BEFORE_SETUP
+                } else {
+                    START_SETUP
+                };
+                if let Err(error) = input.write_all(&[signal]).await {
+                    // A worker can exit early. Still wait for descendants and its
+                    // final report before classifying the operation.
+                    startup_delivered = false;
+                    sink(SetupEvent::Output(OperationEvent::Output {
+                        stderr: true,
+                        text: format!("Could not deliver Machine Setup startup decision: {error}"),
+                    }));
+                }
+            }
             let mut sequence = None;
             // Preserve one future: recreating wait after root exit could skip the
             // job's remaining descendants. try_wait proves only root exit.
@@ -232,7 +259,7 @@ fn run_setup(
             })
             .await
             .context("Setup output did not finish draining")??;
-            Ok::<_, anyhow::Error>(if status.success() {
+            Ok::<_, anyhow::Error>(if status.success() && startup_delivered {
                 OperationOutcome::Succeeded
             } else {
                 OperationOutcome::Failed {

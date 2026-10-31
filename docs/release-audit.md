@@ -1,5 +1,16 @@
 # Release-Hardening Audit
 
+## October 30: Machine Setup pre-start Stop correction
+
+Project Template PR #140 passed reviewed-head CI (`41043744364`) and merged
+at `17d50f1` with an identical tree. Merged-main CI (`41046504749`, attempt 1)
+failed the stable Windows pre-requested Stop regression: a worker could begin
+an installer before the parent published Stop. The corrective branch makes Apply wait
+for a post-spawn decision before its first item. It tests callback requests,
+invalid decisions and owner disconnection.
+[Evidence](desktop-project-template-native.md) records this failure separately;
+worker/native template delivery remains pending and previews remain paused.
+
 ## October 30: shared Project Template implementation
 
 The owner approved the native plan against `2f19bb0`, including machine/global
