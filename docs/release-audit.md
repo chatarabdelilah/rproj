@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## October 31: private Project Template worker
+
+Corrective PR #141 merged at `41f2d69` after seven passing reviewed-head jobs.
+The matching-worker implementation adds captured global Rojo validation,
+bounded context and execution reports, checked Save/Reset, and owned descendant
+teardown. Disposable tests exercise source changes, report loss after a write,
+invalid input, and exact saved baselines. The [implementation record](desktop-project-template-native.md)
+separates local, reviewed-head and merged-main evidence.
+
 ## October 30: Machine Setup pre-start Stop correction
 
 Project Template PR #140 passed reviewed-head CI (`41043744364`) and merged
