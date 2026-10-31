@@ -37,6 +37,7 @@ impl Workbench {
         }
     }
     pub(in super::super) fn show_setup(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.template.visible = false;
         self.saved.visible = false;
         self.creation.visible = false;
         self.composition.visible = false;

@@ -2,6 +2,7 @@ mod composition;
 mod creation;
 mod diff_view;
 mod operation;
+mod project_template;
 mod saved_setups;
 mod settings;
 mod setup;
@@ -60,6 +61,10 @@ enum Operation {
     LoadSetup,
     PrepareSetup,
     ApplySetup,
+    LoadTemplate,
+    PrepareTemplate,
+    SaveTemplate,
+    ResetTemplate,
     LoadSaved,
     PrepareSaved,
     ManageSaved,
@@ -106,6 +111,10 @@ impl Operation {
             | Self::LoadSetup
             | Self::PrepareSetup
             | Self::ApplySetup
+            | Self::LoadTemplate
+            | Self::PrepareTemplate
+            | Self::SaveTemplate
+            | Self::ResetTemplate
             | Self::LoadSaved
             | Self::PrepareSaved
             | Self::ManageSaved
@@ -146,6 +155,8 @@ impl Section {
 }
 
 enum Event {
+    TemplateSupport(Result<(), String>),
+    TemplateResponse(u64, Box<Result<project_template::Response, anyhow::Error>>),
     SavedSupport(Result<(), String>),
     SavedResponse(
         u64,
@@ -378,6 +389,8 @@ impl Activity {
 }
 
 pub struct Workbench {
+    template: project_template::Session,
+    template_inputs: project_template::Inputs,
     saved: saved_setups::SavedSession,
     saved_focus: FocusHandle,
     saved_diff_focus: FocusHandle,
@@ -452,6 +465,7 @@ impl Workbench {
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
         let (sender, receiver) = sync_channel(EVENT_CAPACITY);
+        let template_inputs = project_template::Inputs::new(window, cx);
         let filter = cx.new(|cx| InputState::new(window, cx).placeholder("Search output"));
         let subscription = cx.subscribe(&filter, |_, _, event, cx| {
             if matches!(event, InputEvent::Change) {
@@ -520,6 +534,8 @@ impl Workbench {
         });
         let mut view = Self {
             settings: settings::SettingsSession::default(),
+            template: project_template::Session::default(),
+            template_inputs,
             saved: saved_setups::SavedSession::default(),
             saved_focus: cx.focus_handle(),
             saved_diff_focus: cx.focus_handle().tab_stop(true),
@@ -605,6 +621,7 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
@@ -625,6 +642,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
@@ -739,6 +757,8 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::TemplateResponse(id, result) => self.accept_template(id, *result, cx),
+                Event::TemplateSupport(result) => self.template_connected(result, cx),
                 Event::SavedSupport(result) => self.saved.support = Some(result),
                 Event::SavedResponse(id, revision, result) => {
                     self.accept_saved(id, revision, *result, cx)
@@ -814,6 +834,7 @@ impl Workbench {
                             self.probe_upgrade();
                             self.probe_settings();
                             self.probe_setup();
+                            self.probe_template();
                             self.probe_saved();
                             self.poll_status();
                             self.load_creation_context(cx);
@@ -1121,6 +1142,10 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::LoadSetup => "Loading machine selections",
         Operation::PrepareSetup => "Preparing setup review",
         Operation::ApplySetup => "Applying machine setup",
+        Operation::LoadTemplate => "Reading Project Template",
+        Operation::PrepareTemplate => "Validating Project Template",
+        Operation::SaveTemplate => "Saving Project Template",
+        Operation::ResetTemplate => "Restoring built-in template",
         Operation::LoadSaved => "Reading Saved Setups",
         Operation::PrepareSaved => "Reviewing saved setup changes",
         Operation::ManageSaved => "Updating saved setup",

@@ -152,6 +152,13 @@ impl WorkbenchClient {
 }
 
 fn successful(report: TemplateReport) -> Result<TemplateReport> {
+    if report.status == Some(TemplateStatus::Uncertain) {
+        return Err(anyhow::Error::new(UnconfirmedCompletion).context(
+            report
+                .message
+                .unwrap_or_else(|| "Reload the template before retrying".into()),
+        ));
+    }
     ensure!(
         report.status == Some(TemplateStatus::Succeeded),
         "{}",

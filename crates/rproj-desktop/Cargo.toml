@@ -11,7 +11,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.104"
 gpui-kit = "=0.7.1"
-rproj-core = { path = "../rproj-core", version = "=0.22.0" }
+rproj-core = { path = "../rproj-core", version = "=0.22.0", features = ["template-editor"] }
 serde_json = "1.0.151"
 
 [dev-dependencies]

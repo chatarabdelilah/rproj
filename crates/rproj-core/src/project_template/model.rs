@@ -440,6 +440,13 @@ impl EditorModel {
             .collect()
     }
 
+    pub fn can_undo(&self) -> bool {
+        !self.undo.is_empty()
+    }
+    pub fn can_redo(&self) -> bool {
+        !self.redo.is_empty()
+    }
+
     pub fn undo(&mut self) -> bool {
         let Some(previous) = self.undo.pop_back() else {
             return false;
