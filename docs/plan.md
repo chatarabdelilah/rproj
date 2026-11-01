@@ -17,6 +17,11 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**Native Projects browser implementation.** The owner approved the discovery
+wireframe. Share discovery with Ratatui first, then integrate the two separate
+actions, Preview and Open, in the Soft workbench. The [implementation
+record](desktop-projects-browser-native.md) describes ownership and validation.
+
 **November 1: Projects browser design review.** The separate [Projects
 proposal](desktop-projects-browser-design.md) puts Browse projects… in the
 switcher and empty view. Selecting a row previews it; opening changes the

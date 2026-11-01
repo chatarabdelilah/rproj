@@ -29,6 +29,11 @@ fn dispatch(operation: Operation) -> Result<()> {
             println!("{}", serde_json::to_string(&catalog_entries()?)?);
             Ok(())
         }
+        Operation::ProjectsContext => {
+            let context = projects_context(crate::config::GlobalConfig::load()?)?;
+            println!("{}", serde_json::to_string(&context)?);
+            Ok(())
+        }
         Operation::Status => {
             println!(
                 "{}",
@@ -118,6 +123,7 @@ mod worker_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Operation {
+    ProjectsContext,
     Catalog,
     Status,
     Logs,
@@ -180,6 +186,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         Some("setup-support") => Ok(Operation::SetupSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),
         Some("upgrade-context") => Ok(Operation::UpgradeContext),
+        Some("projects-context") => Ok(Operation::ProjectsContext),
         Some("catalog") => Ok(Operation::Catalog),
         Some("status") => Ok(Operation::Status),
         Some("logs") => Ok(Operation::Logs),
@@ -189,6 +196,16 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         Some("test") => Ok(Operation::Test),
         _ => bail!("unknown workbench operation"),
     }
+}
+
+fn projects_context(
+    config: crate::config::GlobalConfig,
+) -> Result<rproj_core::project_discovery::ProjectsContext> {
+    use rproj_core::project_discovery::{PROJECTS_CONTEXT_VERSION, ProjectsContext};
+    Ok(ProjectsContext {
+        protocol: PROJECTS_CONTEXT_VERSION,
+        root: std::path::absolute(config.projects_root()?)?,
+    })
 }
 
 fn catalog_entries() -> Result<Vec<rproj_core::catalog::CatalogEntry>> {
@@ -244,6 +261,7 @@ mod tests {
     #[test]
     fn protocol_accepts_exact_operations_and_refuses_extra_arguments() {
         for (verb, expected) in [
+            ("projects-context", Operation::ProjectsContext),
             ("catalog", Operation::Catalog),
             ("status", Operation::Status),
             ("logs", Operation::Logs),
@@ -266,6 +284,20 @@ mod tests {
         }
         assert!(parse_operation(std::iter::empty()).is_err());
         assert!(parse_operation([OsString::from("unknown")].into_iter()).is_err());
+    }
+
+    #[test]
+    fn projects_context_does_not_create_the_configured_folder_or_require_setup() {
+        let fixture = tempfile::tempdir().unwrap();
+        let path = fixture.path().join("not created");
+        let config = crate::config::GlobalConfig {
+            roblox_projects_root: Some(path.clone()),
+            ..Default::default()
+        };
+        assert!(!config.machine_configured());
+        let context = projects_context(config).unwrap();
+        assert_eq!(context.root, std::path::absolute(&path).unwrap());
+        assert!(!path.exists());
     }
 
     #[test]

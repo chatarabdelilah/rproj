@@ -132,6 +132,20 @@ impl WorkbenchClient {
         serde_json::from_str(&output).context("CLI returned an invalid Watch status")
     }
 
+    /// Resolve the configured projects folder anew for each browser refresh.
+    pub fn projects_root(&self) -> Result<PathBuf> {
+        use crate::project_discovery::{PROJECTS_CONTEXT_VERSION, ProjectsContext};
+        let response = query(&self.worker, &[WORKER_FLAG, "projects-context"], None)
+            .context("Cannot read the projects folder from the bundled CLI. Check the configuration and matching distribution")?;
+        let context: ProjectsContext = serde_json::from_str(&response)
+            .context("Invalid projects context from the bundled CLI")?;
+        ensure!(
+            context.protocol == PROJECTS_CONTEXT_VERSION && context.root.is_absolute(),
+            "Invalid or unsupported projects context; use a matching distribution"
+        );
+        Ok(context.root)
+    }
+
     pub fn watch_logs(&self) -> Result<String> {
         query(&self.worker, &[WORKER_FLAG, "logs"], None)
     }

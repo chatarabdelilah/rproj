@@ -1,5 +1,5 @@
+use rproj_core::project_discovery::{Discovery, ProjectEntry, discover};
 use std::cell::Cell;
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
@@ -224,100 +224,6 @@ impl ProjectContext {
     }
 }
 
-#[derive(Clone, Debug)]
-struct ProjectEntry {
-    path: PathBuf,
-    name: String,
-}
-
-#[derive(Default)]
-struct Discovery {
-    entries: Vec<ProjectEntry>,
-    warnings: Vec<String>,
-}
-
-fn recognized(path: &Path) -> bool {
-    path.join("rproj.toml").is_file() || path.join("default.project.json").is_file()
-}
-
-fn linked(metadata: &fs::Metadata) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        metadata.file_attributes() & 0x400 != 0
-    }
-    #[cfg(not(windows))]
-    {
-        metadata.file_type().is_symlink()
-    }
-}
-
-fn discover(root: &std::result::Result<PathBuf, String>, launch_dir: &Path) -> Discovery {
-    let mut result = Discovery::default();
-    let mut paths = BTreeSet::new();
-    match root {
-        Ok(root) => match fs::read_dir(root) {
-            Ok(entries) => {
-                let mut skipped_links = 0;
-                for entry in entries {
-                    let entry = match entry {
-                        Ok(entry) => entry,
-                        Err(error) => {
-                            result
-                                .warnings
-                                .push(format!("Could not read a project entry: {error}"));
-                            continue;
-                        }
-                    };
-                    match fs::symlink_metadata(entry.path()) {
-                        Ok(metadata) if linked(&metadata) => skipped_links += 1,
-                        Ok(metadata) if metadata.is_dir() && recognized(&entry.path()) => {
-                            add_path(&entry.path(), &mut paths, &mut result);
-                        }
-                        Ok(_) => {}
-                        Err(error) => result
-                            .warnings
-                            .push(format!("{}: {error}", entry.path().display())),
-                    }
-                }
-                if skipped_links > 0 {
-                    result.warnings.push(format!("Skipped {skipped_links} linked entries; only direct project directories are listed."));
-                }
-            }
-            Err(error) => result.warnings.push(format!(
-                "Could not read projects folder {}: {error}",
-                root.display()
-            )),
-        },
-        Err(error) => result.warnings.push(error.clone()),
-    }
-    if recognized(launch_dir) {
-        add_path(launch_dir, &mut paths, &mut result);
-    }
-    result.entries.sort_by(|a, b| {
-        a.name
-            .to_lowercase()
-            .cmp(&b.name.to_lowercase())
-            .then_with(|| a.path.cmp(&b.path))
-    });
-    result
-}
-
-fn add_path(path: &Path, paths: &mut BTreeSet<PathBuf>, result: &mut Discovery) {
-    match fs::canonicalize(path) {
-        Ok(path) if paths.insert(path.clone()) => {
-            let name = path
-                .file_name()
-                .unwrap_or(path.as_os_str())
-                .to_string_lossy()
-                .into_owned();
-            result.entries.push(ProjectEntry { path, name });
-        }
-        Ok(_) => {}
-        Err(error) => result.warnings.push(format!("{}: {error}", path.display())),
-    }
-}
-
 pub enum BrowserOutcome {
     Home,
     Run {
@@ -402,7 +308,7 @@ impl ProjectsApp {
         let generation = self.generation;
         let (sender, receiver) = mpsc::channel();
         std::thread::spawn(move || {
-            let _ = sender.send((generation, discover(&root, &launch_dir)));
+            let _ = sender.send((generation, discover(&root, Some(&launch_dir))));
         });
         self.worker = Some(receiver);
     }
@@ -775,7 +681,7 @@ mod tests {
     fn ready(root: &Path, launch: &Path) -> ProjectsApp {
         let mut app = ProjectsApp::new(launch.to_owned());
         app.root = Ok(root.to_owned());
-        app.discovery = discover(&app.root, launch);
+        app.discovery = discover(&app.root, Some(launch));
         app.update_preview();
         app
     }
@@ -792,7 +698,7 @@ mod tests {
         project(root.path(), "caf\u{e9}");
         project(&root.path().join("container"), "nested");
         fs::write(z.join("rproj.toml"), "broken = [").unwrap();
-        let result = discover(&Ok(root.path().to_owned()), &z);
+        let result = discover(&Ok(root.path().to_owned()), Some(&z));
         assert_eq!(
             result
                 .entries
@@ -803,7 +709,7 @@ mod tests {
         );
         assert!(ProjectContext::load(z).warning.is_some());
         assert!(
-            discover(&Ok(root.path().to_owned()), root.path())
+            discover(&Ok(root.path().to_owned()), Some(root.path()))
                 .entries
                 .iter()
                 .all(|p| p.name != "nested")
@@ -815,14 +721,14 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let launch = project(temp.path(), "outside");
         let missing = temp.path().join("missing");
-        let result = discover(&Ok(missing.clone()), &launch);
+        let result = discover(&Ok(missing.clone()), Some(&launch));
         assert_eq!(result.entries.len(), 1);
         assert_eq!(result.warnings.len(), 1);
         assert!(!missing.exists());
-        let result = discover(&Err("Configuration unreadable".into()), &launch);
+        let result = discover(&Err("Configuration unreadable".into()), Some(&launch));
         assert_eq!(result.entries.len(), 1);
         assert_eq!(result.warnings, ["Configuration unreadable"]);
-        let result = discover(&Ok(launch.join("default.project.json")), &launch);
+        let result = discover(&Ok(launch.join("default.project.json")), Some(&launch));
         assert_eq!(result.warnings.len(), 1);
     }
 
@@ -844,7 +750,7 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        let result = discover(&Ok(root.path().to_owned()), root.path());
+        let result = discover(&Ok(root.path().to_owned()), Some(root.path()));
         assert!(result.entries.is_empty());
         assert!(
             result
