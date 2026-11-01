@@ -204,7 +204,7 @@ fn projects_context(
     use rproj_core::project_discovery::{PROJECTS_CONTEXT_VERSION, ProjectsContext};
     Ok(ProjectsContext {
         protocol: PROJECTS_CONTEXT_VERSION,
-        root: std::path::absolute(config.projects_root()?)?,
+        root: config.projects_root()?,
     })
 }
 

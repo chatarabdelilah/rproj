@@ -15,7 +15,8 @@ warning. A recognized launch folder remains available when the configured
 folder is unavailable. Sorting, terminal navigation and actions stay compatible.
 
 The private `projects-context` query reads the machine configuration through
-the matching CLI and returns a versioned absolute projects-folder path. Each
+the matching CLI and returns a versioned projects-folder path. Relative settings resolve against the
+original launch directory, never against the worker executable’s directory. Each
 refresh resolves it again. The query needs neither machine setup nor external
 tools and does not create the directory. Filesystem discovery and inspection
 run outside the UI thread. Recent folders belong to the switcher.

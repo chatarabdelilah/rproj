@@ -21,7 +21,7 @@ fn matching_cli_worker_serves_the_shared_catalog() {
 }
 
 #[test]
-fn projects_context_is_fresh_versioned_and_requires_an_absolute_path() {
+fn projects_context_is_fresh_versioned_and_resolves_relative_to_launch() {
     use rproj_core::project_discovery::PROJECTS_CONTEXT_VERSION;
     let fixture = tempfile::tempdir().unwrap();
     let script = fixture.path().join("worker.rs");
@@ -59,15 +59,24 @@ fn projects_context_is_fresh_versioned_and_requires_an_absolute_path() {
             .unwrap(),
         )
         .unwrap();
-        assert_eq!(client.projects_root().unwrap(), path);
+        assert_eq!(client.projects_root(None).unwrap(), path);
         assert!(!path.exists());
     }
+    fs::write(
+        &reply,
+        serde_json::json!({"protocol":PROJECTS_CONTEXT_VERSION,"root":"relative"}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        client.projects_root(Some(fixture.path())).unwrap(),
+        fixture.path().join("relative")
+    );
     for response in [
         serde_json::json!({"protocol":PROJECTS_CONTEXT_VERSION,"root":"relative"}),
         serde_json::json!({"protocol":999, "root":fixture.path()}),
     ] {
         fs::write(&reply, response.to_string()).unwrap();
-        assert!(client.projects_root().is_err());
+        assert!(client.projects_root(None).is_err());
     }
 }
 
