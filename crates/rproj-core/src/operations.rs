@@ -132,6 +132,35 @@ impl WorkbenchClient {
         serde_json::from_str(&output).context("CLI returned an invalid Watch status")
     }
 
+    /// Resolve the configured projects folder anew for each browser refresh.
+    pub fn projects_root(&self, launch_dir: Option<&Path>) -> Result<PathBuf> {
+        use crate::project_discovery::{PROJECTS_CONTEXT_VERSION, ProjectsContext};
+        let response = query(&self.worker, &[WORKER_FLAG, "projects-context"], None)
+            .context("Cannot read the projects folder from the bundled CLI. Check the configuration and matching distribution")?;
+        let context: ProjectsContext = serde_json::from_str(&response)
+            .context("Invalid projects context from the bundled CLI")?;
+        ensure!(
+            context.protocol == PROJECTS_CONTEXT_VERSION,
+            "Unsupported projects context; use a matching distribution"
+        );
+        if context.root.is_absolute() {
+            return Ok(context.root);
+        }
+        ensure!(
+            !context.root.as_os_str().is_empty()
+                && !context.root.has_root()
+                && !matches!(
+                    context.root.components().next(),
+                    Some(std::path::Component::Prefix(_))
+                ),
+            "Use an absolute projects folder or a path relative to the launch directory"
+        );
+        let base = launch_dir
+            .filter(|p| p.is_absolute())
+            .context("Cannot resolve the relative projects folder without a launch directory")?;
+        Ok(base.join(context.root))
+    }
+
     pub fn watch_logs(&self) -> Result<String> {
         query(&self.worker, &[WORKER_FLAG, "logs"], None)
     }

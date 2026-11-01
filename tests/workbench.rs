@@ -20,6 +20,66 @@ fn matching_cli_worker_serves_the_shared_catalog() {
     assert!(!profile.caveats.is_empty());
 }
 
+#[test]
+fn projects_context_is_fresh_versioned_and_resolves_relative_to_launch() {
+    use rproj_core::project_discovery::PROJECTS_CONTEXT_VERSION;
+    let fixture = tempfile::tempdir().unwrap();
+    let script = fixture.path().join("worker.rs");
+    fs::write(&script, r#"
+        fn main() {
+            let args: Vec<_> = std::env::args_os().skip(1).collect();
+            if args == ["--version"] { println!("rproj {}", env!("FIXTURE_VERSION")); return; }
+            assert_eq!(args, ["--rproj-workbench", "projects-context"]);
+            print!("{}", std::fs::read_to_string(std::env::current_exe().unwrap().with_extension("reply")).unwrap());
+        }"#).unwrap();
+    let worker = fixture
+        .path()
+        .join(format!("worker{}", std::env::consts::EXE_SUFFIX));
+    let compiled = Command::new("rustc")
+        .arg(&script)
+        .arg("-o")
+        .arg(&worker)
+        .env("FIXTURE_VERSION", env!("CARGO_PKG_VERSION"))
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let client = WorkbenchClient::new(worker.clone()).unwrap();
+    let reply = worker.with_extension("reply");
+    for name in ["First", "世界 Second"] {
+        let path = fixture.path().join(name);
+        fs::write(
+            &reply,
+            serde_json::to_vec(
+                &serde_json::json!({"protocol":PROJECTS_CONTEXT_VERSION, "root":path}),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(client.projects_root(None).unwrap(), path);
+        assert!(!path.exists());
+    }
+    fs::write(
+        &reply,
+        serde_json::json!({"protocol":PROJECTS_CONTEXT_VERSION,"root":"relative"}).to_string(),
+    )
+    .unwrap();
+    assert_eq!(
+        client.projects_root(Some(fixture.path())).unwrap(),
+        fixture.path().join("relative")
+    );
+    for response in [
+        serde_json::json!({"protocol":PROJECTS_CONTEXT_VERSION,"root":"relative"}),
+        serde_json::json!({"protocol":999, "root":fixture.path()}),
+    ] {
+        fs::write(&reply, response.to_string()).unwrap();
+        assert!(client.projects_root(None).is_err());
+    }
+}
+
 #[cfg(windows)]
 #[test]
 fn real_bundled_worker_prepares_upgrade_read_only() {
