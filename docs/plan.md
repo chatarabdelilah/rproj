@@ -17,6 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 1: Projects browser design review.** The separate [Projects
+proposal](desktop-projects-browser-design.md) puts Browse projects… in the
+switcher and empty view. Selecting a row previews it; opening changes the
+workspace and keeps Watch on its original project. [Acceptance](desktop-projects-browser-acceptance.md)
+records simulated checks and rendering limitations. Owner review precedes
+native implementation planning.
+
 **Native Project Template, October 31.** Explorer and Advanced JSON share a
 machine-wide draft. Changed saves validate all eight generation variants with
 global Rojo, then require review and confirmation. The shared editor merged

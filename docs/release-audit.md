@@ -1,5 +1,18 @@
 # Release-Hardening Audit
 
+## November 1: Projects browser design
+
+Native Project Template PR #143 merged at `f5ada11`. Its reviewed head
+`7c489b3` (CI `41233447968`) and merged main (CI `41233913842`) passed
+all seven executed jobs on their first attempts. Their trees match and the
+merged branch was removed.
+
+The [Projects browser wireframe](desktop-projects-browser-design.md) uses
+sample data to distinguish preview, active workspace and Watch ownership.
+[Acceptance](desktop-projects-browser-acceptance.md) records 14 passing tests
+and 18 contrast comparisons. Inline rendering remains unverified. Published
+version is 0.22.0 and native previews remain paused.
+
 ## October 31: native Project Template controls
 
 Worker PR #142 merged at `897cd4d`. Its reviewed head and merged main passed
