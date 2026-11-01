@@ -48,3 +48,15 @@ Native previews and memory-stability acceptance remain paused.
 3. Expand **Design sample**, remove the selected folder, then try Open and
    Refresh. The active workspace should survive and the missing preview should
    clear (30 seconds).
+
+
+## Native automated verification
+
+The owner subsequently approved the wireframe as the baseline for native
+implementation. The [native record](desktop-projects-browser-native.md)
+separates automated evidence from paused real-window acceptance. Windows
+headless tests exercise the switcher and empty entry, keyboard Back, filtering,
+retained selection and scroll, both pane layouts, and clicking Open at minimum
+size. Disposable filesystem tests cover malformed records, redirects, and
+disappearance after preview. The successful handoff and failed Open fixtures
+check workspace ownership separately from global Watch and running operations.

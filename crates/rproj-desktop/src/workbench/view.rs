@@ -81,6 +81,7 @@ impl Workbench {
                         }),
                     );
                 }
+                let browse = owner.clone();
                 let open = owner.clone();
                 let close = owner.clone();
                 let create = owner.clone();
@@ -140,6 +141,11 @@ impl Workbench {
                                 let _ =
                                     recheck.update(cx, |this, cx| this.load_creation_context(cx));
                             }),
+                    )
+                    .item(
+                        PopupMenuItem::new("Browse projects…").on_click(move |_, w, cx| {
+                            let _ = browse.update(cx, |this, cx| this.show_projects(false, w, cx));
+                        }),
                     )
                     .item(
                         PopupMenuItem::new("Open project…")
@@ -205,10 +211,12 @@ impl Workbench {
                                         && !self.upgrade.visible
                                         && !self.settings.visible
                                         && !self.setup.visible
+                                        && !self.browser.visible
                                         && !self.template.visible
                                         && !self.saved.visible,
                                 )
                                 .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.browser.leave();
                                     this.section = section;
                                     this.template.visible = false;
                                     this.saved.visible = false;
@@ -276,15 +284,27 @@ impl Workbench {
                     "Choose an existing rproj or Rojo project folder. Its files stay in control.",
                 )
                 .child(
-                    Button::new("new-project")
-                        .label(if self.creation.draft.is_some() {
-                            "Resume project creation"
-                        } else {
-                            "New project…"
+                    div()
+                        .h_flex()
+                        .flex_wrap()
+                        .gap_2()
+                        .when(self.project.is_none(), |row| {
+                            row.child(self.browser_empty_entry(cx))
                         })
-                        .disabled(self.creation.context.is_none() && self.creation.draft.is_none())
-                        .on_click(
-                            cx.listener(|this, _, window, cx| this.show_creation(window, cx)),
+                        .child(
+                            Button::new("new-project")
+                                .label(if self.creation.draft.is_some() {
+                                    "Resume project creation"
+                                } else {
+                                    "New project…"
+                                })
+                                .disabled(
+                                    self.creation.context.is_none()
+                                        && self.creation.draft.is_none(),
+                                )
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.show_creation(window, cx)
+                                })),
                         ),
                 )
                 .when_some(self.creation.error.clone(), |view, error| view.child(error))
@@ -730,7 +750,9 @@ impl Render for Workbench {
             self.upgrade_list.reset(self.upgrade.row_count());
             self.upgrade_list.scroll_to(offset);
         }
-        let title = if self.template.visible {
+        let title = if self.browser.visible {
+            "Projects".into()
+        } else if self.template.visible {
             "Project Template".into()
         } else if self.saved.visible {
             "Saved Setups".into()
@@ -754,7 +776,9 @@ impl Render for Workbench {
                 .and_then(|snapshot| snapshot.name.clone())
                 .unwrap_or_else(|| "Project workspace".into())
         };
-        let content = if self.template.visible {
+        let content = if self.browser.visible {
+            self.render_projects(window, cx)
+        } else if self.template.visible {
             self.render_template(window, cx)
         } else if self.saved.visible {
             self.render_saved(
@@ -788,6 +812,8 @@ impl Render for Workbench {
             )
         } else if self.creation.visible {
             self.render_creation(cx)
+        } else if self.project.is_none() {
+            self.render_overview(cx)
         } else {
             match self.section {
                 Section::Overview => self.render_overview(cx),
@@ -801,8 +827,10 @@ impl Render for Workbench {
                 Section::Checks => self.render_checks(cx),
             }
         };
-        let content = if !self.composition.visible
+        let content = if self.project.is_some()
+            && !self.composition.visible
             && !self.setup.visible
+            && !self.browser.visible
             && !self.template.visible
             && !self.saved.visible
             && !self.creation.visible
@@ -823,8 +851,10 @@ impl Render for Workbench {
         } else {
             content
         };
-        let content = if !self.settings.visible
+        let content = if self.project.is_some()
+            && !self.settings.visible
             && !self.setup.visible
+            && !self.browser.visible
             && !self.template.visible
             && !self.saved.visible
             && !self.creation.visible
@@ -842,7 +872,8 @@ impl Render for Workbench {
         } else {
             content
         };
-        let content = if self.template.visible
+        let content = if self.browser.visible
+            || self.template.visible
             || self.saved.visible
             || self.setup.visible
             || self.settings.visible
@@ -944,7 +975,8 @@ impl Render for Workbench {
                                                     .ghost()
                                                     .label("Refresh")
                                                     .disabled(
-                                                        self.template.visible
+                                                        self.browser.visible
+                                                            || self.template.visible
                                                             || self.saved.visible
                                                             || self.setup.visible
                                                             || self.inspecting
@@ -967,6 +999,7 @@ impl Render for Workbench {
                                                 && !self.upgrade.visible
                                                 && !self.settings.visible
                                                 && !self.setup.visible
+                                                && !self.browser.visible
                                                 && !self.template.visible
                                                 && !self.saved.visible
                                         }),
@@ -985,17 +1018,25 @@ impl Render for Workbench {
                                             )
                                         },
                                     )
-                                    .when_some(self.error.clone(), |view, error| view.child(error))
-                                    .when_some(self.catalog_error.clone(), |view, error| {
-                                        view.child(
-                                            div()
-                                                .id("catalog-error")
-                                                .role(Role::Alert)
-                                                .aria_label(error.clone())
-                                                .child(error)
-                                                .test_support(),
-                                        )
-                                    }),
+                                    .when_some(
+                                        self.error.clone().filter(|_| !self.browser.visible),
+                                        |view, error| view.child(error),
+                                    )
+                                    .when_some(
+                                        self.catalog_error
+                                            .clone()
+                                            .filter(|_| !self.browser.visible),
+                                        |view, error| {
+                                            view.child(
+                                                div()
+                                                    .id("catalog-error")
+                                                    .role(Role::Alert)
+                                                    .aria_label(error.clone())
+                                                    .child(error)
+                                                    .test_support(),
+                                            )
+                                        },
+                                    ),
                             )
                             .child(div().flex_1().min_h_0().child(content)),
                     ),

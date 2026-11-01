@@ -3,6 +3,7 @@ mod creation;
 mod diff_view;
 mod operation;
 mod project_template;
+mod projects;
 mod saved_setups;
 mod settings;
 mod setup;
@@ -161,6 +162,9 @@ impl Section {
 }
 
 enum Event {
+    BrowserScan(u64, projects::Scan),
+    BrowserPreview(u64, PathBuf, Box<Result<ProjectSnapshot, String>>),
+    BrowserOpen(u64, PathBuf, Box<Result<(ProjectSnapshot, String), String>>),
     TemplateSupport(Result<(), String>),
     TemplateResponse(u64, Box<Result<project_template::Response, anyhow::Error>>),
     SavedSupport(Result<(), String>),
@@ -395,6 +399,7 @@ impl Activity {
 }
 
 pub struct Workbench {
+    browser: projects::Browser,
     template: project_template::Session,
     template_inputs: project_template::Inputs,
     saved: saved_setups::SavedSession,
@@ -540,6 +545,7 @@ impl Workbench {
         });
         let mut view = Self {
             settings: settings::SettingsSession::default(),
+            browser: projects::Browser::new(window, cx),
             template: project_template::Session::default(),
             template_inputs,
             saved: saved_setups::SavedSession::default(),
@@ -627,6 +633,12 @@ impl Workbench {
     }
 
     fn open_project(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.enter_project(path);
+        self.inspect();
+        cx.notify();
+    }
+    fn enter_project(&mut self, path: PathBuf) {
+        self.browser.leave();
         self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
@@ -643,11 +655,10 @@ impl Workbench {
         self.selected_package = None;
         self.error = None;
         self.inspection_fingerprint.clear();
-        self.inspect();
-        cx.notify();
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.browser.leave();
         self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
@@ -763,6 +774,13 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::BrowserScan(id, scan) => self.accept_projects_scan(id, scan, cx),
+                Event::BrowserPreview(id, path, result) => {
+                    self.accept_project_preview(id, path, *result, cx)
+                }
+                Event::BrowserOpen(id, path, result) => {
+                    self.accept_browser_open(id, path, *result, cx)
+                }
                 Event::TemplateResponse(id, result) => self.accept_template(id, *result, cx),
                 Event::TemplateSupport(result) => self.template_connected(result, cx),
                 Event::SavedSupport(result) => self.saved.support = Some(result),
@@ -801,7 +819,14 @@ impl Workbench {
                     self.accept_composition_result(id, result, cx)
                 }
                 Event::Preferences(loaded) => match loaded {
-                    Ok((state, path)) => {
+                    Ok((mut state, path)) => {
+                        // Keep projects opened while asynchronous preference loading was in flight.
+                        let opened_before_load = !self.preferences.recent_projects.is_empty();
+                        for recent in self.preferences.recent_projects.iter().rev() {
+                            state.recent_projects.retain(|p| p != recent);
+                            state.recent_projects.insert(0, recent.clone());
+                        }
+                        state.recent_projects.truncate(12);
                         self.preferences = state;
                         self.preferences_path = Some(path);
                         match self.preferences.appearance {
@@ -812,6 +837,8 @@ impl Workbench {
                         if let Some(snapshot) = &self.snapshot {
                             let root = snapshot.root.clone();
                             self.remember(root);
+                        } else if opened_before_load {
+                            self.save_preferences();
                         }
                     }
                     Err(error) => self.preferences_error = Some(error),
@@ -837,6 +864,9 @@ impl Workbench {
                         Ok(client) => {
                             self.client = Some(client);
                             self.client_error = None;
+                            if self.browser.visible {
+                                self.refresh_projects(cx);
+                            }
                             self.probe_upgrade();
                             self.probe_settings();
                             self.probe_setup();
@@ -1004,9 +1034,6 @@ impl Workbench {
     }
 
     fn remember(&mut self, root: PathBuf) {
-        if self.preferences_path.is_none() {
-            return;
-        }
         self.preferences
             .recent_projects
             .retain(|path| path != &root);

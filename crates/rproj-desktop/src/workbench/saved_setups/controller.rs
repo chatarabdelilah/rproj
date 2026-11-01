@@ -28,6 +28,7 @@ impl Workbench {
         self.upgrade.visible = false;
         self.settings.visible = false;
         self.setup.visible = false;
+        self.browser.leave();
         self.template.visible = false;
         self.saved.visible = true;
         self.focus_saved(window, cx);
