@@ -31,3 +31,10 @@ Watch and running operations retain their owners.
 
 Delivery uses two reviewed PRs, first the scanner and context query, then the
 native controls. Native preview and memory-stability acceptance remain paused.
+
+Shared-branch verification passed 790 CLI/core tests with 24 prerequisite-based
+tests ignored, strict Clippy, formatting and fresh joint package verification.
+The first local review identified the worker-directory ambiguity for relative
+configuration. A fixture now changes the root between requests and verifies
+relative resolution against the launch directory. The second review had no
+findings.
