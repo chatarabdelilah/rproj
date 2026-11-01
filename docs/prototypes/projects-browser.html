@@ -1,0 +1,364 @@
+<div id="rp-projects" aria-label="rproj Projects browser design sample" data-theme="system">
+  <style>
+    #rp-projects {
+      color-scheme: light dark;
+      --surface: light-dark(#fcfbf8, #1e1e1d); --side: light-dark(#f1f0eb, #272725);
+      --text: light-dark(#282925, #efeee8); --quiet: light-dark(#605f58, #bbb9ae);
+      --edge: light-dark(#d8d6ce, #4a4944); --ink: light-dark(#2459b8, #97bcff);
+      --tint: light-dark(#e6eefb, #2d3c52); --warn: light-dark(#805018, #f2c686);
+      background: var(--surface); color: var(--text); font: 14px/1.5 system-ui,sans-serif;
+      container-type: inline-size; overflow-wrap: anywhere;
+    }
+    #rp-projects[data-theme="light"] {color-scheme:light}
+    #rp-projects[data-theme="dark"] {color-scheme:dark}
+    #rp-projects * {box-sizing:border-box}
+    #rp-projects [hidden] {display:none !important}
+    #rp-projects h1,#rp-projects h2,#rp-projects h3,#rp-projects p,#rp-projects dl,#rp-projects dd {margin:0}
+    #rp-projects h1 {font-size:1.65em} #rp-projects h2 {font-size:1.25em}
+    #rp-projects h3 {font-size:1em} #rp-projects .sub,#rp-projects dt {color:var(--quiet)}
+    #rp-projects .eyebrow {color:var(--quiet);font-size:.84em;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+    #rp-projects button,#rp-projects select,#rp-projects input {
+      font:inherit;color:inherit;background:var(--surface);border:1px solid var(--edge);
+      border-radius:9px;padding:7px 12px;max-width:100%;min-width:0;
+    }
+    #rp-projects button {cursor:pointer;text-align:left} #rp-projects button:hover:not(:disabled){background:var(--side)}
+    #rp-projects button:disabled {color:var(--quiet);cursor:default}
+    #rp-projects :is(button,input,select,summary):focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+    #rp-projects button[aria-pressed="true"],#rp-projects .primary {background:var(--tint);color:var(--ink);border-color:var(--ink)}
+    #rp-projects .shell {display:grid;grid-template-columns:170px minmax(0,1fr)}
+    #rp-projects .sidebar {padding:20px 14px;background:var(--side);display:flex;flex-direction:column;gap:14px}
+    #rp-projects .brand {font-size:1.35em;font-weight:650;letter-spacing:-.04em}
+    #rp-projects nav,#rp-projects .stack {display:grid;gap:8px}
+    #rp-projects nav button {border:0;background:transparent}
+    #rp-projects .switch {position:relative} #rp-projects #pb-switch {width:100%}
+    #rp-projects .menu {position:absolute;inset:calc(100% + 4px) auto auto 0;z-index:2;width:min(300px,85cqw);
+      background:var(--surface);border:1px solid var(--edge);border-radius:10px;padding:10px;box-shadow:0 4px 16px #0002}
+    #rp-projects .appearance {margin-top:auto}
+    #rp-projects .main {container:pb-main / inline-size;min-width:0}
+    #rp-projects .body {padding:clamp(14px,3%,26px);display:grid;gap:16px}
+    #rp-projects .bar {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    #rp-projects .panes {display:grid;grid-template-columns:minmax(0,0.95fr) minmax(0,1.15fr);gap:20px}
+    #rp-projects .pane {min-width:0;align-content:start}
+    #rp-projects .list {display:grid;gap:5px;max-height:310px;overflow:auto;padding:3px}
+    #rp-projects .row {width:100%;display:grid;gap:2px}
+    #rp-projects .path {font: .88em/1.5 ui-monospace,monospace;overflow-wrap:anywhere}
+    #rp-projects .row .path {color:var(--quiet)}
+    #rp-projects .facts {display:grid;gap:10px;border-block:1px solid var(--edge);padding-block:12px}
+    #rp-projects .facts div {display:grid;grid-template-columns:minmax(6.4em,auto) 1fr;gap:8px}
+    #rp-projects .warning {color:var(--warn)} #rp-projects .foot,#rp-projects .lab {padding:12px 18px;border-top:1px solid var(--edge)}
+    #rp-projects .lab {display:grid;gap:8px} #rp-projects .lab summary {cursor:pointer}
+    #rp-projects .lab label {display:grid;gap:4px}
+    @container pb-main (width < 600px) {#rp-projects .panes {grid-template-columns:minmax(0,1fr)}}
+    @container (width < 550px) {
+      #rp-projects .shell {grid-template-columns:minmax(0,1fr)}
+      #rp-projects .sidebar {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);align-items:center;padding:12px}
+      #rp-projects nav {grid-column:1/-1;display:flex;flex-wrap:wrap;gap:2px}
+      #rp-projects .appearance {grid-column:1/-1} #rp-projects .menu {left:auto;right:0}
+    }
+    @media (pointer:coarse) {#rp-projects :is(button,input,select,summary){min-height:44px} #rp-projects input {font-size:16px}}
+  </style>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Workbench navigation">
+      <span class="brand">rproj</span>
+      <div class="switch">
+        <button id="pb-switch" type="button" aria-expanded="false" aria-controls="pb-menu"><i data-lucide="folder-open" aria-hidden="true"></i> <span id="pb-active">Skyline</span> ▾</button>
+        <div id="pb-menu" class="menu stack" hidden>
+          <span class="eyebrow">Recent projects</span><div id="pb-recents" class="stack"></div>
+          <button id="pb-browse-menu" type="button">Browse projects…</button>
+          <button id="pb-close" type="button">Close project</button>
+        </div>
+      </div>
+      <nav aria-label="Project sections">
+        <button type="button" data-section="Overview">Overview</button>
+        <button type="button" data-section="Dependencies">Dependencies</button>
+        <button type="button" data-section="Tools">Tools</button>
+        <button type="button" data-section="Checks">Checks</button>
+      </nav>
+      <label class="appearance sub">Appearance <select id="pb-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    </aside>
+    <main class="main">
+      <section id="pb-browser" class="body" aria-labelledby="pb-heading">
+        <div class="bar"><span class="eyebrow">Workbench / discovery · Sample</span><button id="pb-back" type="button">← Back</button></div>
+        <div><h1 id="pb-heading">Projects</h1><p class="sub">Preview a project before opening its workspace.</p></div>
+        <div class="bar"><div><div class="eyebrow">Projects folder</div><div class="path">C:/RobloxProjects</div></div><button id="pb-refresh" type="button">Refresh</button></div>
+        <div class="panes">
+          <section class="pane stack" aria-label="Discovered projects">
+            <label for="pb-search">Find a project</label><input type="search" id="pb-search" placeholder="Search names or paths">
+            <p id="pb-count" class="sub">8 projects</p>
+            <div class="list" id="pb-list" role="group" aria-label="Project previews">
+              <button type="button" class="row"><strong>Canopy</strong><span class="path">C:/RobloxProjects/Canopy</span></button>
+              <button type="button" class="row"><strong>Cinder</strong><span class="path">C:/RobloxProjects/Cinder</span></button>
+              <button type="button" class="row" aria-pressed="true"><strong>Lantern</strong><span class="path">C:/RobloxProjects/Lantern</span></button>
+              <button type="button" class="row"><strong>North Point</strong><span class="path">C:/RobloxProjects/North Point</span></button>
+              <button type="button" class="row"><strong>Relay</strong><span class="path">C:/RobloxProjects/Relay</span></button>
+              <button type="button" class="row"><strong>Relay</strong><span class="path">D:/Shared/Relay</span></button>
+              <button type="button" class="row"><strong>Skyline</strong><span class="path">C:/RobloxProjects/Skyline</span></button>
+              <button type="button" class="row"><strong>灯台 — Lighthouse with a long production project name</strong><span class="path">C:/RobloxProjects/灯台 — Lighthouse with a long production project name</span></button>
+            </div>
+            <p id="pb-list-note" class="sub" hidden></p>
+          </section>
+          <section class="pane stack" id="pb-detail" aria-label="Selected project preview">
+            <span class="eyebrow">Project preview</span><h2 id="pb-name">Lantern</h2><p class="path" id="pb-path">C:/RobloxProjects/Lantern</p>
+            <dl class="facts" id="pb-facts"><div><dt>Discovered via</dt><dd>Projects folder</dd></div><div><dt>rproj.toml</dt><dd>Malformed</dd></div><div><dt>Rojo project</dt><dd>Readable</dd></div></dl>
+            <p id="pb-diagnostic" class="warning">Malformed rproj.toml · unfinished package list. The Rojo project is readable.</p>
+            <button type="button" class="primary" id="pb-open">Open project</button>
+          </section>
+        </div>
+        <p id="pb-warnings" class="warning"></p><p id="pb-status" role="status" aria-live="polite"></p>
+      </section>
+      <section id="pb-workspace" class="body" hidden>
+        <span class="eyebrow">Workbench / project</span><h1 id="pb-work-title">Overview</h1><p id="pb-work-path" class="path"></p><p id="pb-work-note"></p>
+        <button type="button" id="pb-browse-empty" hidden>Browse projects…</button>
+      </section>
+    </main>
+  </div>
+  <div class="foot bar"><details id="pb-activity"><summary>Activity · last check succeeded</summary><p>Skyline · Checks finished · 0 errors</p></details><strong>Watch · Watching Skyline</strong></div>
+  <details class="lab"><summary>Design sample · simulation controls</summary>
+    <label>Discovery fixture <select id="pb-fixture">
+      <option value="normal">Populated folder + outside launch project</option><option value="empty">Empty projects folder</option>
+      <option value="missing">Missing projects folder + valid launch project</option><option value="unreadable">Unreadable projects folder + valid launch project</option>
+      <option value="overlap">Launch project also in projects folder</option>
+    </select></label>
+    <div class="bar"><button type="button" id="pb-vanish">Remove previewed folder from sample</button><button type="button" id="pb-reset">Reset sample</button></div>
+    <small>Local simulation · Creation draft: Orchard · Activity and Watch belong to Skyline.</small>
+  </details>
+</div>
+<script>
+(() => {
+  const root = document.getElementById("rp-projects");
+  const el = name => root.querySelector("#pb-" + name);
+  const folder = "C:/RobloxProjects";
+  const skyline = folder + "/Skyline";
+  const lantern = folder + "/Lantern";
+  const outside = "D:/Shared/Relay";
+  const recentOnly = "D:/Archive/Harbor";
+  const make = (path, record, rojo, diagnostic = "") => ({
+    path, name: path.slice(path.lastIndexOf("/") + 1), record, rojo, diagnostic
+  });
+  const samples = [
+    make(folder + "/Canopy", "Readable", "Readable"),
+    make(folder + "/Cinder", "Absent", "Readable"),
+    make(lantern, "Malformed", "Readable", "Malformed rproj.toml · unfinished package list. The Rojo project is readable."),
+    make(folder + "/North Point", "Readable", "Readable"),
+    make(folder + "/Relay", "Readable", "Absent"),
+    make(skyline, "Readable", "Readable"),
+    make(folder + "/灯台 — Lighthouse with a long production project name", "Absent", "Malformed", "Malformed default.project.json · expected a closing brace."),
+    make(outside, "Absent", "Readable")
+  ];
+  const get = path => samples.find(p => p.path === path);
+  const nameOf = path => path && path.slice(path.lastIndexOf("/") + 1);
+  const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+  function discover(mode, removed) {
+    const usable = mode === "normal" || mode === "overlap";
+    const launch = mode === "overlap" ? skyline : mode === "empty" ? null : outside;
+    const candidates = [...samples.filter(p => p.path !== outside),
+      make(folder + "/container/Nested", "Readable", "Readable"),
+      {...make(folder + "/Linked", "Readable", "Readable"), linked: true},
+      make(folder + "/Notes", "Absent", "Absent")];
+    const byPath = new Map();
+    const add = (p, via) => {
+      if (!p || removed.has(p.path) || (p.record === "Absent" && p.rojo === "Absent")) return;
+      // Fixture paths are canonical; origin labels survive deduplication.
+      const previous = byPath.get(p.path);
+      byPath.set(p.path, {...p, via: previous ? previous.via + " + " + via : via});
+    };
+    if (usable) for (const p of candidates) {
+      if (!p.linked && p.path.slice(0, p.path.lastIndexOf("/")) === folder) add(p, "Projects folder");
+    }
+    add(get(launch), "Launch folder");
+    const warning = usable ? "Skipped 1 linked entry. Discovery checks direct project folders only."
+      : mode === "missing" ? "Projects folder is missing. Showing the recognized launch folder."
+      : mode === "unreadable" ? "Projects folder could not be read. Showing the recognized launch folder." : "";
+    return {rows: [...byPath.values()].sort((a,b) => order(a.name.toLowerCase(), b.name.toLowerCase()) || order(a.path,b.path)), warning};
+  }
+  const initial = () => {
+    const snapshot = discover("normal", new Set());
+    return { ...snapshot, mode:"normal", removed:new Set(), page:"browser", section:"Overview",
+      active:skyline, recent:[skyline, recentOnly], query:"", selected:lantern,
+      preview:snapshot.rows.find(p => p.path === lantern), reading:false, previewId:0,
+      scanning:false, queued:false, scanId:0, scroll:0, origin:"switch", message:"", menu:false };
+  };
+  let state = initial();
+  const visible = () => {
+    const q = state.query.trim().toLowerCase();
+    return state.rows.filter(p => p.name.toLowerCase().includes(q) || p.path.toLowerCase().includes(q));
+  };
+  function writeRows() {
+    const list = el("list"), shown = visible();
+    const oldFocus = list.contains(document.activeElement) ? document.activeElement.dataset.path : null;
+    const top = list.scrollTop;
+    list.replaceChildren(...shown.map(p => {
+      const row = document.createElement("button"); row.type = "button"; row.className = "row"; row.dataset.path = p.path;
+      row.setAttribute("aria-pressed", String(state.selected === p.path));
+      const name = document.createElement("strong"); name.textContent = p.name;
+      const path = document.createElement("span"); path.className = "path"; path.textContent = p.path;
+      row.append(name, path); return row;
+    }));
+    list.scrollTop = top;
+    if (oldFocus) (Array.from(list.children).find(b => b.dataset.path === oldFocus) || el("search")).focus({preventScroll:true});
+    el("count").textContent = shown.length + (shown.length === 1 ? " project" : " projects");
+    el("list-note").hidden = !!shown.length;
+    el("list-note").textContent = state.rows.length ? "No projects match this search." :
+      state.scanning ? "Discovering projects…" : "No recognized projects in this sample.";
+  }
+  function writeDetail() {
+    const p = state.preview;
+    el("name").textContent = p ? p.name : state.reading ? "Reading preview…" : "No project selected";
+    el("path").textContent = p ? p.path : state.selected || "";
+    el("facts").hidden = !p;
+    if (p) {
+      const cells = el("facts").querySelectorAll("dd");
+      [p.via,p.record,p.rojo].forEach((v,i) => {cells[i].textContent = v;});
+    }
+    el("diagnostic").textContent = p?.diagnostic || "";
+    el("open").disabled = !p || p.path !== state.selected;
+    el("open").setAttribute("aria-label", p ? "Open project: " + p.name : "Open project");
+    el("vanish").disabled = state.page !== "browser" || !p || state.removed.has(p.path);
+  }
+  function status() {
+    el("warnings").textContent = state.warning;
+    el("status").textContent = state.scanning
+      ? state.queued ? "Refreshing · one follow-up scan queued." : "Refreshing · current results remain available."
+      : state.message;
+  }
+  function draw() {
+    const browsing = state.page === "browser";
+    el("active").textContent = nameOf(state.active) || "Open project…";
+    el("menu").hidden = !state.menu;
+    el("switch").setAttribute("aria-expanded", String(state.menu));
+    el("close").disabled = !state.active;
+    el("browser").hidden = !browsing; el("workspace").hidden = browsing;
+    el("work-title").textContent = state.active ? state.section + " · " + nameOf(state.active) : "No project open";
+    el("work-path").textContent = state.active || "";
+    el("work-note").textContent = state.active
+      ? get(state.active)?.diagnostic || "Sample project workspace."
+      : "Choose a project from the configured folder or launch directory.";
+    el("browse-empty").hidden = !!state.active;
+    for (const button of root.querySelectorAll("[data-section]")) {
+      button.disabled = !state.active;
+      button.setAttribute("aria-pressed", String(!browsing && !!state.active && button.dataset.section === state.section));
+    }
+    el("search").value = state.query; el("fixture").value = state.mode;
+    writeRows(); writeDetail(); status();
+  }
+  function select(path, immediate = false) {
+    const s = state, id = ++s.previewId;
+    s.selected = path; s.preview = null; s.reading = !!path;
+    const complete = () => {
+      if (s !== state || id !== s.previewId) return;
+      s.preview = s.rows.find(p => p.path === path) || null;
+      s.reading = false; writeDetail();
+    };
+    if (path && !immediate) setTimeout(complete, 200);
+    else complete();
+    writeRows(); writeDetail();
+  }
+  function refresh() {
+    const s = state, id = ++s.scanId;
+    if (s.scanning) { s.queued = true; status(); return; }
+    s.scanning = true; s.queued = false; status();
+    const result = discover(s.mode, s.removed);
+    setTimeout(() => {
+      if (s !== state) return;
+      s.scanning = false;
+      if (id !== s.scanId) { refresh(); return; }
+      s.rows = result.rows; s.warning = result.warning;
+      const previous = s.selected;
+      const retained = previous && visible().some(p => p.path === previous);
+      select(retained ? previous : null, true);
+      s.message = previous && !retained ? "The selected project is no longer listed. Choose another preview." : "Discovery refreshed.";
+      status();
+    }, 450);
+  }
+  function leave() {
+    if (state.page === "browser") state.scroll = el("list").scrollTop;
+    state.page = "workspace"; state.menu = false;
+  }
+  function browse(origin) {
+    if (state.page !== "browser") state.origin = origin;
+    state.page = "browser"; state.menu = false; draw();
+    el("list").scrollTop = state.scroll; el("search").focus();
+  }
+  function open(path) {
+    if (!path) return;
+    if (state.removed.has(path)) {
+      state.message = "This project folder disappeared. Refresh to update the list. Your workspace selection was kept.";
+      state.menu = false;
+      if (state.page === "browser") {
+        if (state.selected === path) select(null, true);
+        draw(); el("refresh").focus();
+      }
+      else { draw(); el("work-note").textContent = state.message; el("switch").focus(); }
+      return;
+    }
+    leave(); state.active = path; state.section = "Overview";
+    state.recent = [path,...state.recent.filter(p => p !== path)]; draw(); el("switch").focus();
+  }
+  function menu(show) {
+    state.menu = show;
+    el("recents").replaceChildren(...state.recent.map(path => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = nameOf(path) + " · " + path;
+      b.addEventListener("click", () => open(path)); return b;
+    }));
+    el("menu").hidden = !show; el("switch").setAttribute("aria-expanded",String(show));
+    (show ? el("browse-menu") : el("switch")).focus();
+  }
+  el("switch").addEventListener("click", () => menu(!state.menu));
+  el("browse-menu").addEventListener("click", () => browse("switch"));
+  el("browse-empty").addEventListener("click", () => browse("browse-empty"));
+  el("close").addEventListener("click", () => {leave(); state.active = null; state.section = "Overview"; draw(); el("browse-empty").focus();});
+  for (const button of root.querySelectorAll("[data-section]")) button.addEventListener("click", () => {
+    leave(); state.section = button.dataset.section; draw();
+  });
+  function back() {
+    leave(); draw();
+    el(state.origin === "browse-empty" && !state.active ? "browse-empty" : "switch").focus();
+  }
+  el("back").addEventListener("click", back);
+  el("search").addEventListener("input", e => {
+    state.query = e.target.value; state.message = ""; const shown = visible();
+    select(shown.some(p => p.path === state.selected) ? state.selected : shown[0]?.path || null);
+    status();
+  });
+  el("list").addEventListener("click", e => {
+    const row = e.target.closest("button[data-path]");
+    if (row) {state.message = ""; select(row.dataset.path); status();}
+  });
+  el("list").addEventListener("keydown", e => {
+    if (!["ArrowDown","ArrowUp","Home","End"].includes(e.key)) return;
+    const shown = visible(), idx = shown.findIndex(p => p.path === e.target.dataset.path);
+    if (idx < 0) return;
+    const next = e.key === "Home" ? 0 : e.key === "End" ? shown.length-1 :
+      Math.max(0, Math.min(shown.length-1, idx + (e.key === "ArrowDown" ? 1 : -1)));
+    e.preventDefault(); select(shown[next].path); el("list").children[next].focus();
+  });
+  root.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (state.menu) {e.preventDefault(); menu(false);}
+    else if (state.page === "browser" && el("browser").contains(e.target)) {e.preventDefault(); back();}
+  });
+  root.addEventListener("click", e => {if (state.menu && !e.target.closest(".switch")) {
+    state.menu = false; el("menu").hidden = true; el("switch").setAttribute("aria-expanded","false");
+  }});
+  el("open").addEventListener("click", () => {if (state.preview?.path === state.selected) open(state.selected);});
+  el("refresh").addEventListener("click", refresh);
+  el("fixture").addEventListener("change", e => {state.mode = e.target.value; state.removed.clear(); refresh();});
+  el("vanish").addEventListener("click", () => {
+    if (!state.preview) return;
+    state.removed.add(state.preview.path); state.message = "Sample folder removed. Open project or Refresh to detect the change.";
+    writeDetail(); status();
+  });
+  el("reset").addEventListener("click", () => {state = initial(); el("activity").open = false; draw(); el("search").focus();});
+  const theme = value => {
+    if (["light","dark","system"].includes(value)) {root.dataset.theme = value; el("theme").value = value;}
+  };
+  draw();
+  // Host state is optional and may restore appearance only, never the sample workspace.
+  try {theme(window.openai?.widgetState?.privateContent?.theme);} catch {}
+  window.addEventListener("openai:set_globals", e => theme(e.detail?.globals?.widgetState?.privateContent?.theme));
+  el("theme").addEventListener("change", e => {
+    theme(e.target.value);
+    try {window.openai?.setWidgetState?.({modelContent:{proposal:"Projects browser"},privateContent:{theme:root.dataset.theme}})?.catch?.(() => {});} catch {}
+  });
+})();
+</script>
