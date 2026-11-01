@@ -47,6 +47,7 @@ impl Workbench {
         }
     }
     pub(in super::super) fn show_creation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.browser.leave();
         self.template.visible = false;
         self.saved.visible = false;
         self.setup.visible = false;
