@@ -284,15 +284,27 @@ impl Workbench {
                     "Choose an existing rproj or Rojo project folder. Its files stay in control.",
                 )
                 .child(
-                    Button::new("new-project")
-                        .label(if self.creation.draft.is_some() {
-                            "Resume project creation"
-                        } else {
-                            "New project…"
+                    div()
+                        .h_flex()
+                        .flex_wrap()
+                        .gap_2()
+                        .when(self.project.is_none(), |row| {
+                            row.child(self.browser_empty_entry(cx))
                         })
-                        .disabled(self.creation.context.is_none() && self.creation.draft.is_none())
-                        .on_click(
-                            cx.listener(|this, _, window, cx| this.show_creation(window, cx)),
+                        .child(
+                            Button::new("new-project")
+                                .label(if self.creation.draft.is_some() {
+                                    "Resume project creation"
+                                } else {
+                                    "New project…"
+                                })
+                                .disabled(
+                                    self.creation.context.is_none()
+                                        && self.creation.draft.is_none(),
+                                )
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.show_creation(window, cx)
+                                })),
                         ),
                 )
                 .when_some(self.creation.error.clone(), |view, error| view.child(error))
@@ -800,6 +812,8 @@ impl Render for Workbench {
             )
         } else if self.creation.visible {
             self.render_creation(cx)
+        } else if self.project.is_none() {
+            self.render_overview(cx)
         } else {
             match self.section {
                 Section::Overview => self.render_overview(cx),
@@ -813,7 +827,8 @@ impl Render for Workbench {
                 Section::Checks => self.render_checks(cx),
             }
         };
-        let content = if !self.composition.visible
+        let content = if self.project.is_some()
+            && !self.composition.visible
             && !self.setup.visible
             && !self.browser.visible
             && !self.template.visible
@@ -836,7 +851,8 @@ impl Render for Workbench {
         } else {
             content
         };
-        let content = if !self.settings.visible
+        let content = if self.project.is_some()
+            && !self.settings.visible
             && !self.setup.visible
             && !self.browser.visible
             && !self.template.visible
@@ -874,26 +890,6 @@ impl Render for Workbench {
                 .overflow_y_scroll()
                 .child(content)
                 .into_any_element()
-        };
-        let content = if self.project.is_none()
-            && !self.browser.visible
-            && !self.creation.visible
-            && !self.composition.visible
-            && !self.settings.visible
-            && !self.upgrade.visible
-            && !self.template.visible
-            && !self.saved.visible
-            && !self.setup.visible
-        {
-            div()
-                .v_flex()
-                .size_full()
-                .min_h_0()
-                .child(self.browser_empty_entry(cx))
-                .child(div().flex_1().min_h_0().child(content))
-                .into_any_element()
-        } else {
-            content
         };
         let sidebar = self.render_sidebar(cx);
         let activity = self.render_activity(cx);

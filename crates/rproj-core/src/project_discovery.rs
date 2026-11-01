@@ -36,7 +36,7 @@ pub struct Discovery {
     pub warnings: Vec<String>,
 }
 
-fn recognized(path: &Path) -> bool {
+pub fn recognized(path: &Path) -> bool {
     path.join("rproj.toml").is_file() || path.join("default.project.json").is_file()
 }
 

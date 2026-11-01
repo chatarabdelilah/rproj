@@ -819,7 +819,14 @@ impl Workbench {
                     self.accept_composition_result(id, result, cx)
                 }
                 Event::Preferences(loaded) => match loaded {
-                    Ok((state, path)) => {
+                    Ok((mut state, path)) => {
+                        // Keep projects opened while asynchronous preference loading was in flight.
+                        let opened_before_load = !self.preferences.recent_projects.is_empty();
+                        for recent in self.preferences.recent_projects.iter().rev() {
+                            state.recent_projects.retain(|p| p != recent);
+                            state.recent_projects.insert(0, recent.clone());
+                        }
+                        state.recent_projects.truncate(12);
                         self.preferences = state;
                         self.preferences_path = Some(path);
                         match self.preferences.appearance {
@@ -830,6 +837,8 @@ impl Workbench {
                         if let Some(snapshot) = &self.snapshot {
                             let root = snapshot.root.clone();
                             self.remember(root);
+                        } else if opened_before_load {
+                            self.save_preferences();
                         }
                     }
                     Err(error) => self.preferences_error = Some(error),
@@ -1025,9 +1034,6 @@ impl Workbench {
     }
 
     fn remember(&mut self, root: PathBuf) {
-        if self.preferences_path.is_none() {
-            return;
-        }
         self.preferences
             .recent_projects
             .retain(|path| path != &root);

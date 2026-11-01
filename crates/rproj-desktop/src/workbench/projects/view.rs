@@ -28,6 +28,13 @@ impl Workbench {
             .aria_label("Browse projects")
             .test_support()
             .track_focus(&focus)
+            .border_1()
+            .border_color(gpui_kit::transparent_black())
+            .rounded_md()
+            .focus_visible({
+                let ring = cx.theme().ring;
+                move |s| s.border_color(ring)
+            })
             .on_key_down(cx.listener(move |this, event: &KeyDownEvent, w, cx| {
                 if focus.is_focused(w) && matches!(event.keystroke.key.as_str(), "enter" | "space")
                 {
@@ -169,7 +176,7 @@ impl Workbench {
                 this.browser.rows_focus.focus(w, cx);
                 this.browser
                     .scroll
-                    .scroll_to_item(ix, ScrollStrategy::Center);
+                    .scroll_to_item(ix, ScrollStrategy::Nearest);
                 this.browser.notice = None;
                 this.select_project_preview(Some(path), cx);
                 cx.stop_propagation();

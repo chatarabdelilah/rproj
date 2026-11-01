@@ -44,6 +44,7 @@ pub(super) struct Browser {
     launch: Result<PathBuf, String>,
     scan: Lane,
     preview: Lane,
+    preview_requested: bool,
     opening: Lane,
     listing: Option<Scan>,
     indices: Vec<usize>,
@@ -73,6 +74,7 @@ impl Browser {
                 .map_err(|e| format!("Launch directory unavailable: {e}")),
             scan: Lane::default(),
             preview: Lane::default(),
+            preview_requested: false,
             opening: Lane::default(),
             listing: None,
             indices: Vec::new(),
@@ -83,7 +85,7 @@ impl Browser {
             scroll: UniformListScrollHandle::new(),
             focus: cx.focus_handle(),
             rows_focus: cx.focus_handle().tab_stop(true),
-            empty_focus: cx.focus_handle().tab_stop(true),
+            empty_focus: cx.focus_handle(),
             return_to_empty: false,
             _input_subscription: subscription,
         }
@@ -92,6 +94,7 @@ impl Browser {
     pub(super) fn leave(&mut self) {
         if self.visible {
             self.visible = false;
+            self.preview_requested = false;
             self.scan.invalidate();
             self.preview.invalidate();
             self.opening.invalidate();
@@ -144,8 +147,7 @@ fn inspect_target(path: &Path) -> Result<ProjectSnapshot, String> {
             "Project folder changed during inspection"
         );
         anyhow::ensure!(
-            snapshot.files.rproj.state != rproj_core::FileState::Missing
-                || snapshot.files.rojo.state != rproj_core::FileState::Missing,
+            rproj_core::project_discovery::recognized(path),
             "Project is no longer recognized"
         );
         Ok(snapshot)
@@ -189,12 +191,10 @@ impl Workbench {
         } else {
             self.focus.clone()
         };
-        w.on_next_frame(move |w, cx| {
-            focus.focus(w, cx);
-            if !empty {
-                w.focus_next(cx);
-            }
-        });
+        focus.focus(w, cx);
+        if !empty {
+            w.focus_next(cx);
+        }
         cx.notify();
     }
     pub(super) fn refresh_projects(&mut self, cx: &mut Context<Self>) {
@@ -266,6 +266,7 @@ impl Workbench {
         };
         if self.browser.selected == selected {
             self.browser.preview.invalidate();
+            self.browser.preview_requested = selected.is_some();
             self.spawn_project_preview();
             cx.notify();
         } else {
@@ -285,20 +286,29 @@ impl Workbench {
         self.select_project_preview(selected, cx);
     }
     fn select_project_preview(&mut self, path: Option<PathBuf>, cx: &mut Context<Self>) {
+        if self.browser.selected == path {
+            cx.notify();
+            return;
+        }
         self.browser.preview.invalidate();
         self.browser.opening.invalidate();
+        self.browser.preview_requested = path.is_some();
         self.browser.selected = path;
         self.browser.detail = None;
         self.spawn_project_preview();
         cx.notify();
     }
     fn spawn_project_preview(&mut self) {
+        if !self.browser.preview_requested {
+            return;
+        }
         let Some(path) = self.browser.selected.clone() else {
             return;
         };
         let Some(id) = self.browser.preview.start() else {
             return;
         };
+        self.browser.preview_requested = false;
         let tx = self.sender.clone();
         std::thread::spawn(move || {
             let result = inspect_target(&path);
@@ -360,6 +370,9 @@ impl Workbench {
         {
             return;
         }
+        // A preview that began before Open must not erase its failure or replace its result.
+        self.browser.preview.invalidate();
+        self.browser.preview_requested = false;
         match result {
             Ok((snapshot, fingerprint)) if snapshot.root == path => {
                 self.enter_project(path.clone());

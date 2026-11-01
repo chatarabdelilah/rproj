@@ -142,13 +142,24 @@ fn preview_and_fresh_open_keep_watch_drafts_activity_and_the_original_operation(
         assert!(w.try_find("projects-stacked").is_some());
         assert_eq!(view.read(cx).project.as_ref(), Some(&active));
         assert_eq!(view.read(cx).browser.selected.as_ref(), Some(&relay));
-        view.update(cx, |this, cx| this.open_previewed_project(cx));
+        let pane = w.find("projects-browser").bounds();
+        let open = w.find("projects-open").bounds();
+        w.scroll(
+            "projects-browser",
+            gpui_kit::ScrollDelta::Pixels(gpui_kit::point(
+                px(0.),
+                pane.center().y - open.center().y,
+            )),
+            cx,
+        );
+        w.render_frame(cx);
+        w.click("projects-open", cx);
     })
     .unwrap();
     pump(cx, &view, |this| !this.browser.visible);
     cx.update(|cx| {
         let this = view.read(cx);
-        assert_eq!(this.section, Section::Overview);
+        assert!(this.section == Section::Overview);
         assert_eq!(this.project.as_ref(), Some(&relay));
         assert_eq!(this.snapshot.as_ref().unwrap().root, relay);
         assert_eq!(this.preferences.recent_projects.first(), Some(&relay));
@@ -193,7 +204,7 @@ fn removed_preview_and_stale_open_never_replace_the_workspace(cx: &mut TestAppCo
             this.back_from_projects(w, cx);
             this.accept_browser_open(id, lantern.clone(), Ok((old, fingerprint)), cx);
             assert_eq!(this.project.as_ref(), Some(&active));
-            assert_eq!(this.section, Section::Checks);
+            assert!(this.section == Section::Checks);
             assert!(this.preferences.recent_projects.is_empty());
         });
     })
@@ -246,5 +257,240 @@ fn empty_view_and_back_restore_focus_and_search_survives_reentry(cx: &mut TestAp
         assert!(this.browser.visible);
         assert_eq!(this.browser.query.read(cx).value().as_ref(), "no match");
         assert!(this.project.is_none());
+    });
+}
+
+#[gpui_kit::test]
+fn switcher_keyboard_entry_and_back_restore_the_underlying_section(cx: &mut TestAppContext) {
+    let (root, handle, view) = fixture(cx);
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.browser.launch = Ok(root.path().canonicalize().unwrap());
+            this.section = Section::Tools;
+            this.preferences.recent_projects.clear();
+            cx.notify();
+        })
+    });
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        w.press("tab", cx);
+        w.press("enter", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        assert!(w.find("popup-menu").visible());
+        // The last three actions are Browse, Open folder and Close project.
+        for _ in 0..3 {
+            w.press("up", cx);
+        }
+        w.press("enter", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    pump(cx, &view, |this| {
+        this.browser.visible && this.browser.detail.is_some()
+    });
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        assert!(w.find("projects-browser").visible());
+        w.click("projects-back", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        assert_eq!(w.find("project-switcher").focused(), Some(true));
+        assert!(view.read(cx).section == Section::Tools);
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
+fn keyboard_preview_and_unchanged_filtered_selection_preserve_checked_open(
+    cx: &mut TestAppContext,
+) {
+    let (_work, handle, view) = fixture(cx);
+    let root = tempfile::tempdir().unwrap();
+    let a = recorded(root.path(), "Alpha");
+    let z = recorded(root.path(), "世界 Zulu");
+    seed(cx, &view, root.path(), &a);
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        w.click("project-row-0", cx);
+        w.press("end", cx);
+    })
+    .unwrap();
+    pump(cx, &view, |this| {
+        this.browser.selected.as_ref() == Some(&z) && this.browser.detail.is_some()
+    });
+    cx.update_window(handle, |_, w, cx| {
+        view.update(cx, |this, cx| {
+            let before = this.browser.preview.revision;
+            this.browser
+                .query
+                .update(cx, |input, cx| input.replace_all("zULu", w, cx));
+            this.filter_projects(cx);
+            assert_eq!(this.browser.preview.revision, before);
+            assert_eq!(this.browser.indices.len(), 1);
+            assert_eq!(
+                this.browser.detail.as_ref().unwrap().as_ref().unwrap().root,
+                z
+            );
+        })
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
+fn stale_scan_and_preview_cannot_restore_a_removed_row_or_hide_an_open_error(
+    cx: &mut TestAppContext,
+) {
+    let (_work, _handle, view) = fixture(cx);
+    let root = tempfile::tempdir().unwrap();
+    let p = recorded(root.path(), "Lantern");
+    seed(cx, &view, root.path(), &p);
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            let old = this.browser.preview.start().unwrap();
+            let snapshot = inspect_target(&p).unwrap();
+            let open = this.browser.opening.start().unwrap();
+            this.accept_browser_open(
+                open,
+                p.clone(),
+                Err("Folder disappeared. Refresh the projects list.".into()),
+                cx,
+            );
+            this.accept_project_preview(old, p.clone(), Ok(snapshot), cx);
+            assert!(
+                matches!(&this.browser.detail,Some(Err(message)) if message.contains("disappeared"))
+            );
+            assert!(this.browser.preview.active.is_none());
+            let scan = this.browser.scan.start().unwrap();
+            let empty = tempfile::tempdir().unwrap();
+            this.accept_projects_scan(
+                scan,
+                Scan {
+                    root: Some(empty.path().into()),
+                    found: discover(&Ok(empty.path().into()), None),
+                },
+                cx,
+            );
+            assert!(this.browser.selected.is_none() && this.browser.detail.is_none());
+            assert!(this.browser.notice.is_some());
+            this.accept_projects_scan(
+                scan,
+                Scan {
+                    root: Some(root.path().into()),
+                    found: discover(&Ok(root.path().into()), Some(&p)),
+                },
+                cx,
+            );
+            assert!(this.browser.indices.is_empty());
+        })
+    });
+}
+
+#[gpui_kit::test]
+fn a_filter_and_scroll_offset_survive_overlay_dismissal(cx: &mut TestAppContext) {
+    use gpui_kit::ScrollStrategy;
+    let (_work, handle, view) = fixture(cx);
+    let root = tempfile::tempdir().unwrap();
+    let first = recorded(root.path(), "Project 00");
+    for i in 1..32 {
+        recorded(root.path(), &format!("Project {i:02}"));
+    }
+    seed(cx, &view, root.path(), &first);
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        view.update(cx, |this, cx| {
+            this.browser
+                .query
+                .update(cx, |input, cx| input.replace_all("project", w, cx));
+            this.browser.scroll.scroll_to_item(25, ScrollStrategy::Top);
+            cx.notify();
+        });
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        view.update(cx, |this, cx| {
+            let offset = this.browser.scroll.0.borrow().base_handle.offset();
+            assert!(offset.y < gpui_kit::px(0.));
+            this.back_from_projects(w, cx);
+            this.show_projects(false, w, cx);
+            assert_eq!(this.browser.query.read(cx).value().as_ref(), "project");
+            assert_eq!(this.browser.selected.as_ref(), Some(&first));
+            assert_eq!(this.browser.scroll.0.borrow().base_handle.offset(), offset);
+        })
+    })
+    .unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn directory_replaced_by_a_junction_cannot_redirect_open() {
+    let root = tempfile::tempdir().unwrap();
+    let p = recorded(root.path(), "Selected");
+    let other = recorded(root.path(), "Other");
+    assert!(inspect_target(&p).is_ok());
+    fs::rename(&p, root.path().join("moved")).unwrap();
+    let link = std::process::Command::new("cmd")
+        .args(["/c", "mklink", "/J"])
+        .arg(&p)
+        .arg(&other)
+        .output()
+        .unwrap();
+    assert!(
+        link.status.success(),
+        "{}",
+        String::from_utf8_lossy(&link.stderr)
+    );
+    let refused = inspect_target(&p);
+    fs::remove_dir(&p).unwrap();
+    assert!(refused.unwrap_err().contains("redirected"));
+    assert!(other.join("rproj.toml").is_file());
+}
+
+#[gpui_kit::test]
+fn repeated_refresh_coalesces_and_discards_the_old_scan_without_blanking_the_list(
+    cx: &mut TestAppContext,
+) {
+    let (_work, _window, view) = fixture(cx);
+    let root = tempfile::tempdir().unwrap();
+    let retained = recorded(root.path(), "Relay");
+    let next_root = tempfile::tempdir().unwrap();
+    let next = recorded(next_root.path(), "Next");
+    seed(cx, &view, root.path(), &retained);
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            this.client = None;
+            this.browser.launch = Ok(next.clone());
+            let first = this.browser.scan.start().unwrap();
+            this.refresh_projects(cx);
+            this.refresh_projects(cx);
+            assert_eq!(this.browser.scan.active, Some(first));
+            assert_eq!(this.browser.indices.len(), 1);
+            this.accept_projects_scan(
+                first,
+                Scan {
+                    root: None,
+                    found: Default::default(),
+                },
+                cx,
+            );
+            assert_eq!(this.browser.scan.active, Some(this.browser.scan.revision));
+            assert_eq!(this.browser.selected.as_ref(), Some(&retained));
+            assert!(this.browser.detail.as_ref().unwrap().is_ok());
+        })
+    });
+    pump(cx, &view, |this| this.browser.scan.active.is_none());
+    cx.update(|cx| {
+        let b = &view.read(cx).browser;
+        assert_eq!(b.at(0).unwrap().path, next);
+        assert!(b.selected.is_none() && b.detail.is_none());
+        assert!(!b.listing.as_ref().unwrap().found.warnings.is_empty());
     });
 }

@@ -1,5 +1,13 @@
 # Release-Hardening Audit
 
+## November 1: native Projects browser
+
+Shared discovery PR #145 passed reviewed-head and merged-main CI. Native
+controls reuse core inspection but keep preview and workspace state independent.
+[Implementation evidence](desktop-projects-browser-native.md) covers checked
+Open, queued refreshes, stale reads, keyboard navigation and preserved ownership.
+Windows real-window and memory-stability acceptance remain paused.
+
 ## November 1: Projects browser design
 
 Native Project Template PR #143 merged at `f5ada11`. Its reviewed head
