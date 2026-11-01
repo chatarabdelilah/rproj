@@ -73,3 +73,10 @@ by a regression that checks the same selection does not restart inspection.
 Headless evidence is separate from real-window acceptance. Native memory
 stability remains unresolved and Windows previews remain paused. macOS/Linux
 desktop acceptance is unverified. Published version is 0.22.0.
+
+Final local verification passed 143 headless desktop tests and 790 CLI/core
+tests. Another 24 prerequisite-dependent tests were ignored. Formatting, strict
+Clippy for all three crates and fresh core/CLI archive verification passed.
+The Windows portable package passed its version and inspection checks. The
+three existing legacy notice gaps remain. The second local native CodeRabbit
+review returned zero findings.
