@@ -1,5 +1,12 @@
 # Release-Hardening Audit
 
+## November 7: shared Catalog guidance
+
+The approved native Catalog implementation begins with shared structured guides
+and exact pre-extraction terminal/worker fixtures. [Implementation evidence](desktop-catalog-native.md)
+separates shared validation from later native controls and paused real-window
+acceptance. No protocol, command, preference, configuration or version change.
+
 ## November 7: Catalog browser design
 
 The [separate Catalog proposal](desktop-catalog-browser-design.md) starts with

@@ -18,9 +18,12 @@ pub struct CatalogEntry {
 }
 
 pub mod artifacts;
+pub mod browser;
 pub mod capabilities;
+pub mod package_usage;
 pub mod tool_catalog;
 pub mod tool_settings;
+pub mod tool_usage;
 pub mod wally_packages;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
