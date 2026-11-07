@@ -1,0 +1,308 @@
+<style>
+  #rp-catalog { --surface:light-dark(#fcfbf8,#1e1e1d); --side:light-dark(#f1f0eb,#272725); --text:light-dark(#282925,#efeee8); --quiet:light-dark(#605f58,#bbb9ae); --edge:light-dark(#d8d6ce,#4a4944); --blue:light-dark(#2459b8,#97bcff); --tint:light-dark(#e6eefb,#2d3c52); color:var(--text); background:var(--surface); font:14px/1.55 system-ui,sans-serif; container:catalog-shell / inline-size; }
+  #rp-catalog[data-theme="light"] { color-scheme:light; }
+  #rp-catalog[data-theme="dark"] { color-scheme:dark; }
+  #rp-catalog * { box-sizing:border-box; }
+  #rp-catalog [hidden] { display:none !important; }
+  #rp-catalog h1,#rp-catalog h2,#rp-catalog h3,#rp-catalog p { margin:0; }
+  #rp-catalog h1 { font-size:23px; font-weight:600; }
+  #rp-catalog h2 { font-size:21px; font-weight:600; }
+  #rp-catalog h3 { font-size:15px; font-weight:600; }
+  #rp-catalog button,#rp-catalog select,#rp-catalog input { font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--edge); border-radius:9px; padding:7px 11px; max-width:100%; }
+  #rp-catalog button { text-align:left; }
+  #rp-catalog button:hover:not(:disabled) { background:var(--side); }
+  #rp-catalog button[aria-pressed="true"],#rp-catalog button[aria-current="page"] { color:var(--blue); background:var(--tint); border-color:transparent; }
+  #rp-catalog button:disabled { color:var(--quiet); }
+  #rp-catalog a { color:var(--blue); text-underline-offset:3px; }
+  #rp-catalog code,#rp-catalog pre { font:13px/1.6 Consolas,monospace; }
+  #rp-catalog pre { margin:0; padding:16px; border:1px solid var(--edge); border-radius:9px; background:var(--side); white-space:pre-wrap; overflow-wrap:anywhere; }
+  #rp-catalog small,#rp-catalog .cat-muted { color:var(--quiet); font-size:12px; }
+  #rp-catalog .cat-label { display:block; margin-bottom:5px; font-size:12px; color:var(--quiet); }
+  #rp-catalog .cat-row { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+  #rp-catalog .cat-stack { display:grid; gap:16px; min-width:0; }
+  #rp-catalog .cat-path { overflow-wrap:anywhere; }
+  #rp-catalog .cat-bar { padding:12px 110px 12px 16px; background:var(--side); border-bottom:1px solid var(--edge); }
+  #rp-catalog .cat-shell { display:grid; grid-template-columns:178px minmax(0,1fr); }
+  #rp-catalog aside { background:var(--side); padding:18px 12px; display:flex; flex-direction:column; gap:18px; border-right:1px solid var(--edge); min-width:0; }
+  #rp-catalog .cat-wordmark { font-size:23px; padding:0 8px; }
+  #rp-catalog aside nav { display:grid; gap:4px; }
+  #rp-catalog aside nav button { border-color:transparent; background:transparent; }
+  #rp-catalog aside .cat-appearance { margin-top:auto; }
+  #rp-catalog i { display:inline-block; width:16px; height:16px; margin-right:7px; vertical-align:-2px; }
+  #rp-catalog .cat-menu-wrap { position:relative; }
+  #rp-catalog #cat-switch { width:100%; }
+  #rp-catalog .cat-menu { position:absolute; top:100%; left:0; z-index:4; margin-top:6px; padding:8px; background:var(--surface); border:1px solid var(--edge); border-radius:9px; box-shadow:0 8px 24px #0002; width:285px; max-width:calc(100cqw - 24px); }
+  #rp-catalog .cat-menu button { width:100%; margin:2px 0; }
+  #rp-catalog .cat-menu small { display:block; overflow-wrap:anywhere; }
+  #rp-catalog main { padding:20px; min-width:0; container:catalog-main / inline-size; }
+  #rp-catalog .cat-search { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; }
+  #rp-catalog .cat-search input { width:100%; }
+  #rp-catalog .cat-panes { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; align-items:start; }
+  #rp-catalog #cat-results { display:grid; gap:6px; }
+  #rp-catalog #cat-results button { width:100%; }
+  #rp-catalog #cat-results strong,#rp-catalog #cat-results small { display:block; }
+  #rp-catalog #cat-guide { min-width:0; border-top:1px solid var(--edge); padding-top:20px; display:grid; gap:16px; }
+  #rp-catalog .cat-guide-section { display:grid; gap:5px; }
+  #rp-catalog .cat-copy { justify-content:space-between; }
+  #rp-catalog .cat-breadcrumb { color:var(--quiet); font-size:12px; }
+  #rp-catalog .cat-rule { border:0; border-top:1px solid var(--edge); width:100%; margin:0; }
+  #rp-catalog dl { margin:0; display:grid; grid-template-columns:minmax(100px,.7fr) minmax(0,1fr); gap:8px 14px; }
+  #rp-catalog dt { color:var(--quiet); }
+  #rp-catalog dd { margin:0; overflow-wrap:anywhere; }
+  #rp-catalog #cat-copy-status { min-height:1.5em; }
+  #rp-catalog #cat-activity { border-top:1px solid var(--edge); padding:12px 16px; }
+  #rp-catalog #cat-activity summary { color:var(--text); }
+  #rp-catalog .cat-output { margin-top:12px; height:130px; min-height:95px; resize:vertical; overflow:auto; padding:12px; background:var(--side); border:1px solid var(--edge); border-radius:9px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  #rp-catalog .cat-footer { padding:12px 16px; border-top:1px solid var(--edge); background:var(--side); }
+  #rp-catalog .cat-footer span { flex:1; min-width:160px; }
+  #rp-catalog .cat-lab { border-top:1px solid var(--edge); padding:12px 16px; }
+  #rp-catalog .cat-lab .cat-row { margin-top:12px; }
+  @container catalog-main (min-width:600px) {
+    #rp-catalog .cat-panes { grid-template-columns:205px minmax(0,1fr); }
+    #rp-catalog #cat-guide { border-top:0; border-left:1px solid var(--edge); padding:0 0 0 20px; }
+  }
+  @container catalog-shell (max-width:550px) {
+    #rp-catalog .cat-shell { grid-template-columns:minmax(0,1fr); }
+    #rp-catalog aside { border-right:0; border-bottom:1px solid var(--edge); padding:12px; gap:10px; }
+    #rp-catalog aside nav { display:flex; flex-wrap:wrap; }
+    #rp-catalog .cat-appearance { display:flex; gap:8px; align-items:center; }
+    #rp-catalog main { padding:16px; }
+    #rp-catalog .cat-search { grid-template-columns:minmax(0,1fr); }
+    #rp-catalog dl { grid-template-columns:minmax(0,1fr); gap:4px; }
+    #rp-catalog dd { margin-bottom:8px; }
+  }
+  @media (pointer:coarse) { #rp-catalog button,#rp-catalog select,#rp-catalog input,#rp-catalog summary { min-height:44px; } #rp-catalog input,#rp-catalog select { font-size:16px; } }
+</style>
+<section id="rp-catalog" aria-label="rproj Catalog design sample" data-theme="system">
+  <div class="cat-bar"><strong>Catalog</strong> <small>· Soft design proposal · sample data</small></div>
+  <div class="cat-shell">
+    <aside aria-label="Workbench sidebar">
+      <div class="cat-wordmark">rproj</div>
+      <div class="cat-menu-wrap">
+        <button id="cat-switch" type="button" class="cursor-interaction" aria-expanded="false" aria-controls="cat-menu"><i data-lucide="folder-open" aria-hidden="true"></i><span id="cat-active">Skyline</span></button>
+        <div id="cat-menu" class="cat-menu" hidden>
+          <small>Sample recent projects</small>
+          <button id="cat-project-skyline" type="button" class="cursor-interaction" data-project="Skyline">Skyline<small>C:/RobloxProjects/Skyline</small></button>
+          <button id="cat-project-lantern" type="button" class="cursor-interaction" data-project="Lantern">Lantern<small>D:/Team projects/灯台 — Lantern/a deliberately long shared project folder</small></button>
+          <button id="cat-open-folder" type="button" class="cursor-interaction">Open project… (sample)</button>
+          <button id="cat-close-project" type="button" class="cursor-interaction">Close project</button>
+        </div>
+      </div>
+      <nav aria-label="Project sections">
+        <button type="button" id="cat-overview" class="cursor-interaction" data-section="Overview"><i data-lucide="layout-dashboard" aria-hidden="true"></i>Overview</button>
+        <button type="button" id="cat-dependencies" class="cursor-interaction" data-section="Dependencies"><i data-lucide="package" aria-hidden="true"></i>Dependencies</button>
+        <button type="button" id="cat-tools" class="cursor-interaction" data-section="Tools"><i data-lucide="wrench" aria-hidden="true"></i>Tools</button>
+        <button type="button" id="cat-checks" class="cursor-interaction" data-section="Checks"><i data-lucide="flask-conical" aria-hidden="true"></i>Checks</button>
+      </nav>
+      <nav aria-label="App sections">
+        <button type="button" id="cat-library" class="cursor-interaction" aria-current="page"><i data-lucide="library" aria-hidden="true"></i>Catalog</button>
+        <button type="button" disabled aria-describedby="cat-other-flows">Machine Setup…</button>
+        <button type="button" disabled aria-describedby="cat-other-flows">Saved Setups…</button>
+        <button type="button" disabled aria-describedby="cat-other-flows">Project Template…</button>
+        <small id="cat-other-flows">Existing flows; outside this sample.</small>
+      </nav>
+      <div class="cat-appearance"><label for="cat-theme" class="cat-label">Appearance</label><select id="cat-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+    </aside>
+    <main>
+      <section id="cat-browser" class="cat-stack" aria-label="Catalog browser">
+        <header class="cat-stack"><div><h1>Explore the catalog</h1><p class="cat-muted">Packages, tools and the configuration that connects them.</p></div></header>
+        <div class="cat-search">
+          <label for="cat-search"><span class="cat-label">Search the library</span><input id="cat-search" type="search" placeholder="Name, key, description or category" autocomplete="off"></label>
+          <label for="cat-scope"><span class="cat-label">Section</span><select id="cat-scope"><option value="all">All sections</option><option>Packages</option><option>Tools</option><option>Capabilities</option><option>Generated files</option><option>Configurable settings</option><option>Topics</option></select></label>
+        </div>
+        <p id="cat-count" class="cat-muted" role="status">8 sample entries · selected: Scribe</p>
+        <div class="cat-panes">
+          <nav id="cat-results" aria-label="Catalog entries">
+            <button type="button" id="cat-entry-package-scribe" class="cursor-interaction" data-entry="package-scribe" aria-pressed="true"><strong>Scribe</strong><small>Package · Data &amp; profiles</small></button>
+            <button type="button" id="cat-entry-package-profilestore" class="cursor-interaction" data-entry="package-profilestore" aria-pressed="false"><strong>ProfileStore</strong><small>Package · Data &amp; profiles</small></button>
+            <button type="button" id="cat-entry-tool-scribe-studio" class="cursor-interaction" data-entry="tool-scribe-studio" aria-pressed="false"><strong>Scribe Studio</strong><small>Tool · Studio plugin</small></button>
+            <button type="button" id="cat-entry-tool-stylua" class="cursor-interaction" data-entry="tool-stylua" aria-pressed="false"><strong>StyLua</strong><small>Tool · Formatter</small></button>
+            <button type="button" id="cat-entry-capability-format" class="cursor-interaction" data-entry="capability-format" aria-pressed="false"><strong>Formatting</strong><small>Capability · Code quality</small></button>
+            <button type="button" id="cat-entry-file-stylua" class="cursor-interaction" data-entry="file-stylua" aria-pressed="false"><strong>stylua.toml</strong><small>Generated file · Code quality</small></button>
+            <button type="button" id="cat-entry-settings-stylua" class="cursor-interaction" data-entry="settings-stylua" aria-pressed="false"><strong>StyLua</strong><small>Configurable settings · Formatter</small></button>
+            <button type="button" id="cat-entry-topic-ci" class="cursor-interaction" data-entry="topic-ci" aria-pressed="false"><strong>Continuous integration</strong><small>Topic · Quality workflow</small></button>
+          </nav>
+          <article id="cat-guide" aria-label="Selected catalog guide">
+            <div class="cat-row"><button id="cat-back" type="button" class="cursor-interaction" disabled><i data-lucide="arrow-left" aria-hidden="true"></i>Back</button><span id="cat-kind" class="cat-breadcrumb">Packages / Data &amp; profiles</span></div>
+            <div><h2 id="cat-name">Scribe</h2><p id="cat-description">Typed, replicated player data built on ProfileStore, with schemas, migrations and visibility rules.</p></div>
+            <p id="cat-identity" class="cat-muted cat-path">Catalog key: scribe · Wally: ericplane/scribe@2.2.0 · Shared realm</p>
+            <p class="cat-muted">Catalog guidance — not project inspection or installation status.</p>
+            <div id="cat-sections" class="cat-stack">
+              <section class="cat-guide-section"><h3>When to choose it</h3><p>Declare typed, replicated profile schemas.</p></section>
+              <section class="cat-guide-section"><h3>Where the code belongs</h3><p>Shared ModuleScript; a schema declaration only.</p></section>
+              <section class="cat-guide-section"><h3>Before using real data</h3><p>Pass the schema as Template to Scribe.new with your ProfileStoreIndex and ProfileKeyPrefix. Typed accessors need the new Luau type solver; follow the full server lifecycle before storing real data.</p></section>
+            </div>
+            <section id="cat-example-section" class="cat-stack" aria-label="Code example">
+              <div class="cat-row cat-copy"><h3 id="cat-example-label">Schema example · Luau</h3><button id="cat-copy" type="button" class="cursor-interaction"><i data-lucide="copy" aria-hidden="true"></i>Copy example</button></div>
+              <pre><code id="cat-code">local Scribe = require(game:GetService("ReplicatedStorage").packages.scribe)
+return {
+    Coins = Scribe.Number(0),
+    Spawn = Scribe.Vector3(Vector3.zero),
+}</code></pre>
+              <small id="cat-copy-status" role="status"></small>
+            </section>
+            <div id="cat-docs" class="cat-row"><a id="cat-doc-link" href="https://ericplane.github.io/Scribe/" target="_blank" rel="noopener noreferrer">Open documentation ↗</a></div>
+            <section id="cat-related-section" class="cat-guide-section"><h3>Related entries</h3><div id="cat-related" class="cat-row"><button type="button" id="cat-related-package-profilestore" class="cursor-interaction" data-related="package-profilestore">ProfileStore · Package</button><button type="button" id="cat-related-tool-scribe-studio" class="cursor-interaction" data-related="tool-scribe-studio">Scribe Studio · Studio plugin</button></div></section>
+          </article>
+        </div>
+      </section>
+      <section id="cat-workspace" class="cat-stack" aria-label="Sample workspace" hidden>
+        <header><h1 id="cat-workspace-name">Skyline</h1><p id="cat-workspace-path" class="cat-muted cat-path">C:/RobloxProjects/Skyline</p></header>
+        <h2 id="cat-workspace-section">Overview</h2>
+        <div id="cat-workspace-body" class="cat-stack"></div>
+      </section>
+    </main>
+  </div>
+  <details id="cat-activity"><summary>Activity · Skyline / Checks · Succeeded (sample)</summary><div class="cat-stack"><label for="cat-output-search"><span class="cat-label">Search output</span><input type="search" id="cat-output-search" placeholder="Filter retained output"></label><div id="cat-output" class="cat-output" aria-label="Retained Activity output">Skyline / Checks: Starting configured checks
+Skyline / Checks: All sample checks passed</div></div></details>
+  <div class="cat-footer cat-row"><span id="cat-watch"><strong>Watching · Skyline</strong><small class="cat-path"> · C:/RobloxProjects/Skyline</small></span><button type="button" id="cat-watch-output" class="cursor-interaction">Watch output</button><button type="button" id="cat-stop" class="cursor-interaction">Stop (sample)</button></div>
+  <details class="cat-lab"><summary>Design sample</summary><p class="cat-muted">Local fixtures; no project reads, installs or tool execution. Only documentation links and Copy example leave the sample.</p><div class="cat-row"><button id="cat-no-project" type="button" class="cursor-interaction">Try without a project</button><button id="cat-missing" type="button" class="cursor-interaction">Try unavailable guide</button></div><p id="cat-drafts" class="cat-muted">Retained samples: New Project / Draft example; composition / Skyline; Upgrade / Skyline; settings / Lantern; Machine Setup; Saved Setup / Minimal; Project Template.</p></details>
+  <p id="cat-notice" role="status" class="cat-muted cat-footer"></p>
+</section>
+<script>
+(() => {
+  'use strict';
+  const root = document.getElementById('rp-catalog');
+  const el = id => document.getElementById('cat-' + id);
+  const entries = [
+    {id:'package-scribe', key:'scribe', name:'Scribe', section:'Packages', kind:'Package', category:'Data & profiles',
+      description:'Typed, replicated player data built on ProfileStore, with schemas, migrations and visibility rules.',
+      identity:'Wally: ericplane/scribe@2.2.0 · Shared realm', docs:'https://ericplane.github.io/Scribe/',
+      sections:[['When to choose it','Declare typed, replicated profile schemas.'],['Where the code belongs','Shared ModuleScript; a schema declaration only.'],['Before using real data','Pass the schema as Template to Scribe.new with your ProfileStoreIndex and ProfileKeyPrefix. Typed accessors need the new Luau type solver; follow the full server lifecycle before storing real data.']],
+      example:el('code').textContent, exampleLabel:'Schema example · Luau', related:['package-profilestore','tool-scribe-studio']},
+    {id:'package-profilestore', key:'profilestore', name:'ProfileStore', section:'Packages', kind:'Package', category:'Data & profiles',
+      description:'Persist player profiles with session locking.', identity:'Wally: lm-loleris/profilestore@1.0.3 · Server realm', docs:'https://madstudioroblox.github.io/ProfileStore/',
+      sections:[['When to choose it','Manage server-owned player profiles without adopting Scribe’s typed replication layer.'],['Where the code belongs','Server Script only.'],['Before using real data','Store creation is not a complete player lifecycle. Handle StartSessionAsync failure, reconciliation, PlayerRemoving, and EndSession. Never expose profile data through shared storage unintentionally.']],
+      example:'local ProfileStore = require(game:GetService("ServerScriptService").serverPackages.profilestore)\nlocal store = ProfileStore.New("ExampleProfiles", { Coins = 0 })\nprint(store.Name)', exampleLabel:'Store declaration · Luau', related:['package-scribe']},
+    {id:'tool-scribe-studio', key:'scribe-studio', name:'Scribe Studio', section:'Tools', kind:'Studio plugin', category:'Studio plugin',
+      description:'Inspect Scribe sessions, data changes and diagnostics in a Roblox Studio dock.', identity:'Provider: ericplane/Scribe · Manual install', docs:'https://scribe.ericplane.dev/studio-plugin/',
+      sections:[['When to use it','During Studio playtests of a game that uses Scribe. Open the plugin from Studio’s Plugins tab, enable StudioHook = true in your game’s Scribe options, then press Play or Run.'],['Installation boundary','Selecting this plugin in Machine Setup records a manual install step. rproj cannot detect its installation and does not add the Scribe library to your project.'],['Read and write access','The plugin starts read-only. Writes require its per-session Enable writes setting. Production profile editing affects real player data.']],
+      store:'https://create.roblox.com/store/asset/113609038046646/Scribe-Studio', related:['package-scribe','package-profilestore']},
+    {id:'tool-stylua', key:'stylua', name:'StyLua', section:'Tools', kind:'Tool', category:'Formatter',
+      description:'A deterministic formatter for Lua and Luau source.', identity:'Provider: JohnnyMorganz/StyLua · Rokit tool', docs:'https://github.com/JohnnyMorganz/StyLua',
+      sections:[['When to use it','Keep source formatting consistent locally and check it in CI.'],['Usage','stylua src applies formatting. stylua --check src reports differences without rewriting source.'],['Project configuration','The formatter reads stylua.toml. A catalog entry is not evidence that the executable is installed or that a project has pinned it.']], related:['settings-stylua','file-stylua','capability-format','topic-ci']},
+    {id:'capability-format', key:'format', name:'Formatting', section:'Capabilities', kind:'Capability', category:'Code quality',
+      description:'One consistent code style, applied automatically.', identity:'Implementation: StyLua · Wally or None',
+      sections:[['Requirements','No other capability is required. Choosing it derives the StyLua tool; browsing this guide changes no selections.'],['Generated files','stylua.toml configures formatting. .gitattributes keeps Git line endings consistent with formatting checks.'],['Where to choose it','Use New Project or Edit packages & capabilities… in the workbench. Installation and changes require their existing reviews.']], related:['tool-stylua','file-stylua','settings-stylua']},
+    {id:'file-stylua', key:'stylua.toml', name:'stylua.toml', section:'Generated files', kind:'Generated file', category:'Code quality',
+      description:'Project-local StyLua formatting configuration.', identity:'Destination: <project>/stylua.toml',
+      sections:[['Why it is generated','The Formatting capability selects StyLua and derives its formatting configuration.'],['Customization','Configure tool settings… edits supported values through Settings → Review. Configuration edits do not install or enable StyLua.'],['File presence','This guide explains the file’s role. Inspect the selected project to learn whether its file exists.']], related:['capability-format','settings-stylua','tool-stylua']},
+    {id:'settings-stylua', key:'stylua', name:'StyLua', section:'Configurable settings', kind:'Configurable settings', category:'Formatter',
+      description:'Settings that decide how your Luau is reshaped on format or save.', identity:'Destination: <project>/stylua.toml', docs:'https://github.com/JohnnyMorganz/StyLua#options',
+      sections:[['syntax','Suggested: Luau. Catalog choices: Luau, All, Lua51 and Lua54. Roblox type annotations require the Luau dialect.'],['column_width','Suggested: 120. The line length StyLua aims for before wrapping; a guide, not a hard cap.'],['indent_type / indent_width','Suggested: Tabs / 4. Spaces uses indent_width spaces per level. With Tabs, width affects line-width estimates.'],['Editing boundary','These are catalog suggestions, not values read from a project. Use Configure tool settings… for current values, explicit edits and reviewed saving.']], related:['tool-stylua','file-stylua']},
+    {id:'topic-ci', key:'ci', name:'Continuous integration', section:'Topics', kind:'Topic', category:'Quality workflow',
+      description:'Run the project’s quality gate on GitHub Actions for pushes and pull requests.', identity:'Related file: .github/workflows/ci.yml',
+      sections:[['How it fits together','The generated workflow installs the tool versions pinned in rokit.toml and runs the configured quality gate. Formatting uses --check rather than rewriting code.'],['Locally','lute run check runs the configured checks before pushing. External prerequisites and the project’s configuration still matter.'],['Scope','CI is a workflow explanation, not a package to install. Browse related entries or use the existing capability editor to review a project change.']], related:['tool-stylua','capability-format']}
+  ];
+  const byId = new Map(entries.map(entry => [entry.id,entry]));
+  const state = {query:'', scope:'all', selected:'package-scribe', history:[], view:'Catalog', project:'Skyline', theme:'system', copyRevision:0, catalogScroll:0};
+  const paths = {Skyline:'C:/RobloxProjects/Skyline', Lantern:'D:/Team projects/灯台 — Lantern/a deliberately long shared project folder'};
+  const output = ['Skyline / Checks: Starting configured checks','Skyline / Checks: All sample checks passed'];
+  let watch = 'Watching', watchRevision = 0;
+  const button = (id,text) => { const b=document.createElement('button'); b.type='button'; b.className='cursor-interaction'; b.id='cat-'+id; b.textContent=text; return b; };
+  function save() {
+    try { Promise.resolve(window.openai?.setWidgetState?.({modelContent:{proposal:'Catalog',entry:state.selected,scope:state.scope}, privateContent:{catalogTheme:state.theme}})).catch(()=>{}); } catch (_) { /* Optional host helpers never own the UI. */ }
+  }
+  function restore(snapshot) {
+    const theme=snapshot?.privateContent?.catalogTheme;
+    if (['system','light','dark'].includes(theme)) { state.theme=theme; root.dataset.theme=theme; el('theme').value=theme; }
+  }
+  function icons() { try { globalThis.lucide?.createIcons({attrs:{width:16,height:16}}); } catch (_) {} }
+  function matching() {
+    const q=state.query.trim().toLocaleLowerCase();
+    return entries.filter(e => (state.scope==='all'||e.section===state.scope) && [e.name,e.key,e.description,e.category,e.section,e.kind].join(' ').toLocaleLowerCase().includes(q));
+  }
+  function renderList() {
+    const rows=matching(); el('results').replaceChildren();
+    for (const entry of rows) {
+      const b=button('entry-'+entry.id,''); b.dataset.entry=entry.id; b.setAttribute('aria-pressed',String(entry.id===state.selected));
+      const title=document.createElement('strong'), meta=document.createElement('small'); title.textContent=entry.name; meta.textContent=entry.kind+' · '+entry.category;
+      b.append(title,meta); el('results').append(b);
+    }
+    if (!rows.length) { const note=document.createElement('p'); note.textContent='No entries match. Change the search or section; your selected guide is retained.'; el('results').append(note); }
+    const selected=byId.get(state.selected);
+    el('count').textContent=rows.length+' sample '+(rows.length===1?'entry':'entries')+' · selected: '+(selected?.name??'Unavailable guide')+(selected&&!rows.includes(selected)?' (outside these results)':'');
+  }
+  function renderGuide() {
+    const entry=byId.get(state.selected); state.copyRevision++; el('copy-status').textContent='';
+    el('back').disabled=state.history.length===0; el('sections').replaceChildren(); el('docs').replaceChildren(); el('related').replaceChildren();
+    el('example-section').hidden=!entry?.example; el('related-section').hidden=!entry?.related?.length;
+    if (!entry) { el('name').textContent='Guide unavailable'; el('kind').textContent='Catalog'; el('description').textContent='This sample has no guide for the requested entry. Use Back or choose a known entry. Existing dependency inspection remains available.'; el('identity').textContent='No guidance or documentation link has been guessed.'; return; }
+    el('name').textContent=entry.name; el('kind').textContent=entry.section+' / '+entry.category;
+    el('description').textContent=entry.description; el('identity').textContent='Catalog key: '+entry.key+' · '+entry.identity;
+    for (const [heading,text] of entry.sections) {
+      const section=document.createElement('section'), h=document.createElement('h3'), p=document.createElement('p'); section.className='cat-guide-section'; h.textContent=heading; p.textContent=text; section.append(h,p); el('sections').append(section);
+    }
+    if (entry.example) { el('example-label').textContent=entry.exampleLabel; el('code').textContent=entry.example; }
+    for (const [href,label,id] of [[entry.docs,'Open documentation ↗','doc-link'],[entry.store,'Creator Store ↗','store-link']]) {
+      if (!href) continue;
+      const a=document.createElement('a'); a.id='cat-'+id; a.href=href; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=label; el('docs').append(a);
+    }
+    for (const id of entry.related) { const related=byId.get(id); const b=button('related-'+id,related.name+' · '+related.kind); b.dataset.related=id; el('related').append(b); }
+  }
+  function select(id,trigger) {
+    if (id===state.selected) return;
+    state.history.push({selected:state.selected,query:state.query,scope:state.scope,focus:trigger,scroll:window.scrollY});
+    if(state.history.length>30) state.history.shift();
+    state.selected=id; renderList(); renderGuide();
+    const target=el(trigger)||el('back'); target.focus({preventScroll:true}); save();
+  }
+  function catalog() { const returning=state.view!=='Catalog';state.view='Catalog';renderView();el('search').focus({preventScroll:true});if(returning)window.scrollTo({top:state.catalogScroll,behavior:'instant'});save(); }
+  function closeMenu() { el('menu').hidden=true; el('switch').setAttribute('aria-expanded','false'); el('switch').focus({preventScroll:true}); }
+  function renderView() {
+    el('browser').hidden=state.view!=='Catalog'; el('workspace').hidden=state.view==='Catalog';
+    root.querySelectorAll('[data-section]').forEach(b => { if(b.dataset.section===state.view) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+    if(state.view==='Catalog') el('library').setAttribute('aria-current','page'); else el('library').removeAttribute('aria-current');
+    el('active').textContent=state.project||'No project';
+    if(state.view==='Catalog') return;
+    el('workspace-name').textContent=state.project||'No project open'; el('workspace-path').textContent=paths[state.project]||'Catalog is available without a project.';
+    el('workspace-section').textContent=state.view; const body=el('workspace-body'); body.replaceChildren();
+    if(!state.project) { const p=document.createElement('p'); p.textContent='Choose a recent project from the switcher, or keep exploring the library.'; body.append(p); const b=button('empty-catalog','Explore Catalog'); b.onclick=catalog; body.append(b); return; }
+    if(state.view==='Dependencies') {
+      const p=document.createElement('p'); p.textContent='Sample inspection · '+state.project+' · these facts are separate from catalog guidance.'; body.append(p);
+      const dl=document.createElement('dl');
+      const facts=[['Recorded composition','Scribe'],['Wally declaration','scribe = "ericplane/scribe@2.2.0"'],['Resolved version','Scribe 2.2.0 (sample lockfile)'],['Installed files','Scribe: present (sample)'],['Manual Wally declaration','teamUtility = "example/team-utility@0.1.0"'],['Manual dependency state','Not recorded in rproj.toml; no resolved version; installed files missing.']];
+      for(const [k,v] of facts) { const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=k;dd.textContent=v;dl.append(dt,dd); } body.append(dl);
+      const b=button('view-catalog','View Scribe in Catalog'); b.onclick=()=>{select('package-scribe','view-catalog');catalog();}; body.append(b);
+      const n=document.createElement('p'); n.textContent='teamUtility has no catalog guide. Its declaration and file state stay visible here.'; body.append(n);
+    } else {
+      const p=document.createElement('p'); p.textContent=state.view==='Tools'?'Sample: StyLua pin and executable detection belong to project inspection. Catalog explains the tool independently.':state.view==='Checks'?'Sample checks finished for Skyline. Their output remains in Activity while you browse.':'Browse catalog guides before choosing a package or capability in its existing editor.'; body.append(p);
+      const b=button('workspace-catalog','Explore Catalog'); b.onclick=catalog; body.append(b);
+    }
+  }
+  function renderOutput() { const q=el('output-search').value.toLocaleLowerCase(); const lines=output.filter(line=>line.toLocaleLowerCase().includes(q)); el('output').textContent=lines.length?lines.join('\n'):'No output lines match this search.'; }
+  root.addEventListener('click',event=>{
+    const row=event.target.closest('[data-entry]'); if(row) select(row.dataset.entry,'entry-'+row.dataset.entry);
+    const related=event.target.closest('[data-related]'); if(related) select(related.dataset.related,'related-'+related.dataset.related);
+    const section=event.target.closest('[data-section]'); if(section) {if(state.view==='Catalog')state.catalogScroll=window.scrollY;state.view=section.dataset.section;renderView();save();}
+    const project=event.target.closest('[data-project]'); if(project) {state.project=project.dataset.project;renderView();closeMenu();save();}
+  });
+  el('back').onclick=()=>{ const prior=state.history.pop(); if(!prior)return; Object.assign(state,{selected:prior.selected,query:prior.query,scope:prior.scope}); el('search').value=state.query;el('scope').value=state.scope;renderList();renderGuide(); const origin=el(prior.focus);(origin&&!origin.closest('[hidden]')?origin:el('search')).focus({preventScroll:true}); window.scrollTo({top:prior.scroll,behavior:'instant'});save(); };
+  el('search').oninput=()=>{state.query=el('search').value;renderList();save();};
+  el('scope').onchange=()=>{state.scope=el('scope').value;renderList();save();};
+  el('library').onclick=catalog;
+  el('switch').onclick=()=>{if(!el('menu').hidden){closeMenu();return;}el('menu').hidden=false;el('switch').setAttribute('aria-expanded','true');el('project-skyline').focus();};
+  root.addEventListener('keydown',e=>{if(e.key==='Escape'&&!el('menu').hidden){e.preventDefault();closeMenu();}});
+  document.addEventListener('click',e=>{if(!el('menu').hidden&&!el('menu').contains(e.target)&&!el('switch').contains(e.target))closeMenu();});
+  el('open-folder').onclick=()=>{closeMenu();el('notice').textContent='Folder picker omitted in this read-only sample. Choose a sample recent project; selection has not changed.';};
+  el('close-project').onclick=()=>{state.project=null;renderView();closeMenu();save();};
+  el('no-project').onclick=()=>{state.project=null;catalog();};
+  el('missing').onclick=()=>{catalog();select('unavailable','missing');};
+  el('theme').onchange=()=>{state.theme=el('theme').value;root.dataset.theme=state.theme;save();};
+  el('copy').onclick=async()=>{
+    const text=byId.get(state.selected)?.example;if(!text)return;
+    const revision=++state.copyRevision; el('copy-status').textContent='Copying example…';
+    try { if(!navigator.clipboard?.writeText)throw Error('clipboard unavailable'); await navigator.clipboard.writeText(text);if(revision===state.copyRevision)el('copy-status').textContent='Example copied.'; }
+    catch (_) {if(revision!==state.copyRevision)return;const range=document.createRange();range.selectNodeContents(el('code'));const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);el('copy-status').textContent='Clipboard access is unavailable. The example is selected; copy it with your device’s Copy command.';}
+  };
+  el('output-search').oninput=renderOutput;
+  el('watch-output').onclick=()=>{el('activity').open=true;if(!output.some(line=>line.includes('/ Watch:')))output.push('Skyline / Watch: '+(watch==='Stopped'?'Stopped (sample)':'Sourcemap output (sample)'));renderOutput();};
+  el('stop').onclick=()=>{
+    if(watch!=='Watching')return;const revision=++watchRevision;watch='Stopping';el('stop').disabled=true;el('watch').textContent='Stopping · Skyline (sample acknowledgement pending)';
+    setTimeout(()=>{if(revision!==watchRevision)return;watch='Stopped';el('watch').textContent='Stopped · Skyline (sample)';output.push('Skyline / Watch: Stop acknowledged (sample)');renderOutput();},300);
+  };
+  window.addEventListener('openai:set_globals',e=>{try{restore(e.detail?.globals?.widgetState);}catch(_){}});
+  try { restore(window.openai?.widgetState); } catch (_) {}
+  renderList(); renderGuide(); icons();
+})();
+</script>

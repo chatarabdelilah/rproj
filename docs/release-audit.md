@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## November 7: Catalog browser design
+
+The [separate Catalog proposal](desktop-catalog-browser-design.md) starts with
+Scribe guidance and distinguishes the Scribe Studio plugin, ProfileStore,
+StyLua's tool/settings and project inspection. [Acceptance](desktop-catalog-browser-acceptance.md)
+records 16 passing Node/DOM checks and 18 contrast comparisons, including the
+initial clipboard-harness failure and correction. Rendering is unverified.
+No Rust, worker, preference, project-format or release changes; version 0.22.0
+is unchanged and native previews remain paused.
+
 ## November 1: native Projects browser
 
 Shared discovery PR #145 passed reviewed-head and merged-main CI. Native
