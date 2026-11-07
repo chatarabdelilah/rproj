@@ -4,6 +4,11 @@ Baseline: October 16, 2026, main `9910df1`, published version 0.22.0.
 This inventory distinguishes a working desktop slice from replacement of the
 whole terminal product. Ratatui remains available; direct commands remain permanent.
 
+Catalog row updated November 7, 2026, against main `25c59b2`: its conversation
+proposal is ready for design review; a native browser is not implemented.
+Later dated records below extend the original baseline. Published version
+remains 0.22.0.
+
 ## Inventory
 
 “Present” describes an implemented surface, not complete workflow acceptance.

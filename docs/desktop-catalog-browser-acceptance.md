@@ -41,6 +41,17 @@ realm. Waiting one full microtask turn corrected the harness; the final run
 passes. Direct review also added retained page-position restoration and a
 hidden-origin focus fallback.
 
+The existing Projects prototype suite also passed all 14 tests. All eight earlier
+conversation fragments retained their SHA-256 hashes; the new inline copy and
+tracked source are byte-identical.
+
+Local CodeRabbit 0.7.6 reviewed all seven changed files after the owner
+reauthenticated. Its first attempt failed authentication despite local status
+reporting signed in; that attempt returned no findings. The successful review
+reported one minor parity-date ambiguity, corrected by explicitly dating the
+Catalog row. The small documentation correction was inspected directly rather
+than spending another remote review. No prototype findings were reported.
+
 No supported inline rendering-inspection route was available. Actual browser
 geometry, clipping, keyboard activation, screen-reader behavior, OS clipboard
 integration and external documentation navigation remain unverified. jsdom
