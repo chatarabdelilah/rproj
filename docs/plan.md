@@ -17,6 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 8: Copy Source review design.** The separate Soft
+[Copy Source proposal](desktop-copy-source-design.md) reviews a captured `src`
+snapshot before requesting a simulated copy. Partial copies explicitly list
+skips; Refresh is explicit and Watch stays independent. [Acceptance](desktop-copy-source-acceptance.md)
+separates sample checks from unverified rendering. Native implementation awaits
+owner design review; previews remain paused and version 0.22.0 is unchanged.
+
 **November 8: native Catalog implementation.** Shared bundled guidance merged
 through #148 with reviewed-head/main CI passing. The Soft native browser now
 uses all six core inventories without a worker query; headless checks cover

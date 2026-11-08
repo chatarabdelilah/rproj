@@ -1,5 +1,13 @@
 # Release-Hardening Audit
 
+## November 8: Copy Source design
+
+The [Copy Source proposal](desktop-copy-source-design.md) uses sample source
+fixtures and a simulated clipboard only. [Acceptance](desktop-copy-source-acceptance.md)
+records exact payload, partial-copy, retained-snapshot, stale-result and focus
+checks. No Rust, protocol, configuration or release changes. Rendering and
+real clipboard acceptance remain unverified; native previews remain paused.
+
 ## November 8: native Catalog browser
 
 Shared guidance PR #148 merged at `54a65f3`; reviewed-head and merged-main CI
