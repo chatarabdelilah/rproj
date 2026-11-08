@@ -1,6 +1,7 @@
 mod composition;
 mod creation;
 mod diff_view;
+mod library;
 mod operation;
 mod project_template;
 mod projects;
@@ -227,10 +228,7 @@ enum Event {
         u64,
         Result<rproj_core::creation::composition_protocol::CompositionOutcome, String>,
     ),
-    Connected(
-        Result<WorkbenchClient, String>,
-        Option<Result<Vec<CatalogEntry>, String>>,
-    ),
+    Connected(Result<WorkbenchClient, String>),
     Preferences(Result<(DesktopState, PathBuf), String>),
     PreferenceError(String),
     Inspected(u64, Box<Result<(ProjectSnapshot, String), String>>),
@@ -257,12 +255,7 @@ fn connection_event(worker: anyhow::Result<PathBuf>) -> Event {
     let client = worker
         .and_then(WorkbenchClient::new)
         .map_err(|error| format!("{error:#}"));
-    let catalog = client.as_ref().ok().map(|client| {
-        client
-            .catalog()
-            .map_err(|error| format!("Could not load package catalog: {error:#}"))
-    });
-    Event::Connected(client, catalog)
+    Event::Connected(client)
 }
 
 #[derive(Default)]
@@ -399,6 +392,7 @@ impl Activity {
 }
 
 pub struct Workbench {
+    library: library::Library,
     browser: projects::Browser,
     template: project_template::Session,
     template_inputs: project_template::Inputs,
@@ -543,7 +537,13 @@ impl Workbench {
                 }
             }
         });
+        let bundled_catalog = rproj_core::catalog::browser::package_entries();
+        let catalog_error = bundled_catalog
+            .as_ref()
+            .err()
+            .map(|e| format!("Bundled package guidance is unavailable: {e:#}"));
         let mut view = Self {
+            library: library::Library::new(window, cx),
             settings: settings::SettingsSession::default(),
             browser: projects::Browser::new(window, cx),
             template: project_template::Session::default(),
@@ -589,8 +589,8 @@ impl Workbench {
             preferences_error: None,
             client: None,
             client_error: Some("Connecting to the bundled CLI…".into()),
-            catalog: Vec::new(),
-            catalog_error: None,
+            catalog: bundled_catalog.unwrap_or_default(),
+            catalog_error,
             watch: None,
             querying_status: false,
             watch_log_request: WatchLogRequest::default(),
@@ -848,18 +848,10 @@ impl Workbench {
                     self.activity.append_untagged(&error);
                     self.preferences_error = Some(error);
                 }
-                Event::Connected(client, catalog) => {
+                Event::Connected(client) => {
                     self.watch_log_request.invalidate();
                     self.watch_generation = self.watch_generation.wrapping_add(1);
                     self.pending_switch = None;
-                    match catalog {
-                        Some(Ok(catalog)) => {
-                            self.catalog = catalog;
-                            self.catalog_error = None;
-                        }
-                        Some(Err(error)) => self.catalog_error = Some(error),
-                        None => {}
-                    }
                     match client {
                         Ok(client) => {
                             self.client = Some(client);
@@ -1377,7 +1369,7 @@ mod tests {
 
                 let second = this.watch_log_request.begin().unwrap();
                 this.sender
-                    .send(Event::Connected(Err("Worker replaced".into()), None))
+                    .send(Event::Connected(Err("Worker replaced".into())))
                     .unwrap();
                 this.sender
                     .send(Event::WatchLogs(second, Err("old worker error".into())))
@@ -1425,7 +1417,7 @@ mod tests {
     }
 
     #[gpui_kit::test]
-    fn catalog_failure_remains_visible_after_connection_and_inspection(cx: &mut TestAppContext) {
+    fn bundled_catalog_survives_invalid_worker_responses_and_inspection(cx: &mut TestAppContext) {
         let fixture = tempfile::tempdir().unwrap();
         let source = fixture.path().join("worker.rs");
         std::fs::write(
@@ -1457,7 +1449,7 @@ mod tests {
             String::from_utf8_lossy(&compiled.stderr)
         );
         let connected = connection_event(Ok(worker));
-        assert!(matches!(&connected, Event::Connected(Ok(_), Some(Err(_)))));
+        assert!(matches!(&connected, Event::Connected(Ok(_))));
         std::fs::write(
             fixture.path().join("default.project.json"),
             r#"{"name":"Catalog fixture","tree":{"$className":"DataModel"}}"#,
@@ -1482,14 +1474,14 @@ mod tests {
                 this.drain(cx);
                 assert!(
                     this.client.is_some(),
-                    "catalog failure must keep the matching worker"
+                    "connection does not request catalog guidance"
                 );
                 assert!(this.client_error.is_none());
-                let error = this
-                    .catalog_error
-                    .clone()
-                    .expect("catalog failure is visible");
-                assert!(error.contains("invalid package catalog"));
+                assert!(this.catalog_error.is_none());
+                assert_eq!(
+                    this.catalog,
+                    rproj_core::catalog::browser::package_entries().unwrap()
+                );
                 this.sender
                     .send(Event::Inspected(0, Box::new(Ok((snapshot, fingerprint)))))
                     .unwrap();
@@ -1505,14 +1497,13 @@ mod tests {
                 assert!(this.snapshot.is_some());
                 assert!(this.error.is_none());
                 assert!(this.client_error.is_none());
-                assert_eq!(this.catalog_error.as_deref(), Some(error.as_str()));
+                assert!(this.catalog_error.is_none());
+                assert!(!this.catalog.is_empty());
             });
         });
         cx.update_window(handle, |_, window, cx| {
             window.render_frame(cx);
-            let alert = window.find("catalog-error");
-            assert!(alert.visible());
-            assert!(alert.label().unwrap().contains("invalid package catalog"));
+            assert!(window.try_find("catalog-error").is_none());
         })
         .unwrap();
     }

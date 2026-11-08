@@ -44,6 +44,7 @@ impl Workbench {
         self.saved.visible = false;
         self.upgrade.visible = false;
         self.browser.leave();
+        self.library.visible = false;
         self.template.visible = true;
         self.template_inputs.focus.focus(w, cx);
         if self.template.draft.is_none() && self.template.pending.is_none() {

@@ -4,8 +4,8 @@ Baseline: October 16, 2026, main `9910df1`, published version 0.22.0.
 This inventory distinguishes a working desktop slice from replacement of the
 whole terminal product. Ratatui remains available; direct commands remain permanent.
 
-Catalog row updated November 7, 2026, against main `b7d997b`: its conversation
-proposal is approved; shared guidance is in progress before native controls.
+Catalog row updated November 8, 2026, against main `54a65f3`: shared guidance
+is merged; native controls have headless evidence and await delivery checks.
 Later dated records below extend the original baseline. Published version
 remains 0.22.0.
 
@@ -36,7 +36,7 @@ functional observations do not establish memory stability.
 | Checks | Existing configured Lute check script; not a new public `rproj check` command. | Present: availability reasons, background execution, filtering and cancellation. | Worker Check operation; preserve project-owned script and external tools. |
 | `rproj test [args...]` / Test | Selected runner/backend, dependency restoration, prerequisite handling and CLI argument passthrough. | Partial: existing default Test action; no arbitrary argument editor. | Worker Test operation. Real Roblox/cloud prerequisite acceptance is separate. |
 | `rproj copy` / Copy Source | Copy src files with relative-path headers. | Missing. | Existing explicit-path source collection; platform clipboard boundary. |
-| `rproj info [key]` / Catalog | Full package/tool/capability/file/settings/topic catalog and explanations. | Partial: known dependency details. Approved [Soft proposal](desktop-catalog-browser-design.md); shared bundled guides precede native controls. | [Implementation evidence](desktop-catalog-native.md) records exact terminal/worker fixtures. Sample and real-window acceptance remain separate. |
+| `rproj info [key]` / Catalog | Full package/tool/capability/file/settings/topic catalog and explanations. | Native Soft browser: six searchable bundled inventories, typed guides, related Back, canonical dependency links, selectable examples and explicit documentation/copy actions; no worker required. | [Implementation evidence](desktop-catalog-native.md) records exact terminal/worker fixtures and headless navigation/ownership checks. Real-window, clipboard and browser acceptance remain unverified. |
 | Saved Setups | Browse/edit/rename/duplicate/delete with no-clobber and stale-source checks; creation can load/save a composition. | Native Soft manager implemented for automated validation: review-first editing, byte-preserving management, explicit New Project handoff, captured ownership and noncancellable close-after-operation. | [Implementation](desktop-saved-setups-native.md) records shared/worker delivery and native headless evidence. Unknown metadata is preserved; unknown choices/exclusions block reuse. Real-window acceptance remains paused. Earlier simulated [design acceptance](desktop-saved-setups-acceptance.md) is separate. |
 
 ## Evidence and limits

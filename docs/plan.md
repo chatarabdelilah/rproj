@@ -17,9 +17,10 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**November 7: native Catalog implementation.** The owner approved the Soft
-design and two sequential PRs. Shared bundled guidance is being extracted with
-exact terminal/worker compatibility fixtures; native controls follow its review.
+**November 8: native Catalog implementation.** Shared bundled guidance merged
+through #148 with reviewed-head/main CI passing. The Soft native browser now
+uses all six core inventories without a worker query; headless checks cover
+typed identity, search, related Back, dependency links and retained ownership.
 See the [implementation record](desktop-catalog-native.md). No native previews.
 
 **November 7: Catalog browser design.** The separate Soft [Catalog proposal](desktop-catalog-browser-design.md)
