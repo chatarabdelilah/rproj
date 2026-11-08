@@ -45,8 +45,57 @@ After the sample correction, the CLI unit rerun had 541 passes and one timeout
 in the unchanged terminal JSON-paste fixture. Its exact isolated rerun passed
 without code changes. The Catalog compatibility test and all-feature core
 suite then passed. The original whole-suite pass and this retry remain separate
-evidence. Actual reviewed-head and merged-main CI identities are recorded on
-the delivery PR after those runs complete. Native controls remain the second PR.
+evidence. Shared delivery CI is recorded below; the following section covers
+the second PR's native controls.
+
+Shared guidance merged in [PR #148](https://github.com/chatarabdelilah/rproj/pull/148)
+at `54a65f3`. Reviewed head `f42f600` (CI `42416878677`) and merged main (CI
+`42447597395`) passed all seven executed jobs on their first attempts. Their
+trees match; the merged local/remote branch was removed. Final corrected core/CLI
+archives also verified successfully.
+
+### Native controls (November 8)
+
+The app-level Catalog reads all six inventories directly from core. Startup
+connection no longer requests the worker's package catalog; existing creation,
+composition, saved-setup and dependency details use the same bundled projection.
+Recognized dependency links match canonical Wally identities, never aliases.
+
+The initial guide is Scribe. Search defaults to all sections; kind plus key
+distinguishes overlapping names. Filters keep the selected guide, explaining
+when it is outside the results. A virtualized list and complete selectable
+guide use adjacent panes at 600 logical pixels of main-content width and stack
+below. Examples wrap and Copy example submits their exact text, reporting only
+Copy requested. Documentation uses the platform URL boundary.
+
+Session state retains query, scope, selection, pane/page offsets and at most 30
+Back bookmarks. Related-entry Back restores its originating control's focus.
+Sidebar navigation retains the Catalog. Recent-project selection and closure
+keep it visible; explicit Projects Open returns to Overview. Existing drafts,
+operation ownership, Watch, output filtering and Activity height remain separate.
+Catalog adds no operation, preference or dirty-close state.
+
+The full headless desktop suite passed 151 tests, including eight Catalog tests
+and extended Projects-open coverage. Test-platform clipboard and browser checks
+verify exact requests; they do not establish real OS integration. Initial test
+builds exposed a wildcard test-macro collision and fixture API mistakes. The
+first interaction run had two failures: its Signal sample was not actually in
+the catalog, and deferred Back restoration was not driven by the headless draw
+route. The canonical fixture now uses Scribe; restoration is synchronous with
+retained session handles, eliminating a delayed focus/scroll overwrite. Eight
+targeted tests then passed. Two redundant test conversions found by Clippy were
+removed. The final eight-test Catalog rerun includes Light/Dark headless pane
+geometry at 800×580 and 1120×780. Desktop Clippy and formatting passed. Shared
+Catalog tests and the exact CLI/worker compatibility regression passed again.
+
+The portable archive build, static-runtime checks, matching-CLI self-check,
+version and read-only inspection smoke checks passed. It preserved notices for
+590 dependency packages; the existing completeness limitation for three legacy
+archives remains recorded in THIRD-PARTY.md. No packaging command opened a GUI.
+Local CodeRabbit 0.7.6 reviewed all 18 changed files and found no code issues.
+Its one minor finding identified stale delivery wording above; that documentation
+correction was inspected directly. Actual reviewed-head/merged-main CI identities
+are recorded on the delivery PR once complete.
 
 Native previews, real-window acceptance and native memory stability remain
 paused/unverified. No version bump or publication; published version is 0.22.0.

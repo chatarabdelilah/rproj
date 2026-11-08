@@ -97,6 +97,7 @@ fn preview_and_fresh_open_keep_watch_drafts_activity_and_the_original_operation(
     cx.update(|cx| {
         view.update(cx, |this, cx| {
             this.section = Section::Tools;
+            this.library.visible = true;
             this.project = Some(active.clone());
             this.watch = Some(WatchStatus {
                 supported: true,
@@ -160,6 +161,10 @@ fn preview_and_fresh_open_keep_watch_drafts_activity_and_the_original_operation(
     cx.update(|cx| {
         let this = view.read(cx);
         assert!(this.section == Section::Overview);
+        assert!(
+            !this.library.visible,
+            "Explicit Projects Open returns to Overview"
+        );
         assert_eq!(this.project.as_ref(), Some(&relay));
         assert_eq!(this.snapshot.as_ref().unwrap().root, relay);
         assert_eq!(this.preferences.recent_projects.first(), Some(&relay));

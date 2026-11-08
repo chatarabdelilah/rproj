@@ -212,11 +212,13 @@ impl Workbench {
                                         && !self.settings.visible
                                         && !self.setup.visible
                                         && !self.browser.visible
+                                        && !self.library.visible
                                         && !self.template.visible
                                         && !self.saved.visible,
                                 )
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.browser.leave();
+                                    this.library.visible = false;
                                     this.section = section;
                                     this.template.visible = false;
                                     this.saved.visible = false;
@@ -231,7 +233,8 @@ impl Workbench {
                     )
                     .child(self.setup_entry("machine-setup", cx))
                     .child(self.saved_entry(cx))
-                    .child(self.template_entry(cx)),
+                    .child(self.template_entry(cx))
+                    .child(self.catalog_entry(cx)),
             )
             .child(
                 div()
@@ -462,7 +465,10 @@ impl Workbench {
             .child(format!("Resolved: {resolved} · {resolution}"))
             .child(presence)
             .when_some(catalog, |view, entry| {
-                view.child(entry.description.clone()).child(entry.when_useful.clone())
+                let id = self.catalog_package(package).expect("recognized canonical package");
+                view.child(Button::new("view-in-catalog").label("View in Catalog")
+                    .on_click(cx.listener(move |this, _, window, cx| this.show_catalog(Some(id.clone()), window, cx))))
+                    .child(entry.description.clone()).child(entry.when_useful.clone())
                     .child(entry.context.clone()).child(entry.caveats.clone())
                     .child(gpui_kit::base::Link::new("package-documentation").href(entry.docs_url.clone()).text_color(cx.theme().link).child("Documentation ↗"))
                     .child(div().text_sm().child("Example uses the catalog's default alias; adapt it to your project's alias."))
@@ -752,6 +758,8 @@ impl Render for Workbench {
         }
         let title = if self.browser.visible {
             "Projects".into()
+        } else if self.library.visible {
+            "Catalog".into()
         } else if self.template.visible {
             "Project Template".into()
         } else if self.saved.visible {
@@ -778,6 +786,8 @@ impl Render for Workbench {
         };
         let content = if self.browser.visible {
             self.render_projects(window, cx)
+        } else if self.library.visible {
+            self.render_catalog(window, cx)
         } else if self.template.visible {
             self.render_template(window, cx)
         } else if self.saved.visible {
@@ -831,6 +841,7 @@ impl Render for Workbench {
             && !self.composition.visible
             && !self.setup.visible
             && !self.browser.visible
+            && !self.library.visible
             && !self.template.visible
             && !self.saved.visible
             && !self.creation.visible
@@ -855,6 +866,7 @@ impl Render for Workbench {
             && !self.settings.visible
             && !self.setup.visible
             && !self.browser.visible
+            && !self.library.visible
             && !self.template.visible
             && !self.saved.visible
             && !self.creation.visible
@@ -873,6 +885,7 @@ impl Render for Workbench {
             content
         };
         let content = if self.browser.visible
+            || self.library.visible
             || self.template.visible
             || self.saved.visible
             || self.setup.visible
@@ -976,6 +989,7 @@ impl Render for Workbench {
                                                     .label("Refresh")
                                                     .disabled(
                                                         self.browser.visible
+                                                            || self.library.visible
                                                             || self.template.visible
                                                             || self.saved.visible
                                                             || self.setup.visible
@@ -1000,6 +1014,7 @@ impl Render for Workbench {
                                                 && !self.settings.visible
                                                 && !self.setup.visible
                                                 && !self.browser.visible
+                                                && !self.library.visible
                                                 && !self.template.visible
                                                 && !self.saved.visible
                                         }),
@@ -1019,7 +1034,9 @@ impl Render for Workbench {
                                         },
                                     )
                                     .when_some(
-                                        self.error.clone().filter(|_| !self.browser.visible),
+                                        self.error.clone().filter(|_| {
+                                            !self.browser.visible && !self.library.visible
+                                        }),
                                         |view, error| view.child(error),
                                     )
                                     .when_some(

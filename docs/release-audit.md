@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## November 8: native Catalog browser
+
+Shared guidance PR #148 merged at `54a65f3`; reviewed-head and merged-main CI
+passed all seven executed jobs on first attempts. Native controls use bundled
+data independently of worker readiness and preserve captured workflow ownership.
+[Implementation evidence](desktop-catalog-native.md) records headless behavior,
+exact clipboard/URL requests, failures and retries. Native previews, real-window
+and memory-stability acceptance remain paused. Published version stays 0.22.0.
+
 ## November 7: shared Catalog guidance
 
 The approved native Catalog implementation begins with shared structured guides

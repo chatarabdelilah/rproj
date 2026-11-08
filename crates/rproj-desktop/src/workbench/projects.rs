@@ -375,6 +375,7 @@ impl Workbench {
         self.browser.preview_requested = false;
         match result {
             Ok((snapshot, fingerprint)) if snapshot.root == path => {
+                self.library.visible = false;
                 self.enter_project(path.clone());
                 self.section = Section::Overview;
                 self.inspection_fingerprint = fingerprint;
