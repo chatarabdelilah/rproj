@@ -6,6 +6,8 @@ whole terminal product. Ratatui remains available; direct commands remain perman
 
 Catalog row updated November 8, 2026, against main `54a65f3`: shared guidance
 is merged; native controls have headless evidence and await delivery checks.
+Copy Source row updated November 8 against main `64948d9`: design proposal only;
+native implementation remains missing pending owner review.
 Later dated records below extend the original baseline. Published version
 remains 0.22.0.
 
@@ -35,7 +37,7 @@ functional observations do not establish memory stability.
 | `watch start/status/logs/stop` / project Watch actions | One Windows background owner, global status/logs, acknowledged Stop. | Present: global owner, output, Start/Stop and confirmed switching. | Core operation bridge + CLI supervisor. Preserve detached ownership and external Rojo. |
 | Checks | Existing configured Lute check script; not a new public `rproj check` command. | Present: availability reasons, background execution, filtering and cancellation. | Worker Check operation; preserve project-owned script and external tools. |
 | `rproj test [args...]` / Test | Selected runner/backend, dependency restoration, prerequisite handling and CLI argument passthrough. | Partial: existing default Test action; no arbitrary argument editor. | Worker Test operation. Real Roblox/cloud prerequisite acceptance is separate. |
-| `rproj copy` / Copy Source | Copy src files with relative-path headers. | Missing. | Existing explicit-path source collection; platform clipboard boundary. |
+| `rproj copy` / Copy Source | Copy src files with relative-path headers. | Native missing; separate Soft review-first proposal with explicit snapshot refresh and labeled partial copies. | [Design](desktop-copy-source-design.md) and [sample acceptance](desktop-copy-source-acceptance.md). Existing explicit-path source collection and platform clipboard boundary; native planning follows owner approval. |
 | `rproj info [key]` / Catalog | Full package/tool/capability/file/settings/topic catalog and explanations. | Native Soft browser: six searchable bundled inventories, typed guides, related Back, canonical dependency links, selectable examples and explicit documentation/copy actions; no worker required. | [Implementation evidence](desktop-catalog-native.md) records exact terminal/worker fixtures and headless navigation/ownership checks. Real-window, clipboard and browser acceptance remain unverified. |
 | Saved Setups | Browse/edit/rename/duplicate/delete with no-clobber and stale-source checks; creation can load/save a composition. | Native Soft manager implemented for automated validation: review-first editing, byte-preserving management, explicit New Project handoff, captured ownership and noncancellable close-after-operation. | [Implementation](desktop-saved-setups-native.md) records shared/worker delivery and native headless evidence. Unknown metadata is preserved; unknown choices/exclusions block reuse. Real-window acceptance remains paused. Earlier simulated [design acceptance](desktop-saved-setups-acceptance.md) is separate. |
 

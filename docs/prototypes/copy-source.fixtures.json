@@ -1,0 +1,10 @@
+{
+  "authority": "src/commands/copy.rs::run_with",
+  "files": [
+    {"path":"src/server/main.server.luau","content":"print(\"Skyline\")\n"},
+    {"path":"src/shared/notes.txt","content":"Café ☁\r\nsecond line\n"},
+    {"path":"src/shared/empty.luau","content":""}
+  ],
+  "expected": "// --- src/server/main.server.luau --- \nprint(\"Skyline\")\n\n\n// --- src/shared/notes.txt --- \nCafé ☁\r\nsecond line\n\n\n// --- src/shared/empty.luau --- \n\n\n",
+  "controlFile": {"path":"src/shared/雪.txt","content":"tab\there\r\nESC\u001b[31m\n<script>alert(1)</script>\u202eend"}
+}

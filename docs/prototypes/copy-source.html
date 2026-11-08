@@ -1,0 +1,252 @@
+<style>
+  #rp-copy { --surface:light-dark(#fcfbf8,#1e1e1d); --side:light-dark(#f1f0eb,#272725); --text:light-dark(#282925,#efeee8); --quiet:light-dark(#605f58,#bbb9ae); --edge:light-dark(#d8d6ce,#4a4944); --blue:light-dark(#2459b8,#97bcff); --tint:light-dark(#e6eefb,#2d3c52); --error:light-dark(#a12621,#ffb4ab); color:var(--text); background:var(--surface); font:14px/1.55 system-ui,sans-serif; container:copy-shell / inline-size; }
+  #rp-copy[data-theme="light"] { color-scheme:light; }
+  #rp-copy[data-theme="dark"] { color-scheme:dark; }
+  #rp-copy * { box-sizing:border-box; }
+  #rp-copy [hidden] { display:none !important; }
+  #rp-copy h1,#rp-copy h2,#rp-copy h3,#rp-copy p { margin:0; }
+  #rp-copy h1 { font-size:23px; font-weight:600; }
+  #rp-copy h2 { font-size:20px; font-weight:600; }
+  #rp-copy h3 { font-size:15px; font-weight:600; }
+  #rp-copy button,#rp-copy select,#rp-copy input { font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--edge); border-radius:9px; padding:7px 11px; max-width:100%; }
+  #rp-copy button { text-align:left; }
+  #rp-copy button:hover:not(:disabled) { background:var(--side); }
+  #rp-copy button[aria-pressed="true"],#rp-copy button[aria-current="page"] { color:var(--blue); background:var(--tint); }
+  #rp-copy button:disabled { color:var(--quiet); }
+  #rp-copy small,#rp-copy .muted { color:var(--quiet); font-size:12px; }
+  #rp-copy .error { color:var(--error); }
+  #rp-copy .path,#rp-copy pre { overflow-wrap:anywhere; }
+  #rp-copy .row { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+  #rp-copy .stack { display:grid; gap:16px; min-width:0; }
+  #rp-copy .bar { padding:12px 110px 12px 16px; background:var(--side); border-bottom:1px solid var(--edge); }
+  #rp-copy .shell { display:grid; grid-template-columns:178px minmax(0,1fr); }
+  #rp-copy aside { display:flex; flex-direction:column; gap:18px; padding:18px 12px; background:var(--side); border-right:1px solid var(--edge); min-width:0; }
+  #rp-copy aside nav { display:grid; gap:5px; }
+  #rp-copy aside nav button { border-color:transparent; background:transparent; }
+  #rp-copy .appearance { margin-top:auto; }
+  #rp-copy .wordmark { font-size:23px; padding:0 8px; }
+  #rp-copy i { display:inline-block; width:16px; height:16px; margin-right:7px; vertical-align:-2px; }
+  #rp-copy .menu-wrap { position:relative; }
+  #rp-copy #cp-switch { width:100%; }
+  #rp-copy .menu { position:absolute; top:100%; left:0; z-index:4; padding:8px; width:285px; max-width:calc(100cqw - 24px); border:1px solid var(--edge); border-radius:9px; background:var(--surface); box-shadow:0 8px 24px #0002; }
+  #rp-copy .menu button { width:100%; margin:2px 0; }
+  #rp-copy .menu small { display:block; overflow-wrap:anywhere; }
+  #rp-copy main { padding:20px; min-width:0; container:copy-main / inline-size; }
+  #rp-copy .panes { display:grid; gap:20px; grid-template-columns:minmax(0,1fr); align-items:start; }
+  #rp-copy #cp-files { display:grid; gap:8px; }
+  #rp-copy #cp-files button { width:100%; overflow-wrap:anywhere; }
+  #rp-copy .preview { min-width:0; border-top:1px solid var(--edge); padding-top:16px; }
+  #rp-copy pre { margin:0; font:13px/1.6 Consolas,monospace; white-space:pre-wrap; }
+  #rp-copy #cp-text { padding:12px; background:var(--side); border:1px solid var(--edge); border-radius:9px; }
+  #rp-copy .line { display:grid; grid-template-columns:32px minmax(0,1fr); }
+  #rp-copy .number { color:var(--quiet); user-select:none; }
+  #rp-copy .annotation { color:var(--quiet); font-size:12px; }
+  #rp-copy .file-start { color:var(--blue); }
+  #rp-copy #cp-activity,#rp-copy footer,#rp-copy .lab { padding:12px 16px; border-top:1px solid var(--edge); }
+  #rp-copy .output { margin-top:12px; height:130px; min-height:95px; resize:vertical; overflow:auto; padding:12px; background:var(--side); border:1px solid var(--edge); border-radius:9px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  #rp-copy footer { background:var(--side); }
+  #rp-copy footer span { flex:1; min-width:160px; }
+  #rp-copy .lab .row { margin-top:12px; }
+  #rp-copy label { display:grid; gap:5px; }
+  #rp-copy dialog { color:var(--text); background:var(--surface); border:1px solid var(--edge); border-radius:10px; padding:20px; width:450px; max-width:calc(100% - 32px); box-shadow:0 12px 35px #0003; }
+  #rp-copy dialog::backdrop { background:#0005; }
+  #rp-copy dialog .row { margin-top:18px; }
+  #rp-copy #cp-closed { padding:24px; }
+  @container copy-main (min-width:600px) { #rp-copy .panes { grid-template-columns:185px minmax(0,1fr); } #rp-copy .preview { border-top:0; border-left:1px solid var(--edge); padding:0 0 0 20px; } }
+  @container copy-shell (max-width:550px) { #rp-copy .shell { grid-template-columns:minmax(0,1fr); } #rp-copy aside { border-right:0; border-bottom:1px solid var(--edge); } #rp-copy aside nav { grid-template-columns:repeat(2,minmax(0,1fr)); } #rp-copy main { padding:16px; } }
+  @media (pointer:coarse) { #rp-copy button,#rp-copy select,#rp-copy input,#rp-copy summary { min-height:44px; } #rp-copy input { font-size:16px; } }
+</style>
+<section id="rp-copy" aria-label="Copy Source design proposal" data-theme="system">
+  <div class="bar row"><strong>Soft · Copy Source</strong><small>Sample data · simulated actions only</small><button id="cp-close-window" type="button">Close sample window</button></div>
+  <div id="cp-window">
+    <div class="shell">
+      <aside>
+        <div class="wordmark">rproj</div>
+        <div class="menu-wrap">
+          <button id="cp-switch" type="button" aria-expanded="false" aria-controls="cp-menu"><i data-lucide="folder" aria-hidden="true"></i><span id="cp-active">Skyline</span></button>
+          <div id="cp-menu" class="menu" hidden aria-label="Recent sample projects">
+            <button id="cp-project-skyline" type="button">Skyline<small>C:/Samples/Roblox/Skyline</small></button>
+            <button id="cp-project-lantern" type="button">Lantern<small>C:/Samples/Roblox/長い名前/A long project path for narrow window review/Lantern</small></button>
+            <button id="cp-open-project" type="button">Open project…</button>
+            <button id="cp-close-project" type="button">Close project</button>
+          </div>
+        </div>
+        <nav aria-label="Project sections">
+          <button id="cp-overview" type="button"><i data-lucide="layout-dashboard" aria-hidden="true"></i>Overview</button>
+          <button id="cp-dependencies" type="button"><i data-lucide="package" aria-hidden="true"></i>Dependencies</button>
+          <button id="cp-tools" type="button"><i data-lucide="wrench" aria-hidden="true"></i>Tools</button>
+          <button id="cp-checks" type="button"><i data-lucide="flask-conical" aria-hidden="true"></i>Checks</button>
+        </nav>
+        <nav aria-label="App sections"><button id="cp-machine" type="button">Machine Setup…</button><button id="cp-setups" type="button">Saved Setups…</button><button id="cp-template" type="button">Project Template…</button><button id="cp-catalog" type="button">Catalog…</button></nav>
+        <label class="appearance">Appearance<select id="cp-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+      </aside>
+      <main>
+        <div id="cp-page" class="stack" hidden><h1 id="cp-page-title">Overview</h1><p id="cp-page-body"></p><button id="cp-enter" type="button">Copy source…</button></div>
+        <div id="cp-resume-row" class="row" hidden><button id="cp-resume" type="button">Resume Skyline source review</button></div>
+        <section id="cp-review" class="stack" aria-label="Captured source review">
+          <div><small>Read-only source review · src/</small><h1>Copy Source</h1><h2 id="cp-owner">Skyline</h2><p id="cp-path" class="path">C:/Samples/Roblox/Skyline</p></div>
+          <p id="cp-snapshot-label">Captured snapshot 1 · not live. Copy uses the displayed text; Refresh collects newer files.</p>
+          <div class="row"><strong id="cp-count">3 included · 0 skipped</strong><span id="cp-bytes">153 UTF-8 bytes</span></div>
+          <p id="cp-status" role="status">Ready to request a simulated copy.</p>
+          <div id="cp-problem" class="error" role="alert" hidden></div>
+          <div id="cp-skips" class="stack" hidden></div>
+          <div class="row"><button id="cp-copy" type="button"><i data-lucide="copy" aria-hidden="true"></i>Copy source</button><button id="cp-refresh" type="button">Refresh</button></div>
+          <div class="panes">
+            <section class="stack" aria-label="Included files"><h3>Included files</h3><div id="cp-files"><button type="button" id="cp-file-0">src/server/main.server.luau</button><button type="button" id="cp-file-1">src/shared/notes.txt</button><button type="button" id="cp-file-2">src/shared/empty.luau</button></div><small>Navigate the preview. Every included file will be copied.</small></section>
+            <section class="preview stack" aria-label="Combined source preview"><h3>Combined text</h3><small>Line numbers, control escapes and ⟦LF⟧ / ⟦CRLF⟧ annotations are display-only.</small><pre id="cp-text">// --- src/server/main.server.luau ---&#32;
+print("Skyline")
+
+
+// --- src/shared/notes.txt ---&#32;
+Café ☁
+second line
+
+
+// --- src/shared/empty.luau ---&#32;
+
+
+</pre></section>
+          </div>
+        </section>
+      </main>
+    </div>
+    <details id="cp-activity"><summary id="cp-summary">Activity · No operations yet</summary><label>Search output<input id="cp-filter" type="search"></label><button id="cp-clear" type="button">Clear search</button><pre id="cp-output" class="output">No operations yet</pre></details>
+    <footer class="row"><span id="cp-watch">Watching · Skyline · C:/Samples/Roblox/Skyline</span><button id="cp-stop" type="button">Stop</button><button id="cp-watch-output" type="button">Watch output</button></footer>
+    <details class="lab"><summary>Sample scenarios</summary>
+      <div class="row"><label>Next preparation<select id="cp-scenario"><option value="ready">Readable source</option><option value="partial">Some files skipped</option><option value="controls">Unicode & control characters</option><option value="empty">Empty src</option><option value="missing">Missing src</option><option value="not-directory">src is a file</option><option value="unreadable">All files unreadable</option><option value="traversal">Directory traversal failure</option><option value="linked">Linked src refused</option><option value="large">Oversized review refused</option><option value="removed">Captured project removed</option></select></label><button id="cp-load-scenario" type="button">Load fresh sample review</button></div>
+      <div class="row"><button id="cp-source-change" type="button">Change sample source</button><span id="cp-source-status">Sample source unchanged</span></div>
+      <div class="row"><label>Next clipboard request<select id="cp-clipboard-mode"><option value="ok">Accepted request</option><option value="rejected">Rejected request</option><option value="unavailable">Unavailable clipboard</option></select></label></div>
+      <div class="row"><label>Existing close protection<select id="cp-guard"><option value="none">None</option><option value="dirty">Dirty New Project draft</option><option value="operation">Existing operation running</option></select></label></div>
+      <p id="cp-drafts">Independent sample drafts retained: New Project, composition, settings, template, saved setup and machine setup.</p>
+      <p id="cp-sink-status">Simulated clipboard: no request. No OS clipboard access.</p>
+    </details>
+  </div>
+  <div id="cp-closed" class="stack" hidden><h2>Sample window closed</h2><p>Watch and existing drafts remain independent. No automatic copy occurs.</p><button id="cp-reopen" type="button">Reopen sample</button></div>
+  <dialog id="cp-dialog" hidden aria-labelledby="cp-dialog-title" aria-describedby="cp-dialog-body"><h2 id="cp-dialog-title"></h2><p id="cp-dialog-body" class="path"></p><div class="row"><button id="cp-keep" type="button">Keep review</button><button id="cp-confirm" type="button">Replace review</button></div></dialog>
+</section>
+<script>
+(() => {
+  const root=document.getElementById('rp-copy'), el=id=>document.getElementById('cp-'+id);
+  const projects={skyline:{name:'Skyline',path:'C:/Samples/Roblox/Skyline'},lantern:{name:'Lantern',path:'C:/Samples/Roblox/長い名前/A long project path for narrow window review/Lantern'}};
+  const base=[{path:'src/server/main.server.luau',content:'print("Skyline")\n'},{path:'src/shared/notes.txt',content:'Café ☁\r\nsecond line\n'},{path:'src/shared/empty.luau',content:''}];
+  const control={path:'src/shared/雪.txt',content:'tab\there\r\nESC\u001b[31m\n<script>alert(1)<\/script>\u202eend'};
+  const state={active:'skyline',owner:'skyline',snapshot:null,view:'review',epoch:0,request:0,preparing:false,copying:false,closed:false,selected:0,revision:0,serial:1,problem:'',old:false,clipboard:null,logs:[],watch:'skyline',watchStopping:false,dialog:null};
+  const payload=files=>files.map(f=>'// --- '+f.path+' --- \n'+f.content+'\n\n').join('');
+  const bytes=text=>new TextEncoder().encode(text).length;
+  function sample(scenario,owner,revision) {
+    const files=base.map(f=>({...f}));files[0].content='print("'+projects[owner].name+'")\n'+(revision?'-- changed sample '+revision+'\n':'');
+    const skipped=[];
+    if(scenario==='partial') skipped.push({path:'src/private.luau',reason:'Unreadable: access denied'},{path:'src/image.bin',reason:'Not UTF-8 text'},{path:'src/external',reason:'Linked path skipped'});
+    if(scenario==='controls') files.push({...control});
+    if(scenario==='empty') files.length=0;
+    const errors={missing:'No src folder. Nothing to copy.', 'not-directory':'src is not a directory. Choose a project with a src folder.',unreadable:'No readable UTF-8 files. Access to src/private.luau was denied.',traversal:'Could not enumerate src/server. Collection is incomplete; preparation refused.',linked:'Linked src path refused. Use an ordinary project source folder.',large:'Sample size limit exceeded. Review refused before copying; nothing was truncated.',removed:'Captured project is no longer available. Select or restore the project before refreshing.'};
+    if(errors[scenario]) return {error:errors[scenario]};
+    return {files,skipped,text:payload(files),owner,revision,number:state.serial++};
+  }
+  state.snapshot=sample('ready','skyline',0);
+  function log(owner,message,expand=false) {
+    state.logs.push(projects[owner].name+' · '+projects[owner].path+' · '+message);state.logs=state.logs.slice(-60);
+    el('summary').textContent='Activity · '+projects[owner].name+' · '+message;
+    if(expand) el('activity').open=true;
+    output();
+  }
+  function output() {const q=el('filter').value.toLowerCase(),rows=state.logs.filter(s=>s.toLowerCase().includes(q));el('output').textContent=!state.logs.length?'No operations yet':rows.length?rows.join('\n'):'No output matches this search.';}
+  function annotate(text) {return text.replace(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g,c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0'));}
+  let renderedSnapshot;
+  function preview() {
+    const snap=state.snapshot;
+    // Status-only updates must not replace focused file buttons or selected text.
+    if(renderedSnapshot===snap)return;
+    renderedSnapshot=snap;
+    const focused=el('files').contains(document.activeElement)?document.activeElement.id:null;
+    const restoreFocus=()=>{if(focused)(document.getElementById(focused)||el('refresh')).focus();};
+    const pre=el('text');pre.replaceChildren();el('files').replaceChildren();
+    if(!snap) {pre.textContent='No prepared source snapshot.';el('files').textContent='No included files';restoreFocus();return;}
+    let line=1;
+    snap.files.forEach((file,i)=>{
+      const button=document.createElement('button');button.type='button';button.id='cp-file-'+i;button.textContent=file.path;button.setAttribute('aria-pressed',String(state.selected===i));
+      button.onclick=()=>{state.selected=i;for(const b of el('files').children)b.setAttribute('aria-pressed',String(b===button));const target=el('source-'+i);if(target&&target.scrollIntoView)target.scrollIntoView({block:'nearest'});};el('files').append(button);
+      const chunk='// --- '+file.path+' --- \n'+file.content+'\n\n';
+      const lines=chunk.match(/[^\n]*\n|[^\n]+$/g)||[];
+      lines.forEach((raw,j)=>{
+        const row=document.createElement('span');row.className='line';if(j===0){row.id='cp-source-'+i;row.classList.add('file-start');}
+        const number=document.createElement('span');number.className='number';number.textContent=line++;number.setAttribute('aria-hidden','true');
+        const body=document.createElement('span'),ending=raw.endsWith('\r\n')?'CRLF':raw.endsWith('\n')?'LF':'';
+        const content=ending==='CRLF'?raw.slice(0,-2):ending?raw.slice(0,-1):raw;body.append(document.createTextNode(annotate(content)));
+        const note=document.createElement('span');note.className='annotation';note.textContent=ending?' ⟦'+ending+'⟧':'';body.append(note);row.append(number,body);pre.append(row);
+      });
+    });
+    if(!snap.files.length){pre.textContent='No source text to copy.';el('files').textContent='No included files';}
+    restoreFocus();
+  }
+  function render() {
+    el('window').hidden=state.closed;el('closed').hidden=!state.closed;el('close-window').disabled=state.closed;
+    el('active').textContent=state.active?projects[state.active].name:'No project';
+    const reviewing=state.view==='review';el('review').hidden=!reviewing;el('page').hidden=reviewing;el('resume-row').hidden=reviewing;
+    el('resume').textContent='Resume '+projects[state.owner].name+' source review';
+    el('page-title').textContent=state.view;el('page-body').textContent=(state.active?projects[state.active].name+' · '+projects[state.active].path:'No project selected')+' — sample navigation; retained drafts and Watch are unchanged.';
+    el('enter').hidden=state.view!=='Overview';el('enter').disabled=!state.active;
+    for(const name of ['overview','dependencies','tools','checks'])el(name).setAttribute('aria-current',state.view.toLowerCase()===name?'page':'false');
+    el('owner').textContent=projects[state.owner].name;el('path').textContent=projects[state.owner].path;
+    const snap=state.snapshot;el('snapshot-label').textContent=snap?(state.old?'Showing previous snapshot ':'Captured snapshot ')+snap.number+' · not live. Copy uses the displayed text; Refresh collects newer files.':'No captured snapshot. Refresh prepares source for review.';
+    el('count').textContent=snap?snap.files.length+' included · '+snap.skipped.length+' skipped':'0 included';el('bytes').textContent=snap?bytes(snap.text)+' UTF-8 bytes':'';
+    el('copy').textContent=snap&&snap.skipped.length?'Copy included files':'Copy source';el('copy').disabled=state.closed||state.preparing||state.copying||!snap||!snap.files.length;
+    el('refresh').disabled=state.closed||state.preparing;el('review').setAttribute('aria-busy',String(state.preparing));
+    el('problem').hidden=!state.problem;el('problem').textContent=state.problem;
+    el('skips').replaceChildren();el('skips').hidden=!snap||!snap.skipped.length;
+    if(snap&&snap.skipped.length){const h=document.createElement('h3');h.textContent='Partial collection — these paths are not included';el('skips').append(h);for(const skip of snap.skipped){const p=document.createElement('p');p.className='path';p.textContent=skip.path+' · '+skip.reason;el('skips').append(p);}}
+    el('watch').textContent=state.watch?(state.watchStopping?'Stopping':'Watching')+' · '+projects[state.watch].name+' · '+projects[state.watch].path:'Watch · Stopped';el('stop').disabled=!state.watch||state.watchStopping;
+    preview();
+  }
+  function prepare(fresh=false) {
+    const owner=state.owner,scenario=el('scenario').value,revision=state.revision,epoch=++state.epoch;
+    state.preparing=true;state.copying=false;state.problem='';if(fresh)state.snapshot=null;
+    el('status').textContent='Preparing captured source…';log(owner,'Preparing source snapshot',true);render();
+    setTimeout(()=>{if(state.closed||epoch!==state.epoch)return;const next=sample(scenario,owner,revision);state.preparing=false;
+      if(next.error){state.problem=next.error;state.old=!!state.snapshot;el('status').textContent=state.snapshot?'Refresh failed; previous snapshot remains available.':'Preparation failed; Copy unavailable.';log(owner,'Preparation failed: '+next.error,true);}
+      else {state.snapshot=next;state.old=false;state.selected=Math.min(state.selected,Math.max(0,next.files.length-1));el('status').textContent=next.files.length?'Snapshot ready. Review before copying.':'src is empty. Nothing to copy.';log(owner,'Snapshot ready: '+next.files.length+' included, '+next.skipped.length+' skipped, '+bytes(next.text)+' UTF-8 bytes');}
+      render();
+    },450);
+  }
+  function copy() {
+    if(el('copy').disabled)return;
+    const snap=state.snapshot,epoch=state.epoch,request=++state.request,mode=el('clipboard-mode').value;
+    state.copying=true;el('status').textContent='Submitting simulated clipboard request…';log(snap.owner,'Clipboard request pending',true);render();
+    setTimeout(()=>{if(state.closed||epoch!==state.epoch||request!==state.request)return;state.copying=false;
+      if(mode!=='ok'){el('status').textContent=mode==='unavailable'?'Clipboard unavailable. Snapshot retained; try again.':'Clipboard request rejected. Snapshot retained; try again.';log(snap.owner,el('status').textContent,true);}
+      else {state.clipboard=snap.text;el('sink-status').textContent='Simulated clipboard: '+bytes(snap.text)+' UTF-8 bytes requested from '+projects[snap.owner].name+'. No OS clipboard access.';el('status').textContent='Copy requested · '+snap.files.length+' included file(s)'+(snap.skipped.length?' · '+snap.skipped.length+' skipped; only included files requested.':'.');log(snap.owner,'Copy requested: '+snap.files.length+' included, '+snap.skipped.length+' skipped, '+bytes(snap.text)+' UTF-8 bytes');}
+      render();
+    },350);
+  }
+  function menu(open,focus=true) {el('menu').hidden=!open;el('switch').setAttribute('aria-expanded',String(open));if(open)el('project-skyline').focus();else if(focus)el('switch').focus();}
+  function dismiss() {const pending=state.dialog;state.dialog=null;const d=el('dialog');if(d.open&&d.close)try{d.close();}catch{}d.removeAttribute('open');d.hidden=true;if(pending){const origin=document.getElementById(pending.origin);(origin&&!origin.closest('[hidden]')?origin:el('switch')).focus();}}
+  function confirmDialog(title,body,keep,action,run) {state.dialog={run,origin:document.activeElement.id};el('dialog-title').textContent=title;el('dialog-body').textContent=body;el('keep').textContent=keep;el('confirm').textContent=action;el('confirm').hidden=!run;const d=el('dialog');d.hidden=false;if(d.showModal)try{d.showModal();}catch{d.setAttribute('open','');}else d.setAttribute('open','');el('keep').focus();}
+  function enter() {if(!state.active)return;const destination=state.active;const replace=()=>{state.owner=destination;state.selected=0;state.view='review';prepare(true);};
+    if(destination!==state.owner)confirmDialog('Replace source review?', 'Keep '+projects[state.owner].name+' — '+projects[state.owner].path+' — or prepare '+projects[destination].name+' — '+projects[destination].path+'?', 'Keep review','Review '+projects[destination].name,()=>{if(state.active===destination)replace();});else{state.view='review';render();}
+  }
+  function closeWindow() {state.closed=true;++state.epoch;++state.request;state.copying=false;state.preparing=false;el('status').textContent='Snapshot retained. No automatic copy.';menu(false,false);render();el('reopen').focus();}
+  el('switch').onclick=()=>menu(el('menu').hidden);for(const id of Object.keys(projects))el('project-'+id).onclick=()=>{state.active=id;menu(false);render();};
+  el('close-project').onclick=()=>{state.active=null;menu(false);render();};
+  el('open-project').onclick=()=>{menu(false);confirmDialog('Sample folder picker','No folders are read. Cancel keeps the current project.','Cancel',null,null);};
+  for(const name of ['overview','dependencies','tools','checks','machine','setups','template','catalog'])el(name).onclick=()=>{state.view=el(name).textContent.trim();render();};
+  el('enter').onclick=enter;el('resume').onclick=()=>{state.view='review';render();el('refresh').focus();};el('refresh').onclick=()=>prepare();el('copy').onclick=copy;
+  el('load-scenario').onclick=()=>confirmDialog('Replace sample review?', 'Discard only this read-only snapshot and load the selected sample for '+projects[state.owner].name+'.', 'Keep review','Load sample',()=>{state.view='review';prepare(true);});
+  el('source-change').onclick=()=>{state.revision++;el('source-status').textContent='Sample source changed. Displayed snapshot unchanged until Refresh.';};
+  el('keep').onclick=dismiss;el('confirm').onclick=()=>{const run=state.dialog&&state.dialog.run;dismiss();if(run)run();};
+  el('dialog').addEventListener('cancel',e=>{e.preventDefault();dismiss();});
+  root.addEventListener('keydown',e=>{if(e.key==='Escape'){if(state.dialog){e.preventDefault();dismiss();}else if(!el('menu').hidden){e.preventDefault();menu(false);}}});
+  root.addEventListener('click',e=>{if(!el('menu').hidden&&!e.target.closest('.menu-wrap'))menu(false);});
+  el('close-window').onclick=()=>{const guard=el('guard').value;if(guard==='dirty')confirmDialog('Keep New Project draft?', 'An independent New Project draft has unsaved edits. Copy Source itself has no dirty draft.', 'Keep draft','Discard sample draft and close',()=>{el('guard').value='none';closeWindow();});else if(guard==='operation')confirmDialog('Keep operation open', 'An existing operation must finish its own teardown before closing. Copy Source cannot bypass that protection.', 'Keep open',null,null);else closeWindow();};
+  el('reopen').onclick=()=>{state.closed=false;render();el('switch').focus();};
+  el('filter').oninput=output;el('clear').onclick=()=>{el('filter').value='';output();el('filter').focus();};
+  el('stop').onclick=()=>{if(!state.watch||state.watchStopping)return;const owner=state.watch;state.watchStopping=true;render();setTimeout(()=>{state.watch=null;state.watchStopping=false;log(owner,'Watch: Stop acknowledged');render();},450);};
+  el('watch-output').onclick=()=>{el('activity').open=true;output();};
+  function hostState(value) {const theme=value&&value.privateContent&&value.privateContent.copyTheme;if(['light','dark','system'].includes(theme)){el('theme').value=theme;root.dataset.theme=theme;}}
+  try{hostState(window.openai&&window.openai.widgetState);}catch{}
+  window.addEventListener('openai:set_globals',e=>hostState(e.detail&&e.detail.globals&&e.detail.globals.widgetState));
+  el('theme').onchange=()=>{root.dataset.theme=el('theme').value;try{const host=window.openai;if(host&&host.setWidgetState)Promise.resolve(host.setWidgetState({modelContent:{proposal:'Copy Source'},privateContent:{copyTheme:el('theme').value}})).catch(()=>{});}catch{}};
+  render();
+  // Local fixture introspection only; it exposes no real filesystem or clipboard.
+  root.copySource={snapshot:()=>JSON.parse(JSON.stringify({owner:state.owner,active:state.active,review:state.snapshot,clipboard:state.clipboard,logs:state.logs,epoch:state.epoch,closed:state.closed,selected:state.selected})),payload};
+})();
+</script>
