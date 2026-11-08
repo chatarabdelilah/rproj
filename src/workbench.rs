@@ -209,29 +209,7 @@ fn projects_context(
 }
 
 fn catalog_entries() -> Result<Vec<rproj_core::catalog::CatalogEntry>> {
-    use crate::catalog::{package_usage, wally_packages};
-    wally_packages::PACKAGES
-        .iter()
-        .map(|package| {
-            let guide = package_usage::find(package.key)
-                .with_context(|| format!("missing catalog guidance for {}", package.key))?;
-            let (identity, _) = package
-                .source
-                .split_once('@')
-                .with_context(|| format!("invalid catalog package identity for {}", package.key))?;
-            Ok(rproj_core::catalog::CatalogEntry {
-                key: package.key.into(),
-                title: package.module_name.into(),
-                description: package.description.into(),
-                docs_url: package.docs_url.into(),
-                package: identity.into(),
-                example: package_usage::example(&guide),
-                when_useful: guide.when.into(),
-                context: guide.context.into(),
-                caveats: guide.caveats.into(),
-            })
-        })
-        .collect()
+    rproj_core::catalog::browser::package_entries()
 }
 
 fn run_check(project: &Path) -> Result<()> {

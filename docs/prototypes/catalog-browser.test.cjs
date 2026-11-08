@@ -99,7 +99,7 @@ test('ProfileStore example and guidance preserve the server realm and lifecycle 
 test('sample examples and docs match authoritative local catalog fields',t=>{
   const f=fixture(t);const repo=path.resolve(__dirname,'../..');
   const source=fs.readFileSync(path.join(repo,'crates/rproj-core/src/catalog/wally_packages.rs'),'utf8');
-  const guides=fs.readFileSync(path.join(repo,'src/catalog/package_usage.rs'),'utf8');
+  const guides=fs.readFileSync(path.join(repo,'crates/rproj-core/src/catalog/package_usage.rs'),'utf8');
   for(const [id,key,expected] of [['package-scribe','scribe',scribe],['package-profilestore','profilestore',profile]]){
     f.click('entry-'+id);const fields=source.slice(source.indexOf('key: "'+key+'"')).split('},')[0];
     const url=fields.match(/docs_url: "([^"]+)"/)[1];assert.equal(f.e('doc-link').href,url);

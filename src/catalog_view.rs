@@ -1,12 +1,13 @@
 use std::fmt::Write;
 
-use crate::catalog::artifacts::{self, Artifact};
+use crate::catalog::artifacts;
 use crate::catalog::capabilities;
 use crate::catalog::package_usage;
 use crate::catalog::tool_catalog;
 use crate::catalog::tool_settings;
 use crate::catalog::tool_usage::{self, Usage};
 use crate::catalog::wally_packages;
+pub use rproj_core::catalog::browser::{file_reason as cause_line, owning_capability};
 
 struct DetailSection {
     heading: &'static str,
@@ -339,35 +340,6 @@ fn append_guidance(body: &mut String, usage: &Usage) {
             let _ = write!(body, "\n  - {note}");
         }
     }
-}
-
-pub fn cause_line(artifact: &Artifact) -> String {
-    if artifact.mandatory {
-        return "always - every Rojo project has this".into();
-    }
-    if artifact.housekeeping {
-        return "always - written for every project, droppable from the summary".into();
-    }
-    if let Some(owner) = owning_capability(artifact.key) {
-        return format!("when you choose the `{owner}` capability");
-    }
-    match artifact.key {
-        "wally.toml" => "when this project uses Wally".into(),
-        "rokit.toml" => "when anything pins a tool version".into(),
-        _ => "derived from your answers".into(),
-    }
-}
-
-fn owning_capability(key: &str) -> Option<&'static str> {
-    capabilities::CAPABILITIES
-        .iter()
-        .find(|capability| {
-            capability
-                .implementations
-                .iter()
-                .any(|implementation| implementation.artifacts.contains(&key))
-        })
-        .map(|capability| capability.key)
 }
 
 pub fn first_sentence(text: &str) -> &str {

@@ -17,11 +17,16 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 7: native Catalog implementation.** The owner approved the Soft
+design and two sequential PRs. Shared bundled guidance is being extracted with
+exact terminal/worker compatibility fixtures; native controls follow its review.
+See the [implementation record](desktop-catalog-native.md). No native previews.
+
 **November 7: Catalog browser design.** The separate Soft [Catalog proposal](desktop-catalog-browser-design.md)
 uses a searchable library with six sections, kind-specific guides, related-entry
 navigation and read-only examples/documentation. [Acceptance](desktop-catalog-browser-acceptance.md)
 records deterministic sample checks separately from unverified rendering.
-Owner flow review precedes native implementation planning; native previews stay paused.
+The owner approved this flow for native implementation; native previews stay paused.
 
 **Native Projects browser.** Ratatui and the Soft workbench share shallow
 discovery. Preview and explicit Open are separate. A missing or redirected

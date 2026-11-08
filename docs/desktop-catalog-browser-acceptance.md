@@ -1,6 +1,6 @@
 # Catalog browser wireframe acceptance
 
-The [proposal](desktop-catalog-browser-design.md) is ready for owner review.
+The owner approved the [proposal](desktop-catalog-browser-design.md) on November 7.
 The [source](prototypes/catalog-browser.html) is a standalone conversation
 fragment. Native implementation and rendering acceptance are not implied.
 
@@ -68,6 +68,6 @@ previews and memory-stability acceptance remain paused.
    example and guide remain readable. **Try without a project** should retain
    the selected guide and Skyline Watch (40 seconds).
 
-Owner design approval precedes native implementation planning. The earlier
+The [native implementation record](desktop-catalog-native.md) tracks delivery. The earlier
 conversation wireframes are unchanged. Reviewed-head and merged-main CI
 identities are recorded on the delivery PR after those runs finish.
