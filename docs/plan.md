@@ -17,6 +17,11 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 9: native Copy Source approved.** Implement shared bounded collection
+and accurate CLI reporting, then the retained Soft review. The
+[implementation record](desktop-copy-source-native.md) tracks both reviewed PRs.
+Native previews stay paused; published version remains 0.22.0.
+
 **November 8: Copy Source review design.** The separate Soft
 [Copy Source proposal](desktop-copy-source-design.md) reviews a captured `src`
 snapshot before requesting a simulated copy. Partial copies explicitly list
