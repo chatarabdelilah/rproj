@@ -8,6 +8,7 @@ mod projects;
 mod saved_setups;
 mod settings;
 mod setup;
+mod source_copy;
 mod theme;
 #[cfg(test)]
 mod ui_tests;
@@ -163,6 +164,7 @@ impl Section {
 }
 
 enum Event {
+    SourcePrepared(u64, Box<Result<source_copy::Prepared, String>>),
     BrowserScan(u64, projects::Scan),
     BrowserPreview(u64, PathBuf, Box<Result<ProjectSnapshot, String>>),
     BrowserOpen(u64, PathBuf, Box<Result<(ProjectSnapshot, String), String>>),
@@ -392,6 +394,7 @@ impl Activity {
 }
 
 pub struct Workbench {
+    source: source_copy::Session,
     library: library::Library,
     browser: projects::Browser,
     template: project_template::Session,
@@ -543,6 +546,7 @@ impl Workbench {
             .err()
             .map(|e| format!("Bundled package guidance is unavailable: {e:#}"));
         let mut view = Self {
+            source: source_copy::Session::new(cx),
             library: library::Library::new(window, cx),
             settings: settings::SettingsSession::default(),
             browser: projects::Browser::new(window, cx),
@@ -774,6 +778,7 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::SourcePrepared(id, result) => self.accept_source(id, *result, cx),
                 Event::BrowserScan(id, scan) => self.accept_projects_scan(id, scan, cx),
                 Event::BrowserPreview(id, path, result) => {
                     self.accept_project_preview(id, path, *result, cx)

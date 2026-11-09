@@ -203,6 +203,7 @@ impl Workbench {
         self.upgrade.visible = false;
         self.composition.visible = false;
         self.creation.visible = false;
+        self.source.visible = false;
         self.library.visible = true;
         if let Some(id) = id {
             self.select_catalog(id, self.library.rows_focus.clone(), cx);

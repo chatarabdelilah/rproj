@@ -212,12 +212,14 @@ impl Workbench {
                                         && !self.settings.visible
                                         && !self.setup.visible
                                         && !self.browser.visible
+                                        && !self.source.visible
                                         && !self.library.visible
                                         && !self.template.visible
                                         && !self.saved.visible,
                                 )
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.browser.leave();
+                                    this.source.visible = false;
                                     this.library.visible = false;
                                     this.section = section;
                                     this.template.visible = false;
@@ -604,7 +606,7 @@ impl Workbench {
     }
 
     fn render_activity_summary(&self, cx: &mut Context<Self>) -> AnyElement {
-        let summary = self.operations.summary();
+        let summary = self.source_activity_summary(false);
         div()
             .id("activity-summary-row")
             .role(Role::Group)
@@ -647,7 +649,7 @@ impl Workbench {
                     .text_sm()
                     .truncate()
                     .tooltip(move |window, cx| Tooltip::new(summary.clone()).build(window, cx))
-                    .child(self.operations.compact_summary()),
+                    .child(self.source_activity_summary(true)),
             )
             .when(self.setup_applying(), |view| {
                 view.child(
@@ -746,6 +748,9 @@ impl Render for Workbench {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.upgrade_list_width != window.viewport_size().width {
             self.upgrade_list_width = window.viewport_size().width;
+            let source_offset = self.source.rows.logical_scroll_top();
+            self.source.rows.reset(self.source.row_count());
+            self.source.rows.scroll_to(source_offset);
             let saved_offset = self.saved_list.logical_scroll_top();
             self.saved_list.reset(self.saved.row_count());
             self.saved_list.scroll_to(saved_offset);
@@ -758,6 +763,8 @@ impl Render for Workbench {
         }
         let title = if self.browser.visible {
             "Projects".into()
+        } else if self.source.visible {
+            "Copy Source".into()
         } else if self.library.visible {
             "Catalog".into()
         } else if self.template.visible {
@@ -786,6 +793,12 @@ impl Render for Workbench {
         };
         let content = if self.browser.visible {
             self.render_projects(window, cx)
+        } else if self.source.visible {
+            self.render_source(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            )
         } else if self.library.visible {
             self.render_catalog(window, cx)
         } else if self.template.visible {
@@ -837,10 +850,33 @@ impl Render for Workbench {
                 Section::Checks => self.render_checks(cx),
             }
         };
+        let content = if !self.browser.visible
+            && !self.source.visible
+            && !self.library.visible
+            && !self.template.visible
+            && !self.saved.visible
+            && !self.setup.visible
+            && !self.settings.visible
+            && !self.upgrade.visible
+            && !self.composition.visible
+            && !self.creation.visible
+            && self.section == Section::Overview
+        {
+            div()
+                .v_flex()
+                .size_full()
+                .min_h_0()
+                .child(self.source_entry(cx))
+                .child(div().flex_1().min_h_0().child(content))
+                .into_any_element()
+        } else {
+            content
+        };
         let content = if self.project.is_some()
             && !self.composition.visible
             && !self.setup.visible
             && !self.browser.visible
+            && !self.source.visible
             && !self.library.visible
             && !self.template.visible
             && !self.saved.visible
@@ -866,6 +902,7 @@ impl Render for Workbench {
             && !self.settings.visible
             && !self.setup.visible
             && !self.browser.visible
+            && !self.source.visible
             && !self.library.visible
             && !self.template.visible
             && !self.saved.visible
@@ -885,6 +922,7 @@ impl Render for Workbench {
             content
         };
         let content = if self.browser.visible
+            || self.source.visible
             || self.library.visible
             || self.template.visible
             || self.saved.visible
@@ -989,6 +1027,7 @@ impl Render for Workbench {
                                                     .label("Refresh")
                                                     .disabled(
                                                         self.browser.visible
+                                                            || self.source.visible
                                                             || self.library.visible
                                                             || self.template.visible
                                                             || self.saved.visible
@@ -1014,6 +1053,7 @@ impl Render for Workbench {
                                                 && !self.settings.visible
                                                 && !self.setup.visible
                                                 && !self.browser.visible
+                                                && !self.source.visible
                                                 && !self.library.visible
                                                 && !self.template.visible
                                                 && !self.saved.visible
@@ -1035,7 +1075,9 @@ impl Render for Workbench {
                                     )
                                     .when_some(
                                         self.error.clone().filter(|_| {
-                                            !self.browser.visible && !self.library.visible
+                                            !self.browser.visible
+                                                && !self.source.visible
+                                                && !self.library.visible
                                         }),
                                         |view, error| view.child(error),
                                     )
