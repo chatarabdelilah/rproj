@@ -19,7 +19,8 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 **November 9: native Copy Source.** Shared bounded collection and accurate CLI
 reporting merged through #151 at `ca0a783`. The retained Soft review now has
-headless evidence; delivery checks remain in progress. The
+headless evidence; [PR #152](https://github.com/chatarabdelilah/rproj/pull/152)
+tracks delivery verification. The
 [implementation record](desktop-copy-source-native.md) tracks both reviewed PRs.
 Native previews stay paused; published version remains 0.22.0.
 

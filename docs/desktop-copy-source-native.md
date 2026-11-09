@@ -91,8 +91,10 @@ extracted version, worker/self-check and inspection checks. Packaging retains
 the existing warning about incomplete notices for three legacy dependencies;
 this is not a new acceptance pass for those notices. CodeRabbit 0.7.6 reviewed
 all 20 files with zero findings. Final evidence-only edits were inspected
-directly. Actual reviewed-head/main CI and cleanup are recorded on the delivery
-PR after verification.
+directly. Actual reviewed-head/main CI and cleanup are recorded on
+[native delivery PR #152](https://github.com/chatarabdelilah/rproj/pull/152)
+and [shared PR #151](https://github.com/chatarabdelilah/rproj/pull/151) after
+verification; these links are the durable delivery ledger.
 
 No native preview was launched. Real geometry, assistive technology, OS clipboard
 acceptance and native memory stability remain unverified. Earlier wireframes and

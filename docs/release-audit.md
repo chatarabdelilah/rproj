@@ -9,7 +9,8 @@ Shared PR #151 merged at `ca0a783` after reviewed-head CI passed all seven execu
 jobs on attempt one. The native review passes 162 headless desktop tests,
 desktop Clippy, formatting, four CLI Copy regressions, 12 collector regressions
 and portable packaging smoke checks. CodeRabbit reviewed 20 files with no
-findings. Native delivery identities remain pending; no native window launched.
+findings. [PR #152](https://github.com/chatarabdelilah/rproj/pull/152) records
+native reviewed-head/main CI and cleanup; no native window launched.
 
 ## November 8: Copy Source design
 

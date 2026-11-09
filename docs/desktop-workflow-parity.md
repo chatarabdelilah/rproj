@@ -7,7 +7,8 @@ whole terminal product. Ratatui remains available; direct commands remain perman
 Catalog row updated November 8, 2026, against main `54a65f3`: shared guidance
 is merged; native controls have headless evidence and await delivery checks.
 Copy Source row updated November 9 against main `ca0a783`: shared collection is
-merged; native retained review has headless evidence and awaits delivery checks.
+merged; native retained review has headless evidence. [PR #152](https://github.com/chatarabdelilah/rproj/pull/152)
+tracks actual head/main CI and delivery verification.
 Later dated records below extend the original baseline. Published version
 remains 0.22.0.
 
