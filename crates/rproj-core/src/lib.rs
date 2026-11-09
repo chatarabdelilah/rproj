@@ -13,6 +13,7 @@ pub mod project_discovery;
 pub mod project_template;
 #[doc(hidden)]
 pub mod saved_setups;
+pub mod source_copy;
 #[doc(hidden)]
 pub mod tool_configuration;
 #[doc(hidden)]

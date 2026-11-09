@@ -1,5 +1,11 @@
 # Release-Hardening Audit
 
+## November 9: native Copy Source
+
+The owner approved shared bounded collection and native review against `7ee7310`.
+[Implementation evidence](desktop-copy-source-native.md) separates regression
+fixtures and automated checks from paused real-window/clipboard acceptance.
+
 ## November 8: Copy Source design
 
 The [Copy Source proposal](desktop-copy-source-design.md) uses sample source
