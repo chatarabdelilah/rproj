@@ -46,3 +46,56 @@ and branch cleanup are recorded on the shared delivery PR after verification.
 Read checks are not an atomic filesystem snapshot or protection against arbitrary
 external writers. A blocked OS read is not forcibly interrupted. Source contents
 never enter diagnostics; only path/count/reason metadata does.
+
+### Native review
+
+The Soft workbench now offers Copy source from Overview and a captured-owner
+Resume action. Collection runs independently of the worker and serialized
+mutations. A single active collector and latest queued request bound background
+work; replacement/closure abandons obsolete reads at collector checkpoints.
+Browsing and closing a project retain the review. Explicit workflow navigation
+hides it without discarding it. Replacement defaults to Keep review.
+
+Copy submits the retained exact payload through GPUI's clipboard API. The API
+does not report OS acceptance, so feedback says **Copy requested**. Refresh keeps
+the prior snapshot until success; a failed refresh labels that older snapshot.
+Partial collections expose skipped paths/reasons and **Copy included files**.
+Empty, missing-src and failed collections without a snapshot cannot be copied.
+
+Display preparation runs off-thread, annotating controls and newline endings
+without changing payload bytes. It refuses over 100,000 rows or 16 MiB annotated
+text. Lines longer than 4,096 Unicode scalar values use labeled continuation
+rows; nothing is truncated. File, skip and preview lists render their viewport.
+The file/preview panes stack below 600 logical pixels of main content. The outer
+page scrolls at short heights, including with expanded Activity. Keyboard file
+selection navigates the complete preview without changing the copied files.
+
+Activity adds captured-owner/count/error metadata without flushing or retagging
+a concurrent operation's buffered output. Source actions do not replace mutation
+outcomes or cancellation controls. Successful preparation respects manual
+collapse; Activity height and existing close protections remain unchanged.
+
+Eleven new checks cover annotations/display bounds, exact snapshot clipboard
+requests, failed refresh, latest queued requests and stale results, empty/partial
+states, worker-independent background completion, Watch/draft/operation ownership,
+default-Keep dismissal/focus, stale replacement/copy, both theme/layout branches,
+file navigation, collapse and abandonment on destruction. The full headless suite
+passes 162 tests; desktop Clippy passes. Initial test compilation exposed a glob
+import of GPUI's test macro and incorrect fixture Watch fields; these were fixed.
+The first targeted run exposed an unobservable skip-list group and a short-list
+scroll assertion; the accessible group and long fixture now pass. The first full
+suite hit two sandbox filesystem denials; the unchanged suite passed outside
+that restriction. CLI Copy's four tests and all 12 shared collector tests also
+pass on this branch. Formatting and portable release packaging pass, including
+extracted version, worker/self-check and inspection checks. Packaging retains
+the existing warning about incomplete notices for three legacy dependencies;
+this is not a new acceptance pass for those notices. CodeRabbit 0.7.6 reviewed
+all 20 files with zero findings. Final evidence-only edits were inspected
+directly. Actual reviewed-head/main CI and cleanup are recorded on
+[native delivery PR #152](https://github.com/chatarabdelilah/rproj/pull/152)
+and [shared PR #151](https://github.com/chatarabdelilah/rproj/pull/151) after
+verification; these links are the durable delivery ledger.
+
+No native preview was launched. Real geometry, assistive technology, OS clipboard
+acceptance and native memory stability remain unverified. Earlier wireframes and
+their sample-only evidence are unchanged. No version or protocol change.

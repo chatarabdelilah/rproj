@@ -5,6 +5,12 @@
 The owner approved shared bounded collection and native review against `7ee7310`.
 [Implementation evidence](desktop-copy-source-native.md) separates regression
 fixtures and automated checks from paused real-window/clipboard acceptance.
+Shared PR #151 merged at `ca0a783` after reviewed-head CI passed all seven executed
+jobs on attempt one. The native review passes 162 headless desktop tests,
+desktop Clippy, formatting, four CLI Copy regressions, 12 collector regressions
+and portable packaging smoke checks. CodeRabbit reviewed 20 files with no
+findings. [PR #152](https://github.com/chatarabdelilah/rproj/pull/152) records
+native reviewed-head/main CI and cleanup; no native window launched.
 
 ## November 8: Copy Source design
 
