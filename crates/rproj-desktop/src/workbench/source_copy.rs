@@ -162,3 +162,6 @@ fn project_name(path: &std::path::Path) -> String {
         .to_string_lossy()
         .into_owned()
 }
+
+#[cfg(test)]
+pub(super) use tests::{audit_seed, audit_state};

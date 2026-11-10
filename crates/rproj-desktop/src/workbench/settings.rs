@@ -130,3 +130,6 @@ impl SettingsSession {
         self.prepared.as_ref().map_or(0, |p| p.rows.len())
     }
 }
+
+#[cfg(test)]
+pub(super) use tests::{audit_seed, audit_state};

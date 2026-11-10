@@ -1,6 +1,18 @@
 use super::super::ui_tests::fixture;
 use super::super::{Cancellation, Operation, WatchStatus, Workbench};
 use super::{Prepared, Session};
+
+pub(in crate::workbench) fn audit_seed(s: &mut Session, root: &std::path::Path) {
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src/audit.txt"), "isolated audit text\r\n").unwrap();
+    let p = prepared(root);
+    s.request(p.raw.project.clone());
+    let r = s.take_request().unwrap();
+    assert_eq!(s.accept(r.id, Ok(p)), Some(false));
+}
+pub(in crate::workbench) fn audit_state(s: &Session) -> String {
+    format!("{:?}:{:?}", s.owner, s.snapshot.as_ref().map(|p| &p.raw))
+}
 use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::test::TestWindowExt;
 use gpui_kit::{AnyWindowHandle, AppContext, Entity, TestAppContext, px, size};

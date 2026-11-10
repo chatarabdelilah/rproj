@@ -5,6 +5,23 @@ use rproj_core::{
 };
 use std::{path::PathBuf, sync::Arc};
 
+pub(in crate::workbench) fn audit_seed(root: PathBuf) -> SavedSession {
+    let mut s = session(root);
+    s.begin_edit(s.selected.clone().unwrap()).unwrap();
+    s.edit(|d| d.set_capability("format", Some("stylua")));
+    s.visible = false;
+    s
+}
+pub(in crate::workbench) fn audit_state(s: &SavedSession) -> (String, bool) {
+    (
+        format!(
+            "{:?}",
+            s.draft.as_ref().map(|d| (&d.loaded.source, &d.draft.graph))
+        ),
+        s.dirty(),
+    )
+}
+
 pub(super) fn loaded(root: PathBuf, name: &str) -> LoadedSetup {
     LoadedSetup::new(CapturedSetup { root, name:name.into(),storage_identity:"storage".into(),source_identity:format!("file-{name}"),bytes:b"# preserved\nmode='like:team'\npackage_workflow='wally'\npackages=['react']\ndropped=['future-file']\n[metadata]\nowner='team'\n".to_vec() })
 }

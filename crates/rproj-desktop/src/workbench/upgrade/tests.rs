@@ -6,7 +6,7 @@ use crate::workbench::WatchStatus;
 use rproj_core::upgrade::{SkippedFile, UpgradeFile};
 use std::path::PathBuf;
 
-pub(super) fn review(project: PathBuf) -> UpgradeReview {
+pub(in crate::workbench) fn review(project: PathBuf) -> UpgradeReview {
     UpgradeReview {
         project,
         identity: "fixture".into(),

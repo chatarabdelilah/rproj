@@ -1,16 +1,14 @@
 # Desktop workflow parity
 
-Baseline: October 16, 2026, main `9910df1`, published version 0.22.0.
+Current audit: November 10, 2026, main `c5c4f87`, published version 0.22.0.
 This inventory distinguishes a working desktop slice from replacement of the
 whole terminal product. Ratatui remains available; direct commands remain permanent.
 
-Catalog row updated November 8, 2026, against main `54a65f3`: shared guidance
-is merged; native controls have headless evidence and await delivery checks.
-Copy Source row updated November 9 against main `ca0a783`: shared collection is
-merged; native retained review has headless evidence. [PR #152](https://github.com/chatarabdelilah/rproj/pull/152)
-tracks actual head/main CI and delivery verification.
-Later dated records below extend the original baseline. Published version
-remains 0.22.0.
+The [integration audit](desktop-integration-audit.md) maps every row to current
+implementation, automated tests and verified delivery records, and ranks the
+remaining gaps. Catalog #149 and Copy Source #152 are delivered with verified
+head/main CI. Dated observations below retain their original scope; they do not
+establish acceptance of later workflows.
 
 ## Inventory
 
@@ -23,13 +21,13 @@ functional observations do not establish memory stability.
 
 | Workflow / entry | CLI and Ratatui behavior | Desktop coverage / gap | Reusable boundary and next action |
 | --- | --- | --- | --- |
-| Bare `rproj` / Home | Interactive Home; redirected invocation prints plain help. Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, Catalog. | Partial: project workbench, not a machine-level Home replacement. | CLI dispatch and hub action inventory. Preserve terminal behavior. |
+| Bare `rproj` / Home | Interactive Home; redirected invocation prints plain help. Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, Catalog. | All six destinations are reachable. Partial presentation parity: no aggregate machine-readiness/update-hint Home. Default CLI launch remains intentional. | CLI dispatch and hub action inventory. Preserve terminal behavior; assess the usefulness of an aggregate Home separately. |
 | `rproj app [path]` | Explicitly launches matching desktop/CLI distribution. | Present: existing-project workbench and recent-project menu. | Core desktop preferences and explicit worker discovery. Keep portable launch coverage. |
 | `rproj inspect [path] [--json]` | Read-only, versioned project snapshot. | Present: Overview, Dependencies, Tools; actual declarations/resolutions/presence remain distinct. | Core inspection and catalog. Keep unknown/malformed/offline cases visible. |
 | Projects browser | Discovers configured-root projects and launch directory; ten terminal project actions. | Native Browse projects… in the switcher and empty view. Preview is read-only; explicit Open enters Overview. Recent-only folders stay in the switcher. | [Shared discovery and native acceptance](desktop-projects-browser-native.md). Real-window acceptance is paused. Project actions remain in their existing workbench sections. |
 | `rproj new <name>` / New Project | Wally/None, guided/expert/saved composition, capabilities, files, named setup save, exclusive destination, execution. Direct command may provision; Home requires recorded machine setup. | Present: five-step native flow, retained draft, background review/creation and normal-close cancellation guard. Windows fixture success, recovery, failure, cancellation and basic layout/draft observations are confirmed; remaining gates are in the acceptance record. Missing setup offers native Machine Setup or the existing terminal command. | Core graph/catalog/draft/plan plus typed CLI preparation/execution; no terminal widgets in core. |
 | `rproj setup` / Machine Setup | Review selections, explicit Apply, sequential installs, pending Stop and recovery; completed installations can remain. | Shared execution and private worker merged in PRs #132–133. Native Soft controls add all six categories, retained machine selections, exact queue review, typed results and cooperative Stop/close. Automated evidence only; real installers and windows remain unverified. | [Design](desktop-machine-setup-design.md) and [acceptance](desktop-machine-setup-acceptance.md): app-level entry, independent machine draft, any-Watch guard and acknowledged Stop-then-close. [Implementation](desktop-machine-setup-native.md) tracks the three approved PRs; native previews remain paused. |
-| `rproj setup <tool>` | Project tool setup, configuration and manual instructions. | Missing; Tools currently distinguishes pins from detection only. | Existing tool catalog/install/config boundaries. A detected executable is not proof of setup. |
+| `rproj setup <tool>` | Project-local tool pins/configuration, Blender starter and manual instructions under the Watch mutation guard. | Missing dedicated native workflow. Tools shows pins/detection and Configure Tools edits four settings targets; Machine Setup manages global installations. Neither replaces this command. | [Audit finding F2](desktop-integration-audit.md#ranked-follow-ups). Design project tool setup before adding a worker or controls. |
 | `rproj configure [tool]` / Configure Tools | Shared typed drafts, reviewed single-file plans and guarded saves preserving unrelated content. | Present: Soft Settings → Review for four targets, captured drafts, wrapped diffs, explicit reload and wait-for-Save close protection. Automated/headless coverage is separate from paused real-window acceptance. | [Native implementation](desktop-tool-configuration-native.md) and [acceptance](desktop-tool-configuration-acceptance.md). Configuration does not install or enable tools. |
 | Project Composition | Shared immutable-baseline draft and checked impact plan; terminal exclusions/provenance/pins preserved, new capability files generated, record committed last (PR #120). | Present: approved three-step Soft controls, retained draft, background preparation/Apply, Watch guard and close protection (PR #122). Automated/review delivery evidence is separate from deferred real-window acceptance. | [Composition acceptance](desktop-composition-acceptance.md) and [worker](desktop-composition-worker.md); native previews remain paused. |
 | `rproj configure project` / Edit Project Template | Template Explorer, structured/JSON editing, validation, history, guarded save/reset. | Native Soft Explorer and Advanced JSON share a retained draft. Save/Reset use the checked matching worker after explicit review. Headless coverage is separate from paused real-window acceptance. See [implementation](desktop-project-template-native.md). | [Design](desktop-project-template-design.md) and [acceptance](desktop-project-template-acceptance.md): protected mounts, retained unknown fields, independent machine draft, explicit Save/Reset and wait-for-completion closing. No native launch; rendering unverified. |
@@ -37,16 +35,16 @@ functional observations do not establish memory stability.
 | `rproj watch` / foreground Watch | Dependency preparation and foreground Rojo sourcemap loop. | No foreground equivalent; desktop uses persistent Watch deliberately. | Keep direct foreground CLI for scripts/terminal users. |
 | `watch start/status/logs/stop` / project Watch actions | One Windows background owner, global status/logs, acknowledged Stop. | Present: global owner, output, Start/Stop and confirmed switching. | Core operation bridge + CLI supervisor. Preserve detached ownership and external Rojo. |
 | Checks | Existing configured Lute check script; not a new public `rproj check` command. | Present: availability reasons, background execution, filtering and cancellation. | Worker Check operation; preserve project-owned script and external tools. |
-| `rproj test [args...]` / Test | Selected runner/backend, dependency restoration, prerequisite handling and CLI argument passthrough. | Partial: existing default Test action; no arbitrary argument editor. | Worker Test operation. Real Roblox/cloud prerequisite acceptance is separate. |
+| `rproj test [args...]` / Test | Direct CLI accepts argument passthrough. Ratatui invokes the default runner with no extra arguments. | Matches Ratatui's default Test; direct-CLI parity is partial because there is no argument editor. | Worker Test intentionally receives an empty argument list. Assess demand separately; real Roblox/cloud prerequisite acceptance is unverified. |
 | `rproj copy` / Copy Source | Copy bounded UTF-8 src snapshots with relative-path headers and explicit skipped-file reporting. | Native Soft retained review with explicit Refresh, labeled partial copies, complete virtualized preview and exact snapshot clipboard requests; no worker required. | [Native evidence](desktop-copy-source-native.md) separates shared collection/headless tests from unverified real-window and clipboard acceptance. Watch, mutations and retained drafts remain independent. |
 | `rproj info [key]` / Catalog | Full package/tool/capability/file/settings/topic catalog and explanations. | Native Soft browser: six searchable bundled inventories, typed guides, related Back, canonical dependency links, selectable examples and explicit documentation/copy actions; no worker required. | [Implementation evidence](desktop-catalog-native.md) records exact terminal/worker fixtures and headless navigation/ownership checks. Real-window, clipboard and browser acceptance remain unverified. |
 | Saved Setups | Browse/edit/rename/duplicate/delete with no-clobber and stale-source checks; creation can load/save a composition. | Native Soft manager implemented for automated validation: review-first editing, byte-preserving management, explicit New Project handoff, captured ownership and noncancellable close-after-operation. | [Implementation](desktop-saved-setups-native.md) records shared/worker delivery and native headless evidence. Unknown metadata is preserved; unknown choices/exclusions block reuse. Real-window acceptance remains paused. Earlier simulated [design acceptance](desktop-saved-setups-acceptance.md) is separate. |
 
-## Evidence and limits
+## Historical evidence: October 16–17, 2026
 
-The baseline has 566 passing CLI/core tests, 21 desktop tests and 24 ignored
-prerequisite-dependent cases. These are baseline evidence, not tests rerun by
-this documentation/prototype pass. Core tests cover snapshots; CLI creation,
+The October 16 baseline had 566 passing CLI/core tests, 21 desktop tests and 24 ignored
+prerequisite-dependent cases. These counts are historical, not current audit totals
+(see the linked audit). Core tests cover snapshots; CLI creation,
 hub, saved-setup and upgrade suites cover existing behavior; GPUI tests cover
 navigation, focus, operation ownership, layouts and cancellation.
 
@@ -65,7 +63,10 @@ macOS/Linux core CI is not desktop-platform acceptance. Fresh-machine setup,
 real Roblox runners, authenticated Open Cloud and public-distribution legacy
 notice completeness remain separate checks.
 
-## Incremental creation extraction, after design approval
+## Historical creation plan and implementation checkpoints: October 16–17
+
+The following approved sequence has since been delivered; it is retained as
+history, not the next development task.
 
 1. Move interface-independent graph/catalog choice and plan derivation behind
    core services, retaining existing generated-output fixtures as the oracle.

@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod audit_tests;
 mod composition;
 mod creation;
 mod diff_view;

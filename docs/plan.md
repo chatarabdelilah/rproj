@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated October 29, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated November 10, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -16,6 +16,18 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**November 10: desktop parity and integration audit.** The
+[evidence matrix](desktop-integration-audit.md) reconciles all 18 inventory rows
+against `c5c4f87` and adds three headless cross-workflow checks. All six Home
+destinations are available; a separate Home status summary is not implemented.
+Project-specific `setup <tool>` remains a native feature gap, distinct from
+global Machine Setup and four-target Configure Tools. Extra test arguments
+remain CLI-only; native Test matches Ratatui's default invocation. No new runtime
+defect was reproduced by this audit. The next development proposal is a design
+for project tool setup, not an implementation authorization. Native memory
+stability and real-window acceptance remain unresolved/paused; version 0.22.0
+is unchanged. Older entries below describe dated milestones, not open tasks.
 
 **November 9: native Copy Source.** Shared bounded collection and accurate CLI
 reporting merged through #151 at `ca0a783`. The retained Soft review now has

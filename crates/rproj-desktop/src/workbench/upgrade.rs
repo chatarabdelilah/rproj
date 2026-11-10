@@ -112,3 +112,6 @@ impl UpgradeSession {
             .into_owned()
     }
 }
+
+#[cfg(test)]
+pub(super) use tests::review as audit_review;
