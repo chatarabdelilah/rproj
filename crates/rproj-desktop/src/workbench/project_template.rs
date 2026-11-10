@@ -281,3 +281,6 @@ fn semantic_summary(plan: &PreparedTemplate) -> String {
         examples.join(" · ")
     )
 }
+
+#[cfg(test)]
+pub(super) use tests::{audit_seed, audit_show, audit_state};

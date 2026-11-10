@@ -4,6 +4,19 @@ use rproj_core::tool_configuration::{SettingsContext, SettingsDraft};
 use serde_json::json;
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
+pub(in crate::workbench) fn audit_seed(root: PathBuf) -> SettingsSession {
+    let mut s = session(root, "stylua-vscode");
+    s.set(0, json!(true));
+    s.visible = false;
+    s
+}
+pub(in crate::workbench) fn audit_state(s: &SettingsSession) -> (String, bool) {
+    (
+        format!("{:?}:{:?}", s.project, s.loaded.as_ref().map(|l| &l.draft)),
+        s.dirty(),
+    )
+}
+
 pub(super) fn loaded(project: PathBuf, tool: &str) -> SettingsLoaded {
     let target = tool_settings::find(tool).unwrap();
     let mut identities = BTreeMap::from([

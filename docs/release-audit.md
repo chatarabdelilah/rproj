@@ -1,5 +1,23 @@
 # Release-Hardening Audit
 
+## November 10: desktop parity and workflow interactions
+
+The [integration audit](desktop-integration-audit.md) classifies all 18 parity
+rows and links implementation, tests, historical observations and delivery.
+Changes are limited to headless regression tests/helpers and documentation.
+Six independent dirty drafts, Upgrade/Copy Source reviews, navigation, captured
+ownership, stale/duplicate events and close decisions are covered without opening
+a native window. Full runs passed 165 desktop and 813 CLI/core tests; 24
+prerequisite-dependent cases remain ignored, not passes.
+
+No additional runtime defect was reproduced. Project tool setup is a native
+feature gap; custom test arguments and aggregate Home need separate scope
+decisions. Memory stability, real-window/clipboard/browser/platform acceptance,
+external prerequisites and three legacy notice-completeness gaps remain
+unresolved/unverified. The audit ledger records failed harness attempts, lint
+correction, packaging, review and exact head/main CI delivery. Published version
+remains 0.22.0; no runtime fix or feature is included.
+
 ## November 9: native Copy Source
 
 The owner approved shared bounded collection and native review against `7ee7310`.

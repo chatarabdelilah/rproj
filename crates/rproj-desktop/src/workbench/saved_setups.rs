@@ -223,3 +223,6 @@ impl SavedSession {
             })
     }
 }
+
+#[cfg(test)]
+pub(super) use tests::{audit_seed, audit_state};

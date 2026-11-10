@@ -4,6 +4,16 @@ use super::{
 };
 use std::path::PathBuf;
 
+pub(in crate::workbench) fn audit_seed(root: PathBuf) -> SetupSession {
+    let mut s = session(root);
+    s.toggle(Category::Apps, "git");
+    s.visible = false;
+    s
+}
+pub(in crate::workbench) fn audit_state(s: &SetupSession) -> (String, bool) {
+    (format!("{:?}:{:?}", s.context, s.selection), s.dirty())
+}
+
 pub(super) fn session(root: PathBuf) -> SetupSession {
     let selection = Selection {
         root: root.join("projects"),

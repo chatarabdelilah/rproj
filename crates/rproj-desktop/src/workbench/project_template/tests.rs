@@ -1,4 +1,43 @@
 use super::{Draft, LoadedTemplate, Page, Session, TemplateSource, builtin_project_template};
+pub(in crate::workbench) fn audit_show(
+    workbench: &mut super::Workbench,
+    window: &mut gpui_kit::Window,
+    cx: &mut gpui_kit::Context<super::Workbench>,
+) {
+    workbench.show_template(window, cx);
+}
+pub(in crate::workbench) fn audit_seed(root: std::path::PathBuf) -> Session {
+    let mut s = Session {
+        support: Some(Ok(())),
+        ..Default::default()
+    };
+    let mut source = loaded(None).source;
+    source.path = root.join("template/default.project.json");
+    s.load(LoadedTemplate::new(source));
+    s.draft
+        .as_mut()
+        .unwrap()
+        .model
+        .as_mut()
+        .unwrap()
+        .set_setting("servePort", Some(40001.into()))
+        .unwrap();
+    s.changed();
+    s.visible = false;
+    s
+}
+pub(in crate::workbench) fn audit_state(s: &Session) -> (String, bool) {
+    let d = s.draft.as_ref().unwrap();
+    (
+        format!(
+            "{:?}:{:?}:{}",
+            d.loaded.source,
+            d.model.as_ref().map(|m| m.value()),
+            d.raw
+        ),
+        d.dirty(),
+    )
+}
 pub(super) fn loaded(original: Option<&str>) -> LoadedTemplate {
     let path = std::env::temp_dir().join("template-ui-fixture/default.project.json");
     let parents = path
