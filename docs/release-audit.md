@@ -1,5 +1,16 @@
 # Release-Hardening Audit
 
+## November 16: Project Tool Setup design
+
+The [one-tool proposal](desktop-project-tool-setup-design.md) uses local sample
+plans, configuration previews and simulated outcomes. It preserves captured
+ownership, keeps Watch stopping separate and waits for confirmed completion when
+closing. [Acceptance](desktop-project-tool-setup-acceptance.md) records deterministic
+checks, failed attempts and delivery status. Existing warning-only tool-add
+failure handling remains a concern for future native execution. No Rust,
+worker/API, configuration-format, installation or release changes. Rendering and
+native memory stability remain unverified; previews stay paused. Version 0.22.0.
+
 ## November 10: desktop parity and workflow interactions
 
 The [integration audit](desktop-integration-audit.md) classifies all 18 parity
