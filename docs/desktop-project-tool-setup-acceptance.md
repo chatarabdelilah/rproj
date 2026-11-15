@@ -77,5 +77,8 @@ so reauthentication was unnecessary. Its first review covered all eight files
 and returned the one close-choice finding documented above. The second review
 covered all eight files with zero findings. The subsequent evidence-only update
 was inspected directly. The tracked fragment and inline copy have identical
-SHA-256 hashes. Reviewed-head/main CI are pending. Published version remains
-0.22.0. No native window was launched.
+SHA-256 hashes. [PR #154](https://github.com/chatarabdelilah/rproj/pull/154)
+is the delivery ledger for the exact final reviewed-head and merged-main SHAs,
+CI runs/attempts and branch cleanup. Initial commit `23998e2` preceded this
+evidence-link correction; its CI does not substitute for final-head verification.
+Published version remains 0.22.0. No native window was launched.
