@@ -2,10 +2,11 @@
 
 ## November 16: Watch test executable layout
 
-A separately approved [test-only correction](watch-test-binary-locator.md)
+A separately approved [compatibility correction](watch-test-binary-locator.md)
 addresses PR #154's stable-Windows CI failure: its unit-test executable moved
 deeper than the fixture's two-parent assumption. Regressions cover both observed
-layouts without weakening lifecycle assertions or changing production code.
+layouts without weakening lifecycle assertions. CI then exposed a Windows-only
+Clippy boolean simplification; its equivalent expression preserves behavior.
 Design PR #154 remains a separate delivery. Native previews stay paused and
 published version remains 0.22.0.
 
