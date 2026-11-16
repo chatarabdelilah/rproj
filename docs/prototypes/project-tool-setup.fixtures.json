@@ -1,0 +1,22 @@
+{
+  "authority": "src/commands/setup.rs; src/steps/asphalt.rs; src/steps/tungsten.rs; src/steps/blender.rs; src/steps/toolchain.rs",
+  "projects": {
+    "Skyline": "C:/Samples/Roblox/Skyline",
+    "Lantern": "C:/Samples/Roblox/長い名前/A long project path for narrow window review/Lantern"
+  },
+  "cases": {
+    "fresh": "Missing manifest and configuration",
+    "pin": "Existing pin, missing configuration",
+    "custom": "Custom pin preserved",
+    "existing": "Existing configuration and pin",
+    "figma": "Existing figma/exports folder",
+    "scene": "Existing Blender scene",
+    "no-rokit": "Rokit unavailable",
+    "no-blender": "Blender unavailable",
+    "plain": "Plain Rojo project, no rproj record/setup",
+    "no-project": "Missing default.project.json",
+    "malformed": "Malformed rokit.toml",
+    "linked": "Linked project or target",
+    "unreadable": "Unreadable target"
+  }
+}
