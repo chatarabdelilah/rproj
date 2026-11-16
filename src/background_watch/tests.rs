@@ -402,13 +402,67 @@ fn lost_control_reply_does_not_fail_the_supervisor() {
 }
 
 fn exe() -> PathBuf {
-    std::env::current_exe()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join("rproj.exe")
+    let harness = std::env::current_exe().unwrap();
+    cli_for_harness(&harness).unwrap_or_else(|| {
+        panic!(
+            "Unrecognized Cargo test executable layout: {}",
+            harness.display()
+        )
+    })
+}
+
+fn cli_for_harness(harness: &Path) -> Option<PathBuf> {
+    let directory = harness.parent()?;
+    let profile = if directory.file_name()? == "deps" {
+        directory.parent()?
+    } else {
+        // Newer Cargo places the harness under build/rproj/<unit>/out.
+        // Resolve only known layouts, never an arbitrary ancestor's executable.
+        let package = directory.parent()?.parent()?;
+        let build = package.parent()?;
+        if directory.file_name()? != "out"
+            || package.file_name()? != "rproj"
+            || build.file_name()? != "build"
+        {
+            return None;
+        }
+        build.parent()?
+    };
+    Some(profile.join("rproj.exe"))
+}
+
+#[test]
+fn watch_fixture_binary_locator_supports_cargo_layouts() {
+    for profile in [
+        "C:/repo/target/debug",
+        "D:/custom target 日本語/x86_64-pc-windows-msvc/release",
+        "D:/build/target/ci-profile",
+    ] {
+        let profile = Path::new(profile);
+        for relative in [
+            "deps/rproj-012345.exe",
+            "build/rproj/012345/out/rproj-012345.exe",
+        ] {
+            assert_eq!(
+                cli_for_harness(&profile.join(relative)),
+                Some(profile.join("rproj.exe")),
+                "{relative} under {}",
+                profile.display()
+            );
+        }
+    }
+}
+
+#[test]
+fn watch_fixture_binary_locator_refuses_unrecognized_layouts() {
+    for harness in [
+        "rproj.exe",
+        "C:/repo/target/debug/rproj.exe",
+        "C:/repo/target/debug/build/other-package/012345/out/test.exe",
+        "C:/repo/target/debug/other/rproj/012345/out/test.exe",
+    ] {
+        assert_eq!(cli_for_harness(Path::new(harness)), None, "{harness}");
+    }
 }
 
 #[track_caller]

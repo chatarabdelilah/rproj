@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## November 16: Watch test executable layout
+
+A separately approved [test-only correction](watch-test-binary-locator.md)
+addresses PR #154's stable-Windows CI failure: its unit-test executable moved
+deeper than the fixture's two-parent assumption. Regressions cover both observed
+layouts without weakening lifecycle assertions or changing production code.
+Design PR #154 remains a separate delivery. Native previews stay paused and
+published version remains 0.22.0.
+
 ## November 10: desktop parity and workflow interactions
 
 The [integration audit](desktop-integration-audit.md) classifies all 18 parity
