@@ -11,6 +11,16 @@ failure handling remains a concern for future native execution. No Rust,
 worker/API, configuration-format, installation or release changes. Rendering and
 native memory stability remain unverified; previews stay paused. Version 0.22.0.
 
+## November 16: Watch test executable layout
+
+A separately approved [compatibility correction](watch-test-binary-locator.md)
+addresses PR #154's stable-Windows CI failure: its unit-test executable moved
+deeper than the fixture's two-parent assumption. Regressions cover both observed
+layouts without weakening lifecycle assertions. CI then exposed a Windows-only
+Clippy boolean simplification; its equivalent expression preserves behavior.
+Design PR #154 remains a separate delivery. Native previews stay paused and
+published version remains 0.22.0.
+
 ## November 10: desktop parity and workflow interactions
 
 The [integration audit](desktop-integration-audit.md) classifies all 18 parity

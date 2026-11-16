@@ -81,4 +81,12 @@ SHA-256 hashes. [PR #154](https://github.com/chatarabdelilah/rproj/pull/154)
 is the delivery ledger for the exact final reviewed-head and merged-main SHAs,
 CI runs/attempts and branch cleanup. Initial commit `23998e2` preceded this
 evidence-link correction; its CI does not substitute for final-head verification.
+Head `e733ef9` then failed the unchanged Watch fixture's executable-path assertion
+on both attempts of CI run `43776424821`. Separately approved
+[PR #155](https://github.com/chatarabdelilah/rproj/pull/155) corrected the locator
+and a subsequently exposed equivalent Windows Clippy expression. It merged at
+`0a0dcf8` with reviewed-head and main CI verified; its ledger retains the unrelated
+terminal paste timeout and passing unchanged-commit rerun. This design branch
+then incorporated verified main, retaining both release-audit entries. Prototype,
+fixture and JavaScript test contents are unchanged from their reviewed versions.
 Published version remains 0.22.0. No native window was launched.
