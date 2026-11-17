@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::catalog::tool_catalog::{self, ToolKind};
 
+pub mod protocol;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Input {
     pub directory: bool,

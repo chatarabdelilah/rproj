@@ -2,6 +2,13 @@
 
 ## November 17: shared Project Tool Setup implementation
 
+Shared execution merged through [PR #156](https://github.com/chatarabdelilah/rproj/pull/156)
+at `c402613`; actual reviewed-head and main CI passed all seven executed jobs on
+first attempts, and the merged branch is removed. Private worker development
+adds bounded identity-checked reports and owned execution; native controls and
+real-window acceptance are still pending. Worker validation remains distinct
+from real installation acceptance.
+
 Native implementation is approved against `bd1782a`; the first PR adds shared
 read-only plans and a checked single-tool executor. The
 [implementation record](desktop-project-tool-setup-native.md) records fixtures,

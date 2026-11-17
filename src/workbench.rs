@@ -10,6 +10,7 @@ use rproj_core::operations::WORKER_FLAG;
 mod composition;
 mod creation;
 mod project_template;
+mod project_tool;
 mod saved_setups;
 mod settings;
 mod setup;
@@ -89,6 +90,14 @@ fn dispatch(operation: Operation) -> Result<()> {
             Ok(())
         }
         Operation::SettingsJob(directory) => settings::job(&directory),
+        Operation::ProjectToolSupport => {
+            println!(
+                "{}",
+                rproj_core::project_tool_setup::protocol::PROJECT_TOOL_PROTOCOL
+            );
+            Ok(())
+        }
+        Operation::ProjectToolJob(directory) => project_tool::job(&directory),
         Operation::TemplateSupport => {
             println!(
                 "{}",
@@ -138,6 +147,8 @@ enum Operation {
     SavedSetupsSupport,
     SavedSetupsJob(std::path::PathBuf),
     SettingsSupport,
+    ProjectToolSupport,
+    ProjectToolJob(std::path::PathBuf),
     SettingsJob(std::path::PathBuf),
     TemplateSupport,
     TemplateJob(std::path::PathBuf),
@@ -155,6 +166,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         || verb == "upgrade-job"
         || verb == "saved-setups-job"
         || verb == "settings-job"
+        || verb == "project-tool-job"
         || verb == "template-job"
         || verb == "setup-job"
     {
@@ -168,6 +180,8 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
             Operation::SavedSetupsJob(directory.into())
         } else if verb == "settings-job" {
             Operation::SettingsJob(directory.into())
+        } else if verb == "project-tool-job" {
+            Operation::ProjectToolJob(directory.into())
         } else if verb == "template-job" {
             Operation::TemplateJob(directory.into())
         } else if verb == "setup-job" {
@@ -182,6 +196,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         Some("composition-context") => Ok(Operation::CompositionContext),
         Some("saved-setups-support") => Ok(Operation::SavedSetupsSupport),
         Some("settings-support") => Ok(Operation::SettingsSupport),
+        Some("project-tool-support") => Ok(Operation::ProjectToolSupport),
         Some("template-support") => Ok(Operation::TemplateSupport),
         Some("setup-support") => Ok(Operation::SetupSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),
@@ -248,6 +263,7 @@ mod tests {
             ("check", Operation::Check),
             ("test", Operation::Test),
             ("settings-support", Operation::SettingsSupport),
+            ("project-tool-support", Operation::ProjectToolSupport),
             ("template-support", Operation::TemplateSupport),
             ("setup-support", Operation::SetupSupport),
         ] {
@@ -262,6 +278,29 @@ mod tests {
         }
         assert!(parse_operation(std::iter::empty()).is_err());
         assert!(parse_operation([OsString::from("unknown")].into_iter()).is_err());
+        assert!(parse_operation([OsString::from("project-tool-job")].into_iter()).is_err());
+        assert_eq!(
+            parse_operation(
+                [
+                    OsString::from("project-tool-job"),
+                    OsString::from("fixture")
+                ]
+                .into_iter()
+            )
+            .unwrap(),
+            Operation::ProjectToolJob("fixture".into())
+        );
+        assert!(
+            parse_operation(
+                [
+                    OsString::from("project-tool-job"),
+                    OsString::from("fixture"),
+                    OsString::from("extra")
+                ]
+                .into_iter()
+            )
+            .is_err()
+        );
     }
 
     #[test]
