@@ -1,5 +1,13 @@
 # Release-Hardening Audit
 
+## November 17: shared Project Tool Setup implementation
+
+Native implementation is approved against `bd1782a`; the first PR adds shared
+read-only plans and a checked single-tool executor. The
+[implementation record](desktop-project-tool-setup-native.md) records fixtures,
+failure correction and delivery gates. Worker/native controls follow separately.
+No version bump, publication or native preview. Memory stability remains unresolved.
+
 ## November 16: Project Tool Setup design
 
 The [one-tool proposal](desktop-project-tool-setup-design.md) uses local sample

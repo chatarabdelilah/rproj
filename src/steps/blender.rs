@@ -173,7 +173,36 @@ fn scaffold_starter_scene_with(
     locate: impl FnOnce() -> Result<PathBuf>,
     run: impl FnOnce(&Path, &str) -> Result<String>,
 ) -> Result<()> {
+    scaffold_scene_checked(project_dir, locate, run, || Ok(()), false)
+}
+
+pub(crate) fn scaffold_starter_scene_checked(
+    project_dir: &Path,
+    executable: &Path,
+    reporter: &Reporter,
+    verify: impl Fn() -> Result<()>,
+) -> Result<()> {
+    scaffold_scene_checked(
+        project_dir,
+        || Ok(executable.to_path_buf()),
+        |exe, script| run_headless_script_at(exe, script, Some(reporter)),
+        verify,
+        true,
+    )
+}
+
+fn scaffold_scene_checked(
+    project_dir: &Path,
+    locate: impl FnOnce() -> Result<PathBuf>,
+    run: impl FnOnce(&Path, &str) -> Result<String>,
+    verify: impl Fn() -> Result<()>,
+    strict: bool,
+) -> Result<()> {
+    verify()?;
     let Some(blender_exe) = starter_scene_executable(project_dir, locate)? else {
+        if strict {
+            bail!("Scene appeared after Review; Refresh review");
+        }
         ui::ok("blender/scene.blend already exists");
         return Ok(());
     };
@@ -206,8 +235,9 @@ bpy.ops.wm.save_as_mainfile(filepath={dest_str})
     }
     // Another process may create a scene while Blender runs. Commit only if
     // the destination is still free, preserving that process's work.
+    verify()?;
     if let Err(error) = staged.persist_noclobber(&dest) {
-        if error.error.kind() == std::io::ErrorKind::AlreadyExists && dest.is_file() {
+        if !strict && error.error.kind() == std::io::ErrorKind::AlreadyExists && dest.is_file() {
             ui::ok("blender/scene.blend appeared while Blender ran; preserved the existing scene");
             return Ok(());
         }
@@ -403,6 +433,41 @@ mod tests {
         )
         .unwrap();
         assert_eq!(fs::read(scene).unwrap(), b"owner scene");
+    }
+
+    #[test]
+    fn checked_scene_revalidates_before_commit_and_refuses_racing_scene() {
+        for race in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            fs::create_dir(root.path().join("blender")).unwrap();
+            let scene = root.path().join("blender/scene.blend");
+            let validations = std::cell::Cell::new(0);
+            let result = scaffold_scene_checked(
+                root.path(),
+                || Ok(PathBuf::from("fixture-blender")),
+                |_, script| {
+                    write_scene_script_output(script);
+                    if race {
+                        fs::write(&scene, b"other writer")?;
+                    }
+                    Ok(String::new())
+                },
+                || {
+                    validations.set(validations.get() + 1);
+                    Ok(())
+                },
+                true,
+            );
+            assert_eq!(validations.get(), 2);
+            assert_eq!(result.is_err(), race);
+            assert_eq!(
+                fs::read_dir(root.path().join("blender")).unwrap().count(),
+                1
+            );
+            if race {
+                assert_eq!(fs::read(&scene).unwrap(), b"other writer");
+            }
+        }
     }
 
     #[test]

@@ -4,8 +4,9 @@ use std::path::PathBuf;
 use anyhow::{Context, Result, bail};
 
 use crate::catalog::{tool_catalog, tool_usage};
-use crate::steps::{asphalt, blender, toolchain, tungsten};
 use crate::ui;
+
+pub(crate) mod checked;
 
 /// `rproj setup` with no tool: machine-wide provisioning.
 /// `rproj setup <tool>`: that one tool, in the current project.
@@ -30,53 +31,21 @@ fn setup_tool(key: &str) -> Result<()> {
     })?;
 
     let project_dir = find_project_root()?;
-    let _guard = crate::background_watch::mutation_guard(Some(&project_dir), false)?;
     ui::section(&format!(
         "Setting up {} in {}",
         entry.key,
         project_dir.display()
     ));
 
-    // 1. Pin it, so the version is the project's rather than whatever the
-    //    machine happens to have. Idempotent: rokit leaves an existing pin
-    //    alone.
-    match entry.kind {
-        tool_catalog::ToolKind::RokitTool { .. } => {
-            // A project scaffolded without rokit.toml - now a legitimate
-            // choice - has nothing to pin into, and `rokit add` fails with
-            // its own "no manifest found". Creating it first is idempotent
-            // and is what the user meant by asking to set a tool up here.
-            toolchain::ensure_rokit_init(&project_dir)?;
-            toolchain::add_selected_tools(
-                &project_dir,
-                std::slice::from_ref(&entry.key.to_string()),
-            )?;
+    let plan = checked::prepare(&project_dir, key)?;
+    let reporter = crate::steps::execution::Reporter(std::sync::Arc::new(|kind, text| {
+        if kind == crate::steps::execution::MessageKind::Warning {
+            ui::warn(text);
+        } else {
+            ui::detail(text);
         }
-        // Everything else is machine-wide, so there is nothing project-local
-        // to pin. Saying so beats silently doing nothing.
-        _ => ui::skip(&format!(
-            "{} is a {}, so there is nothing to pin per project",
-            entry.key,
-            entry.kind.label()
-        )),
-    }
-
-    // 2. Write its config, where rproj knows the format.
-    match entry.key {
-        "asphalt" => asphalt::ensure_config(&project_dir)?,
-        "tungsten" => tungsten::ensure_config(&project_dir)?,
-        "blender" => blender::scaffold_starter_scene(&project_dir)?,
-        _ => {
-            // `rproj configure` owns the tools with a settings walkthrough;
-            // pointing at it beats reimplementing it here.
-            if tool_usage::find(entry.key).is_some() {
-                ui::skip(&format!(
-                    "no config file for {} - `rproj configure {}` if it has settings",
-                    entry.key, entry.key
-                ));
-            }
-        }
-    }
+    }));
+    let outcome = checked::execute(&plan, &reporter, &mut || Ok(()))?;
 
     // 3. The part that cannot be scripted, and the first command to run.
     if let Some(usage) = tool_usage::find(entry.key) {
@@ -94,6 +63,11 @@ fn setup_tool(key: &str) -> Result<()> {
             ui::detail(&format!("  {what}"));
         }
     }
+    anyhow::ensure!(
+        outcome.succeeded(),
+        "Tool setup did not fully complete in {}. Partial effects may remain; inspect the reported steps before retrying.",
+        project_dir.display()
+    );
     Ok(())
 }
 
