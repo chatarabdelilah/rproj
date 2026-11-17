@@ -17,6 +17,12 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 17: native Project Tool Setup approved.** Implementation proceeds
+through shared checked execution, private worker, then Soft controls. The
+[implementation record](desktop-project-tool-setup-native.md) separates current
+evidence from pending delivery. Existing pins/files stay intact; required tool
+failures must fail the single-tool command. Native previews remain paused.
+
 **November 16: Project Tool Setup design.** The separate Soft
 [proposal](desktop-project-tool-setup-design.md) reviews one captured project's
 tool setup at a time, with preserved pins/files, explicit partial results and
