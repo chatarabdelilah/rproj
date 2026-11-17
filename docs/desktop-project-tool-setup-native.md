@@ -42,8 +42,8 @@ revalidates the review, then adds without force using an explicit executable
 alias. Existing pins never invoke an installer. Source/output checks are
 optimistic checks, not a transaction against arbitrary external writers.
 
-Implementation is in progress on `codex/project-tool-setup-shared`. The first
-full CLI/core run passed 830 tests with 25 prerequisite-dependent cases ignored;
+Shared implementation was delivered from `codex/project-tool-setup-shared`. The
+first full CLI/core run passed 830 tests with 25 prerequisite-dependent cases ignored;
 165 headless desktop tests passed. Strict CLI/core and desktop Clippy, formatting,
 portable archive/static-runtime checks and matching-CLI smoke checks passed.
 The archive preserves notices for 590 packages; three existing legacy archive
@@ -60,8 +60,51 @@ covers failure after a valid pin was written, without losing the failed outcome.
 The final CodeRabbit rerun reviewed the same eleven files with zero findings.
 Focused reruns passed four CLI fixtures and thirteen setup unit tests (one
 Windows symlink-prerequisite case ignored); strict CLI/core Clippy passed again.
-The reviewed runtime source is ready for head/main CI; delivery remains pending.
+Shared [PR #156](https://github.com/chatarabdelilah/rproj/pull/156) merged at
+`c402613`. Reviewed head `c282515` passed all seven executed jobs in
+[head CI 44010750269](https://github.com/chatarabdelilah/rproj/actions/runs/44010750269);
+merged main passed all seven in
+[main CI 44011471802](https://github.com/chatarabdelilah/rproj/actions/runs/44011471802).
+Both were first attempts; badge freshness was intentionally skipped. The final
+portable archive was rebuilt after the JSONC correction and passed again.
+The merged local/remote branch is removed. Private worker implementation now
+continues on `codex/project-tool-setup-worker`; native controls remain pending.
 
 Each PR requires applicable formatting/tests/Clippy, portable packaging checks,
 local CodeRabbit review, final diff inspection, reviewed-head and merged-main
 CI, and merged-branch cleanup. No version bump, publication or installation.
+
+## Private worker
+
+The private `project-tool-support`/`project-tool-job` handoff adds preparation
+and confirmed execution through the matching bundled CLI. Preparation supplies
+the captured project/tool context, prerequisites and complete reviewed effects;
+it creates no project or machine configuration. Unsupported workers leave other
+verbs unchanged. Requests and atomic reports retain the 2 MiB limit.
+
+The client shares the existing serialized-operation guard and owned Windows
+process-tree execution. Setup exposes no cancellation token; the client waits
+for confirmed exit and pipe drain before interpreting the report. Reports must
+match operation/project/tool identity, reviewed step labels, expected step
+states, effects and exit status. Logs cannot establish success. Missing or
+contradictory reports yield uncertainty; failures before spawn remain
+recoverable. Teardown errors retain their existing typed close-blocking signal.
+
+Known tool failures retain individual completed/failed/skipped file/tool results
+and possible effects. Any failure outside those confirmed step results after an
+effect callback becomes uncertain. Retry requires a renewed review; no rollback
+is promised. Worker tests use compiled disposable stand-ins and isolated Watch
+state, never real installations or native windows. The full CLI/core run passed
+846 tests (25 prerequisite-dependent cases ignored), including twelve worker
+tests and three new protocol checks. All 165 headless desktop tests passed;
+strict CLI/core/desktop Clippy and formatting passed. Portable packaging and
+matching-worker smoke checks passed without launching a native window.
+
+The first worker CodeRabbit review raised three findings. The process-cleanup
+test now requires a successful `tasklist` query before accepting its observation.
+The two questions were checked against existing boundaries: all errors after
+owned spawn carry `OwnedTeardownUnconfirmed`, including wait/drain errors, and
+the worker test module is explicitly Windows-only. Neither requires a runtime
+change. The final CodeRabbit review covered eleven files with zero findings.
+The assertion initially needed rustfmt; after formatting, all twelve worker
+tests and strict CLI/core Clippy passed again. PR delivery follows these checks.
