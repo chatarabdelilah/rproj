@@ -31,6 +31,7 @@ impl Workbench {
         self.setup.visible = false;
         self.creation.visible = false;
         self.settings.visible = false;
+        self.project_tool.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = true;
         self.focus_composition(window, cx);
@@ -71,6 +72,7 @@ impl Workbench {
         let id = self.composition.begin_load(project.clone());
         self.creation.visible = false;
         self.settings.visible = false;
+        self.project_tool.visible = false;
         self.upgrade.visible = false;
         self.composition_inputs
             .query

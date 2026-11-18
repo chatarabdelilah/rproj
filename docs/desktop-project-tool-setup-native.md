@@ -107,4 +107,53 @@ owned spawn carry `OwnedTeardownUnconfirmed`, including wait/drain errors, and
 the worker test module is explicitly Windows-only. Neither requires a runtime
 change. The final CodeRabbit review covered eleven files with zero findings.
 The assertion initially needed rustfmt; after formatting, all twelve worker
-tests and strict CLI/core Clippy passed again. PR delivery follows these checks.
+tests and strict CLI/core Clippy passed again. [Worker PR #157](https://github.com/chatarabdelilah/rproj/pull/157)
+merged at `e176f73`. Reviewed head `bbdb7d4` passed all seven executed jobs in
+[head CI 44069122534](https://github.com/chatarabdelilah/rproj/actions/runs/44069122534);
+merged main passed all seven in
+[main CI 44069844940](https://github.com/chatarabdelilah/rproj/actions/runs/44069844940).
+Both were first attempts; badge freshness was intentionally skipped. The merged
+tree matched the reviewed branch, which was removed locally and remotely.
+
+## Native controls
+
+`codex/project-tool-setup-native` adds Tool → Review → Results to Tools, beside
+Configure tool settings. The switcher can resume the captured review after
+project navigation or closure. Catalog search distinguishes project executables,
+Blender scene creation and guidance-only machine entries. Machine Setup is an
+explicit handoff. Review displays the checked planner's ordered effects and
+complete new text-file contents; existing pins/files and binary scenes retain
+their separate explanations.
+
+One session-only review owns its project/tool throughout preparation and setup.
+Replacement and confirmation default to Keep; Watch ownership is checked again
+at confirmation and in the executor. Setup shares the serialized operation lane,
+has no cancellation action, and waits for owned completion. Results retain
+individual tool/file outcomes; retry requires explicit review. Close after setup
+waits for confirmed completion and then honors other dirty drafts. Reopening the
+close decision withdraws an earlier close request while the new choice is pending.
+
+All 176 headless desktop tests and strict desktop Clippy pass. Eleven new checks
+cover layouts/themes, retained ownership, unavailable workers, prerequisite
+errors, stale events/confirmations, Activity output/height, Watch guards and
+close/completion races. The existing all-draft navigation audit now includes
+Project Tool Setup. Early compile attempts exposed incorrect assumptions about
+pinned GPUI imports/test APIs; these were corrected against existing controls.
+The first layout checks needed visible filtered choices and explicit scrolling
+to below-fold content. Focus observation must precede `track_focus`. The
+disabled-action check exercises activation refusal because the pinned test
+snapshot does not expose that button's disabled accessibility flag.
+
+The November 17 validation attempt after the last close-race edits did not run:
+automatic approval review exhausted its usage allowance. Validation resumed on
+November 18. The full CLI/core suite passed 846 tests with 25 ignored prerequisites;
+the nested Watch fixture driver's result is not double-counted. Strict CLI/core
+Clippy, formatting and portable packaging/static-runtime/matching-worker smoke
+checks passed. The archive preserves 590 dependency notice sets; the same three
+legacy notice-completeness gaps remain. CodeRabbit reviewed all 22 changed files
+and raised one question about the global teardown guard. The guard in
+`workbench/upgrade/controller.rs` already includes `project_tool.teardown_uncertain`;
+`uncertain_completion_and_teardown_keep_closing_blocked` verifies that it blocks
+closing. This refutes the concern without a runtime change. The final evidence-only
+documentation update was inspected directly; native PR delivery follows.
+No native preview, real installer or platform-browser acceptance is claimed.

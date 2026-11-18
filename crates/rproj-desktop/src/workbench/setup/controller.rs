@@ -46,6 +46,7 @@ impl Workbench {
         self.composition.visible = false;
         self.upgrade.visible = false;
         self.settings.visible = false;
+        self.project_tool.visible = false;
         self.setup.visible = true;
         if self.setup.context.is_none() && !self.setup.loading && self.setup.error.is_none() {
             self.load_setup(cx);

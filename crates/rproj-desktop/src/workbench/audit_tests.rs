@@ -30,6 +30,8 @@ fn seed(this: &mut Workbench, root: &Path) {
     this.upgrade.prepared = Some(upgrade::PreparedReview { review, documents });
     this.upgrade_list.reset(this.upgrade.row_count());
     source_copy::audit_seed(&mut this.source, root);
+    this.project_tool.project = Some(root.join("tool setup owner"));
+    this.project_tool.tool = "asphalt".into();
     this.watch = Some(WatchStatus {
         supported: true,
         project: Some(root.join("Watch owner")),
@@ -55,6 +57,10 @@ fn retained(this: &Workbench) -> Vec<String> {
             this.upgrade.prepared.as_ref().map(|p| &p.review)
         ),
         source_copy::audit_state(&this.source),
+        format!(
+            "{:?}:{}:{:?}",
+            this.project_tool.project, this.project_tool.tool, this.project_tool.plan
+        ),
         format!("{:?}", this.watch),
     ]
 }
@@ -92,7 +98,7 @@ fn audit_all_retained_sessions_survive_navigation_during_checks(cx: &mut TestApp
                 this.operations.expanded = false;
                 this.activity_height = px(290.);
             });
-            for page in 0..9 {
+            for page in 0..10 {
                 view.update(cx, |this, cx| match page {
                     0 => this.show_creation(w, cx),
                     1 => this.show_composition(w, cx),
@@ -102,6 +108,7 @@ fn audit_all_retained_sessions_survive_navigation_during_checks(cx: &mut TestApp
                     5 => project_template::audit_show(this, w, cx),
                     6 => this.show_upgrade(w, cx),
                     7 => this.show_source(w, cx),
+                    8 => this.show_project_tool(w, cx),
                     _ => this.show_catalog(None, w, cx),
                 });
                 w.render_frame(cx);
@@ -119,6 +126,7 @@ fn audit_all_retained_sessions_survive_navigation_during_checks(cx: &mut TestApp
                     this.template.visible,
                     this.upgrade.visible,
                     this.source.visible,
+                    this.project_tool.visible,
                     this.library.visible,
                 ];
                 assert_eq!(visibility.iter().filter(|&&v| v).count(), 1, "page {page}");

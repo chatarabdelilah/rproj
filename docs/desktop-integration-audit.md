@@ -5,6 +5,11 @@ all workflow coverage, then focus on navigation/ownership, operations/events,
 Watch, and close/focus interactions. Runtime fixes and new features require a
 separate plan. Published version remains 0.22.0. Native previews stay paused.
 
+November 18 follow-up: the separately approved [Project Tool Setup implementation](desktop-project-tool-setup-native.md)
+addresses F2's native functionality gap. Shared execution/worker PRs #156–157
+have verified delivery; native controls have headless evidence and their own
+delivery ledger. The matrix below retains the November 10 audit's observations.
+
 ## Workflow evidence matrix
 
 The [parity inventory](desktop-workflow-parity.md) describes behavior and deliberate

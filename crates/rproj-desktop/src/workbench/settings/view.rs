@@ -269,6 +269,7 @@ impl Workbench {
                             .label("Back to project")
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.settings.visible = false;
+                                this.project_tool.visible = false;
                                 this.focus_settings(window, cx);
                                 cx.notify();
                             })),
