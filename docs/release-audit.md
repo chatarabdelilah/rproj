@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## November 18: custom test arguments proposal
+
+The separate [Soft design](desktop-test-arguments-design.md) addresses audit
+F3's optional native argument UI through exact values, captured invocation
+review and explicit running/close simulations. [Acceptance](desktop-test-arguments-acceptance.md)
+records DOM checks separately from unverified rendering and real execution.
+No Rust, worker, configuration or release changes; native previews stay paused.
+Default native Test and Ratatui still send no extra arguments. Published version
+remains 0.22.0; native implementation requires subsequent design approval.
+
 ## November 18: native Project Tool Setup controls
 
 Shared execution and the private worker are delivered through #156 and #157.

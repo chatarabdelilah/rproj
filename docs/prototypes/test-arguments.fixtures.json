@@ -1,0 +1,13 @@
+{
+  "authority": ["src/commands/test.rs::invocation", "src/commands/test.rs::uses_studio_cli", "src/background_watch/windows.rs::check_operation"],
+  "cases": [
+    {"name":"TestEZ defaults","runner":"testez","arguments":[],"program":"lute","argv":["test"]},
+    {"name":"Jest defaults","runner":"jest","arguments":[],"program":"jest-roblox-cli","argv":["--passWithNoTests"]},
+    {"name":"Jest existing invocation regression","runner":"jest","arguments":["--headed","-t","inventory"],"program":"jest-roblox-cli","argv":["--passWithNoTests","--headed","-t","inventory"]},
+    {"name":"Literal values are not shell syntax","runner":"testez","arguments":["name with spaces","\"literal quotes\"","保存","","--leading-hyphen","$HOME; echo untouched"],"program":"lute","argv":["test","name with spaces","\"literal quotes\"","保存","","--leading-hyphen","$HOME; echo untouched"]},
+    {"name":"Backend separate value","runner":"jest","arguments":["--backend","open-cloud"],"program":"jest-roblox-cli","argv":["--passWithNoTests","--backend","open-cloud"]},
+    {"name":"Backend equals value","runner":"jest","arguments":["--backend=studio-cli"],"program":"jest-roblox-cli","argv":["--passWithNoTests","--backend=studio-cli"]},
+    {"name":"Control characters are exact values","runner":"testez","arguments":["first\r\nsecond\nthird\rend\t"],"program":"lute","argv":["test","first\r\nsecond\nthird\rend\t"]}
+  ],
+  "watch": {"Watching":"allowed","Preparing":"blocked","Recovering":"blocked","Stopping":"blocked","Stopped":"allowed"}
+}
