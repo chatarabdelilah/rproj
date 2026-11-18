@@ -54,9 +54,12 @@ macOS/Linux desktop acceptance remain outside this milestone.
 
 ## Delivery ledger
 
-Branch: `codex/test-arguments-design`. Local CodeRabbit review, final diff
-inspection and exact reviewed-head/main CI verification are pending. No release
-version change. Earlier working wireframes remain unchanged.
+Branch: `codex/test-arguments-design`. [PR #159](https://github.com/chatarabdelilah/rproj/pull/159)
+is the delivery ledger for exact reviewed-head/main CI runs, attempts and branch
+cleanup. Local CodeRabbit review and final source/diff inspection are complete.
+The final evidence-only update was inspected directly. No release version
+change. Earlier working wireframes remain unchanged. The tracked fragment and
+inline copy have identical SHA-256 hashes.
 
 CodeRabbit 0.7.6 has a valid CodeRabbit Inc. Authenticode signature. The sandbox
 reported signed out; the read-only check outside it found the existing account.
@@ -73,4 +76,7 @@ could clear worker unavailability, and a stale custom review blocked default
 tests. Worker availability is now app-owned; default tests resolve the current
 runner independently. Regressions cover both, plus raw multiline paste in
 JSON mode refusing rather than silently sanitizing input. All **31 checks** pass;
-no test runs have failed or been skipped. Third review pending.
+no test runs have failed or been skipped. The third CodeRabbit review covered
+all nine files and returned zero findings. The initial PR head `b591777` precedes
+the final evidence/link correction; its CI does not substitute for final-head
+verification. PR #159 records any superseded run separately.
