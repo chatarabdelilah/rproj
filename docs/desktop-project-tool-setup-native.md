@@ -155,5 +155,8 @@ and raised one question about the global teardown guard. The guard in
 `workbench/upgrade/controller.rs` already includes `project_tool.teardown_uncertain`;
 `uncertain_completion_and_teardown_keep_closing_blocked` verifies that it blocks
 closing. This refutes the concern without a runtime change. The final evidence-only
-documentation update was inspected directly; native PR delivery follows.
+documentation update was inspected directly. [Native PR #158](https://github.com/chatarabdelilah/rproj/pull/158)
+is the delivery ledger for actual reviewed-head and merged-main CI, attempts and
+branch cleanup. Initial commit `776a8e8` preceded this evidence-link update;
+its CI does not substitute for final-head verification.
 No native preview, real installer or platform-browser acceptance is claimed.
