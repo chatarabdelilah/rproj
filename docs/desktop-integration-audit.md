@@ -74,6 +74,12 @@ teardown remain distinct, not interchangeable reasons to close or retry.
 
 ## Ranked follow-ups
 
+November 18 follow-up to F3: the owner selected an exact-argument native design
+with captured session ownership and protected unsubmitted edits. The separate
+[proposal](desktop-test-arguments-design.md) and [acceptance](desktop-test-arguments-acceptance.md)
+do not yet change native Test execution. An aggregate Home summary remains a
+separate optional decision. The historical findings below retain their audit scope.
+
 No additional runtime defect was reproduced. These five items distinguish
 observed symptoms, missing functionality and unverified gates. No failing product
 reproduction was hidden or merged as an ignored test.

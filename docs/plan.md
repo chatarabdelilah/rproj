@@ -17,6 +17,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 18: custom test arguments design.** Audit F3's optional argument
+gap is selected for a separate [Soft proposal](desktop-test-arguments-design.md).
+Exact rows and invocation preview retain a captured session draft; default Test
+stays unchanged. Steady Watch remains compatible with testing. [Acceptance](desktop-test-arguments-acceptance.md)
+separates deterministic sample checks from unverified rendering. Native
+implementation follows owner design approval; previews remain paused.
+
 **November 18: native Project Tool Setup controls.** Shared checked execution
 and private worker delivery are verified through #156 and #157. The Soft
 Tool → Review → Results flow passes headless checks for captured ownership,

@@ -1,0 +1,173 @@
+<style>
+#rp-test {--surface:light-dark(#fcfbf8,#1e1e1d);--side:light-dark(#f1f0eb,#272725);--text:light-dark(#282925,#efeee8);--quiet:light-dark(#605f58,#bbb9ae);--edge:light-dark(#d8d6ce,#4a4944);--blue:light-dark(#2459b8,#97bcff);--tint:light-dark(#e6eefb,#2d3c52);--error:light-dark(#a12621,#ffb4ab);background:var(--surface);color:var(--text);font:14px/1.55 system-ui,sans-serif;container:test-shell / inline-size}
+#rp-test[data-theme=light]{color-scheme:light} #rp-test[data-theme=dark]{color-scheme:dark} #rp-test[data-theme=system]{color-scheme:light dark}
+#rp-test *{box-sizing:border-box} #rp-test [hidden]{display:none!important} #rp-test h2,#rp-test h3,#rp-test p{margin:0} #rp-test h2{font-size:22px;font-weight:600} #rp-test h3{font-size:16px;font-weight:600}
+#rp-test button,#rp-test input,#rp-test select{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--edge);border-radius:9px;padding:8px 12px;max-width:100%} #rp-test button{text-align:left} #rp-test button:hover:not(:disabled){background:var(--side)} #rp-test button[aria-pressed=true],#rp-test .primary{background:var(--tint);color:var(--blue)} #rp-test button:disabled{color:var(--quiet)} #rp-test :focus-visible{outline:2px solid var(--blue);outline-offset:3px} #rp-test a{color:var(--blue)}
+#rp-test .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center} #rp-test .stack{display:grid;gap:16px;min-width:0} #rp-test .quiet,#rp-test small{color:var(--quiet)} #rp-test .error{color:var(--error)} #rp-test .path,#rp-test pre,#rp-test li{overflow-wrap:anywhere} #rp-test pre{white-space:pre-wrap;font:13px/1.6 Consolas,monospace;margin:0} #rp-test .bar{padding:14px 110px 14px 16px;background:var(--side)} #rp-test .shell{display:grid;grid-template-columns:180px minmax(0,1fr)} #rp-test aside{padding:20px 12px;background:var(--side);display:flex;flex-direction:column;gap:20px;min-width:0} #rp-test nav{display:grid;gap:6px} #rp-test .appearance{margin-top:auto} #rp-test label{display:grid;gap:6px} #rp-test label.check{display:flex;align-items:center;gap:8px} #rp-test main{padding:22px;container:test-main / inline-size;min-width:0} #rp-test .panes{display:grid;gap:24px;grid-template-columns:minmax(0,1fr)} #rp-test .argument{display:grid;gap:8px;border-bottom:1px solid var(--edge);padding-bottom:14px;min-width:0} #rp-test .argument input[type=text]{width:100%} #rp-test .menu{padding:8px;background:var(--surface);border:1px solid var(--edge);border-radius:9px;box-shadow:0 8px 24px #0002} #rp-test .menu small{display:block;overflow-wrap:anywhere} #rp-test .menu button{width:100%} #rp-test .footer,#rp-test .activity,#rp-test .lab{padding:16px;border-top:1px solid var(--edge)} #rp-test .output{height:150px;min-height:95px;resize:vertical;overflow:auto;background:var(--side);padding:12px;white-space:pre-wrap;overflow-wrap:anywhere} #rp-test .preview{background:var(--side);padding:14px;border-radius:9px} #rp-test dialog{color:var(--text);background:var(--surface);border:1px solid var(--edge);border-radius:10px;padding:22px;max-width:calc(100% - 24px);width:460px;box-shadow:0 12px 35px #0003} #rp-test dialog::backdrop{background:#0005} #rp-test i{display:inline-block;width:16px;height:16px;vertical-align:-2px;margin-right:6px} #rp-test ol{padding-left:24px} #rp-test li{padding:5px 0}
+@container test-main (min-width:600px){#rp-test .panes{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@container test-shell (max-width:550px){#rp-test .shell{grid-template-columns:minmax(0,1fr)} #rp-test nav{grid-template-columns:repeat(2,minmax(0,1fr))} #rp-test main{padding:16px}}
+@media(pointer:coarse){#rp-test button,#rp-test select,#rp-test input{min-height:44px}#rp-test input{font-size:16px}}
+</style>
+<section id="rp-test" data-theme="system" aria-label="Soft custom test arguments proposal">
+<div class="bar row"><strong>Soft · Test arguments</strong><small>Sample data · simulated actions</small><button id="ta-close">Close sample window</button></div>
+<div id="ta-window"><div class="shell"><aside><strong>rproj</strong>
+<button id="ta-switch" aria-expanded="false" aria-controls="ta-menu"><i data-lucide="folder" aria-hidden="true"></i><span id="ta-active">Skyline</span></button>
+<div id="ta-menu" class="menu" hidden><button id="ta-skyline">Skyline<small>C:/Samples/Roblox/Skyline</small></button><button id="ta-lantern">Lantern<small>C:/Samples/Roblox/保存/A long project path for narrow window review/Lantern</small></button><button id="ta-open">Open project…</button><button id="ta-close-project">Close project</button></div>
+<nav aria-label="Project sections"><button id="ta-overview"><i data-lucide="layout-dashboard" aria-hidden="true"></i>Overview</button><button id="ta-dependencies"><i data-lucide="package" aria-hidden="true"></i>Dependencies</button><button id="ta-tools"><i data-lucide="wrench" aria-hidden="true"></i>Tools</button><button id="ta-checks"><i data-lucide="flask-conical" aria-hidden="true"></i>Checks</button></nav>
+<nav aria-label="App sections"><button id="ta-machine">Machine Setup…</button><button id="ta-setups">Saved Setups…</button><button id="ta-template">Project Template…</button><button id="ta-catalog">Catalog…</button><button id="ta-projects">Projects…</button></nav>
+<label class="appearance" for="ta-theme">Appearance<select id="ta-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></aside>
+<main class="stack"><div><h2 id="ta-title">Run with arguments</h2><p id="ta-owner">Skyline · captured project</p><p id="ta-path" class="path quiet">C:/Samples/Roblox/Skyline</p></div>
+<div id="ta-other" class="stack" hidden><p id="ta-other-text"></p><div class="row"><button id="ta-default">Run tests</button><button id="ta-enter">Run with arguments…</button><button id="ta-resume">Resume Skyline arguments</button></div><p id="ta-default-reason" class="quiet"></p></div>
+<div id="ta-flow" class="stack"><p id="ta-runner">Jest Roblox · configured runner</p><p id="ta-problem" class="error" role="alert" hidden></p>
+<div class="panes"><section class="stack" aria-label="Exact arguments"><h3>Arguments</h3><p class="quiet">One row = one argument. Literal mode accepts one line. Use JSON string mode for escaped line breaks and controls; multiline paste selects it automatically. No shell expansion.</p>
+<div id="ta-rows" class="stack"><label>Argument 1<input value="-t" aria-label="Argument 1"></label><label>Argument 2<input value="inventory" aria-label="Argument 2"></label></div>
+<div class="row"><button id="ta-add">Add argument</button><button id="ta-discard">Revert unsubmitted edits…</button></div><p id="ta-dirty" class="quiet">Sample arguments · not saved to project configuration</p></section>
+<section class="stack" aria-label="Invocation review"><h3>Invocation preview</h3><p id="ta-executable">Executable: jest-roblox-cli</p><pre id="ta-argv" class="preview">[0] "--passWithNoTests"
+[1] "-t"
+[2] "inventory"</pre><p class="quiet">JSON string notation exposes boundaries and control characters. This is an argument list, not a shell command.</p><p id="ta-effects">Before tests: synchronize project tools and Wally dependencies; refresh Jest project/configuration as needed. Run only trusted projects.</p><p id="ta-backend">Configured backend: Studio. Options can change runner behavior, including the Jest backend.</p><a id="ta-docs" href="https://github.com/christopher-buss/jest-roblox-cli" target="_blank" rel="noopener noreferrer">Runner documentation</a><p class="quiet">The installed runner decides which options it supports. These samples are not a compatibility guarantee.</p><div class="row"><button id="ta-run" class="primary">Run with these arguments</button><button id="ta-refresh">Refresh context…</button></div></section></div></div>
+<p id="ta-notice" role="status" aria-live="polite"></p></main></div>
+<section class="activity stack" aria-label="Activity"><div class="row"><button id="ta-activity-toggle" aria-expanded="false" aria-controls="ta-output-panel">Show Activity</button><span id="ta-summary" aria-live="polite">No operations yet</span><button id="ta-cancel" hidden>Cancel tests</button></div><div id="ta-output-panel" class="stack" hidden><label for="ta-filter">Search output<input id="ta-filter" type="search"></label><button id="ta-clear">Clear output</button><div id="ta-output" class="output">No output yet.</div></div></section>
+<footer class="footer row"><span id="ta-watch">Watch · Skyline · Watching</span><button id="ta-stop">Stop</button><button id="ta-watch-output">Watch output</button></footer>
+<details class="lab"><summary>Sample scenarios</summary><div class="stack"><label for="ta-case">Captured project fixture<select id="ta-case"><option value="jest">Jest / Wally / Studio</option><option value="testez">TestEZ / None</option><option value="no-testing">Testing not configured</option><option value="incompatible">Jest with incompatible workflow</option><option value="malformed">Unreadable or malformed project record</option><option value="worker">Worker unavailable</option><option value="prerequisite">Runner prerequisite unavailable</option></select></label><button id="ta-load">Load sample…</button><div class="row"><button id="ta-source">Change captured runner/context</button><button id="ta-busy">Toggle competing operation</button></div><label for="ta-watch-state">Observed Watch state<select id="ta-watch-state"><option>Watching</option><option>Preparing</option><option>Recovering</option><option>Stopping</option><option>Stopped</option></select></label><button id="ta-watch-owner">Switch sample Watch owner</button><button id="ta-stop-ack">Acknowledge Stop</button><label for="ta-result">Simulated result<select id="ta-result"><option value="success">Succeeded</option><option value="failure">Runner failed</option><option value="uncertain">Unconfirmed teardown</option></select></label><div class="row"><button id="ta-advance">Finish preparation</button><button id="ta-line">Append ordinary output</button><button id="ta-complete">Complete active run</button><button id="ta-teardown">Confirm cancellation / teardown</button><button id="ta-obsolete">Deliver obsolete completion</button></div><label class="check"><input id="ta-other-dirty" type="checkbox">Another workflow has unsubmitted edits</label><p class="quiet">Creation, composition, settings, machine setup, saved setup and template drafts remain independent; Upgrade and Copy Source reviews stay retained. All controls here simulate local state.</p></div></details>
+</div><div id="ta-closed" class="stack" hidden><h2>Sample window closed</h2><p>Detached Watch remains unchanged.</p><button id="ta-reopen">Reopen sample</button></div>
+<dialog id="ta-dialog" aria-labelledby="ta-dialog-title" aria-describedby="ta-dialog-text"><div class="stack"><h3 id="ta-dialog-title"></h3><p id="ta-dialog-text" class="path"></p><div class="row"><button id="ta-keep" autofocus>Keep draft</button><button id="ta-confirm">Confirm</button></div></div></dialog>
+</section>
+<script>
+(()=>{'use strict';
+const root=document.getElementById('rp-test'),e=id=>root.querySelector('#ta-'+id);
+const projects={Skyline:'C:/Samples/Roblox/Skyline',Lantern:'C:/Samples/Roblox/保存/A long project path for narrow window review/Lantern'};
+const clone=value=>JSON.parse(JSON.stringify(value));
+const initialRows=()=>[{value:'-t',empty:false},{value:'inventory',empty:false}];
+let s={active:'Skyline',owner:'Skyline',runner:'jest',rows:initialRows(),baseline:initialRows(),fixture:'jest',revision:0,captured:0,view:'arguments',sequence:0,run:null,result:null,watchOwner:'Skyline',watch:'Watching',busy:false,uncertain:false,otherDirty:false,closeAfter:false,closed:false,expanded:false,logs:[],omitted:0,notice:''};
+let dialog=null,returnFocus=null;
+const signature=rows=>JSON.stringify(rows.map(row=>({value:row.value,empty:row.empty,error:row.error?row.editor:null})));
+const dirty=()=>signature(s.rows)!==signature(s.baseline);
+const invocation=(runner,args)=>({program:runner==='testez'?'lute':'jest-roblox-cli',argv:[runner==='testez'?'test':'--passWithNoTests',...args]});
+const values=()=>s.rows.map(row=>row.value);
+function rowError(){if(s.rows.some(row=>row.error))return 'Enter a valid JSON string, including its quotes. Preview retains the last valid value; Run is blocked.';if(s.rows.some(row=>row.value.includes('\0')))return 'NUL cannot be passed to an executable. Remove it before running.';if(s.rows.some(row=>row.value===''&&!row.empty))return 'A blank row needs Pass empty argument, or remove the row.';return '';}
+function reason(custom=true){
+ if(s.uncertain)return 'Teardown is unconfirmed. Further runs and closing remain blocked.';
+ if(s.run)return 'A test run is active. Wait for completion or confirmed cancellation.';
+ if(s.busy)return 'Another operation is active. Tests share the operation guard.';
+ if(s.fixture==='worker')return 'Matching CLI worker unavailable. Test execution is disabled for every project.';
+ if(!custom&&!s.active)return 'Open a project to run tests.';
+ if(!['Watching','Stopped'].includes(s.watch))return 'Watch is '+s.watch+'. Wait for steady Watching or acknowledged Stop before testing.';
+ if(custom||s.active===s.owner){
+  const reasons={'no-testing':'Testing is not configured. Add a testing capability first.',incompatible:'Jest Roblox requires the Wally workflow.',malformed:'Cannot read the project record. Repair it, then refresh context.',worker:'Matching CLI worker unavailable. Test execution is disabled.',prerequisite:'Required runner prerequisite is unavailable. Use Machine Setup, then refresh.'};
+  if(reasons[s.fixture])return reasons[s.fixture];
+  if(s.captured!==s.revision)return 'Captured project/runner context changed. Refresh explicitly; arguments will not run against an unseen runner.';
+ }
+ return custom?rowError():'';
+}
+function log(owner,message){s.logs.push(owner+' · '+message);if(s.logs.length>100){s.logs.shift();s.omitted++;}}
+function showNotice(message){s.notice=message;render();}
+function setView(view){s.view=view;render();}
+function focus(id){const target=e(id);if(target&&!target.disabled&&!target.closest('[hidden]'))target.focus();else e('close').focus();}
+function ask(title,text,keep,confirm,action,kind='draft'){
+ if(dialog)return;
+ returnFocus=document.activeElement;dialog={action,kind};e('dialog-title').textContent=title;e('dialog-text').textContent=text;e('keep').textContent=keep;e('confirm').textContent=confirm;e('dialog').showModal();e('keep').focus();
+}
+function dismiss(accepted){
+ const pending=dialog;if(!pending)return;dialog=null;e('dialog').close();
+ if(!accepted&&pending.kind==='close')s.closeAfter=false;
+ const prior=returnFocus;returnFocus=null;
+ if(prior&&prior.isConnected&&!prior.disabled&&!prior.closest('[hidden]'))prior.focus();else focus('close');
+ if(accepted)pending.action();render();
+ if(!dialog&&s.closeAfter&&!s.run&&!s.uncertain)continueClose();
+}
+function protectedChange(title,action){
+ if(s.run||s.uncertain){showNotice('Finish the active run and confirm teardown before replacing its argument draft.');return;}
+ if(dirty())ask(title,'Unsubmitted arguments belong to '+s.owner+' · '+projects[s.owner]+'.','Keep draft','Replace draft',action);else action();
+}
+function openDraft(){if(!s.active)return;if(s.active===s.owner){setView('arguments');return;}const owner=s.active;protectedChange('Replace '+s.owner+' arguments?',()=>{s.owner=owner;s.runner=s.owner==='Skyline'?'jest':'testez';s.nextRunner=null;s.fixture=s.runner;s.rows=[];s.baseline=[];s.revision=0;s.captured=0;s.view='arguments';render(true);});}
+function changeProject(project){s.active=project;s.view='Overview';e('menu').hidden=true;e('switch').setAttribute('aria-expanded','false');render();focus('switch');}
+function renderRows(){
+ e('rows').replaceChildren();s.rows.forEach((row,index)=>{
+  const wrap=document.createElement('div');wrap.className='argument';
+  const label=document.createElement('label');label.htmlFor='ta-arg-'+index;label.textContent='Argument '+(index+1);
+  const formatLabel=document.createElement('label');formatLabel.textContent='Value format';formatLabel.htmlFor='ta-format-'+index;
+  const format=document.createElement('select');format.id='ta-format-'+index;format.setAttribute('aria-label','Value format for argument '+(index+1));for(const [value,text]of [['literal','Literal single line'],['json','JSON string (escaped)']]){const option=document.createElement('option');option.value=value;option.textContent=text;format.append(option);}format.value=row.format||'literal';formatLabel.append(format);wrap.append(formatLabel);
+  const input=document.createElement('input');input.id='ta-arg-'+index;input.type='text';input.value=row.format==='json'?(row.editor??JSON.stringify(row.value)):row.value;input.autocomplete='off';input.spellcheck=false;
+  input.addEventListener('input',()=>{row.editor=input.value;row.error=false;if(row.format==='json'){try{const parsed=JSON.parse(input.value);if(typeof parsed!=='string')throw Error('Not a string');row.value=parsed;}catch{row.error=true;}}else row.value=input.value;if(row.value!=='')row.empty=false;render();});
+  // Text inputs sanitize CR/LF before input events. Capture paste first so the
+  // exact clipboard string is represented by escapes instead of losing bytes.
+  input.addEventListener('paste',event=>{const pasted=event.clipboardData?.getData('text/plain');if(row.format!=='json'&&pasted&&/[\r\n]/.test(pasted)){event.preventDefault();row.value=row.value.slice(0,input.selectionStart)+pasted+row.value.slice(input.selectionEnd);row.format='json';row.editor=JSON.stringify(row.value);row.error=false;row.empty=false;render(true);focus('arg-'+index);}});
+  format.onchange=()=>{if(row.error||format.value==='literal'&&/[\r\n]/.test(row.value)){format.value=row.format||'literal';showNotice(row.error?'Repair the JSON string before changing value format.':'Line breaks require JSON string mode to preserve their exact values.');return;}row.format=format.value;row.editor=row.format==='json'?JSON.stringify(row.value):row.value;render(true);focus('format-'+index);};label.append(input);wrap.append(label);
+  const checkLabel=document.createElement('label');checkLabel.className='check';const check=document.createElement('input');check.id='ta-empty-'+index;check.type='checkbox';check.checked=row.empty;check.disabled=row.value!=='';check.addEventListener('change',()=>{row.empty=check.checked;render();});checkLabel.append(check,document.createTextNode('Pass empty argument'));wrap.append(checkLabel);
+  const actions=document.createElement('div');actions.className='row';
+  for(const [name,delta]of [['Up',-1],['Down',1],['Remove',0]]){const b=document.createElement('button');b.textContent=name;b.id='ta-'+name.toLowerCase()+'-'+index;b.setAttribute('aria-label',name+' argument '+(index+1));b.disabled=delta<0?index===0:delta>0?index===s.rows.length-1:false;b.onclick=()=>{if(delta){[s.rows[index],s.rows[index+delta]]=[s.rows[index+delta],s.rows[index]];}else s.rows.splice(index,1);render(true);focus(s.rows.length?'arg-'+Math.min(Math.max(index+delta,0),s.rows.length-1):'add');};actions.append(b);}wrap.append(actions);e('rows').append(wrap);
+ });
+ if(!s.rows.length)e('rows').textContent='No extra arguments. The runner uses its default invocation.';
+}
+function render(rebuild=false){
+ if(rebuild)renderRows();
+ s.rows.forEach((row,i)=>{e('empty-'+i).disabled=row.value!=='';e('empty-'+i).checked=row.empty;});
+ const inFlow=s.view==='arguments';e('flow').hidden=!inFlow;e('other').hidden=inFlow;
+ e('title').textContent=inFlow?'Run with arguments':s.view;e('active').textContent=s.active||'No project';
+ e('owner').textContent=inFlow?s.owner+' · captured project':s.active||'No project selected';e('path').textContent=projects[inFlow?s.owner:s.active]||'Open a sample project to browse its checks.';
+ for(const id of ['overview','dependencies','tools','checks'])e(id).setAttribute('aria-pressed',String(s.view===id[0].toUpperCase()+id.slice(1)||(id==='checks'&&inFlow)));
+ e('other-text').textContent=s.view==='Checks'?'Run the project’s configured tests with defaults, or review exact arguments.':s.view+' sample view. The captured argument draft remains attached to '+s.owner+'.';
+ e('default').hidden=s.view!=='Checks';e('enter').hidden=s.view!=='Checks';e('default').disabled=!!reason(false);e('default-reason').textContent=s.view==='Checks'?reason(false):'';e('enter').disabled=!s.active;e('resume').textContent='Resume '+s.owner+' arguments';
+ e('runner').textContent=(s.runner==='jest'?'Jest Roblox':'TestEZ')+' · configured runner';
+ const call=invocation(s.runner,values());e('executable').textContent='Executable: '+call.program;e('argv').textContent=call.argv.map((value,index)=>'['+index+'] '+JSON.stringify(value)).join('\n');
+ e('effects').textContent=s.runner==='jest'?'Before tests: synchronize project tools and Wally dependencies; refresh Jest project/configuration as needed. Run only trusted projects.':'Before tests: synchronize project tools; synchronize Wally dependencies if configured. This sample uses None. Run only trusted projects.';
+ e('backend').hidden=s.runner!=='jest';e('docs').href=s.runner==='jest'?'https://github.com/christopher-buss/jest-roblox-cli':'https://lute.luau.org/';
+ const problem=reason();e('problem').textContent=problem;e('problem').hidden=!problem;e('run').disabled=!!problem;e('refresh').disabled=!!s.run||s.uncertain;e('discard').disabled=!dirty();e('dirty').textContent=dirty()?'Unsubmitted edits · retained for this session only':'Arguments retained for this session · no unsubmitted edits';
+ e('notice').textContent=s.notice;e('watch').textContent='Watch · '+s.watchOwner+' · '+s.watch;e('stop').disabled=['Stopped','Stopping'].includes(s.watch);e('watch-state').value=s.watch;e('stop-ack').disabled=s.watch!=='Stopping';
+ e('summary').textContent=s.run?s.run.owner+' · '+s.run.stage:s.result?s.result.owner+' · '+s.result.label:'No operations yet';e('cancel').hidden=!s.run;e('cancel').disabled=!!s.run&&s.run.cancel;e('cancel').textContent=s.run&&s.run.cancel?'Cancellation pending':'Cancel tests';
+ e('output-panel').hidden=!s.expanded;e('activity-toggle').setAttribute('aria-expanded',String(s.expanded));e('activity-toggle').textContent=s.expanded?'Hide Activity':'Show Activity';
+ const query=e('filter').value.toLowerCase(),visible=s.logs.filter(line=>line.toLowerCase().includes(query));e('output').textContent=(s.omitted?s.omitted+' earlier lines omitted\n':'')+(visible.length?visible.join('\n'):s.logs.length?'No search matches.':s.run?'Waiting for output…':s.result?'Operation produced no retained output.':'No output yet.');
+ e('advance').disabled=!s.run||s.run.stage!=='Preparing'||s.run.cancel;e('line').disabled=!s.run;e('complete').disabled=!s.run;e('teardown').disabled=!(s.run&&s.run.cancel)&&!s.uncertain;e('load').disabled=!!s.run||s.uncertain;e('source').disabled=!!s.run||s.uncertain;
+ e('window').hidden=s.closed;e('closed').hidden=!s.closed;
+}
+function start(custom=true){
+ const blocked=reason(custom);if(blocked){showNotice(blocked);return false;}
+ const owner=custom?s.owner:s.active,runner=custom||owner===s.owner?s.runner:(owner==='Skyline'?'jest':'testez');
+ s.run={id:++s.sequence,owner,path:projects[owner],runner,...invocation(runner,custom?values():[]),stage:'Preparing',cancel:false};
+ if(custom)s.baseline=clone(s.rows);s.result=null;s.expanded=true;s.notice='Simulated submission. No runner or project file is accessed.';render();return true;
+}
+function cancel(){if(!s.run||s.run.cancel)return;s.run.cancel=true;s.run.stage='Cancellation pending';log(s.run.owner,'Cancellation requested; waiting for descendants and output streams.');render();}
+function complete(id,kind){
+ if(!s.run||s.run.id!==id||!['success','failure','cancelled','uncertain'].includes(kind)||(kind==='cancelled'&&!s.run.cancel))return false;
+ const run=s.run;
+ if(kind==='uncertain'){s.uncertain=true;s.result={owner:run.owner,label:'Teardown unconfirmed'};s.run=null;s.expanded=true;log(run.owner,'Termination unconfirmed. Closing and further runs remain blocked.');}
+ else {s.result={owner:run.owner,label:kind==='success'?'Succeeded':kind==='cancelled'?'Cancelled':'Runner failed'};s.run=null;if(kind==='failure')s.expanded=true;log(run.owner,s.result.label+'. Preparation may already have changed generated files or dependencies; no rollback is promised.');}
+ render();if(s.closeAfter&&!dialog&&!s.uncertain)continueClose();return true;
+}
+function continueClose(){
+ if(dialog||s.run||s.uncertain)return;
+ if(dirty()){ask('Discard unsubmitted arguments?','Arguments for '+s.owner+' · '+projects[s.owner]+' will be lost.','Keep draft','Discard and close',()=>{s.rows=clone(s.baseline);render(true);continueClose();},'close');return;}
+ if(s.otherDirty){ask('Another draft has unsubmitted edits','Existing creation, composition or settings work must be resolved before closing.','Keep draft','Discard remaining draft and close',()=>{s.otherDirty=false;e('other-dirty').checked=false;continueClose();},'close');return;}
+ s.closed=true;s.closeAfter=false;render();focus('reopen');
+}
+function requestClose(){
+ if(s.uncertain){showNotice('Cannot close: owned-process teardown is unconfirmed.');return;}
+ if(s.run){ask('Tests are running for '+s.run.owner,s.run.path+' · Cancellation waits for the owned process tree and streams. Preparation may have changed files.','Keep open','Cancel tests and close',()=>{s.closeAfter=true;if(s.run)cancel();else continueClose();},'close');return;}
+ s.closeAfter=true;continueClose();
+}
+e('keep').onclick=()=>dismiss(false);e('confirm').onclick=()=>dismiss(true);e('dialog').addEventListener('cancel',event=>{event.preventDefault();dismiss(false);});
+e('switch').onclick=()=>{e('menu').hidden=!e('menu').hidden;e('switch').setAttribute('aria-expanded',String(!e('menu').hidden));if(!e('menu').hidden)focus('skyline');};
+root.addEventListener('keydown',event=>{if(event.key==='Escape'&&!e('menu').hidden){event.preventDefault();e('menu').hidden=true;e('switch').setAttribute('aria-expanded','false');focus('switch');}});
+root.addEventListener('click',event=>{if(!e('menu').hidden&&!e('menu').contains(event.target)&&!e('switch').contains(event.target)){e('menu').hidden=true;e('switch').setAttribute('aria-expanded','false');focus('switch');}});
+for(const project of Object.keys(projects))e(project.toLowerCase()).onclick=()=>changeProject(project);
+e('close-project').onclick=()=>changeProject(null);e('open').onclick=()=>{e('menu').hidden=true;e('switch').setAttribute('aria-expanded','false');ask('Sample folder picker','Choose Lantern, or cancel to preserve the current project.','Cancel','Open Lantern',()=>changeProject('Lantern'));returnFocus=e('switch');};
+for(const id of ['overview','dependencies','tools','checks','machine','setups','template','catalog','projects'])e(id).onclick=()=>setView(e(id).textContent.replace('…',''));
+e('enter').onclick=openDraft;e('resume').onclick=()=>{setView('arguments');focus('run');};e('default').onclick=()=>start(false);e('run').onclick=()=>start();
+e('add').onclick=()=>{s.rows.push({value:'',empty:false});render(true);focus('arg-'+(s.rows.length-1));};
+e('discard').onclick=()=>ask('Revert unsubmitted arguments?',s.owner+' · Restore the last submitted values. No project files are changed.','Keep draft','Revert edits',()=>{s.rows=clone(s.baseline);render(true);});
+e('refresh').onclick=()=>{const refresh=()=>{s.captured=s.revision;if(s.nextRunner){s.runner=s.nextRunner;s.nextRunner=null;}s.notice='Context refreshed. Inspect retained arguments against the configured runner before Run.';render();};if(dirty())ask('Refresh context for '+s.owner+'?',projects[s.owner]+' · Keep the argument values and inspect them against the refreshed runner.','Keep draft','Refresh context',refresh);else refresh();};
+e('load').onclick=()=>{const chosen=e('case').value;protectedChange('Replace the sample argument draft?',()=>{s.fixture=chosen;s.runner=chosen==='testez'?'testez':'jest';s.nextRunner=null;s.rows=chosen==='testez'?[]:initialRows();s.baseline=clone(s.rows);s.revision=0;s.captured=0;s.view='arguments';s.notice='Loaded sample context; no real project read.';render(true);});};
+e('source').onclick=()=>{s.revision++;s.nextRunner=(s.nextRunner||s.runner)==='jest'?'testez':'jest';s.notice='Sample runner changed. Explicit refresh is required.';render();};
+e('busy').onclick=()=>{s.busy=!s.busy;showNotice(s.busy?'A separate simulated operation holds the guard.':'Operation guard released.');};
+e('watch-state').onchange=()=>{s.watch=e('watch-state').value;render();};e('watch-owner').onclick=()=>{s.watchOwner=s.watchOwner==='Skyline'?'Lantern':'Skyline';render();};e('stop').onclick=()=>{s.watch='Stopping';render();};e('stop-ack').onclick=()=>{s.watch='Stopped';render();};
+e('activity-toggle').onclick=()=>{s.expanded=!s.expanded;render();};e('watch-output').onclick=()=>{s.expanded=true;log(s.watchOwner,'Watch status: '+s.watch);render();};e('filter').oninput=()=>render();e('clear').onclick=()=>{s.logs=[];s.omitted=0;render();};
+e('cancel').onclick=cancel;e('advance').onclick=()=>{if(s.run&&!s.run.cancel){s.run.stage='Running';log(s.run.owner,'Preparation finished; runner started.');render();}};
+e('line').onclick=()=>{if(s.run){log(s.run.owner,'Sample test output '+(s.logs.length+1));render();}};
+e('complete').onclick=()=>{if(s.run)complete(s.run.id,e('result').value);};
+e('teardown').onclick=()=>{if(s.run&&s.run.cancel)complete(s.run.id,'cancelled');else if(s.uncertain){s.uncertain=false;s.result.label='Teardown confirmed; test outcome uncertain';log(s.result.owner,s.result.label);render();if(s.closeAfter&&!dialog)continueClose();}};
+e('obsolete').onclick=()=>{complete(0,'success');showNotice('Obsolete completion ignored.');};e('other-dirty').onchange=()=>{s.otherDirty=e('other-dirty').checked;};e('theme').onchange=()=>{root.dataset.theme=e('theme').value;};e('close').onclick=requestClose;e('reopen').onclick=()=>{s.closed=false;render();focus('switch');};
+// Deterministic local simulator API for the DOM harness; never executes a tool.
+root.testArguments={snapshot:()=>clone(s),invocation,complete,start};
+render(true);
+})();
+</script>
