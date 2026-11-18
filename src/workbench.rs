@@ -14,6 +14,7 @@ mod project_tool;
 mod saved_setups;
 mod settings;
 mod setup;
+mod test_execution;
 mod upgrade;
 
 pub(crate) fn internal_entry() -> Option<Result<()>> {
@@ -26,6 +27,11 @@ pub(crate) fn internal_entry() -> Option<Result<()>> {
 
 fn dispatch(operation: Operation) -> Result<()> {
     match operation {
+        Operation::TestSupport => {
+            println!("{}", rproj_core::test_execution::protocol::TEST_PROTOCOL);
+            Ok(())
+        }
+        Operation::TestJob(directory) => test_execution::job(&directory),
         Operation::Catalog => {
             println!("{}", serde_json::to_string(&catalog_entries()?)?);
             Ok(())
@@ -132,6 +138,8 @@ mod worker_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Operation {
+    TestSupport,
+    TestJob(std::path::PathBuf),
     ProjectsContext,
     Catalog,
     Status,
@@ -161,7 +169,8 @@ enum Operation {
 
 fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation> {
     let verb = args.next().context("missing workbench operation")?;
-    if verb == "creation-job"
+    if verb == "test-job"
+        || verb == "creation-job"
         || verb == "composition-job"
         || verb == "upgrade-job"
         || verb == "saved-setups-job"
@@ -170,9 +179,11 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         || verb == "template-job"
         || verb == "setup-job"
     {
-        let directory = args.next().context("missing creation IPC directory")?;
+        let directory = args.next().context("missing workbench IPC directory")?;
         ensure!(args.next().is_none(), "unexpected workbench argument");
-        return Ok(if verb == "creation-job" {
+        return Ok(if verb == "test-job" {
+            Operation::TestJob(directory.into())
+        } else if verb == "creation-job" {
             Operation::CreationJob(directory.into())
         } else if verb == "composition-job" {
             Operation::CompositionJob(directory.into())
@@ -192,6 +203,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
     }
     ensure!(args.next().is_none(), "unexpected workbench argument");
     match verb.to_str() {
+        Some("test-support") => Ok(Operation::TestSupport),
         Some("creation-context") => Ok(Operation::CreationContext),
         Some("composition-context") => Ok(Operation::CompositionContext),
         Some("saved-setups-support") => Ok(Operation::SavedSetupsSupport),
@@ -254,6 +266,7 @@ mod tests {
     #[test]
     fn protocol_accepts_exact_operations_and_refuses_extra_arguments() {
         for (verb, expected) in [
+            ("test-support", Operation::TestSupport),
             ("projects-context", Operation::ProjectsContext),
             ("catalog", Operation::Catalog),
             ("status", Operation::Status),
@@ -277,6 +290,23 @@ mod tests {
             );
         }
         assert!(parse_operation(std::iter::empty()).is_err());
+        assert!(parse_operation([OsString::from("test-job")].into_iter()).is_err());
+        assert_eq!(
+            parse_operation([OsString::from("test-job"), OsString::from("fixture")].into_iter())
+                .unwrap(),
+            Operation::TestJob("fixture".into())
+        );
+        assert!(
+            parse_operation(
+                [
+                    OsString::from("test-job"),
+                    OsString::from("fixture"),
+                    OsString::from("extra")
+                ]
+                .into_iter()
+            )
+            .is_err()
+        );
         assert!(parse_operation([OsString::from("unknown")].into_iter()).is_err());
         assert!(parse_operation([OsString::from("project-tool-job")].into_iter()).is_err());
         assert_eq!(

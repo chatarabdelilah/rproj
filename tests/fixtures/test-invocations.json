@@ -1,0 +1,7 @@
+[
+  {"runner":"testez","arguments":[],"program":"lute","argv":["test"]},
+  {"runner":"jest","arguments":[],"program":"jest-roblox-cli","argv":["--passWithNoTests"]},
+  {"runner":"jest","arguments":["--headed","-t","inventory"],"program":"jest-roblox-cli","argv":["--passWithNoTests","--headed","-t","inventory"]},
+  {"runner":"testez","arguments":["name with spaces","\"quoted\"","保存","","first\r\nsecond\nthird\rend\t","$HOME; echo untouched"],"program":"lute","argv":["test","name with spaces","\"quoted\"","保存","","first\r\nsecond\nthird\rend\t","$HOME; echo untouched"]},
+  {"runner":"jest","arguments":["--backend","open-cloud"],"program":"jest-roblox-cli","argv":["--passWithNoTests","--backend","open-cloud"]}
+]

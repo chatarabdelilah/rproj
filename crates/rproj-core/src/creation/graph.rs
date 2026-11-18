@@ -14,13 +14,13 @@ use crate::catalog::capabilities;
 #[path = "graph_compat.rs"]
 mod compatibility_tests;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TestRunner {
     TestEz,
     JestRoblox,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum JestBackend {
     #[default]
     Studio,

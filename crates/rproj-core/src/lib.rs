@@ -17,6 +17,8 @@ pub mod project_tool_setup;
 pub mod saved_setups;
 pub mod source_copy;
 #[doc(hidden)]
+pub mod test_execution;
+#[doc(hidden)]
 pub mod tool_configuration;
 #[doc(hidden)]
 pub mod upgrade;

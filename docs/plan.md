@@ -17,6 +17,12 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 18: custom test arguments implementation approved.** The owner approved
+two reviewed PRs: shared invocation/context and private worker, then native Soft
+controls. Both default and custom Test will receive cancellation-and-close
+protection; Checks remains unchanged. The [implementation record](desktop-test-arguments-native.md)
+tracks validation and delivery. Native previews remain paused.
+
 **November 18: custom test arguments design.** Audit F3's optional argument
 gap is selected for a separate [Soft proposal](desktop-test-arguments-design.md).
 Exact rows and invocation preview retain a captured session draft; default Test

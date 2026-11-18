@@ -1,5 +1,13 @@
 # Release-Hardening Audit
 
+## November 18: custom test arguments implementation
+
+The owner approved the native design and close protection for both Test paths.
+PR 1 shares exact invocation logic and adds captured, bounded private worker jobs;
+PR 2 adds the native controls. The [implementation record](desktop-test-arguments-native.md)
+separates local validation from reviewed delivery and paused real-window acceptance.
+Default CLI/Ratatui invocation behavior and version 0.22.0 remain unchanged.
+
 ## November 18: custom test arguments proposal
 
 The separate [Soft design](desktop-test-arguments-design.md) addresses audit
