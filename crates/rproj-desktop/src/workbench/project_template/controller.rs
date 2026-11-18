@@ -40,6 +40,7 @@ impl Workbench {
         self.creation.visible = false;
         self.composition.visible = false;
         self.settings.visible = false;
+        self.project_tool.visible = false;
         self.setup.visible = false;
         self.saved.visible = false;
         self.upgrade.visible = false;

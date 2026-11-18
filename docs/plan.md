@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated November 16, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated November 18, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -16,6 +16,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**November 18: native Project Tool Setup controls.** Shared checked execution
+and private worker delivery are verified through #156 and #157. The Soft
+Tool → Review → Results flow passes headless checks for captured ownership,
+Watch protection, retained Activity and wait-for-completion closing. The
+[implementation record](desktop-project-tool-setup-native.md) tracks native
+review/packaging/CI delivery separately from paused real-window acceptance.
 
 **November 17: native Project Tool Setup approved.** Implementation proceeds
 through shared checked execution, private worker, then Soft controls. The

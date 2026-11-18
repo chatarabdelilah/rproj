@@ -25,6 +25,8 @@ impl Workbench {
             .map(|c| c.name.clone())
             .unwrap_or_else(|| "captured project".into());
         let has_composition = self.composition.project.is_some();
+        let has_project_tool = self.project_tool.project.is_some();
+        let project_tool_name = self.project_tool.name();
         let has_settings = self.settings.project.is_some();
         let settings_name = self.settings.name();
         let has_upgrade = self.upgrade.project.is_some();
@@ -87,6 +89,16 @@ impl Workbench {
                 let create = owner.clone();
                 let recheck = owner.clone();
                 let composition = owner.clone();
+                if has_project_tool {
+                    let tool = owner.clone();
+                    menu = menu.item(
+                        PopupMenuItem::new(format!("Resume tool setup for {project_tool_name}"))
+                            .on_click(move |_, window, cx| {
+                                let _ =
+                                    tool.update(cx, |this, cx| this.show_project_tool(window, cx));
+                            }),
+                    );
+                }
                 if has_settings {
                     let settings = owner.clone();
                     menu = menu.item(
@@ -210,6 +222,7 @@ impl Workbench {
                                         && !self.composition.visible
                                         && !self.upgrade.visible
                                         && !self.settings.visible
+                                        && !self.project_tool.visible
                                         && !self.setup.visible
                                         && !self.browser.visible
                                         && !self.source.visible
@@ -228,6 +241,7 @@ impl Workbench {
                                     this.creation.visible = false;
                                     this.composition.visible = false;
                                     this.settings.visible = false;
+                                    this.project_tool.visible = false;
                                     this.upgrade.visible = false;
                                     cx.notify();
                                 }))
@@ -773,6 +787,8 @@ impl Render for Workbench {
             "Saved Setups".into()
         } else if self.setup.visible {
             "Machine Setup".into()
+        } else if self.project_tool.visible {
+            format!("Tool setup for {}", self.project_tool.name())
         } else if self.settings.visible {
             format!("Tool settings for {}", self.settings.name())
         } else if self.upgrade.visible {
@@ -811,6 +827,12 @@ impl Render for Workbench {
             )
         } else if self.setup.visible {
             self.render_setup(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            )
+        } else if self.project_tool.visible {
+            self.render_project_tool(
                 window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
                     < px(600.),
                 cx,
@@ -857,6 +879,7 @@ impl Render for Workbench {
             && !self.saved.visible
             && !self.setup.visible
             && !self.settings.visible
+            && !self.project_tool.visible
             && !self.upgrade.visible
             && !self.composition.visible
             && !self.creation.visible
@@ -883,6 +906,7 @@ impl Render for Workbench {
             && !self.creation.visible
             && !self.upgrade.visible
             && !self.settings.visible
+            && !self.project_tool.visible
             && matches!(self.section, Section::Overview | Section::Dependencies)
         {
             div()
@@ -900,6 +924,7 @@ impl Render for Workbench {
         };
         let content = if self.project.is_some()
             && !self.settings.visible
+            && !self.project_tool.visible
             && !self.setup.visible
             && !self.browser.visible
             && !self.source.visible
@@ -915,6 +940,7 @@ impl Render for Workbench {
                 .v_flex()
                 .size_full()
                 .min_h_0()
+                .child(self.project_tool_entry(cx))
                 .child(self.settings_entry(cx))
                 .child(div().flex_1().min_h_0().child(content))
                 .into_any_element()
@@ -928,6 +954,7 @@ impl Render for Workbench {
             || self.saved.visible
             || self.setup.visible
             || self.settings.visible
+            || self.project_tool.visible
             || self.composition.visible
             || self.creation.visible
             || self.upgrade.visible
@@ -1036,7 +1063,8 @@ impl Render for Workbench {
                                                             || self.project.is_none()
                                                             || self.composition.visible
                                                             || self.upgrade.visible
-                                                            || self.settings.visible,
+                                                            || self.settings.visible
+                                                            || self.project_tool.visible,
                                                     )
                                                     .on_click(cx.listener(|this, _, _, cx| {
                                                         this.inspect();
@@ -1051,6 +1079,7 @@ impl Render for Workbench {
                                                 && !self.composition.visible
                                                 && !self.upgrade.visible
                                                 && !self.settings.visible
+                                                && !self.project_tool.visible
                                                 && !self.setup.visible
                                                 && !self.browser.visible
                                                 && !self.source.visible
@@ -1076,6 +1105,7 @@ impl Render for Workbench {
                                     .when_some(
                                         self.error.clone().filter(|_| {
                                             !self.browser.visible
+                                                && !self.project_tool.visible
                                                 && !self.source.visible
                                                 && !self.library.visible
                                         }),

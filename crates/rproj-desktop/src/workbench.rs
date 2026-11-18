@@ -6,6 +6,7 @@ mod diff_view;
 mod library;
 mod operation;
 mod project_template;
+mod project_tool;
 mod projects;
 mod saved_setups;
 mod settings;
@@ -74,6 +75,8 @@ enum Operation {
     PrepareSaved,
     ManageSaved,
     ReuseSaved,
+    PrepareProjectTool,
+    SetupProjectTool,
 }
 impl Operation {
     fn is_template(self) -> bool {
@@ -129,7 +132,9 @@ impl Operation {
             | Self::LoadSaved
             | Self::PrepareSaved
             | Self::ManageSaved
-            | Self::ReuseSaved => return None,
+            | Self::ReuseSaved
+            | Self::PrepareProjectTool
+            | Self::SetupProjectTool => return None,
         })
     }
 }
@@ -166,6 +171,16 @@ impl Section {
 }
 
 enum Event {
+    ProjectToolSupport(Result<(), String>),
+    ProjectToolPrepared(
+        u64,
+        u64,
+        Result<rproj_core::project_tool_setup::Plan, project_tool::Failure>,
+    ),
+    ProjectToolApplied(
+        u64,
+        Result<rproj_core::project_tool_setup::protocol::Completion, project_tool::Failure>,
+    ),
     SourcePrepared(u64, Box<Result<source_copy::Prepared, String>>),
     BrowserScan(u64, projects::Scan),
     BrowserPreview(u64, PathBuf, Box<Result<ProjectSnapshot, String>>),
@@ -396,6 +411,9 @@ impl Activity {
 }
 
 pub struct Workbench {
+    project_tool: project_tool::Session,
+    project_tool_focus: FocusHandle,
+    project_tool_query: Entity<InputState>,
     source: source_copy::Session,
     library: library::Library,
     browser: projects::Browser,
@@ -496,6 +514,10 @@ impl Workbench {
             cx.subscribe(&saved_name, |_, _, _: &InputEvent, cx| cx.notify());
         let setup_query =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search setup choices"));
+        let project_tool_query =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Search project tools"));
+        let project_tool_subscription =
+            cx.subscribe(&project_tool_query, |_, _, _: &InputEvent, cx| cx.notify());
         let setup_subscription = cx.subscribe(&setup_query, |_, _, _: &InputEvent, cx| cx.notify());
         let settings_subscription =
             cx.subscribe(&settings_integer, |_, _, _: &InputEvent, cx| cx.notify());
@@ -551,6 +573,9 @@ impl Workbench {
             source: source_copy::Session::new(cx),
             library: library::Library::new(window, cx),
             settings: settings::SettingsSession::default(),
+            project_tool: project_tool::Session::default(),
+            project_tool_focus: cx.focus_handle(),
+            project_tool_query,
             browser: projects::Browser::new(window, cx),
             template: project_template::Session::default(),
             template_inputs,
@@ -616,6 +641,7 @@ impl Workbench {
             _subscriptions: vec![
                 subscription,
                 settings_subscription,
+                project_tool_subscription,
                 setup_subscription,
                 saved_subscription,
                 saved_package_subscription,
@@ -649,6 +675,7 @@ impl Workbench {
         self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
+        self.project_tool.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
         self.creation.visible = false;
@@ -669,6 +696,7 @@ impl Workbench {
         self.saved.visible = false;
         self.setup.visible = false;
         self.settings.visible = false;
+        self.project_tool.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
         self.pending_switch = None;
@@ -780,6 +808,13 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::ProjectToolSupport(result) => self.project_tool.support = Some(result),
+                Event::ProjectToolPrepared(id, revision, result) => {
+                    self.accept_project_tool_prepared(id, revision, result, cx)
+                }
+                Event::ProjectToolApplied(id, result) => {
+                    self.accept_project_tool_applied(id, result, cx)
+                }
                 Event::SourcePrepared(id, result) => self.accept_source(id, *result, cx),
                 Event::BrowserScan(id, scan) => self.accept_projects_scan(id, scan, cx),
                 Event::BrowserPreview(id, path, result) => {
@@ -868,6 +903,7 @@ impl Workbench {
                             }
                             self.probe_upgrade();
                             self.probe_settings();
+                            self.probe_project_tool();
                             self.probe_setup();
                             self.probe_template();
                             self.probe_saved();
@@ -1182,6 +1218,8 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::PrepareSaved => "Reviewing saved setup changes",
         Operation::ManageSaved => "Updating saved setup",
         Operation::ReuseSaved => "Loading saved composition",
+        Operation::PrepareProjectTool => "Preparing project tool setup",
+        Operation::SetupProjectTool => "Setting up project tool",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

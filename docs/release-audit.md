@@ -1,5 +1,16 @@
 # Release-Hardening Audit
 
+## November 18: native Project Tool Setup controls
+
+Shared execution and the private worker are delivered through #156 and #157.
+Both exact reviewed heads and merged-main commits passed all seven executed CI
+jobs on first attempts; merged branches are removed. The native Tool → Review →
+Results controls pass 176 headless desktop tests and strict desktop Clippy.
+[The implementation ledger](desktop-project-tool-setup-native.md) records
+failed harness assumptions, the usage-limit interruption and remaining delivery
+checks. No real installers or native previews ran. Memory stability and real-window
+acceptance remain unresolved/unverified; published version stays 0.22.0.
+
 ## November 17: shared Project Tool Setup implementation
 
 Shared execution merged through [PR #156](https://github.com/chatarabdelilah/rproj/pull/156)
