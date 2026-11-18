@@ -43,6 +43,7 @@ mod project_tool;
 mod saved_setups;
 mod settings;
 mod setup;
+mod test_execution;
 pub use setup::{SetupEvent, SetupStop};
 #[path = "operations/upgrade.rs"]
 mod upgrade;

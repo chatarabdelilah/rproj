@@ -7,7 +7,8 @@ confirmation. One session-only draft captures its project, and unsubmitted
 edits receive default-Keep protection. Native implementation follows approval
 of this proposal, not this document alone.
 
-Fixtures follow `src/commands/test.rs::invocation` and `uses_studio_cli`.
+Fixtures follow the invocation/backend helpers, extracted from `src/commands/test.rs`
+to `crates/rproj-core/src/test_execution.rs` during native implementation.
 TestEZ invokes `lute test`; Jest invokes `jest-roblox-cli --passWithNoTests`.
 The user arguments follow those prefixes unchanged. Rows are argument values,
 not shell input. Documentation and examples do not guarantee acceptance by

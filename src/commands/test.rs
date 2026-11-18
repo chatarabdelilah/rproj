@@ -9,6 +9,9 @@ use crate::config::{PackageWorkflow, project_file};
 use crate::graph::TestRunner;
 use crate::steps::{bootstrap, jest, studio_plugin, toolchain, wally};
 use crate::ui;
+use rproj_core::test_execution::{invocation, uses_studio_cli};
+
+pub(crate) mod checked;
 
 #[derive(Debug)]
 pub(crate) struct RunnerFailure {
@@ -17,6 +20,10 @@ pub(crate) struct RunnerFailure {
 }
 
 impl RunnerFailure {
+    pub(crate) fn runner_exit_code(&self) -> i32 {
+        self.code
+    }
+
     pub(crate) fn exit_code(&self) -> u8 {
         u8::try_from(self.code).unwrap_or(1)
     }
@@ -44,6 +51,14 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
     let Some(project) = project_file::load_from(project_dir)? else {
         bail!("no rproj.toml here - `rproj test` needs the recorded Testing capability");
     };
+    run_project(project_dir, &project, arguments)
+}
+
+fn run_project(
+    project_dir: &Path,
+    project: &crate::graph::ProjectGraph,
+    arguments: &[String],
+) -> Result<()> {
     let Some(runner) = project.test_runner() else {
         bail!("Testing is not enabled for this project; select it when creating a project");
     };
@@ -79,20 +94,6 @@ pub(super) fn run_in(project_dir: &Path, arguments: &[String]) -> Result<()> {
             run_runner(program, &args, project_dir)
         }
     }
-}
-
-fn uses_studio_cli(arguments: &[String], backend: crate::graph::JestBackend) -> bool {
-    for (index, argument) in arguments.iter().enumerate() {
-        if argument == "--backend" {
-            return arguments
-                .get(index + 1)
-                .is_none_or(|backend| backend == "studio-cli");
-        }
-        if let Some(backend) = argument.strip_prefix("--backend=") {
-            return backend == "studio-cli";
-        }
-    }
-    backend == crate::graph::JestBackend::Studio
 }
 
 fn ensure_jest_runtime() -> Result<()> {
@@ -137,33 +138,44 @@ fn run_runner(program: &str, arguments: &[String], project_dir: &Path) -> Result
     Ok(())
 }
 
-fn invocation(runner: TestRunner, arguments: &[String]) -> (&'static str, Vec<String>) {
-    match runner {
-        TestRunner::TestEz => (
-            "lute",
-            std::iter::once("test".to_string())
-                .chain(arguments.iter().cloned())
-                .collect(),
-        ),
-        TestRunner::JestRoblox => (
-            "jest-roblox-cli",
-            std::iter::once("--passWithNoTests".to_string())
-                .chain(arguments.iter().cloned())
-                .collect(),
-        ),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::graph::ProjectGraph;
     use tempfile::TempDir;
 
+    fn isolated_run(project: &Path, arguments: &[String]) -> Result<()> {
+        #[cfg(windows)]
+        {
+            let storage = TempDir::new()?;
+            crate::background_watch::with_test_root(storage.path(), || run_in(project, arguments))
+        }
+        #[cfg(not(windows))]
+        run_in(project, arguments)
+    }
+
+    #[test]
+    fn invocation_fixtures_preserve_exact_values_before_extraction() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/test-invocations.json"))
+                .unwrap();
+        for case in cases.as_array().unwrap() {
+            let runner = if case["runner"] == "testez" {
+                TestRunner::TestEz
+            } else {
+                TestRunner::JestRoblox
+            };
+            let arguments: Vec<String> = serde_json::from_value(case["arguments"].clone()).unwrap();
+            let (program, argv) = invocation(runner, &arguments);
+            assert_eq!(serde_json::json!(program), case["program"]);
+            assert_eq!(serde_json::json!(argv), case["argv"]);
+        }
+    }
+
     #[test]
     fn missing_project_manifest_is_clear() {
         let dir = TempDir::new().unwrap();
-        let error = run_in(dir.path(), &[]).unwrap_err().to_string();
+        let error = isolated_run(dir.path(), &[]).unwrap_err().to_string();
         assert!(error.contains("rproj.toml"), "{error}");
     }
 
@@ -171,7 +183,7 @@ mod tests {
     fn project_without_testing_is_rejected_before_running_tools() {
         let dir = TempDir::new().unwrap();
         project_file::save_to(&ProjectGraph::default(), dir.path()).unwrap();
-        let error = run_in(dir.path(), &[]).unwrap_err().to_string();
+        let error = isolated_run(dir.path(), &[]).unwrap_err().to_string();
         assert!(error.contains("Testing is not enabled"), "{error}");
     }
 
@@ -184,7 +196,7 @@ mod tests {
         };
         project.choose("test", Some("jest-roblox"));
         project_file::save_to(&project, dir.path()).unwrap();
-        let error = run_in(dir.path(), &[]).unwrap_err().to_string();
+        let error = isolated_run(dir.path(), &[]).unwrap_err().to_string();
         assert!(error.contains("requires the Wally"), "{error}");
     }
 
