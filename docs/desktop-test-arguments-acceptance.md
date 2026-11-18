@@ -68,4 +68,9 @@ multiline-paste preservation and editor-to-submission regressions. A separate
 inspection also found that the unavailable-worker sample needed to block
 default runs after project navigation; its regression passed. All **29 checks**
 now pass, including exact CR/LF/tab submission and invalid-JSON draft protection.
-The second review is pending.
+The second review found two additional interaction issues: replacing a draft
+could clear worker unavailability, and a stale custom review blocked default
+tests. Worker availability is now app-owned; default tests resolve the current
+runner independently. Regressions cover both, plus raw multiline paste in
+JSON mode refusing rather than silently sanitizing input. All **31 checks** pass;
+no test runs have failed or been skipped. Third review pending.

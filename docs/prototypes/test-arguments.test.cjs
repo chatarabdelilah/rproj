@@ -49,6 +49,9 @@ test('escaped controls preserve exact CR LF and tabs from editor through submiss
 test('multiline paste switches to escaped editing without losing line endings',t=>{
  const f=fixture(t);const input=f.e('arg-1');input.setSelectionRange(0,input.value.length);const event=new f.w.Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=> 'first\r\nsecond\rthird\n'}});input.dispatchEvent(event);assert.equal(event.defaultPrevented,true);assert.equal(f.e('format-1').value,'json');f.click('run');assert.equal(f.snap().run.argv[2],'first\r\nsecond\rthird\n');
 });
+test('raw multiline paste in JSON mode is refused rather than sanitized',t=>{
+ const f=fixture(t);f.change('format-1','json');const event=new f.w.Event('paste',{bubbles:true,cancelable:true});Object.defineProperty(event,'clipboardData',{value:{getData:()=> '"first\r\nsecond"'}});f.e('arg-1').dispatchEvent(event);assert.equal(event.defaultPrevented,true);assert.equal(f.e('arg-1').value,'"inventory"');assert.match(f.e('notice').textContent,/Paste refused/);assert.equal(f.snap().rows[1].value,'inventory');
+});
 test('invalid JSON remains unsubmitted and cannot silently replace the valid value',t=>{
  const f=fixture(t);f.change('format-1','json');f.input('arg-1','[1]');assert.equal(f.e('run').disabled,true);assert.equal(f.snap().rows[1].value,'inventory');f.change('format-1','literal');assert.equal(f.e('format-1').value,'json');f.click('close');assert.equal(f.e('keep').textContent,'Keep draft');f.escape();assert.equal(f.e('arg-1').value,'[1]');f.click('discard');f.click('confirm');assert.equal(f.e('arg-1').value,'inventory');assert.equal(f.e('run').disabled,false);
 });
@@ -78,7 +81,10 @@ test('all refused sample contexts explain unavailable execution',t=>{
  f.scenario('testez');assert.equal(f.e('run').disabled,false);assert.match(f.e('effects').textContent,/None/);
 });
 test('missing worker also blocks default tests after browsing another project',t=>{
- const f=fixture(t);f.scenario('worker');f.click('switch');f.click('lantern');f.click('checks');assert.equal(f.e('default').disabled,true);assert.match(f.e('default-reason').textContent,/every project/);assert.equal(f.api.start(false),false);assert.equal(f.snap().run,null);
+ const f=fixture(t);f.scenario('worker');f.click('switch');f.click('lantern');f.click('checks');assert.equal(f.e('default').disabled,true);assert.match(f.e('default-reason').textContent,/every project/);assert.equal(f.api.start(false),false);assert.equal(f.snap().run,null);f.click('enter');assert.equal(f.snap().owner,'Lantern');assert.equal(f.snap().workerAvailable,false);assert.equal(f.e('run').disabled,true);assert.equal(f.api.start(),false);f.scenario('testez');assert.equal(f.snap().workerAvailable,true);assert.equal(f.e('run').disabled,false);
+});
+test('default tests resolve current runner without refreshing a stale custom draft',t=>{
+ const f=fixture(t);f.click('source');assert.equal(f.e('run').disabled,true);f.click('checks');assert.equal(f.e('default').disabled,false);f.click('default');assert.equal(f.snap().run.program,'lute');assert.deepEqual(f.snap().run.argv,['test']);assert.equal(f.snap().runner,'jest');assert.equal(f.snap().captured,0);f.finish('success');f.click('resume');assert.equal(f.e('run').disabled,true);assert.equal(f.snap().rows[1].value,'inventory');
 });
 test('Watch allows steady Watching for either owner and blocks transitional states',t=>{
  const f=fixture(t);for(const owner of ['Skyline','Lantern']){if(f.snap().watchOwner!==owner)f.click('watch-owner');for(const [state,result]of Object.entries(fixtures.watch)){f.change('watch-state',state);assert.equal(f.e('run').disabled,result==='blocked',owner+' '+state);}}

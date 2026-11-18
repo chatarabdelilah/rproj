@@ -34,6 +34,10 @@ CR/LF and other controls exactly. Multiline paste switches to that mode before
 the text input can sanitize the line endings. Invalid JSON remains editable,
 blocks Run and protects the unsubmitted text; it never replaces the last valid
 argument. Switching presentation alone does not mark the draft dirty.
+Raw multiline paste in JSON mode is refused with escape guidance instead of
+being sanitized. Worker availability belongs to the app, not a replaceable
+argument draft. Default Run tests resolves the current project context without
+requiring the independent custom draft to be refreshed.
 
 The captured draft survives browsing and project closure. Replacing, refreshing
 or discarding unsubmitted edits defaults to Keep draft. Context changes block

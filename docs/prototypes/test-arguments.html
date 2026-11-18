@@ -38,7 +38,7 @@ const root=document.getElementById('rp-test'),e=id=>root.querySelector('#ta-'+id
 const projects={Skyline:'C:/Samples/Roblox/Skyline',Lantern:'C:/Samples/Roblox/保存/A long project path for narrow window review/Lantern'};
 const clone=value=>JSON.parse(JSON.stringify(value));
 const initialRows=()=>[{value:'-t',empty:false},{value:'inventory',empty:false}];
-let s={active:'Skyline',owner:'Skyline',runner:'jest',rows:initialRows(),baseline:initialRows(),fixture:'jest',revision:0,captured:0,view:'arguments',sequence:0,run:null,result:null,watchOwner:'Skyline',watch:'Watching',busy:false,uncertain:false,otherDirty:false,closeAfter:false,closed:false,expanded:false,logs:[],omitted:0,notice:''};
+let s={active:'Skyline',owner:'Skyline',runner:'jest',rows:initialRows(),baseline:initialRows(),fixture:'jest',workerAvailable:true,revision:0,captured:0,view:'arguments',sequence:0,run:null,result:null,watchOwner:'Skyline',watch:'Watching',busy:false,uncertain:false,otherDirty:false,closeAfter:false,closed:false,expanded:false,logs:[],omitted:0,notice:''};
 let dialog=null,returnFocus=null;
 const signature=rows=>JSON.stringify(rows.map(row=>({value:row.value,empty:row.empty,error:row.error?row.editor:null})));
 const dirty=()=>signature(s.rows)!==signature(s.baseline);
@@ -49,13 +49,13 @@ function reason(custom=true){
  if(s.uncertain)return 'Teardown is unconfirmed. Further runs and closing remain blocked.';
  if(s.run)return 'A test run is active. Wait for completion or confirmed cancellation.';
  if(s.busy)return 'Another operation is active. Tests share the operation guard.';
- if(s.fixture==='worker')return 'Matching CLI worker unavailable. Test execution is disabled for every project.';
+ if(!s.workerAvailable)return 'Matching CLI worker unavailable. Test execution is disabled for every project.';
  if(!custom&&!s.active)return 'Open a project to run tests.';
  if(!['Watching','Stopped'].includes(s.watch))return 'Watch is '+s.watch+'. Wait for steady Watching or acknowledged Stop before testing.';
  if(custom||s.active===s.owner){
   const reasons={'no-testing':'Testing is not configured. Add a testing capability first.',incompatible:'Jest Roblox requires the Wally workflow.',malformed:'Cannot read the project record. Repair it, then refresh context.',worker:'Matching CLI worker unavailable. Test execution is disabled.',prerequisite:'Required runner prerequisite is unavailable. Use Machine Setup, then refresh.'};
   if(reasons[s.fixture])return reasons[s.fixture];
-  if(s.captured!==s.revision)return 'Captured project/runner context changed. Refresh explicitly; arguments will not run against an unseen runner.';
+  if(custom&&s.captured!==s.revision)return 'Captured project/runner context changed. Refresh explicitly; arguments will not run against an unseen runner.';
  }
  return custom?rowError():'';
 }
@@ -91,7 +91,7 @@ function renderRows(){
   input.addEventListener('input',()=>{row.editor=input.value;row.error=false;if(row.format==='json'){try{const parsed=JSON.parse(input.value);if(typeof parsed!=='string')throw Error('Not a string');row.value=parsed;}catch{row.error=true;}}else row.value=input.value;if(row.value!=='')row.empty=false;render();});
   // Text inputs sanitize CR/LF before input events. Capture paste first so the
   // exact clipboard string is represented by escapes instead of losing bytes.
-  input.addEventListener('paste',event=>{const pasted=event.clipboardData?.getData('text/plain');if(row.format!=='json'&&pasted&&/[\r\n]/.test(pasted)){event.preventDefault();row.value=row.value.slice(0,input.selectionStart)+pasted+row.value.slice(input.selectionEnd);row.format='json';row.editor=JSON.stringify(row.value);row.error=false;row.empty=false;render(true);focus('arg-'+index);}});
+  input.addEventListener('paste',event=>{const pasted=event.clipboardData?.getData('text/plain');if(pasted&&/[\r\n]/.test(pasted)){event.preventDefault();if(row.format==='json'){showNotice('Paste refused: JSON strings require escaped line breaks (\\r and \\n). Existing text is unchanged.');return;}row.value=row.value.slice(0,input.selectionStart)+pasted+row.value.slice(input.selectionEnd);row.format='json';row.editor=JSON.stringify(row.value);row.error=false;row.empty=false;render(true);focus('arg-'+index);}});
   format.onchange=()=>{if(row.error||format.value==='literal'&&/[\r\n]/.test(row.value)){format.value=row.format||'literal';showNotice(row.error?'Repair the JSON string before changing value format.':'Line breaks require JSON string mode to preserve their exact values.');return;}row.format=format.value;row.editor=row.format==='json'?JSON.stringify(row.value):row.value;render(true);focus('format-'+index);};label.append(input);wrap.append(label);
   const checkLabel=document.createElement('label');checkLabel.className='check';const check=document.createElement('input');check.id='ta-empty-'+index;check.type='checkbox';check.checked=row.empty;check.disabled=row.value!=='';check.addEventListener('change',()=>{row.empty=check.checked;render();});checkLabel.append(check,document.createTextNode('Pass empty argument'));wrap.append(checkLabel);
   const actions=document.createElement('div');actions.className='row';
@@ -122,7 +122,7 @@ function render(rebuild=false){
 }
 function start(custom=true){
  const blocked=reason(custom);if(blocked){showNotice(blocked);return false;}
- const owner=custom?s.owner:s.active,runner=custom||owner===s.owner?s.runner:(owner==='Skyline'?'jest':'testez');
+ const owner=custom?s.owner:s.active,runner=custom?s.runner:owner===s.owner?(s.nextRunner||s.runner):(owner==='Skyline'?'jest':'testez');
  s.run={id:++s.sequence,owner,path:projects[owner],runner,...invocation(runner,custom?values():[]),stage:'Preparing',cancel:false};
  if(custom)s.baseline=clone(s.rows);s.result=null;s.expanded=true;s.notice='Simulated submission. No runner or project file is accessed.';render();return true;
 }
@@ -156,7 +156,7 @@ e('enter').onclick=openDraft;e('resume').onclick=()=>{setView('arguments');focus
 e('add').onclick=()=>{s.rows.push({value:'',empty:false});render(true);focus('arg-'+(s.rows.length-1));};
 e('discard').onclick=()=>ask('Revert unsubmitted arguments?',s.owner+' · Restore the last submitted values. No project files are changed.','Keep draft','Revert edits',()=>{s.rows=clone(s.baseline);render(true);});
 e('refresh').onclick=()=>{const refresh=()=>{s.captured=s.revision;if(s.nextRunner){s.runner=s.nextRunner;s.nextRunner=null;}s.notice='Context refreshed. Inspect retained arguments against the configured runner before Run.';render();};if(dirty())ask('Refresh context for '+s.owner+'?',projects[s.owner]+' · Keep the argument values and inspect them against the refreshed runner.','Keep draft','Refresh context',refresh);else refresh();};
-e('load').onclick=()=>{const chosen=e('case').value;protectedChange('Replace the sample argument draft?',()=>{s.fixture=chosen;s.runner=chosen==='testez'?'testez':'jest';s.nextRunner=null;s.rows=chosen==='testez'?[]:initialRows();s.baseline=clone(s.rows);s.revision=0;s.captured=0;s.view='arguments';s.notice='Loaded sample context; no real project read.';render(true);});};
+e('load').onclick=()=>{const chosen=e('case').value;protectedChange('Replace the sample argument draft?',()=>{s.fixture=chosen;s.workerAvailable=chosen!=='worker';s.runner=chosen==='testez'?'testez':'jest';s.nextRunner=null;s.rows=chosen==='testez'?[]:initialRows();s.baseline=clone(s.rows);s.revision=0;s.captured=0;s.view='arguments';s.notice='Loaded sample context; no real project read.';render(true);});};
 e('source').onclick=()=>{s.revision++;s.nextRunner=(s.nextRunner||s.runner)==='jest'?'testez':'jest';s.notice='Sample runner changed. Explicit refresh is required.';render();};
 e('busy').onclick=()=>{s.busy=!s.busy;showNotice(s.busy?'A separate simulated operation holds the guard.':'Operation guard released.');};
 e('watch-state').onchange=()=>{s.watch=e('watch-state').value;render();};e('watch-owner').onclick=()=>{s.watchOwner=s.watchOwner==='Skyline'?'Lantern':'Skyline';render();};e('stop').onclick=()=>{s.watch='Stopping';render();};e('stop-ack').onclick=()=>{s.watch='Stopped';render();};
