@@ -181,6 +181,8 @@ A second portable build/smoke check passed after the focus correction:
 `rproj-0.22.0-dev-windows-x86_64-20261119-055653-514905.zip`. A third build includes
 the typed probe guard: `rproj-0.22.0-dev-windows-x86_64-20261119-055948-84e973.zip`;
 version and inspection smoke checks passed with unchanged notice gaps.
-The second local CodeRabbit pass returned zero findings; the final probe change
-is undergoing another pass. Reviewed-head CI, merged-main CI and branch cleanup
-remain pending.
+The second and third local CodeRabbit passes returned zero findings; the third
+includes the typed probe guard. The final runtime tree is commit `885ea9b`.
+Formatting and direct final-diff inspection passed. The native PR for
+`codex/test-arguments-native` maintains the final reviewed-head/main CI links and
+merged-branch cleanup record, separately from the local evidence above.
