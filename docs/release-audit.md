@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## November 19 — Windows portable dependency notices
+
+The three previously flagged crate archives match Cargo.lock. The canonical
+SeaHash repository supplied a license-only merge directly following the
+published 4.1.0 revision. The local Windows ZIP passed notice, version and
+inspection checks with 590 inventory records and two outstanding omissions,
+mac 0.1.1 and windows-permissions 0.2.4. The Windows portable CI job exercises
+the ZIP verifier and its negative fixtures. [Per-crate provenance](../third-party/README.md)
+
 ## November 19: native custom test controls
 
 PR #160's shared worker is merged with reviewed-head/main CI verified and its

@@ -116,6 +116,7 @@ try {
     $earliestZipTime = [DateTime]::new(1980, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
     Get-ChildItem -LiteralPath $bundle -File -Recurse | Where-Object { $_.LastWriteTimeUtc -lt $earliestZipTime } | ForEach-Object { $_.LastWriteTimeUtc = $earliestZipTime }
     Compress-Archive -LiteralPath $bundle -DestinationPath $archive -CompressionLevel Optimal
+    & (Join-Path $PSScriptRoot 'verify-desktop-notices.ps1') -Archive $archive -Bundle $label
 
     # Verify the distributed copy, including filenames containing spaces, rather
     # than only the Cargo output. This does not claim real-window acceptance.

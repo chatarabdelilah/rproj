@@ -165,6 +165,7 @@ jobs:
         run: |
           $fixture = Join-Path $env:RUNNER_TEMP ('rproj-notices-' + [Guid]::NewGuid().ToString('N'))
           ./scripts/test-desktop-notices.ps1 -Writer ./scripts/write-desktop-notices.ps1 -FixtureRoot $fixture
+          ./scripts/test-desktop-notice-archive.ps1 -FixtureRoot $fixture
       - name: Build and smoke-check the portable distribution
         id: portable
         shell: pwsh
