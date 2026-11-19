@@ -1,5 +1,17 @@
 # Release-Hardening Audit
 
+## November 19: native custom test controls
+
+PR #160's shared worker is merged with reviewed-head/main CI verified and its
+branch removed. Native Soft controls pass 191 headless desktop tests and strict
+desktop Clippy, including unavailable custom support with independent default
+Test, exact paste values, captured ownership and both Test close guards. The
+[implementation ledger](desktop-test-arguments-native.md) records initial layout,
+dispatch and fixture failures and their corrections. Three local CodeRabbit
+passes returned six findings/questions, then zero, then zero. Reviewed delivery
+is recorded separately from local evidence; native previews remain paused and
+version 0.22.0 is unchanged.
+
 ## November 18: custom test arguments implementation
 
 The owner approved the native design and close protection for both Test paths.

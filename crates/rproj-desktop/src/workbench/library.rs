@@ -201,6 +201,7 @@ impl Workbench {
         self.setup.visible = false;
         self.settings.visible = false;
         self.project_tool.visible = false;
+        self.test_args.visible = false;
         self.upgrade.visible = false;
         self.composition.visible = false;
         self.creation.visible = false;

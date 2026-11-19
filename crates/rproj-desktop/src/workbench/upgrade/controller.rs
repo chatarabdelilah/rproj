@@ -18,6 +18,7 @@ impl Workbench {
             || self.template.teardown_uncertain
             || self.saved.teardown_uncertain
             || self.project_tool.teardown_uncertain
+            || self.test_args.teardown_uncertain
     }
     pub(in super::super) fn upgrade_running(&self) -> bool {
         self.running.as_ref().is_some_and(|(op, _)| {
@@ -44,6 +45,7 @@ impl Workbench {
         self.setup.visible = false;
         self.settings.visible = false;
         self.project_tool.visible = false;
+        self.test_args.visible = false;
         self.creation.visible = false;
         self.composition.visible = false;
         self.upgrade.visible = true;
