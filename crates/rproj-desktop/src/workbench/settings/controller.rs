@@ -47,6 +47,7 @@ impl Workbench {
         self.upgrade.visible = false;
         self.settings.visible = true;
         self.project_tool.visible = false;
+        self.test_args.visible = false;
         self.focus_settings(window, cx);
         cx.notify();
     }

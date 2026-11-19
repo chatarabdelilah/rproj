@@ -27,6 +27,8 @@ impl Workbench {
         let has_composition = self.composition.project.is_some();
         let has_project_tool = self.project_tool.project.is_some();
         let project_tool_name = self.project_tool.name();
+        let has_test_args = self.test_args.project.is_some();
+        let test_name = self.test_args.name();
         let has_settings = self.settings.project.is_some();
         let settings_name = self.settings.name();
         let has_upgrade = self.upgrade.project.is_some();
@@ -96,6 +98,15 @@ impl Workbench {
                             .on_click(move |_, window, cx| {
                                 let _ =
                                     tool.update(cx, |this, cx| this.show_project_tool(window, cx));
+                            }),
+                    );
+                }
+                if has_test_args {
+                    let tests = owner.clone();
+                    menu = menu.item(
+                        PopupMenuItem::new(format!("Resume test arguments for {test_name}"))
+                            .on_click(move |_, w, cx| {
+                                let _ = tests.update(cx, |this, cx| this.show_test_args(w, cx));
                             }),
                     );
                 }
@@ -228,7 +239,8 @@ impl Workbench {
                                         && !self.source.visible
                                         && !self.library.visible
                                         && !self.template.visible
-                                        && !self.saved.visible,
+                                        && !self.saved.visible
+                                        && !self.test_args.visible,
                                 )
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.browser.leave();
@@ -242,6 +254,7 @@ impl Workbench {
                                     this.composition.visible = false;
                                     this.settings.visible = false;
                                     this.project_tool.visible = false;
+                                    this.test_args.visible = false;
                                     this.upgrade.visible = false;
                                     cx.notify();
                                 }))
@@ -520,6 +533,7 @@ impl Workbench {
             .child(Button::new("run-tests").label("Run tests").disabled(disabled || !snapshot.actions.test.available)
                 .on_click(cx.listener(|this, _, _, cx| this.start(Operation::Test, cx))))
             .when_some(snapshot.actions.test.reason.clone(), |view, reason| view.child(reason))
+            .when(snapshot.actions.test.available, |v| v.child(self.test_arguments_entry(cx)))
             .child("Checks execute scripts and tools configured by this project. Run them only for projects you trust.")
             .into_any_element()
     }
@@ -799,6 +813,8 @@ impl Render for Workbench {
                 .as_ref()
                 .map(|context| format!("Edit {}", context.name))
                 .unwrap_or_else(|| "Edit packages & capabilities".into())
+        } else if self.test_args.visible {
+            format!("Test arguments · {}", self.test_args.name())
         } else if self.creation.visible {
             "New project".into()
         } else {
@@ -857,6 +873,12 @@ impl Render for Workbench {
             )
         } else if self.creation.visible {
             self.render_creation(cx)
+        } else if self.test_args.visible {
+            self.render_test_arguments(
+                window.viewport_size().width - theme::SIDEBAR_WIDTH.to_pixels(window.rem_size())
+                    < px(600.),
+                cx,
+            )
         } else if self.project.is_none() {
             self.render_overview(cx)
         } else {
@@ -883,6 +905,7 @@ impl Render for Workbench {
             && !self.upgrade.visible
             && !self.composition.visible
             && !self.creation.visible
+            && !self.test_args.visible
             && self.section == Section::Overview
         {
             div()
@@ -907,6 +930,7 @@ impl Render for Workbench {
             && !self.upgrade.visible
             && !self.settings.visible
             && !self.project_tool.visible
+            && !self.test_args.visible
             && matches!(self.section, Section::Overview | Section::Dependencies)
         {
             div()
@@ -924,6 +948,7 @@ impl Render for Workbench {
         };
         let content = if self.project.is_some()
             && !self.settings.visible
+            && !self.test_args.visible
             && !self.project_tool.visible
             && !self.setup.visible
             && !self.browser.visible
@@ -955,6 +980,7 @@ impl Render for Workbench {
             || self.setup.visible
             || self.settings.visible
             || self.project_tool.visible
+            || self.test_args.visible
             || self.composition.visible
             || self.creation.visible
             || self.upgrade.visible
@@ -1064,6 +1090,7 @@ impl Render for Workbench {
                                                             || self.composition.visible
                                                             || self.upgrade.visible
                                                             || self.settings.visible
+                                                            || self.test_args.visible
                                                             || self.project_tool.visible,
                                                     )
                                                     .on_click(cx.listener(|this, _, _, cx| {
@@ -1079,6 +1106,7 @@ impl Render for Workbench {
                                                 && !self.composition.visible
                                                 && !self.upgrade.visible
                                                 && !self.settings.visible
+                                                && !self.test_args.visible
                                                 && !self.project_tool.visible
                                                 && !self.setup.visible
                                                 && !self.browser.visible
@@ -1105,6 +1133,7 @@ impl Render for Workbench {
                                     .when_some(
                                         self.error.clone().filter(|_| {
                                             !self.browser.visible
+                                                && !self.test_args.visible
                                                 && !self.project_tool.visible
                                                 && !self.source.visible
                                                 && !self.library.visible

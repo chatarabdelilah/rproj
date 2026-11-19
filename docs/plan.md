@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated November 18, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated November 19, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -16,6 +16,13 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**November 19: native custom test controls.** Shared invocation/context and worker
+delivery is verified through #160. Native exact-value rows, captured invocation
+review and default/custom Test close protection pass headless tests. The
+[implementation ledger](desktop-test-arguments-native.md) tracks PR 2 review,
+packaging and CI separately from paused real-window acceptance. Default Test,
+Checks and Watch ownership retain their existing execution boundaries.
 
 **November 18: custom test arguments implementation approved.** The owner approved
 two reviewed PRs: shared invocation/context and private worker, then native Soft

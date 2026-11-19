@@ -28,6 +28,7 @@ impl Workbench {
         self.upgrade.visible = false;
         self.settings.visible = false;
         self.project_tool.visible = false;
+        self.test_args.visible = false;
         self.setup.visible = false;
         self.browser.leave();
         self.source.visible = false;

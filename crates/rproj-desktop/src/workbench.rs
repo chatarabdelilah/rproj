@@ -12,6 +12,7 @@ mod saved_setups;
 mod settings;
 mod setup;
 mod source_copy;
+mod test_arguments;
 mod theme;
 #[cfg(test)]
 mod ui_tests;
@@ -55,6 +56,8 @@ enum Operation {
     SwitchWatch,
     Check,
     Test,
+    CustomTest,
+    LoadTestContext,
     PrepareCreation,
     CreateProject,
     PrepareComposition,
@@ -96,6 +99,8 @@ impl Operation {
             self,
             Self::Check
                 | Self::Test
+                | Self::CustomTest
+                | Self::LoadTestContext
                 | Self::PrepareCreation
                 | Self::CreateProject
                 | Self::PrepareComposition
@@ -114,6 +119,8 @@ impl Operation {
             Self::Check => WorkerOperation::Check,
             Self::Test => WorkerOperation::Test,
             Self::PrepareCreation
+            | Self::CustomTest
+            | Self::LoadTestContext
             | Self::CreateProject
             | Self::PrepareComposition
             | Self::ApplyComposition
@@ -171,6 +178,17 @@ impl Section {
 }
 
 enum Event {
+    TestSupport(u64, Result<(), test_arguments::Failure>),
+    TestContext(
+        u64,
+        u64,
+        Result<rproj_core::test_execution::TestContext, test_arguments::Failure>,
+    ),
+    CustomTestComplete(
+        u64,
+        Result<rproj_core::test_execution::protocol::Completion, test_arguments::Failure>,
+    ),
+    DefaultTestComplete(u64, Result<OperationOutcome, test_arguments::Failure>),
     ProjectToolSupport(Result<(), String>),
     ProjectToolPrepared(
         u64,
@@ -411,6 +429,10 @@ impl Activity {
 }
 
 pub struct Workbench {
+    test_args: test_arguments::Session,
+    test_args_inputs: test_arguments::Inputs,
+    test_args_focus: FocusHandle,
+    test_support_generation: u64,
     project_tool: project_tool::Session,
     project_tool_focus: FocusHandle,
     project_tool_query: Entity<InputState>,
@@ -570,6 +592,10 @@ impl Workbench {
             .err()
             .map(|e| format!("Bundled package guidance is unavailable: {e:#}"));
         let mut view = Self {
+            test_args: test_arguments::Session::default(),
+            test_args_inputs: test_arguments::Inputs::default(),
+            test_args_focus: cx.focus_handle(),
+            test_support_generation: 0,
             source: source_copy::Session::new(cx),
             library: library::Library::new(window, cx),
             settings: settings::SettingsSession::default(),
@@ -670,6 +696,7 @@ impl Workbench {
         cx.notify();
     }
     fn enter_project(&mut self, path: PathBuf) {
+        self.test_args.visible = false;
         self.browser.leave();
         self.template.visible = false;
         self.saved.visible = false;
@@ -691,6 +718,7 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        self.test_args.visible = false;
         self.browser.leave();
         self.template.visible = false;
         self.saved.visible = false;
@@ -808,6 +836,14 @@ impl Workbench {
                 break;
             };
             match event {
+                Event::TestSupport(generation, result) => {
+                    self.accept_test_support(generation, result, cx);
+                }
+                Event::TestContext(id, revision, result) => {
+                    self.accept_test_context(id, revision, result, cx)
+                }
+                Event::CustomTestComplete(id, result) => self.accept_custom_tests(id, result, cx),
+                Event::DefaultTestComplete(id, result) => self.accept_default_tests(id, result, cx),
                 Event::ProjectToolSupport(result) => self.project_tool.support = Some(result),
                 Event::ProjectToolPrepared(id, revision, result) => {
                     self.accept_project_tool_prepared(id, revision, result, cx)
@@ -904,13 +940,19 @@ impl Workbench {
                             self.probe_upgrade();
                             self.probe_settings();
                             self.probe_project_tool();
+                            self.probe_tests();
                             self.probe_setup();
                             self.probe_template();
                             self.probe_saved();
                             self.poll_status();
                             self.load_creation_context(cx);
                         }
-                        Err(error) => self.client_error = Some(error),
+                        Err(error) => {
+                            self.test_support_generation =
+                                self.test_support_generation.wrapping_add(1);
+                            self.test_args.support = Some(Err("Custom tests need a matching CLI distribution; reconnect and recheck support.".into()));
+                            self.client_error = Some(error);
+                        }
                     }
                 }
                 Event::Inspected(generation, result) if generation == self.generation => {
@@ -1152,6 +1194,10 @@ impl Workbench {
     }
 
     fn start_for(&mut self, operation: Operation, project: PathBuf, cx: &mut Context<Self>) {
+        if operation == Operation::Test {
+            self.start_default_test(project, cx);
+            return;
+        }
         if self.running.is_some() || self.teardown_uncertain() {
             return;
         }
@@ -1198,6 +1244,8 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::SwitchWatch => "Switching Watch",
         Operation::Check => "Running checks",
         Operation::Test => "Running tests",
+        Operation::CustomTest => "Running tests with arguments",
+        Operation::LoadTestContext => "Reading test context",
         Operation::PrepareCreation => "Preparing creation",
         Operation::CreateProject => "Creating project",
         Operation::PrepareComposition => "Preparing composition",
