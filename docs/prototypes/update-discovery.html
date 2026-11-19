@@ -1,0 +1,260 @@
+<style>
+#rp-updates {
+  color-scheme:light dark; --paper:light-dark(#fcfbf8,#201f1d); --side:light-dark(#f1f0ea,#2a2926);
+  --ink:light-dark(#292923,#eeede7); --muted:light-dark(#605f56,#c0bdb2); --line:light-dark(#d6d3c8,#55524a);
+  --blue:light-dark(#2356a1,#abcaff); --wash:light-dark(#e7eef9,#303d50);
+  background:var(--paper); color:var(--ink); font:14px/1.5 system-ui,sans-serif; container:updates-shell / inline-size;
+}
+#rp-updates[data-theme=light]{color-scheme:light} #rp-updates[data-theme=dark]{color-scheme:dark}
+#rp-updates *{box-sizing:border-box} #rp-updates [hidden]{display:none!important}
+#rp-updates h2,#rp-updates h3,#rp-updates p,#rp-updates dl,#rp-updates dd{margin:0}
+#rp-updates h2{font-size:24px} #rp-updates h3{font-size:17px}
+#rp-updates small,#rp-updates dt,#rp-updates .quiet{color:var(--muted)}
+#rp-updates button,#rp-updates select,#rp-updates input{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+#rp-updates button:enabled:hover{background:var(--side)} #rp-updates :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#rp-updates .action,#rp-updates [aria-pressed=true]{color:var(--blue);background:var(--wash)}
+#rp-updates button:disabled{color:var(--muted)} #rp-updates .shell{display:grid;grid-template-columns:165px minmax(0,1fr)}
+#rp-updates aside{background:var(--side);padding:18px 12px;display:flex;flex-direction:column;gap:14px}
+#rp-updates aside nav,#rp-updates .stack{display:grid;gap:8px} #rp-updates nav button{text-align:left}
+#rp-updates aside label:last-child{margin-top:auto} #rp-updates label{display:grid;gap:4px}
+#rp-updates main{container:updates-main / inline-size;min-width:0;padding:20px}
+#rp-updates .row{display:flex;align-items:center;flex-wrap:wrap;gap:8px} #rp-updates .top{justify-content:space-between}
+#rp-updates .context{font-size:12px;color:var(--muted);margin-bottom:12px;overflow-wrap:anywhere}
+#rp-updates .content{margin-top:18px;display:grid;gap:16px} #rp-updates .panes{display:grid;gap:20px;align-items:start}
+#rp-updates .entries{display:grid;gap:5px} #rp-updates .entries button{text-align:left;display:grid;gap:2px}
+#rp-updates .detail{background:var(--side);border-radius:10px;padding:16px;display:grid;gap:12px;overflow-wrap:anywhere}
+#rp-updates dl{display:grid;grid-template-columns: minmax(6em,0.9fr) minmax(0,1.3fr);gap:6px 12px}
+#rp-updates dd{font-variant-numeric:tabular-nums} #rp-updates .bar{border-top:1px solid var(--line);padding:10px 16px}
+#rp-updates .output{min-height:5em;height:8em;overflow:auto;resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere}
+#rp-updates .lab summary{color:var(--muted)} #rp-updates .lab label{margin-top:8px}
+@container updates-main (min-width:600px){#rp-updates .panes{grid-template-columns:minmax(0,0.8fr) minmax(0,1.2fr)}}
+@container updates-shell (max-width:550px){#rp-updates .shell{grid-template-columns:minmax(0,1fr)} #rp-updates aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end} #rp-updates aside nav{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr))} #rp-updates main{padding:16px}}
+@media(pointer:coarse){#rp-updates :is(button,select,input){min-height:44px}}
+</style>
+<section id="rp-updates" aria-label="Soft workbench · update discovery sample">
+<div class="shell">
+  <aside>
+    <strong>rproj</strong>
+    <label>Project<select id="ud-project"><option>Skyline</option><option>Lantern</option><option value="">Close project</option></select></label>
+    <nav aria-label="Project sections">
+      <button data-section="Overview">Overview</button><button data-section="Dependencies">Dependencies</button>
+      <button data-section="Tools">Tools</button><button data-section="Checks">Checks</button>
+    </nav>
+    <label>Appearance<select id="ud-theme"><option>System</option><option>Light</option><option>Dark</option></select></label>
+  </aside>
+  <main>
+    <p id="ud-context" class="context">Skyline · C:/Samples/Roblox/Skyline</p>
+    <div class="row top"><h2 id="ud-title">Updates</h2><small>Sample data · simulated checks</small></div>
+    <section id="ud-view" class="content" aria-label="Project updates">
+      <div class="row"><button class="action" id="ud-check"><i data-lucide="refresh-cw" aria-hidden="true"></i> Check for updates</button>
+      <span id="ud-status" role="status">Last checked at 09:00 UTC · sample clock</span></div>
+      <div class="row" role="group" aria-label="Show entries"><button data-group="All" aria-pressed="true">All</button><button data-group="Packages" aria-pressed="false">Packages</button><button data-group="Tools" aria-pressed="false">Tools</button></div>
+      <div class="panes">
+        <div id="ud-list" class="entries" role="group" aria-label="Direct dependencies and project tools"><button aria-pressed="true">Signals · Package<small>Newer release</small></button><button>Rojo · Tool<small>Newer release</small></button></div>
+        <section id="ud-detail" class="detail" aria-label="Selected entry"><small>Package · Shared</small><h3>Signals</h3><p>1.3.0 fits the declaration. Moving to 2.0.0 requires changing it.</p>
+        <dl><dt>Package</dt><dd>sample/signal</dd><dt>Declared</dt><dd>^1.2.0</dd><dt>Locked</dt><dd>1.2.0</dd><dt>Within requirement</dt><dd>1.3.0</dd><dt>Latest stable</dt><dd>2.0.0</dd></dl></section>
+      </div>
+    </section>
+    <section id="ud-section" class="content" hidden><p id="ud-section-text"></p><div><button class="action" id="ud-open">View updates…</button></div></section>
+  </main>
+</div>
+<section class="bar"><details id="ud-activity"><summary>Activity · <span id="ud-summary">No operations yet</span></summary>
+  <label>Search output<input type="search" id="ud-filter"></label><div class="output" id="ud-output">No output yet.</div>
+</details></section>
+<footer class="bar">Watch · Skyline · Watching</footer>
+<details class="bar lab"><summary>Sample scenarios</summary><label>Next check result<select id="ud-outcome"><option value="ok">Release sources respond</option><option value="partial">Partial · tool releases unavailable</option><option value="offline">Offline</option><option value="limited">Rate limited</option></select></label>
+<small>Skyline starts with a saved check. Lantern has never been checked. Switch projects during a check to follow its ownership.</small></details>
+</section>
+<script>
+(() => {
+  'use strict';
+  const root = document.getElementById('rp-updates');
+  const el = name => root.querySelector('#ud-' + name);
+  const registry = 'github.com/UpliftGames/wally-index';
+  const studioRegistry = 'registry.example/studio';
+  const signals = {group:'Packages', alias:'Signals', realm:'Shared', identity:'sample/signal',
+    source:registry, requirement:'^1.2.0', locked:'1.2.0', present:true, origin:'Manual Wally declaration'};
+  const rojo = {group:'Tools', alias:'Rojo', source:'github.com/rojo-rbx/rojo', pin:'7.4.0', detected:true};
+  const projects = {
+    Skyline:{path:'C:/Samples/Roblox/Skyline', entries:[signals, rojo,
+      {...signals, alias:'ServerSignals', realm:'Server', source:studioRegistry, locked:'1.2.1'},
+      {...signals, alias:'TestSignals', realm:'Dev', locked:null, present:false},
+      {...rojo, alias:'StudioRojo', source:'github.com/sample-studio/rojo', pin:'studio-main', detected:false}]},
+    Lantern:{path:'C:/Samples/Roblox/保存/Shared development projects/Lantern', entries:[
+      {...rojo, pin:'7.5.0', detected:false},
+      {...signals, locked:null, ambiguous:true, present:true}]}
+  };
+  // Illustrative release metadata already resolved for these exact sample requirements.
+  const packageReleases = new Map([
+    [registry, {'sample/signal':{'^1.2.0':{compatible:'1.3.0', stable:'2.0.0'}}}],
+    [studioRegistry, {'sample/signal':{'^1.2.0':{compatible:'1.2.1', stable:'1.2.1'}}}]
+  ]);
+  const toolReleases = new Map([[rojo.source, {stable:'7.5.0'}]]);
+  function releaseFor(entry) {
+    if (entry.group === 'Tools') return toolReleases.get(entry.source);
+    return packageReleases.get(entry.source)?.[entry.identity]?.[entry.requirement];
+  }
+  function observation(entry, outcome) {
+    if (outcome === 'partial' && entry.group === 'Tools') return {reason:'Tool release source unavailable.'};
+    if (entry.group === 'Tools' && !/^\d+\.\d+\.\d+$/.test(entry.pin))
+      return {reason:'The configured pin is not a comparable stable version.'};
+    const release = releaseFor(entry);
+    return release ? {release} : {reason:'No sample metadata for this release source.'};
+  }
+  function projectState(project, seeded) {
+    return {group:'All', index:0, pending:0, error:'', partial:false, time:seeded ? '09:00' : null,
+      rows:seeded ? project.entries.map(entry => ({...observation(entry, 'ok'), time:'09:00'})) : []};
+  }
+  const states = new Map(Object.entries(projects).map(([name, project]) =>
+    [name, projectState(project, name === 'Skyline')]));
+  let project = 'Skyline', section = 'Updates', sequence = 0;
+  const logs = [];
+  function node(tag, text) {
+    const element = document.createElement(tag);
+    element.textContent = text;
+    return element;
+  }
+  function describe(entry, row, error) {
+    if (!row) return error ? ['Unknown',error + ' No saved release information.'] :
+      ['Never checked', 'Check for updates to compare releases.'];
+    if (row.reason) return ['Unknown', row.reason];
+    const {stable, compatible} = row.release;
+    if (entry.ambiguous) return ['Unknown', 'Multiple lockfile matches. A local version cannot be identified.'];
+    const current = entry.group === 'Tools' ? entry.pin : entry.locked;
+    if (!current) return ['Unknown', 'No locked version is available for comparison.'];
+    if (current === stable) return ['Current', 'The project matches the latest stable release from this source.'];
+    if (entry.group === 'Tools') return ['Newer release', stable + ' is available for this repository. The project pins ' + current + '.'];
+    return ['Newer release', compatible + ' fits the declaration.' +
+      (stable !== compatible ? ' Moving to ' + stable + ' requires changing it.' : '')];
+  }
+  function renderEntries(state, entries) {
+    const list = el('list'), focused = list.contains(document.activeElement);
+    list.replaceChildren();
+    entries.forEach((entry, index) => {
+      if (state.group !== 'All' && state.group !== entry.group) return;
+      const button = node('button', entry.alias);
+      button.dataset.index = String(index);
+      button.setAttribute('aria-pressed', String(index === state.index));
+      const kind = entry.group === 'Tools' ? 'Tool' : 'Package';
+      button.append(node('small', kind + ' · ' + describe(entry, state.rows[index],state.error)[0]));
+      list.append(button);
+    });
+    if (focused) list.querySelector('[aria-pressed=true]')?.focus();
+    const entry = entries[state.index], row = state.rows[state.index];
+    const detail = el('detail'), fields = document.createElement('dl');
+    const versions = row?.release;
+    const localFields = entry.group === 'Tools'
+      ? [['Repository',entry.source],['Configured pin',entry.pin],['Executable on PATH',entry.detected ? 'Detected' : 'Not detected']]
+      : [['Package',entry.identity],['Origin',entry.origin],['Declared',entry.requirement],
+        ['Locked',entry.ambiguous ? 'Ambiguous' : (entry.locked ?? 'Missing')],['Package files',entry.present ? 'Present' : 'Missing'],
+        ['Registry',entry.source],['Within requirement',versions?.compatible ?? 'Unknown']];
+    for (const [label,value] of [...localFields, ['Latest stable',versions?.stable ?? 'Unknown']])
+      fields.append(node('dt',label),node('dd',value));
+    if (row?.previous)
+      fields.append(node('dt','Last observed at ' + row.previous.time + ' UTC'),node('dd',row.previous.release.stable));
+    detail.replaceChildren(node('small',entry.group === 'Tools' ? 'Tool · Rokit' : 'Package · ' + entry.realm),
+      node('h3',entry.alias), node('p',describe(entry,row,state.error)[1]), fields);
+  }
+  function render() {
+    const updates = project && section === 'Updates';
+    el('context').textContent = project ? project + ' · ' + projects[project].path : 'Workspace';
+    el('title').textContent = project ? section : 'No project open';
+    el('view').hidden = !updates;
+    el('section').hidden = Boolean(updates);
+    const entryPoint = project && ['Dependencies','Tools'].includes(section);
+    el('open').hidden = !entryPoint;
+    for (const button of root.querySelectorAll('[data-section]')) {
+      button.disabled = !project;
+      button.setAttribute('aria-pressed', String(Boolean(project && section === button.dataset.section)));
+    }
+    if (!updates) {
+      const descriptions = {Dependencies:'Direct declarations and locked package versions.', Tools:'Project tool pins and detected executables.',
+        Overview:'Choose Dependencies or Tools to view updates.', Checks:'Project checks are independent of update discovery.'};
+      el('section-text').textContent = project ? descriptions[section] : 'Choose a sample project to inspect its updates.';
+      return;
+    }
+    const state = states.get(project);
+    el('check').disabled = Boolean(state.pending);
+    const latest = state.time ? 'Last checked at ' + state.time + ' UTC · sample clock' : 'Never checked';
+    let status = latest;
+    if (state.pending) status = 'Checking packages and tools… ' + latest;
+    else if (state.error) status = state.error + (state.time ? ' Showing previous results. ' + latest : ' No successful check yet.');
+    else if (state.partial) status = 'Partial results · tool release source unavailable. ' + latest;
+    el('status').textContent = status;
+    for (const button of root.querySelectorAll('[data-group]'))
+      button.setAttribute('aria-pressed', String(button.dataset.group === state.group));
+    renderEntries(state,projects[project].entries);
+  }
+  function groupBy(group) {
+    const state = states.get(project), entries = projects[project].entries;
+    state.group = group;
+    if (group !== 'All' && entries[state.index].group !== group)
+      state.index = entries.findIndex(entry => entry.group === group);
+  }
+  function output() {
+    const query = el('filter').value.toLowerCase();
+    const matches = logs.filter(line => line.toLowerCase().includes(query));
+    el('output').textContent = matches.join('\n') || (logs.length ? 'No search matches.' : 'No output yet.');
+  }
+  function log(owner, message, expand) {
+    const line = owner + ' · ' + message;
+    logs.push(line);
+    if (logs.length > 100) logs.shift();
+    el('summary').textContent = line;
+    if (expand) el('activity').open = true;
+    output();
+  }
+  function finish(owner, id, outcome) {
+    const state = states.get(owner);
+    if (state.pending !== id) return;
+    state.pending = 0;
+    if (outcome === 'offline' || outcome === 'limited') {
+      state.error = outcome === 'offline' ? 'Offline.' : 'Rate limited.';
+      log(owner,state.error,true);
+    } else {
+      state.time = new Date(Date.UTC(2026,10,19,9,id)).toISOString().slice(11,16);
+      state.error = '';
+      state.partial = outcome === 'partial';
+      state.rows = projects[owner].entries.map((entry,index) => {
+        const result = observation(entry,outcome), old = state.rows[index];
+        if (result.release) return {...result,time:state.time};
+        return {...result,previous:old?.release ? old : old?.previous};
+      });
+      log(owner,state.partial ? 'Partial results' : 'Check complete',state.partial);
+    }
+    render();
+  }
+  el('check').addEventListener('click', () => {
+    if (!project || section !== 'Updates' || states.get(project).pending) return;
+    const owner = project, id = ++sequence, outcome = el('outcome').value;
+    states.get(owner).pending = id;
+    log(owner,'Checking packages and tools',true);
+    render();
+    setTimeout(() => finish(owner,id,outcome),1800);
+  });
+  el('project').addEventListener('change', () => {
+    project = el('project').value;
+    if (!project) section = 'Overview';
+    render();
+  });
+  for (const button of root.querySelectorAll('[data-section]'))
+    button.addEventListener('click', () => { section = button.dataset.section; render(); });
+  el('open').addEventListener('click', () => {
+    groupBy(section === 'Dependencies' ? 'Packages' : 'Tools');
+    section = 'Updates';
+    render();
+    root.querySelector('[data-group][aria-pressed=true]').focus();
+  });
+  for (const button of root.querySelectorAll('[data-group]'))
+    button.addEventListener('click', () => { groupBy(button.dataset.group); render(); });
+  el('list').addEventListener('click', event => {
+    const button = event.target.closest('button[data-index]');
+    if (!button) return;
+    states.get(project).index = Number(button.dataset.index);
+    render();
+  });
+  el('theme').addEventListener('change', () => { root.dataset.theme = el('theme').value.toLowerCase(); });
+  el('filter').addEventListener('input',output);
+  render();
+})();
+</script>

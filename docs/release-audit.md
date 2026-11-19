@@ -1,5 +1,11 @@
 # Release-Hardening Audit
 
+## November 19 — project update discovery design
+
+The [Soft wireframe and DOM evidence](desktop-update-discovery-design.md) cover
+on-demand checks, cached and partial results, and ownership across navigation.
+Live discovery and real-window rendering remain unverified.
+
 ## November 19 — Windows portable dependency notices
 
 The three previously flagged crate archives match Cargo.lock. The canonical
