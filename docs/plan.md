@@ -4,6 +4,10 @@ Updated November 19, 2026. This describes current priorities, not every idea con
 
 ## Direction
 
+The [project Updates wireframe](desktop-update-discovery-design.md) is ready for
+design review. It compares direct Wally declarations and project Rokit pins on
+demand using simulated releases.
+
 **Make it straightforward to set up and maintain an ordinary Roblox/Luau project on Windows.**
 
 rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
