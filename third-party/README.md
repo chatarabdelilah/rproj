@@ -18,29 +18,21 @@ parent; that correction adds only `LICENSE`, preserving all code and the MIT
 declaration. The notice was added after publication; it is not presented as a
 file from the published archive.
 
-Three legacy distributions still contain declarations without standalone notice
-text, checked again October 12, 2026:
+## November 19, 2026 verification
 
-- `mac` 0.1.1 has no notice text in [the upstream tree](https://github.com/reem/rust-mac/tree/66afc663b68a65633ea165c742b5a9c6734581c2).
-  Its [request for a license file](https://github.com/reem/rust-mac/issues/14)
-  remains open without a maintainer-provided notice.
-- `seahash` 4.1.0's original GitLab raw/API endpoints returned HTTP 403. Its
-  published Git object `94b632aeac099031c373599313d5b5f0acbbaec0` is preserved
-  by [one mirror](https://github.com/aleksa2808/seahash/tree/94b632aeac099031c373599313d5b5f0acbbaec0)
-  and [a second mirror](https://github.com/planet-s/seahash/tree/94b632aeac099031c373599313d5b5f0acbbaec0);
-  both trees contain no notice. A later fork-added text is not used as evidence
-  of an original-author notice. An original-author notice also exists in
-  [TFS](https://github.com/redox-os/tfs/blob/master/LICENSE), but its adjacent
-  [SeaHash manifest](https://github.com/redox-os/tfs/blob/master/seahash/Cargo.toml)
-  identifies version 3.0.5; it is not recorded as a notice for 4.1.0.
-- `windows-permissions` 0.2.4 has no notice file in [its published upstream tree](https://github.com/danieldulaney/windows-permissions-rs/tree/8740e4efbd88dd01046ad9c169894f3a52eb6e2c)
-  or the current repository root; upstream history has no `LICENSE` addition.
-  Published source headers, upstream issue/PR discussions, and release records
-  also yielded no original notice in the October 12 check.
+The three cached crate archives match their SHA-256 checksums in Cargo.lock.
+The finished Windows ZIP now has two reviewed omissions across 590 packages.
 
-Packaging preserves the available manifest/README attribution and
-lists these gaps explicitly in `THIRD-PARTY.md` and `dependencies.json`.
-Distribution notice completeness remains unverified for these omissions.
+| Crate | Published archive SHA-256 | Evidence and packaged disposition |
+| --- | --- | --- |
+| mac 0.1.1 | `c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4` | This older archive omits Git metadata. All 12 file paths and blob hashes match the [upstream release tree](https://github.com/reem/rust-mac/tree/66afc663b68a65633ea165c742b5a9c6734581c2), still the default branch head. The [license request](https://github.com/reem/rust-mac/issues/14) remains open. Preserve the manifest and README and report the omission. |
+| seahash 4.1.0 | `1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b` | The archive records Git revision `94b632a`. A fresh fetch from the canonical GitLab repository confirmed that revision is the first parent of [upstream merge !8](https://gitlab.redox-os.org/redox-os/seahash/-/commit/74c02182146d1edd7c91a9e6eddefc7390682a70). Its only tree change adds LICENSE. Preserve that later file verbatim as a supplement. [Mirror of the same merge](https://github.com/aleksa2808/seahash/commit/74c02182146d1edd7c91a9e6eddefc7390682a70). |
+| windows-permissions 0.2.4 | `9e2ccdc3c6bf4d4a094e031b63fadd08d8e42abd259940eb8aa5fdc09d4bf9be` | The archive identifies the [release tree](https://github.com/danieldulaney/windows-permissions-rs/tree/8740e4efbd88dd01046ad9c169894f3a52eb6e2c), still the default branch head. Neither that tree nor the reviewed upstream issue/PR history supplied a notice for this version. Preserve the manifest and README and report the omission. |
+
+The verifier reads the finished ZIP, checks each recorded notice hash, checks the two
+fallbacks, and compares the omissions in dependencies.json and THIRD-PARTY.md.
+Retire an exception when its exact version leaves the graph or gains a verified
+notice. A new omission requires an explicit review of the corresponding release.
 
 When dependencies change, re-inspect the selected graph and upstream release
 identity before adding supplements. Do not copy a newer license onto an older

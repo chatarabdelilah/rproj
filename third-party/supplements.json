@@ -380,6 +380,20 @@
     ]
   },
   {
+    "name": "seahash",
+    "version": "4.1.0",
+    "commit": "94b632aeac099031c373599313d5b5f0acbbaec0",
+    "notice_commit": "74c02182146d1edd7c91a9e6eddefc7390682a70",
+    "provenance_note": "Canonical redox-os/seahash merge request !8 adds only LICENSE relative to its first parent, the published 4.1.0 revision. This text was added after publication.",
+    "files": [
+      {
+        "path": "third-party/licenses/seahash-4.1.0/LICENSE",
+        "url": "https://gitlab.redox-os.org/redox-os/seahash/-/raw/74c02182146d1edd7c91a9e6eddefc7390682a70/LICENSE",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      }
+    ]
+  },
+  {
     "name": "simd_helpers",
     "version": "0.1.0",
     "commit": "ca1a2f84aa386d758e98f8a609d990263932fb85",
