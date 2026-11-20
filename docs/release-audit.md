@@ -1,5 +1,13 @@
 # Release-Hardening Audit
 
+## November 20 — review one project update
+
+The [design and fixture checks](desktop-reviewed-update-design.md) exercise
+one selected release, direct-dependency and pin protection, acknowledged Watch
+stopping, retained operation ownership and close-after-completion behavior.
+The package resolution and installation outcomes are simulated. Inline rendering,
+live execution feasibility and native acceptance remain unverified.
+
 ## November 20 — on-demand project updates
 
 The shared CLI and worker passed offline comparison, pagination, identity and
