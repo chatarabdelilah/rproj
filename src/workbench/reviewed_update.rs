@@ -19,6 +19,7 @@ use std::{
 };
 
 pub(super) fn job(dir: &Path) -> Result<()> {
+    ensure!(cfg!(windows), "Reviewed updates currently require Windows");
     ensure!(
         dir.is_absolute() && identity(dir, true)?.is_some(),
         "Invalid operation directory"
@@ -82,6 +83,12 @@ pub(super) fn job(dir: &Path) -> Result<()> {
             reason: format!("{e:#}").chars().take(8192).collect(),
         },
     };
+    if serde_json::to_vec(&report)?.len() as u64 > rproj_core::creation::protocol::IPC_LIMIT {
+        report.state = State::Failed {
+            possible_writes: false,
+            reason: "Prepared review exceeds the 2 MiB limit. No changes applied.".into(),
+        };
+    }
     let failed = matches!(report.state, State::Failed { .. });
     report.verify(&request, !failed)?;
     write_atomic(&path, &report)?;
@@ -132,6 +139,49 @@ fn tool_root() -> Result<PathBuf> {
     Ok(root)
 }
 
+fn version_probe(exe: &Path, dir: &Path) -> Result<String> {
+    use std::{
+        io::{Read, Seek},
+        time::{Duration, Instant},
+    };
+    let mut output = tempfile::tempfile()?;
+    let mut child = Command::new(exe)
+        .arg("--version")
+        .current_dir(dir)
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(output.try_clone()?)
+        .spawn()?;
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait()? {
+            ensure!(
+                status.success(),
+                "Version probe failed at {}",
+                exe.display()
+            );
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(5) || output.metadata()?.len() > 4096 {
+            let _ = child.kill();
+            child.wait()?;
+            anyhow::bail!(
+                "Version probe exceeded time or output limit at {}",
+                exe.display()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    output.rewind()?;
+    let mut text = String::new();
+    output.take(4097).read_to_string(&mut text)?;
+    ensure!(
+        text.len() <= 4096 && !text.trim().is_empty(),
+        "Invalid version output at {}",
+        exe.display()
+    );
+    Ok(text.trim().to_owned())
+}
 struct Programs(BTreeMap<String, (PathBuf, FileState, String)>);
 impl Programs {
     fn capture(s: &Selection) -> Result<Self> {
@@ -152,13 +202,7 @@ impl Programs {
                     format!("Missing {name}; install the prerequisite and check again")
                 })?
                 .canonicalize()?;
-            let output = Command::new(&path)
-                .arg("--version")
-                .current_dir(&s.project)
-                .stdin(Stdio::null())
-                .output()?;
-            ensure!(output.status.success(), "Cannot verify {name} version");
-            let version = String::from_utf8(output.stdout)?.trim().to_owned();
+            let version = version_probe(&path, &s.project)?;
             if name == "wally" {
                 ensure!(
                     version == "wally 0.3.2",
@@ -180,15 +224,8 @@ impl Programs {
     }
     fn verify(&self, dir: &Path) -> Result<()> {
         for (name, (exe, state, version)) in &self.0 {
-            let check = Command::new(exe)
-                .arg("--version")
-                .current_dir(dir)
-                .stdin(Stdio::null())
-                .output()?;
             ensure!(
-                file_state(exe, false)? == *state
-                    && check.status.success()
-                    && String::from_utf8_lossy(&check.stdout).trim() == version,
+                file_state(exe, false)? == *state && version_probe(exe, dir)? == *version,
                 "{name} changed; prepare again"
             );
         }

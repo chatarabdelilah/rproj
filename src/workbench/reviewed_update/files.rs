@@ -93,11 +93,50 @@ pub(super) fn replace(path: &Path, bytes: &[u8], expected: &FileState) -> Result
         path.display()
     );
     if expected.id.is_some() {
-        tmp.persist(path).map_err(|e| e.error)?;
+        let recovery = tempfile::Builder::new()
+            .prefix(".rproj-original-")
+            .tempdir_in(path.parent().context("Missing parent")?)?;
+        let backup = recovery
+            .path()
+            .join(path.file_name().context("Missing filename")?);
+        fs::rename(path, &backup)?;
+        let result = (|| -> Result<()> {
+            ensure!(
+                file_state(&backup, false)? == *expected,
+                "Original changed during replacement"
+            );
+            tmp.persist_noclobber(path).map_err(|e| e.error)?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            #[cfg(windows)]
+            if move_exclusive(&backup, path).is_ok() {
+                return Err(error).context("Original restored");
+            }
+            let kept = recovery.keep();
+            return Err(error)
+                .with_context(|| format!("Displaced original retained in {}", kept.display()));
+        }
     } else {
         tmp.persist_noclobber(path).map_err(|e| e.error)?;
     }
     Ok(())
+}
+
+pub(super) fn move_exclusive(from: &Path, to: &Path) -> Result<()> {
+    #[cfg(windows)]
+    {
+        winsafe::MoveFile(
+            from.to_str().context("Non-Unicode source path")?,
+            to.to_str().context("Non-Unicode destination path")?,
+        )?;
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (from, to);
+        anyhow::bail!("Reviewed directory replacement requires Windows")
+    }
 }
 
 pub(super) fn copy_tree(from: &Path, to: &Path, entries: &Tree) -> Result<()> {

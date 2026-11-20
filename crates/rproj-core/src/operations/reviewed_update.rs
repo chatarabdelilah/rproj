@@ -5,6 +5,7 @@ use crate::updates::review::*;
 
 impl WorkbenchClient {
     pub fn reviewed_update_support(&self) -> Result<()> {
+        ensure!(cfg!(windows), "Reviewed updates currently require Windows");
         let version = query(
             &self.worker,
             &[WORKER_FLAG, "reviewed-update-support"],
@@ -58,7 +59,7 @@ impl WorkbenchClient {
                 dir.path(),
                 &Cancellation::default(),
                 Arc::new(sink),
-            )?;
+            ).map_err(|error| if error.is::<OwnedTeardownUnconfirmed>() {error.context("Worker termination unconfirmed. Partial changes may remain; closing and further mutations are blocked")} else {error})?;
             let report = read_json::<Report>(&dir.path().join("report.json")).and_then(|r| {
                 r.verify(&request, exit == OperationOutcome::Succeeded)?;
                 Ok(r)

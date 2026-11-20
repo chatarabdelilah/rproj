@@ -84,11 +84,15 @@ fn packages(project: &Path) -> Result<Tree> {
 }
 
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Lock {
+    registry: String,
     package: Vec<Node>,
 }
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Node {
+    checksum: Option<String>,
     name: String,
     version: String,
     #[serde(default)]
@@ -107,10 +111,13 @@ fn graph(lock: &str, root: &toml::Value) -> Result<(BTreeMap<String, String>, BT
         .context("Missing package version")?;
     let entries: Lock = toml::from_str(lock)?;
     let mut direct = None;
-    let mut graph = BTreeSet::new();
+    let mut graph = BTreeSet::from([format!("registry = {}", entries.registry)]);
     for node in entries.package {
         let id = format!("{}@{}", node.name, node.version);
         graph.insert(id.clone());
+        if let Some(sum) = node.checksum {
+            graph.insert(format!("{id} checksum = {sum}"));
+        }
         for (alias, dependency) in &node.dependencies {
             graph.insert(format!("{id} / {alias} → {dependency}"));
         }
@@ -227,6 +234,8 @@ impl PackageStage {
         let replay = install("reviewed", &reviewed, &new_lock)?;
         let new = packages(&candidate)?;
         let replayed = packages(&replay)?;
+        let proof = rproj_core::updates::inventory(&replay)?;
+        ensure!(proof.entries.iter().any(|e|matches!(e,Local::Package{alias:a, realm:r,locked:Some(v),presence:rproj_core::PresenceState::Present,resolution:rproj_core::ResolutionState::Resolved,..} if a==alias && r==realm && v==&s.version)),"Selected package has no verified installed alias and index");
         ensure!(
             text(&replay.join("wally.lock"))? == new_lock && contents(&new) == contents(&replayed),
             "Cannot reproduce the selected lock and generated package files"
@@ -318,66 +327,82 @@ impl PackageStage {
             .prefix(".rproj-update-")
             .tempdir_in(project)?;
         copy_tree(&replay, staging.path(), &prepared)?;
-        for name in DIRS {
-            let path = project.join(name);
-            let original = tree(project, Path::new(name))?;
-            let expected: Tree = self
-                .installed
-                .iter()
-                .filter(|(p, _)| p.starts_with(name))
-                .map(|(p, s)| (p.clone(), s.clone()))
-                .collect();
-            ensure!(
-                original == expected,
-                "{name} changed; inspect partial effects"
-            );
-            if !original.is_empty() {
-                let backup = staging.path().join(format!("previous-{name}"));
-                fs::rename(&path, &backup)?;
-                // Check the moved directory before it can be discarded. Keep it on any mismatch.
-                let verified = tree(&backup, Path::new("")).and_then(|items| {
-                    let moved: Tree = items
-                        .into_iter()
-                        .map(|(p, s)| {
-                            (
-                                if p.as_os_str().is_empty() {
-                                    PathBuf::from(name)
-                                } else {
-                                    Path::new(name).join(p)
-                                },
-                                s,
-                            )
-                        })
-                        .collect();
-                    ensure!(moved == original, "Directory changed during replacement");
-                    Ok(())
-                });
-                if verified.is_err() {
-                    let kept = staging.keep();
-                    anyhow::bail!(
-                        "Preserved changed files in {}. Inspect the project before retrying",
-                        kept.display()
-                    );
+        let applied = (|| -> Result<()> {
+            for name in DIRS {
+                let path = project.join(name);
+                let original = tree(project, Path::new(name))?;
+                let expected: Tree = self
+                    .installed
+                    .iter()
+                    .filter(|(p, _)| p.starts_with(name))
+                    .map(|(p, s)| (p.clone(), s.clone()))
+                    .collect();
+                ensure!(
+                    original == expected,
+                    "{name} changed; inspect partial effects"
+                );
+                if !original.is_empty() {
+                    let backup = staging.path().join(format!("previous-{name}"));
+                    fs::rename(&path, &backup)?;
+                    // Check the moved directory before it can be discarded. Keep it on any mismatch.
+                    let verified = tree(&backup, Path::new("")).and_then(|items| {
+                        let moved: Tree = items
+                            .into_iter()
+                            .map(|(p, s)| {
+                                (
+                                    if p.as_os_str().is_empty() {
+                                        PathBuf::from(name)
+                                    } else {
+                                        Path::new(name).join(p)
+                                    },
+                                    s,
+                                )
+                            })
+                            .collect();
+                        ensure!(moved == original, "Directory changed during replacement");
+                        Ok(())
+                    });
+                    verified?;
+                }
+                if staging.path().join(name).is_dir() {
+                    move_exclusive(&staging.path().join(name), &path)?;
                 }
             }
-            if staging.path().join(name).is_dir() {
-                fs::rename(staging.path().join(name), &path)?;
-            }
-        }
-        for name in ["wally.toml", "sourcemap.json", "wally.lock"] {
-            let bytes = fs::read(replay.join(name))?;
-            if self.files[name].content != Some(blake3::hash(&bytes).to_string()) {
-                replace(&project.join(name), &bytes, &self.files[name])?;
+            for name in ["wally.toml", "sourcemap.json", "wally.lock"] {
+                let bytes = fs::read(replay.join(name))?;
+                if self.files[name].content != Some(blake3::hash(&bytes).to_string()) {
+                    replace(&project.join(name), &bytes, &self.files[name])?;
+                }
+                ensure!(
+                    fs::read(project.join(name))? == bytes,
+                    "{name} did not match the review"
+                );
             }
             ensure!(
-                fs::read(project.join(name))? == bytes,
-                "{name} did not match the review"
+                contents(&packages(project)?) == contents(&prepared),
+                "Installed package tree differs from review"
             );
+            Ok(())
+        })();
+        if let Err(error) = applied {
+            let recovery = staging.keep();
+            #[cfg(windows)]
+            for name in DIRS {
+                let previous = recovery.join(format!("previous-{name}"));
+                let original = project.join(name);
+                if matches!(fs::symlink_metadata(&original),Err(e) if e.kind()==std::io::ErrorKind::NotFound)
+                    && previous.is_dir()
+                {
+                    let _ = move_exclusive(&previous, &original);
+                }
+            }
+            return Err(error).with_context(|| {
+                format!(
+                    "Partial update. Retained recovery files at {}",
+                    recovery.display()
+                )
+            });
         }
-        ensure!(
-            contents(&packages(project)?) == contents(&prepared),
-            "Installed package tree differs from review"
-        );
         Ok(())
     }
 }

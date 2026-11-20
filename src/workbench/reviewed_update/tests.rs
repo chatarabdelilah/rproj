@@ -60,3 +60,17 @@ fn linked_or_external_mounts_refuse_preparation() {
     .unwrap();
     assert!(packages::source_tree(dir.path()).is_err());
 }
+
+#[cfg(windows)]
+#[test]
+fn package_directory_move_never_replaces_a_new_destination() {
+    let dir = tempfile::tempdir().unwrap();
+    let from = dir.path().join("staged");
+    let to = dir.path().join("Packages");
+    fs::create_dir(&from).unwrap();
+    fs::create_dir(&to).unwrap();
+    fs::write(to.join("local.luau"), "local edit").unwrap();
+    assert!(move_exclusive(&from, &to).is_err());
+    assert!(from.is_dir());
+    assert_eq!(fs::read(to.join("local.luau")).unwrap(), b"local edit");
+}
