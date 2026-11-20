@@ -40,6 +40,7 @@ mod creation;
 #[cfg(feature = "template-editor")]
 mod project_template;
 mod project_tool;
+mod reviewed_update;
 mod saved_setups;
 mod settings;
 mod setup;

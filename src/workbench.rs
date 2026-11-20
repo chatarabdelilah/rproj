@@ -11,6 +11,7 @@ mod composition;
 mod creation;
 mod project_template;
 mod project_tool;
+mod reviewed_update;
 mod saved_setups;
 mod settings;
 mod setup;
@@ -27,6 +28,11 @@ pub(crate) fn internal_entry() -> Option<Result<()>> {
 
 fn dispatch(operation: Operation) -> Result<()> {
     match operation {
+        Operation::ReviewedUpdateSupport => {
+            println!("{}", rproj_core::updates::review::PROTOCOL);
+            Ok(())
+        }
+        Operation::ReviewedUpdateJob(dir) => reviewed_update::job(&dir),
         Operation::UpdatesSupport => {
             println!("{}", rproj_core::updates::VERSION);
             Ok(())
@@ -143,6 +149,8 @@ mod worker_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Operation {
+    ReviewedUpdateSupport,
+    ReviewedUpdateJob(std::path::PathBuf),
     UpdatesSupport,
     UpdatesV1,
     TestSupport,
@@ -177,6 +185,7 @@ enum Operation {
 fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation> {
     let verb = args.next().context("missing workbench operation")?;
     if verb == "test-job"
+        || verb == "reviewed-update-job"
         || verb == "creation-job"
         || verb == "composition-job"
         || verb == "upgrade-job"
@@ -188,7 +197,9 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
     {
         let directory = args.next().context("missing workbench IPC directory")?;
         ensure!(args.next().is_none(), "unexpected workbench argument");
-        return Ok(if verb == "test-job" {
+        return Ok(if verb == "reviewed-update-job" {
+            Operation::ReviewedUpdateJob(directory.into())
+        } else if verb == "test-job" {
             Operation::TestJob(directory.into())
         } else if verb == "creation-job" {
             Operation::CreationJob(directory.into())
@@ -218,6 +229,7 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
         Some("saved-setups-support") => Ok(Operation::SavedSetupsSupport),
         Some("settings-support") => Ok(Operation::SettingsSupport),
         Some("project-tool-support") => Ok(Operation::ProjectToolSupport),
+        Some("reviewed-update-support") => Ok(Operation::ReviewedUpdateSupport),
         Some("template-support") => Ok(Operation::TemplateSupport),
         Some("setup-support") => Ok(Operation::SetupSupport),
         Some("upgrade-support") => Ok(Operation::UpgradeSupport),
