@@ -110,18 +110,26 @@ impl Workbench {
             (_, None) => Some("Checking update discovery support…"),
             (_, Some(Ok(()))) => None,
         };
-        let mut header = div()
-            .v_flex()
-            .gap_2()
-            .child(div().text_lg().child("Updates"))
-            .child(
-                Button::new("check-updates")
-                    .label("Check for updates")
-                    .primary()
-                    .disabled(!loaded || pending || support.is_some())
-                    .on_click(cx.listener(|this, _, _, cx| this.start_updates(cx))),
-            )
-            .when_some(support, |v, m| v.child(m.to_owned()));
+        let mut header =
+            div()
+                .v_flex()
+                .gap_2()
+                .child(div().text_lg().child("Updates"))
+                .child(
+                    Button::new("check-updates")
+                        .label("Check for updates")
+                        .primary()
+                        .disabled(
+                            !loaded
+                                || pending
+                                || support.is_some()
+                                || self.updates.apply.active.as_ref().is_some_and(|(_, s)| {
+                                    Some(&s.project) == self.project.as_ref()
+                                }),
+                        )
+                        .on_click(cx.listener(|this, _, _, cx| this.start_updates(cx))),
+                )
+                .when_some(support, |v, m| v.child(m.to_owned()));
         let Some(state) = state else {
             return header.child("Reading local inventory…").into_any_element();
         };
@@ -225,6 +233,9 @@ impl Workbench {
                         timestamp(o.time),
                         comparison_text(local, &o.entry.comparison)
                     ));
+                    if failure.is_none() && !stale {
+                        detail = detail.child(self.update_review_controls(&o.entry, cx));
+                    }
                 } else if !stale && failure.is_none() {
                     detail = detail.child(
                         local

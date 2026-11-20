@@ -11,6 +11,7 @@ impl Workbench {
     }
     pub(in super::super) fn teardown_uncertain(&self) -> bool {
         self.creation.teardown_uncertain
+            || self.updates.apply.teardown_uncertain
             || self.composition.teardown_uncertain
             || self.upgrade.teardown_uncertain
             || self.settings.teardown_uncertain

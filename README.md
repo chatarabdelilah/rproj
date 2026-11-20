@@ -25,6 +25,12 @@ forks use their own releases. Custom registries and unavailable sources appear
 with explanations. Add `--json` for the versioned report and Unix check time.
 Partial reports exit successfully; failure to produce a report exits nonzero.
 
+In the matching Windows desktop workbench, open **Dependencies** or **Tools → View
+updates… → Check for updates**. Select one release and choose **Prepare review**
+to see the declaration, lockfile or tool-pin changes. **Apply update…** asks for
+confirmation. Local package edits and changes to another direct alias block
+Apply. Stop Watch separately if it owns the selected project.
+
 Assets 3D checks the installed Blender executable independently of old machine
 setup selections. In an existing project, `rproj setup blender` creates a missing
 `blender/scene.blend` and preserves an existing scene. Missing Blender is reported

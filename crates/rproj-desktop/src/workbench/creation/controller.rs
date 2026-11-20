@@ -431,6 +431,9 @@ impl Workbench {
         if let Some(decision) = self.project_tool_close(window, cx) {
             return decision;
         }
+        if let Some(decision) = self.reviewed_update_close(window, cx) {
+            return decision;
+        }
         if let Some(decision) = self.template_close(window, cx) {
             return decision;
         }
