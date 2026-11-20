@@ -5,7 +5,9 @@ Updated November 19, 2026. This describes current priorities, not every idea con
 ## Direction
 
 The [project Updates view](desktop-update-discovery-design.md) and `rproj updates`
-share on-demand public release checks. Real-window acceptance remains paused.
+share on-demand public release checks. The next design decision is whether to
+adopt the [single-update review](desktop-reviewed-update-design.md) for project
+packages and tool pins. Real-window acceptance remains paused.
 
 **Make it straightforward to set up and maintain an ordinary Roblox/Luau project on Windows.**
 

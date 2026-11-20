@@ -1,0 +1,201 @@
+<section id="review-update" aria-label="rproj reviewed update design">
+<style>
+#review-update{color-scheme:light dark;--paper:light-dark(#fcfbf8,#201f1d);--side:light-dark(#f1f0ea,#292826);--ink:light-dark(#292923,#eeede7);--quiet:light-dark(#605f56,#c0bdb2);--line:light-dark(#d6d3c8,#55524a);--blue:light-dark(#2356a1,#abcaff);--wash:light-dark(#e7eef9,#303d50);background:var(--paper);color:var(--ink);font:14px/1.5 system-ui,sans-serif;container:review-shell / inline-size}
+#review-update[data-theme=Light]{color-scheme:light} #review-update[data-theme=Dark]{color-scheme:dark}
+#review-update *{box-sizing:border-box} #review-update [hidden]{display:none!important}
+#review-update h2,#review-update h3,#review-update p{margin:0} #review-update h2{font-size:23px} #review-update h3{font-size:16px}
+#review-update button,#review-update select,#review-update input{font:inherit;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 10px;max-width:100%}
+#review-update .primary,#review-update [aria-pressed=true]{color:var(--blue);background:var(--wash)}
+#review-update button:disabled,#review-update small{color:var(--quiet)} #review-update :focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#review-update .shell{display:grid;grid-template-columns:160px minmax(0,1fr)} #review-update aside{background:var(--side);padding:16px;display:flex;flex-direction:column;gap:12px}
+#review-update aside label:last-child{margin-top:auto} #review-update nav,#review-update label,#review-update .stack{display:grid;gap:8px}
+#review-update main{min-width:0;container:review-main / inline-size;padding:20px} #review-update .panes{display:grid;gap:16px;margin:16px 0;align-items:start}
+#review-update article{padding:16px;background:var(--side);border-radius:10px;overflow-wrap:anywhere}
+#review-update .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap} #review-update .bar{padding:12px 16px;border-top:1px solid var(--line)}
+#review-update .output{resize:vertical;overflow:auto;height:7em;min-height:4em;white-space:pre-wrap;overflow-wrap:anywhere}
+#review-update pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0} #review-update dialog{color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;max-width:min(430px,92%);padding:20px} #review-update dialog::backdrop{background:#0006}
+@container review-main (min-width:600px){#review-update .panes{grid-template-columns:minmax(0,0.65fr) minmax(0,1.35fr)}}
+@container review-shell (max-width:550px){#review-update .shell{grid-template-columns:1fr} #review-update aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))} #review-update nav{grid-column:1/-1;display:flex;flex-wrap:wrap}}
+@media(pointer:coarse){#review-update :is(button,select,input){min-height:44px}}
+</style>
+<div id="ru-window">
+<div class="shell"><aside><strong>rproj</strong><label>Project<select id="ru-project"><option>Skyline</option><option>Lantern</option><option value="">Close project</option></select></label>
+<nav aria-label="Project sections"><button>Overview</button><button>Dependencies</button><button>Tools</button><button>Checks</button></nav>
+<label>Appearance<select id="ru-theme"><option>System</option><option>Light</option><option>Dark</option></select></label></aside>
+<main><small>Soft workbench · Simulated update</small><h2 id="ru-title">Review an update</h2><p id="ru-owner">Skyline · C:/Samples/Roblox/Skyline · Signals</p>
+<section id="ru-home" hidden><button id="ru-open">View updates…</button></section>
+<section id="ru-flow"><div class="panes"><div class="stack"><h3>Update target</h3><button id="ru-package" aria-pressed="true">Signals · Wally package</button><button id="ru-tool" aria-pressed="false">Rojo · Project tool</button></div>
+<article class="stack"><h3 id="ru-heading">Choose version · Signals</h3><p id="ru-local">Shared · sample/signals · Locked 1.2.0 · Declared ^1.2.0</p>
+<label id="ru-choice">Target version<select id="ru-version"><option value="1.3.0">1.3.0 · Within requirement</option><option value="2.0.0">2.0.0 · Change declaration</option></select></label>
+<p id="ru-note" role="status">1.3.0 fits ^1.2.0. The declaration stays the same.</p><div id="ru-effects" class="stack"></div>
+<div class="row"><button id="ru-prepare" class="primary">Prepare review</button><button id="ru-edit" hidden>Choose version</button>
+<button id="ru-apply" class="primary" hidden>Apply update…</button><button id="ru-refresh" hidden>Check for updates</button></div></article></div></section>
+</main></div>
+<div class="bar"><details id="ru-activity"><summary>Activity · <span id="ru-summary">No operations yet</span></summary><label>Search output<input type="search" id="ru-filter"></label><div class="output" id="ru-output">No output yet.</div></details></div>
+<div class="bar row"><span id="ru-watch">Watch · Lantern · Watching</span><button id="ru-stop">Stop Watch</button><button id="ru-close">Close sample window</button></div>
+<details class="bar"><summary>Sample scenarios</summary><div class="stack"><label>Review fixture<select id="ru-case">
+<option value="normal">Signals with a transitive change / exact Rojo update</option><option value="direct">Different direct dependency changes</option><option value="alias">Second direct alias for Signals</option><option value="exact">Exact Wally requirement</option><option value="complex">Compound Wally requirement</option><option value="repo">Rojo repository mismatch</option><option value="pin">Rojo version mismatch</option><option value="extra">Another tool pin changes</option><option value="current">Current</option><option value="ahead">Local ahead</option><option value="unknown">Unknown baseline</option><option value="unsupported">Unsupported source</option><option value="stale">Stale observation</option></select></label>
+<button id="ru-load">Load fixture</button><button id="ru-change">Simulate changed project input</button><button id="ru-watched">Watch captured project</button>
+<label>Simulated execution result<select id="ru-outcome"><option value="success">Verified success</option><option value="failure">Partial failure</option><option value="uncertain">Unconfirmed completion</option></select></label>
+<button id="ru-finish">Deliver execution result</button></div></details></div>
+<div id="ru-closed" class="bar" hidden>Sample window closed.</div>
+<dialog id="ru-dialog" aria-labelledby="ru-dialog-title" aria-describedby="ru-dialog-text"><div class="stack"><h3 id="ru-dialog-title"></h3><p id="ru-dialog-text" style="white-space:pre-line;overflow-wrap:anywhere"></p><div class="row"><button id="ru-keep" autofocus>Keep reviewing</button><button id="ru-confirm">Apply update</button></div></div></dialog>
+</section>
+<script>
+(() => {
+  'use strict';
+  const root = document.getElementById('review-update');
+  const el = name => root.querySelector('#ru-' + name);
+  const paths = {Skyline:'C:/Samples/Roblox/Skyline', Lantern:'C:/Samples/Roblox/Shared development projects/Lantern'};
+  const scenarios = {
+    normal:[], direct:[['server-dependencies','Storage','sample/storage','3.0.0','3.1.0']],
+    alias:[['dev-dependencies','TestSignals','sample/signals','1.2.0',null]]
+  };
+  const unavailable = {current:'Already at the latest stable release.',ahead:'Local version is ahead of the latest stable release.',
+    unknown:'A reliable local version could not be identified.',unsupported:'This release source is unsupported.',stale:'Release observation is stale. Check for updates again.'};
+  let workspace='Skyline', section='Updates', owner='Skyline', tool=false, sample='normal', version='1.3.0';
+  let stage='choose', plan=null, revision=0, watch='Lantern', stopping=false, waitClose=false, dialog=null, stale=false;
+  const logs=[], completed=new Map();
+  let watchGeneration=0;
+  const target=()=>tool?'Rojo':'Signals';
+  const requirement=()=>sample==='exact'?'=1.2.0':sample==='complex'?'>=1.2.0, <2.0.0':'^1.2.0';
+  const choices=()=>tool?[['7.5.0','Exact project pin']]:sample==='exact'?[['2.0.0','Change exact pin']]:
+    [['1.3.0','Within requirement'],...(sample==='complex'?[]:[['2.0.0','Change declaration']])];
+  function reset(nextSample='normal'){
+    revision++; stage='choose'; plan=null; stale=nextSample==='stale'; sample=stale?'normal':nextSample; version=choices()[0][0]; waitClose=false;
+    const saved=completed.get(owner+'|'+target());
+    if(saved && nextSample==='normal'){({plan,version,sample}=saved);stage='success';}
+  }
+  function prepare(){
+    const effects=[], blockers=[];
+    if(tool){
+      const repo=sample==='repo'?'other/rojo':'rojo-rbx/rojo', resolved=sample==='pin'?'7.6.0':version;
+      effects.push(['rokit.toml · project pin','− rojo = "rojo-rbx/rojo@7.4.0"\n+ rojo = "'+repo+'@'+resolved+'"']);
+      if(repo!=='rojo-rbx/rojo'||resolved!==version) blockers.push('Prepared repository or version differs from rojo-rbx/rojo@'+version+'.');
+      if(sample==='extra'){effects.push(['rokit.toml · unrelated pin','− selene = "Kampfkarren/selene@0.28.0"\n+ selene = "Kampfkarren/selene@0.29.0"']);blockers.push('The Selene project pin would also change.');}
+      effects.push(['Operations','Install the exact project pin. A download and shared Rokit cache writes may be required.']);
+    }else{
+      const req=requirement(), next=version==='2.0.0'?(sample==='exact'?'=':'^')+version:req;
+      effects.push(['wally.toml · shared declaration',next===req?'Keep Signals = "sample/signals@'+req+'"':'− Signals = "sample/signals@'+req+'"\n+ Signals = "sample/signals@'+next+'"']);
+      function lockEntry(name, before, after){
+        return '[[package]]\nname = "'+name+'"\n− version = "'+before+'"\n+ version = "'+after+'"';
+      }
+      effects.push(['wally.lock · selected dependency (Signals)',lockEntry('sample/signals','1.2.0',version)],
+        ['wally.lock · transitive dependency',lockEntry('sample/task','0.4.0','0.4.1')]);
+      for(const [realm,alias,pkg,old,updated] of scenarios[sample] || []){
+        const change=realm+'.'+alias+' · '+pkg+'   '+old+' → '+(updated||version);
+        effects.push(['wally.lock · other direct dependency',change]);blockers.push(change);
+      }
+      if(!blockers.length)effects.push(['Other direct dependencies','Shared, server and dev versions preserved.']);
+      effects.push(['Operations · Wally 0.3.2','Resolve in an isolated sample, reproduce the reviewed lockfile, rebuild installed package links and refresh generated types. Packages may be downloaded.']);
+    }
+    return {owner,tool,version,revision,effects,blockers};
+  }
+  function output(){
+    const filtered=logs.filter(s=>s.toLowerCase().includes(el('filter').value.toLowerCase()));
+    el('output').textContent=filtered.join('\n')||(logs.length?'No search matches.':'No output yet.');
+  }
+  function log(message,expand=false){
+    const line=owner+' · '+target()+' · '+message;logs.push(line);if(logs.length>100)logs.shift();
+    el('summary').textContent=line;if(expand)el('activity').open=true;output();
+  }
+  function canApply(){return stage==='review' && plan && plan.revision===revision && plan.owner===workspace && !plan.blockers.length && watch!==owner;}
+  function render(){
+    const flow=section==='Updates' && workspace===owner;
+    const busy=stage==='running', frozen=busy || stage==='uncertain';
+    el('home').hidden=flow;el('flow').hidden=!flow;el('title').textContent=flow?'Review an update':workspace?section:'No project open';
+    el('owner').textContent=flow?owner+' · '+paths[owner]+' · '+target():workspace?workspace+' · '+paths[workspace]:'Choose a project to inspect.';
+    el('open').hidden=!workspace || !['Tools','Dependencies','Overview'].includes(section);
+    el('open').disabled=frozen && workspace!==owner;
+    el('open').textContent=frozen?'Resume '+owner+' update':'View updates…';
+    el('package').disabled=el('tool').disabled=frozen;
+    el('package').setAttribute('aria-pressed',String(!tool));el('tool').setAttribute('aria-pressed',String(tool));
+    const prefix={choose:'Choose version',preparing:'Preparing',review:'Review changes',running:'Applying',success:'Verified success',failure:'Partial failure',uncertain:'Completion uncertain'};
+    el('heading').textContent=prefix[stage]+' · '+target();
+    const first=tool?'7.4.0':'1.2.0', latest=tool?'7.5.0':'2.0.0';
+    const local=stage==='success'?version:sample==='unknown'?'Unknown':sample==='ahead'?(tool?'8.0.0':'3.0.0'):sample==='current'?latest:first;
+    const req=stage==='success' && version==='2.0.0'?(sample==='exact'?'=':'^')+version:requirement();
+    el('local').textContent=tool?'Repository rojo-rbx/rojo · Project pin '+local+' · Executable on PATH: detected':
+      'Shared · sample/signals · Locked '+local+' · Declared '+req;
+    const choosing=stage==='choose', refusal=stale?unavailable.stale:unavailable[sample];
+    el('choice').hidden=!choosing||Boolean(refusal);
+    el('version').replaceChildren(...choices().map(([v,label])=>new Option(v+' · '+label,v)));el('version').value=version;
+    const messages={choose:unavailable[sample]||(tool?'Review the exact project pin.':version==='1.3.0'?'1.3.0 fits '+req+'. The declaration stays the same.':'Review '+requirement()+' → '+(sample==='exact'?'=':'^')+version+'.'),
+      preparing:'Preparing an isolated sample resolution…',review:plan?.blockers.length?'Blocked · '+plan.blockers.join(' / '):watch===owner?'Watch owns this project. Stop Watch separately and wait for acknowledgement.':'Prepared effects for '+owner+'.',
+      running:'Waiting for the simulated operation to finish.',success:'Verified the reviewed target and resulting project files.',
+      failure:'The update failed after writes began. Partial changes may remain. Inspect and prepare a new review.',
+      uncertain:'Completion is unconfirmed. The sample remains open. Confirm termination before refreshing.'};
+    el('note').textContent=choosing&&refusal?refusal:messages[stage];el('effects').replaceChildren();
+    if(plan && ['review','running','success','failure','uncertain'].includes(stage)){
+      for(const [label,value] of plan.effects){const h=document.createElement('strong'),p=document.createElement('pre');h.textContent=label;p.textContent=value;el('effects').append(h,p);}
+    }
+    el('prepare').hidden=!choosing;el('prepare').disabled=!!refusal;
+    el('edit').hidden=stage!=='review';el('apply').hidden=stage!=='review';el('apply').disabled=!canApply();
+    el('refresh').hidden=!(stale||stage==='failure');
+    el('watch').textContent=watch?'Watch · '+watch+' · '+(stopping?'Stopping…':'Watching'):'Watch · Stopped';
+    el('stop').disabled=!watch||stopping;el('finish').disabled=!frozen;
+    el('finish').textContent=stage==='uncertain'?'Confirm partial failure and termination':'Deliver execution result';
+    for(const id of ['load','case','change','watched'])el(id).disabled=frozen || !flow;
+  }
+  function showDialog(kind){
+    const d=el('dialog');dialog={kind,trigger:document.activeElement,revision};
+    el('dialog-title').textContent=kind==='apply'?'Apply update to '+owner+'?':'Close during update?';
+    el('dialog-text').textContent=kind==='apply'?target()+' → '+version+' · '+paths[owner]+'. '+plan.effects.map(([k,v])=>k+' — '+v).join('\n'):
+      owner+' · '+target()+'. Closing waits for confirmed completion. Partial changes may remain.';
+    el('keep').textContent=kind==='apply'?'Keep reviewing':'Keep open';el('confirm').textContent=kind==='apply'?'Apply update':'Close after update';
+    d.showModal();el('keep').focus();
+  }
+  function dismiss(){const prior=dialog;dialog=null;el('dialog').close();prior?.trigger?.focus();return prior;}
+  function close(){revision++;el('window').hidden=true;el('closed').hidden=false;}
+  function selectTool(value){tool=value;reset();render();}
+  for(const button of root.querySelectorAll('nav button'))button.onclick=()=>{section=button.textContent;render();};
+  el('project').onchange=()=>{workspace=el('project').value;section='Overview';render();};
+  el('open').onclick=()=>{
+    if(!workspace)return;
+    if(stage!=='running' && stage!=='uncertain' && (owner!==workspace || (section==='Tools' && !tool) || (section==='Dependencies' && tool))){
+      owner=workspace;tool=section==='Tools';reset();
+    }
+    section='Updates';render();
+  };
+  el('package').onclick=()=>selectTool(false);el('tool').onclick=()=>selectTool(true);
+  el('theme').onchange=()=>{root.dataset.theme=el('theme').value;};
+  el('load').onclick=()=>{const choice=el('case').value;if(['repo','pin','extra'].includes(choice))tool=true;
+    if(['direct','alias','exact','complex'].includes(choice))tool=false;completed.delete(owner+'|'+target());reset(choice);render();};
+  el('version').onchange=()=>{version=el('version').value;revision++;render();};
+  el('prepare').onclick=()=>{if(stage!=='choose'||stale||unavailable[sample])return;stage='preparing';const id=++revision;render();
+    setTimeout(()=>{if(id!==revision)return;plan=prepare();stage='review';render();if(!el('flow').hidden)el('edit').focus();},500);};
+  el('edit').onclick=()=>{plan=null;stage='choose';revision++;render();el('version').focus();};
+  el('change').onclick=()=>{
+    completed.delete(owner+'|'+target());
+    revision++;plan=null;stage='choose';stale=true;render();
+  };
+  el('refresh').onclick=()=>{reset(sample);render();(el('prepare').disabled||el('prepare').hidden?el('package'):el('prepare')).focus();};
+  el('watched').onclick=()=>{watchGeneration++;watch=owner;stopping=false;render();};
+  el('stop').onclick=()=>{
+    const generation=++watchGeneration;
+    stopping=true;render();
+    setTimeout(()=>{
+      if(generation!==watchGeneration||!stopping)return;
+      watch=null;stopping=false;render();
+    },500);
+  };
+  el('apply').onclick=()=>{if(canApply())showDialog('apply');};
+  el('close').onclick=()=>{if(['running','uncertain'].includes(stage))showDialog('close');else close();};
+  el('keep').onclick=()=>{dismiss();waitClose=false;};
+  el('dialog').oncancel=e=>{e.preventDefault();el('keep').click();};
+  el('confirm').onclick=()=>{const prior=dismiss();if(prior.kind==='close'){waitClose=true;if(!['running','uncertain'].includes(stage))close();return;}
+    if(prior.revision!==revision||!canApply())return;
+    stage='running';log('Applying reviewed '+version,true);render();el('close').focus();
+    const id=revision;
+    setTimeout(()=>{if(stage==='running'&&id===revision)el('finish').click();},5000);};
+  el('finish').onclick=()=>{
+    if(stage==='uncertain'){stage='failure';log('Partial failure and termination confirmed; inspect partial files.',true);}
+    else if(stage==='running'){stage=el('outcome').value;log({success:'Verified '+version,failure:'Partial failure',uncertain:'Completion unconfirmed'}[stage],stage!=='success');}
+    else return;
+    if(stage==='success')completed.set(owner+'|'+target(),{version,sample,plan});
+    render();if(waitClose && stage!=='uncertain' && !dialog)close();
+  };
+  el('filter').oninput=output;
+  render();
+})();
+</script>
