@@ -197,6 +197,71 @@ fn version_probe(exe: &Path, dir: &Path) -> Result<String> {
     );
     Ok(text.trim().to_owned())
 }
+fn hold_executable(path: &Path) -> Result<fs::File> {
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options.share_mode(1);
+    }
+    options
+        .open(path)
+        .with_context(|| format!("Cannot hold {} stable during update", path.display()))
+}
+
+fn backing_tool(exe: PathBuf, project: &Path, name: &str) -> Result<PathBuf> {
+    let root = tool_root()?;
+    if name == "rokit" || root.join("bin").canonicalize().ok().as_deref() != exe.parent() {
+        return Ok(exe);
+    }
+    // Resolve the pinned executable once. Scratch projects must use the same
+    // binary even when their directory ancestry differs from the workspace.
+    for parent in project.ancestors().chain(std::iter::once(root.as_path())) {
+        for unsupported in ["aftman.toml", "foreman.toml"] {
+            ensure!(
+                !parent.join(unsupported).exists(),
+                "Cannot verify {name} through {unsupported}; use its direct executable on PATH"
+            );
+        }
+        let manifest = parent.join("rokit.toml");
+        if identity(&manifest, false)?.is_none() {
+            continue;
+        }
+        let fields: Declarations = toml::from_str(&text(&manifest)?)?;
+        if let Some(spec) = fields.tools.get(name) {
+            let local = Local::Tool {
+                alias: name.into(),
+                declaration: spec.get_ref().clone(),
+                executable: None,
+            };
+            let rproj_core::updates::Source::GitHub(repo) =
+                local.source().map_err(anyhow::Error::msg)?
+            else {
+                anyhow::bail!("Invalid tool source");
+            };
+            let (_, v) = spec
+                .get_ref()
+                .split_once('@')
+                .context("Missing tool version")?;
+            let path = root
+                .join("tool-storage")
+                .join(repo)
+                .join(v.trim_start_matches('v'))
+                .join(exe.file_name().context("Missing tool filename")?);
+            ensure!(
+                identity(&path, false)?.is_some(),
+                "Cannot locate installed {name} at {}",
+                path.display()
+            );
+            return Ok(path.canonicalize()?);
+        }
+    }
+    anyhow::bail!(
+        "Cannot verify the program behind the {name} shim; use the installed executable on PATH"
+    )
+}
+
 struct Programs(
     BTreeMap<String, (PathBuf, FileState, String)>,
     #[allow(dead_code)] Vec<fs::File>,
@@ -221,16 +286,8 @@ impl Programs {
                     format!("Missing {name}; install the prerequisite and check again")
                 })?
                 .canonicalize()?;
-            let mut options = fs::OpenOptions::new();
-            options.read(true);
-            #[cfg(windows)]
-            {
-                use std::os::windows::fs::OpenOptionsExt;
-                options.share_mode(1);
-            }
-            handles.push(options.open(&path).with_context(|| {
-                format!("Cannot hold {name} stable during the reviewed operation")
-            })?);
+            let path = backing_tool(path, &s.project, name)?;
+            handles.push(hold_executable(&path)?);
             let version = version_probe(&path, &s.project)?;
             if name == "wally" {
                 ensure!(
@@ -261,16 +318,57 @@ impl Programs {
         Ok(())
     }
     fn run(&self, name: &str, dir: &Path, args: &[&str]) -> Result<()> {
-        let status = Command::new(&self.0[name].0)
-            .current_dir(dir)
-            .args(args)
-            .stdin(Stdio::null())
-            .status()?;
-        ensure!(
-            status.success(),
-            "{name} exited with {status}; check output and prerequisites"
-        );
-        Ok(())
+        self.run_with_root(name, dir, args, None)
+    }
+    fn run_with_root(
+        &self,
+        name: &str,
+        dir: &Path,
+        args: &[&str],
+        root: Option<&Path>,
+    ) -> Result<()> {
+        #[cfg(windows)]
+        {
+            use process_wrap::tokio::{CommandWrap, CreationFlags, JobObject, KillOnDrop};
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?;
+            runtime.block_on(async {
+                let mut cmd = CommandWrap::with_new(&self.0[name].0, |c| {
+                    c.current_dir(dir).args(args).stdin(Stdio::null());
+                    if let Some(root) = root {
+                        c.env("ROKIT_ROOT", root);
+                    }
+                });
+                cmd.wrap(KillOnDrop).wrap(JobObject).wrap(CreationFlags(
+                    windows::Win32::System::Threading::CREATE_NO_WINDOW,
+                ));
+                let mut child = cmd.spawn()?;
+                match tokio::time::timeout(std::time::Duration::from_secs(240), child.wait()).await
+                {
+                    Ok(status) => {
+                        let status = status?;
+                        ensure!(
+                            status.success(),
+                            "{name} exited with {status}; check output and prerequisites"
+                        );
+                        Ok(())
+                    }
+                    Err(_) => {
+                        child.start_kill()?;
+                        child.wait().await?;
+                        anyhow::bail!(
+                            "{name} exceeded the four-minute deadline; inspect partial effects"
+                        )
+                    }
+                }
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (name, dir, args, root);
+            anyhow::bail!("Reviewed tool execution requires Windows")
+        }
     }
 }
 
@@ -336,22 +434,16 @@ impl ToolStage {
         fs::create_dir(&check_dir)?;
         fs::write(check_dir.join("rokit.toml"), "[tools]\n")?;
         for args in [vec!["trust", repo], vec!["add", &pin, alias]] {
-            let status = Command::new(&programs.0["rokit"].0)
-                .env("ROKIT_ROOT", &isolated)
-                .current_dir(&check_dir)
-                .stdin(Stdio::null())
-                .args(args)
-                .status()?;
-            ensure!(
-                status.success(),
-                "Could not verify {pin} using isolated tool storage"
-            );
+            programs
+                .run_with_root("rokit", &check_dir, &args, Some(&isolated))
+                .with_context(|| format!("Could not verify {pin} using isolated tool storage"))?;
         }
         let fresh = isolated.join(storage.strip_prefix(&self.root)?).join(
             artifacts[0]
                 .file_name()
                 .context("Missing artifact filename")?,
         );
+        let _held_artifact = hold_executable(&artifacts[0])?;
         let observed = file_state(&artifacts[0], false)?.content;
         ensure!(
             observed.is_some() && observed == file_state(&fresh, false)?.content,
