@@ -81,6 +81,8 @@ enum Operation {
     ReuseSaved,
     PrepareProjectTool,
     SetupProjectTool,
+    PrepareReviewedUpdate,
+    ApplyReviewedUpdate,
 }
 impl Operation {
     fn is_template(self) -> bool {
@@ -142,7 +144,9 @@ impl Operation {
             | Self::ManageSaved
             | Self::ReuseSaved
             | Self::PrepareProjectTool
-            | Self::SetupProjectTool => return None,
+            | Self::SetupProjectTool
+            | Self::PrepareReviewedUpdate
+            | Self::ApplyReviewedUpdate => return None,
         })
     }
 }
@@ -182,6 +186,11 @@ impl Section {
 }
 
 enum Event {
+    ReviewedUpdateSupport(u64, Result<(), String>),
+    ReviewedUpdateFinished(
+        u64,
+        Box<Result<rproj_core::updates::review::State, anyhow::Error>>,
+    ),
     UpdatesSupport(u64, Result<(), String>),
     UpdatesInventory(u64, PathBuf, Vec<rproj_core::updates::Local>),
     UpdatesComplete(
@@ -878,6 +887,14 @@ impl Workbench {
                 Event::CustomTestComplete(id, result) => self.accept_custom_tests(id, result, cx),
                 Event::DefaultTestComplete(id, result) => self.accept_default_tests(id, result, cx),
                 Event::ProjectToolSupport(result) => self.project_tool.support = Some(result),
+                Event::ReviewedUpdateSupport(id, result) => {
+                    if id == self.updates.probe {
+                        self.updates.apply.support = Some(result);
+                    }
+                }
+                Event::ReviewedUpdateFinished(id, result) => {
+                    self.finish_reviewed_update(id, *result, cx)
+                }
                 Event::UpdatesSupport(id, result) => {
                     if id == self.updates.probe {
                         self.updates.support = Some(result);
@@ -977,6 +994,8 @@ impl Workbench {
                 Event::Connected(client) => {
                     self.updates.probe = self.updates.probe.wrapping_add(1);
                     self.updates.support = None;
+                    self.updates.apply.support = None;
+                    self.updates.apply.plan = None;
                     self.watch_log_request.invalidate();
                     self.watch_generation = self.watch_generation.wrapping_add(1);
                     self.pending_switch = None;
@@ -1323,6 +1342,8 @@ fn operation_label(operation: Operation) -> &'static str {
         Operation::ReuseSaved => "Loading saved composition",
         Operation::PrepareProjectTool => "Preparing project tool setup",
         Operation::SetupProjectTool => "Setting up project tool",
+        Operation::PrepareReviewedUpdate => "Preparing update",
+        Operation::ApplyReviewedUpdate => "Applying reviewed update",
     }
 }
 fn apply_appearance(appearance: Appearance, window: &mut Window, cx: &mut App) {

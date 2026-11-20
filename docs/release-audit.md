@@ -1,5 +1,12 @@
 # Release-Hardening Audit
 
+## Reviewed updates in the Windows workbench
+
+The private worker and native controls extend on-demand discovery. The
+[acceptance record](desktop-reviewed-update-design.md) separates live tool
+and worker fixtures from headless controls. Native previews remain paused
+pending the memory-stability investigation. No version or publication change.
+
 ## November 20 — review one project update
 
 The [design and fixture checks](desktop-reviewed-update-design.md) exercise

@@ -2,6 +2,7 @@ use super::*;
 use rproj_core::updates::{Comparison, Entry, Local, Report};
 use std::collections::BTreeMap;
 
+mod apply;
 #[cfg(test)]
 mod tests;
 mod view;
@@ -31,6 +32,7 @@ struct Observation {
 }
 #[derive(Default)]
 pub(super) struct Project {
+    fresh_check: bool,
     entries: Vec<Local>,
     loaded: bool,
     group: Group,
@@ -62,6 +64,7 @@ impl Project {
             return None;
         }
         let (_, captured) = self.pending.take()?;
+        self.fresh_check = false;
         let outcome = match result {
             Err(error) => (format!("Check failed · {error}"), true),
             Ok(report) if !captured.iter().eq(report.entries.iter().map(|e| &e.local)) => (
@@ -69,6 +72,7 @@ impl Project {
                 true,
             ),
             Ok(report) => {
+                self.fresh_check = true;
                 let total = report.entries.len();
                 let mut observed = 0;
                 self.failures.clear();
@@ -133,6 +137,7 @@ impl Project {
 }
 #[derive(Default)]
 pub(super) struct Session {
+    pub(super) apply: apply::ReviewSession,
     pub(super) projects: BTreeMap<PathBuf, Project>,
     sequence: u64,
     pub(super) probe: u64,
@@ -150,6 +155,12 @@ impl Workbench {
                 id,
                 client.updates_support().map_err(|e| format!("{e:#}")),
             ));
+            let _ = sender.send(Event::ReviewedUpdateSupport(
+                id,
+                client
+                    .reviewed_update_support()
+                    .map_err(|e| format!("{e:#}")),
+            ));
         });
     }
     fn start_updates(&mut self, cx: &mut Context<Self>) {
@@ -165,6 +176,24 @@ impl Workbench {
         };
         if !state.loaded || state.pending.is_some() || self.snapshot.is_none() {
             return;
+        }
+        if self
+            .updates
+            .apply
+            .active
+            .as_ref()
+            .is_some_and(|(_, s)| s.project == path)
+        {
+            return;
+        }
+        if self
+            .updates
+            .apply
+            .plan
+            .as_ref()
+            .is_some_and(|p| p.selection.project == path)
+        {
+            self.updates.apply.plan = None;
         }
         self.updates.sequence += 1;
         let id = self.updates.sequence;
