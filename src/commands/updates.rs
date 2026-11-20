@@ -119,7 +119,23 @@ fn report(inventory: Inventory, mut lookup: impl FnMut(&Source) -> Result<Vec<Ve
 }
 
 fn collect(path: &Path) -> Result<Report> {
-    let inventory = updates::inventory(path)?;
+    collect_inventory(updates::inventory(path)?)
+}
+
+pub(crate) fn collect_selected(path: &Path, local: &Local) -> Result<Entry> {
+    let mut inventory = updates::inventory(path)?;
+    inventory.entries.retain(|e| e == local);
+    ensure!(
+        inventory.entries.len() == 1,
+        "Selected declaration changed or is ambiguous; check for updates again"
+    );
+    collect_inventory(inventory)?
+        .entries
+        .pop()
+        .context("Missing selected release")
+}
+
+fn collect_inventory(inventory: Inventory) -> Result<Report> {
     let deadline = Instant::now() + Duration::from_secs(18);
     let mut requests = 0;
     let mut limited_hosts = std::collections::BTreeSet::new();

@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod review;
 #[cfg(test)]
 mod tests;
 

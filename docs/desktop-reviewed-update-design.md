@@ -40,3 +40,9 @@ python scripts/prove-project-updates.py rokit
 Both ran successfully on Windows on November 20. Wally 0.3.2 resolved Knit 1.5.3 → 1.6.0 in a temporary project. Independent installs reproduced the reviewed lockfile bytes and generated package files with Rojo 7.7.0 and wally-package-types 1.7.0. Comm changed transitively. A second direct dev alias also moved in the two-alias fixture. Comparing the old installation to a clean reconstruction identified the edited link and the unfamiliar file. The probe downloads public packages and Wally uses its normal registry index cache.
 
 Rokit 1.2.0 installed Rojo 7.7.1 under a custom alias in separate tool storage. The executable in the exact version directory reported 7.7.1. A scratch manifest allowed normal trust checks without force-overwriting an existing alias. The source project's other pin and comment survived the reviewed edit. Only the fixture's storage received explicit trust. These probes supply external-tool evidence independently of offline worker tests.
+
+## Matching worker verification
+
+The private update worker prepares one observed selection. Apply repeats the preparation under the project Watch mutation guard and checks the captured inputs and proposed output. A distinct installed package directory may be absent. An edited or unfamiliar path in an existing installation blocks replacement. Wally staging uses a JSON Rojo project with project-relative mounts. Unsupported mount layouts explain why a review cannot be prepared.
+
+Run `python scripts/prove-reviewed-update-worker.py target/debug/rproj.exe wally` or substitute `rokit`. These live checks exercise refusal and confirmed execution in Unicode-named disposable folders. The first fixture run exposed Windows default-codepage decoding of its JSON report and a missing isolated Rokit directory. Both corrected fixtures passed, including a stale manifest between Prepare and Apply.
