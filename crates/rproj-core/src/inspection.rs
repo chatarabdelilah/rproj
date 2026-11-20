@@ -206,6 +206,10 @@ enum PackageWorkflow {
 /// Inspect an existing directory without executing tools, adopting it, or writing files.
 /// Invalid project files become diagnostics; an inaccessible root is an error.
 pub fn inspect(path: &Path) -> Result<ProjectSnapshot> {
+    inspect_with_registry(path).map(|(snapshot, _)| snapshot)
+}
+
+pub(crate) fn inspect_with_registry(path: &Path) -> Result<(ProjectSnapshot, Option<String>)> {
     let root = path
         .canonicalize()
         .with_context(|| format!("cannot inspect {}", path.display()))?;
@@ -300,18 +304,25 @@ pub fn inspect(path: &Path) -> Result<ProjectSnapshot> {
             saved.packages
         })
         .unwrap_or_default();
-    Ok(ProjectSnapshot {
-        schema_version: 1,
-        root,
-        name,
-        kind,
-        files,
-        saved_packages,
-        packages,
-        tools,
-        actions,
-        diagnostics,
-    })
+    let registry = wally
+        .as_ref()
+        .and_then(|manifest| manifest.get("package")?.get("registry")?.as_str())
+        .map(str::to_owned);
+    Ok((
+        ProjectSnapshot {
+            schema_version: 1,
+            root,
+            name,
+            kind,
+            files,
+            saved_packages,
+            packages,
+            tools,
+            actions,
+            diagnostics,
+        },
+        registry,
+    ))
 }
 
 fn read_text(

@@ -18,6 +18,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Check public releases for this project's Wally dependencies and Rokit pins
+    Updates {
+        /// Project directory. Defaults to the current directory.
+        path: Option<std::path::PathBuf>,
+        /// Emit the versioned update report for automation
+        #[arg(long)]
+        json: bool,
+    },
     /// Open the desktop workbench, optionally at a project directory
     App {
         /// Project directory to open in the desktop

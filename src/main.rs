@@ -61,14 +61,11 @@ fn main() -> ExitCode {
         }
     };
     // Inspection is read-only, including avoiding a new global diagnostic log.
-    if let Some(Command::Inspect { path, json }) = &cli.command {
-        return match commands::inspect::run(path.as_deref(), *json) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(error) => {
-                eprintln!("{error:#}");
-                ExitCode::FAILURE
-            }
-        };
+    if matches!(
+        cli.command,
+        Some(Command::Inspect { .. } | Command::Updates { .. })
+    ) {
+        return ExitCode::from(internal_result_exit_code(dispatch(cli)));
     }
     let log = diagnostics::start();
     log_command(&cli);
@@ -93,7 +90,7 @@ fn is_inspection_invocation() -> bool {
     Cli::command()
         .ignore_errors(true)
         .try_get_matches()
-        .is_ok_and(|matches| matches.subcommand_name() == Some("inspect"))
+        .is_ok_and(|matches| matches!(matches.subcommand_name(), Some("inspect" | "updates")))
 }
 
 fn internal_result_exit_code(result: anyhow::Result<()>) -> u8 {
@@ -131,6 +128,7 @@ fn log_command(cli: &Cli) {
         Some(Command::Copy) => "copy (source and clipboard contents omitted)".into(),
         Some(Command::Info { key }) => format!("info key={key:?}"),
         Some(Command::Inspect { .. }) => "inspect".into(),
+        Some(Command::Updates { .. }) => "updates".into(),
         Some(Command::App { .. }) => "app".into(),
     };
     diagnostics::event("command", message);
@@ -166,6 +164,7 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Copy) => commands::copy::run(),
         Some(Command::Info { key }) => commands::info::run(key.as_deref()),
         Some(Command::Inspect { path, json }) => commands::inspect::run(path.as_deref(), json),
+        Some(Command::Updates { path, json }) => commands::updates::run(path.as_deref(), json),
         Some(Command::App { path }) => commands::app::run(path.as_deref()),
     }
 }

@@ -27,8 +27,11 @@ a check, and it covers both groups. An open project can be checked during Watch.
   and its Activity output. The existing Watch owner stays visible. Resizing changes
   only the pane arrangement at 600 pixels of main-content width.
 
-The sample delivers discovery only. Native networking, persistent cache policy,
-applying updates, and rproj self-updates require separate implementation decisions.
+The owner approved the comparison and one on-demand view for native implementation.
+The shared report powers `rproj updates [path] [--json]` and a matching private
+worker. Live checks query the official public Wally index and public GitHub
+releases for each pinned repository. Desktop observations last for one session.
+Applying updates and rproj self-updates remain separate milestones.
 Current Watch and inspection behavior is documented in the [README](../README.md).
 
 ## Verification

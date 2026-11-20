@@ -27,6 +27,11 @@ pub(crate) fn internal_entry() -> Option<Result<()>> {
 
 fn dispatch(operation: Operation) -> Result<()> {
     match operation {
+        Operation::UpdatesSupport => {
+            println!("{}", rproj_core::updates::VERSION);
+            Ok(())
+        }
+        Operation::UpdatesV1 => crate::commands::updates::worker(),
         Operation::TestSupport => {
             println!("{}", rproj_core::test_execution::protocol::TEST_PROTOCOL);
             Ok(())
@@ -138,6 +143,8 @@ mod worker_tests;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Operation {
+    UpdatesSupport,
+    UpdatesV1,
     TestSupport,
     TestJob(std::path::PathBuf),
     ProjectsContext,
@@ -203,6 +210,8 @@ fn parse_operation(mut args: impl Iterator<Item = OsString>) -> Result<Operation
     }
     ensure!(args.next().is_none(), "unexpected workbench argument");
     match verb.to_str() {
+        Some("updates-support") => Ok(Operation::UpdatesSupport),
+        Some("updates-v1") => Ok(Operation::UpdatesV1),
         Some("test-support") => Ok(Operation::TestSupport),
         Some("creation-context") => Ok(Operation::CreationContext),
         Some("composition-context") => Ok(Operation::CompositionContext),
