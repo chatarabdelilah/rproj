@@ -48,3 +48,16 @@ failure recovery, stale results, focus, Activity, theme contrast, and the
 responsive CSS rule. DOM assertions do not measure rendered pane geometry or
 confirm assistive-technology output. Inline rendering awaits owner observation.
 Native previews remain paused.
+
+## Native verification
+
+The shared report is delivered in [PR #164](https://github.com/chatarabdelilah/rproj/pull/164).
+Both native entry points use the local inspector before the first explicit check.
+Only the release worker contacts public providers. The workbench keeps observations
+in memory and identifies changed local inputs on inspection or before collection.
+Run `cargo +1.99.0 test --locked -p rproj-desktop workbench::updates` for the
+headless control and session tests. All 194 desktop tests passed locally,
+including a check completing after project closure with Watch and a separate
+operation still active. Strict desktop Clippy passed. The first test build exposed an ambiguous
+test macro import, corrected before running the headless checks. Native rendering
+and memory stability remain unverified.

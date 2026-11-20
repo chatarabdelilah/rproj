@@ -6347,6 +6347,7 @@ name = "rproj-desktop"
 version = "0.22.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "gpui-kit",
  "rproj-core",
  "serde_json",

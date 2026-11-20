@@ -4,9 +4,8 @@ Updated November 19, 2026. This describes current priorities, not every idea con
 
 ## Direction
 
-The [project Updates wireframe](desktop-update-discovery-design.md) is ready for
-design review. It compares direct Wally declarations and project Rokit pins on
-demand using simulated releases.
+The [project Updates view](desktop-update-discovery-design.md) and `rproj updates`
+share on-demand public release checks. Real-window acceptance remains paused.
 
 **Make it straightforward to set up and maintain an ordinary Roblox/Luau project on Windows.**
 

@@ -208,32 +208,42 @@ pub struct Inventory {
 }
 pub fn inventory(path: &Path) -> Result<Inventory> {
     let (snapshot, registry) = crate::inspection::inspect_with_registry(path)?;
+    Ok(Inventory {
+        entries: local_entries(&snapshot, registry),
+        project: snapshot.root,
+        name: snapshot.name,
+        diagnostics: snapshot.diagnostics,
+    })
+}
+
+/// Produce desktop inspection and discovery inputs from the same file reads.
+pub fn inspect_local(path: &Path) -> Result<(crate::ProjectSnapshot, Vec<Local>)> {
+    let (snapshot, registry) = crate::inspection::inspect_with_registry(path)?;
+    let entries = local_entries(&snapshot, registry);
+    Ok((snapshot, entries))
+}
+fn local_entries(snapshot: &crate::ProjectSnapshot, registry: Option<String>) -> Vec<Local> {
     let mut entries: Vec<_> = snapshot
         .packages
-        .into_iter()
+        .iter()
         .map(|p| Local::Package {
-            alias: p.alias,
+            alias: p.alias.clone(),
             realm: p.realm.section().into(),
-            package: p.package,
-            declaration: p.declaration,
+            package: p.package.clone(),
+            declaration: p.declaration.clone(),
             registry: registry.clone(),
-            requirement: p.version_requirement,
-            locked: p.resolved.map(|r| r.version),
+            requirement: p.version_requirement.clone(),
+            locked: p.resolved.as_ref().map(|r| r.version.clone()),
             resolution: p.resolution,
             presence: p.presence.state,
         })
         .collect();
-    entries.extend(snapshot.tools.into_iter().map(|t| Local::Tool {
-        alias: t.alias,
-        declaration: t.source,
-        executable: t.executable,
+    entries.extend(snapshot.tools.iter().map(|t| Local::Tool {
+        alias: t.alias.clone(),
+        declaration: t.source.clone(),
+        executable: t.executable.clone(),
     }));
-    Ok(Inventory {
-        project: snapshot.root,
-        name: snapshot.name,
-        entries,
-        diagnostics: snapshot.diagnostics,
-    })
+    entries
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
