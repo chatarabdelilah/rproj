@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## November 20 — native memory stability remains open
+
+The October report establishes a sequence from recollection. Event times,
+desktop process exit and memory recovery are unknown. The no-launch review
+found insufficient evidence to attribute the memory warnings to rproj or a
+capture process, or to connect them to the display-wake failure. Native
+acceptance stays paused. The [investigation](desktop-memory-investigation.md#conditions-for-one-later-observation)
+defines the measurements and stop conditions for one separately approved run.
+
 ## Reviewed updates in the Windows workbench
 
 The private worker and native controls extend on-demand discovery. The
