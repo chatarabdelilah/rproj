@@ -164,7 +164,10 @@
   el('prepare').onclick=()=>{if(stage!=='choose'||stale||unavailable[sample])return;stage='preparing';const id=++revision;render();
     setTimeout(()=>{if(id!==revision)return;plan=prepare();stage='review';render();if(!el('flow').hidden)el('edit').focus();},500);};
   el('edit').onclick=()=>{plan=null;stage='choose';revision++;render();el('version').focus();};
-  el('change').onclick=()=>{revision++;plan=null;stage='choose';stale=true;render();};
+  el('change').onclick=()=>{
+    completed.delete(owner+'|'+target());
+    revision++;plan=null;stage='choose';stale=true;render();
+  };
   el('refresh').onclick=()=>{reset(sample);render();(el('prepare').disabled||el('prepare').hidden?el('package'):el('prepare')).focus();};
   el('watched').onclick=()=>{watch=owner;stopping=false;render();};
   el('stop').onclick=()=>{const captured=watch;stopping=true;render();setTimeout(()=>{if(stopping&&watch===captured){watch=null;stopping=false;render();}},500);};

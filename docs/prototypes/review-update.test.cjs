@@ -72,6 +72,8 @@ test('same-project Watch requires acknowledged Stop; confirmation defaults to Ke
   assert.equal(f.doc.activeElement,f.el('apply'));f.click('apply');f.click('confirm');f.jobs.shift()();
   assert.match(f.el('heading').textContent,/Verified success/);assert.match(f.el('local').textContent,/Locked 1.3.0/);
   f.click('tool');f.click('package');assert.match(f.el('local').textContent,/Locked 1.3.0/);
+  f.click('change');f.click('refresh');assert.match(f.el('heading').textContent,/Choose version/);
+  assert.equal(f.el('apply').hidden,true);f.prepare();assert.match(f.el('heading').textContent,/Review changes/);
 });
 test('Activity retains origin, filter, height and collapse across browsing and completion',t=>{
   const f=fixture(t);f.prepare();f.click('apply');f.click('confirm');f.el('activity').open=false;
