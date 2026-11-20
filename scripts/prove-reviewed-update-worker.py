@@ -75,6 +75,21 @@ def prove(root, binary, target):
     if refusal['possible_writes'] or 'changed' not in refusal['reason']:
         raise RuntimeError('Stale Apply reported writes')
     plan = job({'Prepare': selection})['Prepared']
+    if target == 'rokit':
+        cache = root / 'warm-cache'
+        cache.mkdir()
+        (cache / 'rokit.toml').write_text('[tools]\n')
+        run(cache, env, 'rokit', 'add', f'rojo-rbx/rojo@{version}', 'editor')
+        artifact = Path(env['ROKIT_ROOT']) / 'tool-storage/rojo-rbx/rojo' / version / 'rojo.exe'
+        released = artifact.read_bytes()
+        artifact.write_bytes(b'incorrect cached version')
+        refusal = job({'Apply': plan}, False)['Failed']
+        if 'Cached executable differs' not in refusal['reason'] or not refusal['possible_writes']:
+            raise RuntimeError(f'Expected explicit cached artifact refusal: {refusal}')
+        if tomllib.loads(record.read_text())['tools']['editor'] != 'rojo-rbx/rojo@7.6.1':
+            raise RuntimeError('Corrupt cache changed the project pin')
+        artifact.write_bytes(released)
+        plan = job({'Prepare': selection})['Prepared']
     if job({'Apply': plan}) != 'Applied':
         raise RuntimeError('Missing confirmed success')
     key, alias = ('tools', 'editor') if target == 'rokit' else ('dependencies', 'Signals')

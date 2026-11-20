@@ -141,28 +141,35 @@ fn tool_root() -> Result<PathBuf> {
 
 fn version_probe(exe: &Path, dir: &Path) -> Result<String> {
     use std::{
-        io::{Read, Seek},
+        io::Read,
         time::{Duration, Instant},
     };
-    let mut output = tempfile::tempfile()?;
     let mut child = Command::new(exe)
         .arg("--version")
         .current_dir(dir)
         .stdin(Stdio::null())
         .stderr(Stdio::null())
-        .stdout(output.try_clone()?)
+        .stdout(Stdio::piped())
         .spawn()?;
+    let pipe = child
+        .stdout
+        .take()
+        .context("Missing version probe output")?;
+    let (send, recv) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let result = pipe.take(4097).read_to_end(&mut bytes).map(|_| bytes);
+        let _ = send.send(result);
+    });
+    let mut response = None;
     let started = Instant::now();
     loop {
-        if let Some(status) = child.try_wait()? {
-            ensure!(
-                status.success(),
-                "Version probe failed at {}",
-                exe.display()
-            );
-            break;
+        if response.is_none() {
+            response = recv.try_recv().ok().transpose()?;
         }
-        if started.elapsed() > Duration::from_secs(5) || output.metadata()?.len() > 4096 {
+        if response.as_ref().is_some_and(|b| b.len() > 4096)
+            || started.elapsed() > Duration::from_secs(5)
+        {
             let _ = child.kill();
             child.wait()?;
             anyhow::bail!(
@@ -170,11 +177,19 @@ fn version_probe(exe: &Path, dir: &Path) -> Result<String> {
                 exe.display()
             );
         }
+        if response.is_some()
+            && let Some(status) = child.try_wait()?
+        {
+            ensure!(
+                status.success(),
+                "Version probe failed at {}",
+                exe.display()
+            );
+            break;
+        }
         std::thread::sleep(Duration::from_millis(20));
     }
-    output.rewind()?;
-    let mut text = String::new();
-    output.take(4097).read_to_string(&mut text)?;
+    let text = String::from_utf8(response.context("Missing version response")?)?;
     ensure!(
         text.len() <= 4096 && !text.trim().is_empty(),
         "Invalid version output at {}",
@@ -182,10 +197,14 @@ fn version_probe(exe: &Path, dir: &Path) -> Result<String> {
     );
     Ok(text.trim().to_owned())
 }
-struct Programs(BTreeMap<String, (PathBuf, FileState, String)>);
+struct Programs(
+    BTreeMap<String, (PathBuf, FileState, String)>,
+    #[allow(dead_code)] Vec<fs::File>,
+);
 impl Programs {
     fn capture(s: &Selection) -> Result<Self> {
         let mut result = BTreeMap::new();
+        let mut handles = Vec::new();
         let search = std::env::var_os("PATH").context("Missing PATH")?;
         let wanted: &[&str] = if s.local.is_package() {
             &["wally", "rojo", "wally-package-types"]
@@ -202,6 +221,16 @@ impl Programs {
                     format!("Missing {name}; install the prerequisite and check again")
                 })?
                 .canonicalize()?;
+            let mut options = fs::OpenOptions::new();
+            options.read(true);
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::OpenOptionsExt;
+                options.share_mode(1);
+            }
+            handles.push(options.open(&path).with_context(|| {
+                format!("Cannot hold {name} stable during the reviewed operation")
+            })?);
             let version = version_probe(&path, &s.project)?;
             if name == "wally" {
                 ensure!(
@@ -220,7 +249,7 @@ impl Programs {
                 (path.clone(), file_state(&path, false)?, version),
             );
         }
-        Ok(Self(result))
+        Ok(Self(result, handles))
     }
     fn verify(&self, dir: &Path) -> Result<()> {
         for (name, (exe, state, version)) in &self.0 {
@@ -299,6 +328,35 @@ impl ToolStage {
             "Could not identify a unique executable for {pin} in {}",
             storage.display()
         );
+        // A successful Rokit add may reuse an existing cache entry. Compare it
+        // to a fresh copy of the same release without executing either file.
+        let isolated = dir.join("verification-storage");
+        let check_dir = dir.join("verification-project");
+        fs::create_dir(&isolated)?;
+        fs::create_dir(&check_dir)?;
+        fs::write(check_dir.join("rokit.toml"), "[tools]\n")?;
+        for args in [vec!["trust", repo], vec!["add", &pin, alias]] {
+            let status = Command::new(&programs.0["rokit"].0)
+                .env("ROKIT_ROOT", &isolated)
+                .current_dir(&check_dir)
+                .stdin(Stdio::null())
+                .args(args)
+                .status()?;
+            ensure!(
+                status.success(),
+                "Could not verify {pin} using isolated tool storage"
+            );
+        }
+        let fresh = isolated.join(storage.strip_prefix(&self.root)?).join(
+            artifacts[0]
+                .file_name()
+                .context("Missing artifact filename")?,
+        );
+        let observed = file_state(&artifacts[0], false)?.content;
+        ensure!(
+            observed.is_some() && observed == file_state(&fresh, false)?.content,
+            "Cached executable differs from the downloaded {pin} release; inspect the shared cache before retrying"
+        );
         println!("Verified installed artifact {}", artifacts[0].display());
         let path = s.project.join("rokit.toml");
         ensure!(
@@ -354,7 +412,7 @@ fn prepare(s: &Selection) -> Result<(Plan, Stage, Programs)> {
             plan.changes.push(format!(
                 "rokit.toml [tools] {alias}: {declaration} → {decl}"
             ));
-            plan.changes.push("Install the exact release and alias with Rokit. This may download the executable and change the shared cache and shim. Existing trust is required.".into());
+            plan.changes.push("Install the exact release and alias with Rokit. This changes the shared cache and shim. Verify the executable against a fresh download in disposable storage. Existing trust is required.".into());
             Stage::Tool(ToolStage {
                 owner: owner.clone(),
                 source,
