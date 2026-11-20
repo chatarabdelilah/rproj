@@ -152,15 +152,23 @@ impl Workbench {
             .map(|p| p.display().to_string())
             .unwrap_or_default();
         let origin = format!("{owner} · Copy Source");
+        let summary = format!("{} · Copy Source · {text}", self.source.name());
+        self.read_activity(origin, summary, text, expand);
+    }
+
+    pub(in super::super) fn read_activity(
+        &mut self,
+        origin: String,
+        summary: String,
+        text: &str,
+        expand: bool,
+    ) {
         // Do not flush or retag a concurrent operation's partially buffered line.
         let previous = self.activity.origin.replace(Arc::from(origin));
         self.activity.append(text);
         self.activity.origin = previous;
         if self.running.is_none() {
-            self.source.notice = Some((
-                self.operations.latest.as_ref().map(|r| r.id),
-                format!("{} · Copy Source · {text}", self.source.name()),
-            ));
+            self.read_notice = Some((self.operations.latest.as_ref().map(|r| r.id), summary));
         }
         if expand {
             self.operations.expanded = true;
@@ -169,7 +177,7 @@ impl Workbench {
 
     pub(in super::super) fn source_activity_summary(&self, compact: bool) -> String {
         if self.running.is_none()
-            && let Some((id, text)) = &self.source.notice
+            && let Some((id, text)) = &self.read_notice
             && *id == self.operations.latest.as_ref().map(|r| r.id)
         {
             return text.clone();

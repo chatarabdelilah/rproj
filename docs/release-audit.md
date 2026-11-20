@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## November 20 — on-demand project updates
+
+The shared CLI and worker passed offline comparison, pagination, identity and
+read-only fixture tests. A disposable live check returned public release metadata
+for sleitnick/signal and rojo-rbx/rojo. Its absent lockfile left the package's
+local comparison unknown. The first live manifest omitted its realm, which the
+inspector diagnosed. The [native controls](desktop-update-discovery-design.md)
+use the same report. Real-window acceptance remains paused.
+
 ## November 19 — project update discovery design
 
 The [Soft wireframe and DOM evidence](desktop-update-discovery-design.md) cover

@@ -16,6 +16,7 @@ mod test_arguments;
 mod theme;
 #[cfg(test)]
 mod ui_tests;
+mod updates;
 mod upgrade;
 mod view;
 use operation::{OperationPresentation, RunStatus, WatchSwitch};
@@ -152,6 +153,7 @@ pub fn worker_path() -> anyhow::Result<PathBuf> {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Section {
+    Updates,
     Overview,
     Dependencies,
     Tools,
@@ -161,6 +163,7 @@ impl Section {
     fn icon(self) -> gpui_kit::assets::IconName {
         use gpui_kit::assets::IconName;
         match self {
+            Self::Updates => IconName::Package,
             Self::Overview => IconName::LayoutDashboard,
             Self::Dependencies => IconName::Package,
             Self::Tools => IconName::Wrench,
@@ -169,6 +172,7 @@ impl Section {
     }
     fn title(self) -> &'static str {
         match self {
+            Self::Updates => "Updates",
             Self::Overview => "Overview",
             Self::Dependencies => "Dependencies",
             Self::Tools => "Tools",
@@ -178,6 +182,13 @@ impl Section {
 }
 
 enum Event {
+    UpdatesSupport(u64, Result<(), String>),
+    UpdatesInventory(u64, PathBuf, Vec<rproj_core::updates::Local>),
+    UpdatesComplete(
+        u64,
+        PathBuf,
+        Box<Result<rproj_core::updates::Report, String>>,
+    ),
     TestSupport(u64, Result<(), test_arguments::Failure>),
     TestContext(
         u64,
@@ -435,8 +446,11 @@ pub struct Workbench {
     test_support_generation: u64,
     project_tool: project_tool::Session,
     project_tool_focus: FocusHandle,
+    updates_focus: FocusHandle,
     project_tool_query: Entity<InputState>,
     source: source_copy::Session,
+    updates: updates::Session,
+    read_notice: Option<(Option<u64>, String)>,
     library: library::Library,
     browser: projects::Browser,
     template: project_template::Session,
@@ -597,10 +611,13 @@ impl Workbench {
             test_args_focus: cx.focus_handle(),
             test_support_generation: 0,
             source: source_copy::Session::new(cx),
+            updates: updates::Session::default(),
+            read_notice: None,
             library: library::Library::new(window, cx),
             settings: settings::SettingsSession::default(),
             project_tool: project_tool::Session::default(),
             project_tool_focus: cx.focus_handle(),
+            updates_focus: cx.focus_handle(),
             project_tool_query,
             browser: projects::Browser::new(window, cx),
             template: project_template::Session::default(),
@@ -718,6 +735,9 @@ impl Workbench {
     }
 
     fn close_project(&mut self, cx: &mut Context<Self>) {
+        if self.section == Section::Updates {
+            self.section = Section::Overview;
+        }
         self.test_args.visible = false;
         self.browser.leave();
         self.template.visible = false;
@@ -750,8 +770,21 @@ impl Workbench {
         self.generation = self.generation.wrapping_add(1);
         let generation = self.generation;
         let sender = self.sender.clone();
+        let updates = self.section == Section::Updates;
         std::thread::spawn(move || {
-            let result = rproj_core::inspect(&path)
+            let snapshot = if updates {
+                rproj_core::updates::inspect_local(&path).map(|(snapshot, entries)| {
+                    let _ = sender.send(Event::UpdatesInventory(
+                        generation,
+                        snapshot.root.clone(),
+                        entries,
+                    ));
+                    snapshot
+                })
+            } else {
+                rproj_core::inspect(&path)
+            };
+            let result = snapshot
                 .and_then(|snapshot| {
                     let fingerprint = serde_json::to_string(&snapshot)?;
                     Ok((snapshot, fingerprint))
@@ -845,6 +878,21 @@ impl Workbench {
                 Event::CustomTestComplete(id, result) => self.accept_custom_tests(id, result, cx),
                 Event::DefaultTestComplete(id, result) => self.accept_default_tests(id, result, cx),
                 Event::ProjectToolSupport(result) => self.project_tool.support = Some(result),
+                Event::UpdatesSupport(id, result) => {
+                    if id == self.updates.probe {
+                        self.updates.support = Some(result);
+                    }
+                }
+                Event::UpdatesInventory(id, path, entries) => {
+                    if id == self.generation {
+                        self.updates
+                            .projects
+                            .entry(path)
+                            .or_default()
+                            .inventory(entries);
+                    }
+                }
+                Event::UpdatesComplete(id, path, result) => self.finish_updates(id, path, *result),
                 Event::ProjectToolPrepared(id, revision, result) => {
                     self.accept_project_tool_prepared(id, revision, result, cx)
                 }
@@ -927,12 +975,15 @@ impl Workbench {
                     self.preferences_error = Some(error);
                 }
                 Event::Connected(client) => {
+                    self.updates.probe = self.updates.probe.wrapping_add(1);
+                    self.updates.support = None;
                     self.watch_log_request.invalidate();
                     self.watch_generation = self.watch_generation.wrapping_add(1);
                     self.pending_switch = None;
                     match client {
                         Ok(client) => {
                             self.client = Some(client);
+                            self.probe_updates();
                             self.client_error = None;
                             if self.browser.visible {
                                 self.refresh_projects(cx);
@@ -948,6 +999,10 @@ impl Workbench {
                             self.load_creation_context(cx);
                         }
                         Err(error) => {
+                            self.updates.support = Some(Err(
+                                "Update discovery requires a matching desktop/CLI distribution."
+                                    .into(),
+                            ));
                             self.test_support_generation =
                                 self.test_support_generation.wrapping_add(1);
                             self.test_args.support = Some(Err("Custom tests need a matching CLI distribution; reconnect and recheck support.".into()));

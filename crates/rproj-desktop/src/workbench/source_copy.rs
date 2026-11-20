@@ -34,7 +34,6 @@ pub(super) struct Session {
     skips_scroll: UniformListScrollHandle,
     pub(super) rows: ListState,
     page_scroll: ScrollHandle,
-    notice: Option<(Option<u64>, String)>,
 }
 
 impl Session {
@@ -58,7 +57,6 @@ impl Session {
             skips_scroll: UniformListScrollHandle::new(),
             rows: ListState::new(0, ListAlignment::Top, px(40.)),
             page_scroll: ScrollHandle::new(),
-            notice: None,
         }
     }
 

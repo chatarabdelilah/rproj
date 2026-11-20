@@ -883,6 +883,7 @@ impl Render for Workbench {
             self.render_overview(cx)
         } else {
             match self.section {
+                Section::Updates => self.render_updates(window, cx),
                 Section::Overview => self.render_overview(cx),
                 Section::Dependencies => self.render_dependencies(
                     window.viewport_size().width
@@ -938,6 +939,9 @@ impl Render for Workbench {
                 .size_full()
                 .min_h_0()
                 .child(self.composition_entry(cx))
+                .when(self.section == Section::Dependencies, |view| {
+                    view.child(self.updates_entry(cx))
+                })
                 .when(self.section == Section::Overview, |view| {
                     view.child(self.upgrade_entry(cx))
                 })
@@ -966,6 +970,7 @@ impl Render for Workbench {
                 .size_full()
                 .min_h_0()
                 .child(self.project_tool_entry(cx))
+                .child(self.updates_entry(cx))
                 .child(self.settings_entry(cx))
                 .child(div().flex_1().min_h_0().child(content))
                 .into_any_element()
