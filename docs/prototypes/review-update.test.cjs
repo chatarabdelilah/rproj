@@ -66,7 +66,9 @@ test('unavailable discoveries explain refusal; changed inputs invalidate prepara
 });
 test('same-project Watch requires acknowledged Stop; confirmation defaults to Keep and restores focus',t=>{
   const f=fixture(t);f.click('watched');f.prepare();assert.equal(f.el('apply').disabled,true);
-  f.click('stop');assert.equal(f.el('apply').disabled,true);f.jobs.shift()();f.click('apply');
+  f.click('stop');f.click('watched');f.click('stop');f.jobs.shift()();
+  assert.equal(f.el('apply').disabled,true);assert.match(f.el('watch').textContent,/Stopping/);
+  f.jobs.shift()();f.click('apply');
   assert.equal(f.doc.activeElement,f.el('keep'));assert.match(f.el('dialog-text').textContent,/Signals.*1.3.0.*Skyline/);
   f.el('dialog').dispatchEvent(new f.doc.defaultView.Event('cancel',{cancelable:true}));
   assert.equal(f.doc.activeElement,f.el('apply'));f.click('apply');f.click('confirm');f.jobs.shift()();

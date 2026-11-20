@@ -56,6 +56,7 @@
   let workspace='Skyline', section='Updates', owner='Skyline', tool=false, sample='normal', version='1.3.0';
   let stage='choose', plan=null, revision=0, watch='Lantern', stopping=false, waitClose=false, dialog=null, stale=false;
   const logs=[], completed=new Map();
+  let watchGeneration=0;
   const target=()=>tool?'Rojo':'Signals';
   const requirement=()=>sample==='exact'?'=1.2.0':sample==='complex'?'>=1.2.0, <2.0.0':'^1.2.0';
   const choices=()=>tool?[['7.5.0','Exact project pin']]:sample==='exact'?[['2.0.0','Change exact pin']]:
@@ -169,8 +170,15 @@
     revision++;plan=null;stage='choose';stale=true;render();
   };
   el('refresh').onclick=()=>{reset(sample);render();(el('prepare').disabled||el('prepare').hidden?el('package'):el('prepare')).focus();};
-  el('watched').onclick=()=>{watch=owner;stopping=false;render();};
-  el('stop').onclick=()=>{const captured=watch;stopping=true;render();setTimeout(()=>{if(stopping&&watch===captured){watch=null;stopping=false;render();}},500);};
+  el('watched').onclick=()=>{watchGeneration++;watch=owner;stopping=false;render();};
+  el('stop').onclick=()=>{
+    const generation=++watchGeneration;
+    stopping=true;render();
+    setTimeout(()=>{
+      if(generation!==watchGeneration||!stopping)return;
+      watch=null;stopping=false;render();
+    },500);
+  };
   el('apply').onclick=()=>{if(canApply())showDialog('apply');};
   el('close').onclick=()=>{if(['running','uncertain'].includes(stage))showDialog('close');else close();};
   el('keep').onclick=()=>{dismiss();waitClose=false;};
