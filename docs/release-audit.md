@@ -6,7 +6,9 @@ The [design and fixture checks](desktop-reviewed-update-design.md) exercise
 one selected release, direct-dependency and pin protection, acknowledged Watch
 stopping, retained operation ownership and close-after-completion behavior.
 The package resolution and installation outcomes are simulated. Inline rendering,
-live execution feasibility and native acceptance remain unverified.
+native acceptance and runtime delivery are tracked separately. The subsequent
+released-tool proofs reproduced the Wally lock and typed package outputs and
+verified the exact Rokit-installed Rojo executable in disposable projects.
 
 ## November 20 — on-demand project updates
 
