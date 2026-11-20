@@ -160,3 +160,46 @@ fn uncertain_completion_keeps_deferred_close_open(cx: &mut TestAppContext) {
     })
     .unwrap();
 }
+
+#[gpui_kit::test]
+fn failed_discovery_invalidates_apply_and_large_reviews_keep_every_page(cx: &mut TestAppContext) {
+    let (_root, handle, view) = crate::workbench::ui_tests::fixture(cx);
+    cx.update(|cx| {
+        view.update(cx, |this, cx| {
+            let mut p = review(this);
+            p.changes = (1..=51).map(|i| format!("Reviewed change {i}")).collect();
+            this.updates.apply.plan = Some(p);
+            cx.notify();
+        });
+    });
+    cx.run_until_parked();
+    cx.update_window(handle, |_, w, cx| {
+        w.render_frame(cx);
+        assert!(w.find("updates-adjacent").visible());
+        w.scroll(
+            "update-row-tool:editor",
+            gpui_kit::ScrollDelta::Pixels(gpui_kit::point(px(0.), px(-370.))),
+            cx,
+        );
+        assert!(w.find("update-next-page").visible());
+        for page in 1..=6 {
+            w.click("update-next-page", cx);
+            assert_eq!(view.read(cx).updates.apply.page, page);
+            w.render_frame(cx);
+        }
+        w.click("update-previous-page", cx);
+        assert_eq!(view.read(cx).updates.apply.page, 5);
+        view.update(cx, |this, _| {
+            let plan = this.updates.apply.plan.clone().unwrap();
+            let state = this
+                .updates
+                .projects
+                .get_mut(&plan.selection.project)
+                .unwrap();
+            state.pending = Some((17, state.entries.clone()));
+            state.complete(17, Err("Offline".into())).unwrap();
+            assert!(!this.can_apply_update(&plan));
+        });
+    })
+    .unwrap();
+}

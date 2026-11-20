@@ -6,7 +6,7 @@ Updated November 19, 2026. This describes current priorities, not every idea con
 
 The [project Updates view](desktop-update-discovery-design.md) and `rproj updates`
 share on-demand public release checks. The approved [single-update review](desktop-reviewed-update-design.md)
-adds desktop Apply for individually proven targets. Both released-tool fixtures passed.
+adds desktop Apply for one observed package or project tool at a time. Released-tool and matching-worker fixtures passed for Wally and Rokit. The public command remains read-only.
 Real-window acceptance remains paused.
 
 **Make it straightforward to set up and maintain an ordinary Roblox/Luau project on Windows.**

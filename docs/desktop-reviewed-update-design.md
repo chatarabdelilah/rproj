@@ -50,3 +50,11 @@ Run `python scripts/prove-reviewed-update-worker.py target/debug/rproj.exe wally
 After files move, a failure keeps the recovery directory and identifies its path. The worker rechecks displaced originals and refuses to overwrite a destination created by an intervening save. Reports and prerequisite version probes have size limits. The initial combined local CLI/core run timed out in the existing Watch flood fixture. That fixture passed in isolation on the same commit, followed by the remaining suites. Environment-dependent ignored tests remain unverified.
 
 On Windows, prerequisite executables stay open against writes or replacement during verification and launch. The worker compares the installed tool with a fresh download in temporary storage after the ordinary trust-checked install. The disposable Rokit fixture supplies a wrong executable at the expected cache path and checks that the project pin stays intact.
+
+## Native workbench
+
+From **Dependencies** or **Tools**, choose **View updates…**, then **Check for updates**. Select an observed release and choose **Prepare review**. Review lists blockers first and pages through every proposed effect. **Apply update…** confirms the captured project, alias and release. A failed check invalidates eligibility until another check succeeds. The matching worker rechecks the review under the Watch mutation guard before applying it.
+
+Headless controls exercise default-Keep focus, a Watch change after confirmation opens, retained Activity ownership after navigation, uncertain completion during close and a 51-change review navigated through all seven pages. The pagination test initially expected an off-screen control to be visible. It now scrolls the project pane and exercises the buttons. Real-window interaction remains unverified.
+
+The local desktop suite passed all 198 tests when run serially with access for the disposable Windows junction fixture. An earlier parallel sandbox run failed the existing project-tool layout and junction fixtures. Strict desktop Clippy passed. Portable packaging checks the matching binaries and bundled notices; two legacy notice omissions remain recorded in the distribution.

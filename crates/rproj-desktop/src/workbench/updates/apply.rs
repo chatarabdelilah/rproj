@@ -11,6 +11,7 @@ mod tests;
 pub(in super::super) struct ReviewSession {
     pub(in super::super) support: Option<Result<(), String>>,
     picked: Option<Selection>,
+    page: usize,
     pub(in super::super) plan: Option<Plan>,
     pub(super) active: Option<(u64, Selection)>,
     dialog: bool,
@@ -168,10 +169,52 @@ impl Workbench {
             .as_ref()
             .filter(|p| p.selection == selected)
         {
-            panel = panel
-                .child("Review changes")
-                .children(plan.changes.iter().cloned())
-                .children(plan.blockers.iter().map(|s| format!("Blocked · {s}")));
+            const PAGE_SIZE: usize = 8;
+            let total = plan.changes.len() + plan.blockers.len();
+            let pages = total.div_ceil(PAGE_SIZE).max(1);
+            let page = self.updates.apply.page.min(pages - 1);
+            let lines = plan
+                .blockers
+                .iter()
+                .map(|s| (true, s))
+                .chain(plan.changes.iter().map(|s| (false, s)));
+            panel = panel.child("Review changes");
+            if pages > 1 {
+                panel = panel.child(
+                    div()
+                        .h_flex()
+                        .flex_wrap()
+                        .gap_2()
+                        .child(
+                            Button::new("update-previous-page")
+                                .label("Previous")
+                                .disabled(page == 0)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.updates.apply.page = page.saturating_sub(1);
+                                    cx.notify();
+                                })),
+                        )
+                        .child(format!("Page {} of {pages}", page + 1))
+                        .child(
+                            Button::new("update-next-page")
+                                .label("Next")
+                                .disabled(page + 1 >= pages)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.updates.apply.page = (page + 1).min(pages - 1);
+                                    cx.notify();
+                                })),
+                        ),
+                );
+            }
+            panel = panel.children(lines.skip(PAGE_SIZE * page).take(PAGE_SIZE).map(
+                |(blocked, s)| {
+                    if blocked {
+                        format!("Blocked · {s}")
+                    } else {
+                        s.clone()
+                    }
+                },
+            ));
             if self.update_watch_conflict(&selected) {
                 panel = panel.child(
                     "Stop Watch for this project and wait for acknowledgement before applying.",
@@ -261,11 +304,12 @@ impl Workbench {
             dialog
                 .title("Apply reviewed update?")
                 .child(format!(
-                    "{} · {} → {}. {}",
+                    "{} · {} → {}. {} reviewed changes and operations. {}",
                     p.selection.project.display(),
                     p.selection.local.alias(),
                     p.selection.version,
-                    p.changes.join("\n")
+                    p.changes.len(),
+                    p.changes.last().map(String::as_str).unwrap_or_default()
                 ))
                 .footer(
                     DialogFooter::new()
@@ -325,6 +369,7 @@ impl Workbench {
         let outcome = match result {
             Ok(State::Prepared(p)) if !applying && p.selection == s => {
                 self.updates.apply.plan = Some(*p);
+                self.updates.apply.page = 0;
                 Ok(OperationOutcome::Succeeded)
             }
             Ok(State::Applied) if applying => Ok(OperationOutcome::Succeeded),
@@ -405,15 +450,34 @@ impl Workbench {
         self.updates.apply.dialog = true;
         self.updates.apply.close_after = false;
         let entity = cx.entity().downgrade();
-        w.open_alert_dialog(cx,move|dialog,_,_|{
-            let (keep,close,dismiss)=(entity.clone(),entity.clone(),entity.clone());
-            dialog.title("Wait for this update?").child(format!("{} · {} {}. Closing waits for completion. An interrupted installation can leave partial changes.",selection.project.display(),selection.local.alias(),selection.version))
-            .footer(DialogFooter::new().child(Button::new("update-keep-open").primary().label("Keep open").on_click(move|_,w,cx|{w.close_dialog(cx);let _=keep.update(cx,|this,cx|this.update_dialog_focus(w,cx));}))
-            .child(Button::new("update-close-after").label("Close after update").on_click(move|_,w,cx|{w.close_dialog(cx);let _=close.update(cx,|this,cx|{
-                this.update_dialog_focus(w,cx);
-                if this.operations.accepts(id){this.updates.apply.close_after=true;}
-                else if this.updates.apply.confirmed==Some(id) && !this.teardown_uncertain(){this.continue_close(cx);}
-            });}))).on_close(move|_,w,cx|{let _=dismiss.update(cx,|this,cx|this.update_dialog_focus(w,cx));})
+        w.open_alert_dialog(cx, move |dialog, _, _| {
+            let (keep, close, dismiss) = (entity.clone(), entity.clone(), entity.clone());
+            let message = format!(
+                "{} · {} {}. Closing waits for completion. An interrupted installation can leave partial changes.",
+                selection.project.display(), selection.local.alias(), selection.version
+            );
+            dialog.title("Wait for this update?").child(message).footer(
+                DialogFooter::new().child(Button::new("update-keep-open").primary().label("Keep open").on_click(
+                    move |_, w, cx| {
+                        w.close_dialog(cx);
+                        let _ = keep.update(cx, |this, cx| this.update_dialog_focus(w, cx));
+                    }
+                )).child(Button::new("update-close-after").label("Close after update").on_click(
+                    move |_, w, cx| {
+                        w.close_dialog(cx);
+                        let _ = close.update(cx, |this, cx| {
+                            this.update_dialog_focus(w, cx);
+                            if this.operations.accepts(id) {
+                                this.updates.apply.close_after = true;
+                            } else if this.updates.apply.confirmed == Some(id) && !this.teardown_uncertain() {
+                                this.continue_close(cx);
+                            }
+                        });
+                    }
+                ))
+            ).on_close(move |_, w, cx| {
+                let _ = dismiss.update(cx, |this, cx| this.update_dialog_focus(w, cx));
+            })
         });
         Some(false)
     }
