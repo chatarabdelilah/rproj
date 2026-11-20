@@ -20,6 +20,7 @@ pub mod source_copy;
 pub mod test_execution;
 #[doc(hidden)]
 pub mod tool_configuration;
+pub mod updates;
 #[doc(hidden)]
 pub mod upgrade;
 

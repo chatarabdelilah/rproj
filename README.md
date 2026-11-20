@@ -18,6 +18,13 @@ Watch now lists actual `wally.toml` aliases from every realm; `rproj.toml` retai
 your saved composition choices. Watch restores dependencies but does not
 automatically upgrade package requirements or tool pins.
 
+Use `rproj updates [path]` to check direct Wally packages and project Rokit pins
+on demand. The report shows local versions, the highest stable Wally release
+within each requirement, and the highest stable release overall. Public GitHub
+forks use their own releases. Custom registries and unavailable sources appear
+with explanations. Add `--json` for the versioned report and Unix check time.
+Partial reports exit successfully; failure to produce a report exits nonzero.
+
 Assets 3D checks the installed Blender executable independently of old machine
 setup selections. In an existing project, `rproj setup blender` creates a missing
 `blender/scene.blend` and preserves an existing scene. Missing Blender is reported

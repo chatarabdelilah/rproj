@@ -114,6 +114,28 @@ pub struct WorkbenchClient {
 }
 
 impl WorkbenchClient {
+    pub fn updates_support(&self) -> Result<()> {
+        let version = query(&self.worker, &[WORKER_FLAG, "updates-support"], None)
+            .context("Update discovery requires a matching desktop/CLI distribution")?;
+        ensure!(
+            version.trim().parse::<u32>()? == crate::updates::VERSION,
+            "Unsupported update worker version"
+        );
+        Ok(())
+    }
+
+    pub fn check_updates(&self, project: &Path) -> Result<crate::updates::Report> {
+        let root = project.canonicalize()?;
+        let text = query(&self.worker, &[WORKER_FLAG, "updates-v1"], Some(&root))?;
+        let report: crate::updates::Report =
+            serde_json::from_str(&text).context("Invalid update report")?;
+        ensure!(
+            report.schema_version == crate::updates::VERSION && report.project == root,
+            "Mismatched update report"
+        );
+        Ok(report)
+    }
+
     pub fn new(worker: PathBuf) -> Result<Self> {
         let worker = worker
             .canonicalize()

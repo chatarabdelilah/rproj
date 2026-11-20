@@ -15,6 +15,7 @@ pub mod provision;
 pub mod saved_setups;
 pub mod setup;
 pub mod test;
+pub mod updates;
 pub mod upgrade;
 pub mod watch;
 pub mod welcome;
