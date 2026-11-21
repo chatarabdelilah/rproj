@@ -22,6 +22,26 @@ fn context(saved: Selection) -> SetupContext {
 }
 
 #[test]
+fn rokit_requires_a_recognized_cli_tool() {
+    let mut saved = selection();
+    saved.apps.insert("git".into());
+    let git_only = vec![Item::App("git".into()), Item::ProjectsFolder];
+    assert_eq!(plan(&saved), git_only);
+    saved.tools.insert("future-tool".into());
+    assert_eq!(plan(&saved), git_only);
+    saved.tools.insert("rojo".into());
+    assert_eq!(
+        plan(&saved),
+        vec![
+            Item::Rokit,
+            Item::App("git".into()),
+            Item::ProjectsFolder,
+            Item::Tool("rojo".into())
+        ]
+    );
+}
+
+#[test]
 fn review_roundtrip_retains_read_only_root_unknown_keys_and_order() {
     let mut saved = selection();
     saved.tools.insert("future-tool".into());
@@ -52,7 +72,7 @@ fn category_edits_keep_inactive_choices_and_do_not_adopt_unknown_inputs() {
         BTreeSet::from(["future".into(), "blender-plugin".into()])
     );
     assert!(!saved.active(Category::Blender));
-    assert_eq!(plan(&saved), vec![Item::Rokit, Item::ProjectsFolder]);
+    assert_eq!(plan(&saved), vec![Item::ProjectsFolder]);
     saved.apps.insert("blender".into());
     assert!(plan(&saved).contains(&Item::Plugin("blender-plugin".into())));
 }

@@ -286,7 +286,7 @@ impl App {
                 })
                 .unwrap_or_else(|| "No matching entries".into())
         } else {
-            let mut text = "Selections describe what to prepare, not what is installed.\nDeselecting never uninstalls software.\nRokit is foundational and checked on Apply.\n\n".to_string();
+            let mut text = "Selections describe what to prepare, not what is installed.\nDeselecting never uninstalls software.\nSelected CLI tools require Rokit.\n\n".to_string();
             text.push_str(&format!(
                 "Projects folder: {}\n\n",
                 self.selection.root.display()
@@ -376,7 +376,7 @@ impl App {
 
     fn render_confirmation(&self, frame: &mut Frame<'_>) {
         let text = match self.confirmation.unwrap() {
-            Confirmation::Apply => format!("Apply these selections? Rokit is required. Projects: {}. Some plugins require manual steps. Nothing is uninstalled.", self.selection.root.display()),
+            Confirmation::Apply => format!("Apply these selections? Selected CLI tools require Rokit. Projects: {}. Some plugins require manual steps. Nothing is uninstalled.", self.selection.root.display()),
             Confirmation::Stop => "Stop after the current item? Completed installations remain; machine configuration will not be saved.".into(),
             Confirmation::Reload => "Reload saved selections and return to Review? Unsaved choices will be discarded. Choose No to keep your draft.".into(),
         };
@@ -811,6 +811,7 @@ mod tests {
         let root = std::path::PathBuf::from(root);
         let mut config = GlobalConfig {
             roblox_projects_root: Some(root.join("projects")),
+            selected_rokit_tools: vec!["rojo".into()],
             last_checked: Some("old".into()),
             ..Default::default()
         };

@@ -108,6 +108,6 @@ fn original_selection_config_roundtrip_preserves_unknown_and_inactive_choices() 
             .iter()
             .map(|i| i.label())
             .collect::<Vec<_>>(),
-        ["Rokit bootstrap", "git", "Projects folder"]
+        ["git", "Projects folder"]
     );
 }

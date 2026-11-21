@@ -166,8 +166,10 @@ impl Fixture {
     fn prepared(&self) -> SetupReview {
         self.client.setup_support().unwrap();
         let context = self.client.setup_context(output).unwrap();
+        let mut selected = context.saved.clone();
+        selected.tools.insert("rojo".into());
         self.client
-            .prepare_setup(context.clone(), context.saved.clone(), output)
+            .prepare_setup(context, selected, output)
             .unwrap()
     }
     fn request(&self, action: SetupAction) -> tempfile::TempDir {
@@ -233,7 +235,10 @@ fn stop_is_acknowledged_during_active_item_without_terminating_it_or_saving() {
         .unwrap();
     assert_eq!(report.status, Some(SetupStatus::Stopped));
     assert!(report.stop_acknowledged && f.root.join("active-finished").exists());
-    assert_eq!(report.statuses, vec![Status::Installed, Status::Skipped]);
+    assert_eq!(
+        report.statuses,
+        vec![Status::Installed, Status::Skipped, Status::Skipped]
+    );
     assert!(!review.context.config_path.exists());
     assert!(!review.selection.root.exists());
 }
@@ -272,9 +277,7 @@ fn stale_prerequisite_and_tampered_reviews_do_not_install() {
 fn fatal_optional_and_persistence_failures_remain_distinct() {
     for mode in ["fatal", "warning", "manual", "save-failure"] {
         let f = Fixture::new();
-        let mut review = f.prepared();
-        review.selection.tools.insert("rojo".into());
-        review = SetupReview::new(review.context, review.selection).unwrap();
+        let review = f.prepared();
         f.mode(mode);
         let report = f
             .client

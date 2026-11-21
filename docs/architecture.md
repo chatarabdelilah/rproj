@@ -90,7 +90,7 @@ T5 (0.17.0 candidate) separates the read-only selection model, immutable item pl
 
 Selection loading consults only saved configuration and catalogs. Catalog defaults apply before recorded setup; recorded empty and unknown choices survive. Blender/VS Code parent selections gate execution without deleting dependent choices. Review never probes tools, creates the projects root, or installs anything. Apply requires a default-No confirmation. Deselecting is not uninstalling.
 
-One worker executes the established Rokit bootstrap, application checks/installers, projects-folder creation, global tools, plugins, Blender add-on, and editor extensions in order. It emits typed events through a bounded 128-event channel. Output events may be dropped under pressure with an explicit notice; item states and final outcomes are retained. The renderer alone owns terminal input/output. Explicit reporters connect setup-specific helper entrypoints; project callers retain their existing output paths and tool pins.
+One worker executes Rokit bootstrap when a catalog CLI tool is selected, application checks/installers, projects-folder creation, global tools, plugins, Blender add-on, and editor extensions in order. It emits typed events through a bounded 128-event channel. Output events may be dropped under pressure with an explicit notice; item states and final outcomes are retained. The renderer alone owns terminal input/output. Explicit reporters connect setup-specific helper entrypoints; project callers retain their existing output paths and tool pins.
 
 The process adapter supplies null stdin, drains stdout/stderr concurrently, preserves parsing bytes up to 8 MiB per stream, and strips terminal controls from streamed display text with Unicode-safe incremental decoding. Excess parsing output fails the item after draining, rather than claiming a potentially misread success. Display retains 500 lines of up to 2,048 characters. Diagnostic logs record transitions, item indices, process identity/exit, and outcomes, not raw installer output.
 
@@ -682,7 +682,7 @@ flowchart TD
     A --> C{Confirm Apply - default No}
     C -- no --> A
     C -- yes --> D[Sequential worker and live TUI output]
-    D --> E[Rokit bootstrap, apps, projects folder]
+    D --> E[Conditional Rokit bootstrap, apps, projects folder]
     E --> F[Global tools, plugins, Blender, VS Code]
     F --> G{Outcome}
     G -- completed or warnings --> H[Atomically save selection intent]

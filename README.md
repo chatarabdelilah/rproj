@@ -72,7 +72,7 @@ Run `rproj` with no arguments in a terminal to open Home: Projects, New Project,
 
 Open **Machine Setup** from Home, or run `rproj setup` in a terminal. Start at the review screen and edit System Apps, CLI Tools, Studio Plugins, Blender Add-ons, or VS Code Extensions and Themes & Icons. Type to filter; Space toggles; Enter accepts the category; Esc abandons its edits. Optional items start unchecked; saved choices, including empty selections, are preserved. Unrecognized saved entries remain visible and preserved, but are not installed.
 
-**Apply Setup** asks for explicit confirmation; Enter defaults to No, and Y confirms. The review displays the projects folder (read-only) and Rokit's foundational role. Selections describe intent, not verified installation state. Deselecting an application never uninstalls it. Blender and VS Code dependent choices remain remembered but inactive when their parent application is deselected.
+**Apply Setup** asks for explicit confirmation; Enter defaults to No, and Y confirms. The review displays the projects folder (read-only). Rokit runs first only when a catalog CLI tool is selected. Selections describe intent, not verified installation state. Deselecting an application never uninstalls it. Blender and VS Code dependent choices remain remembered but inactive when their parent application is deselected.
 
 Installations run sequentially with per-item outcomes and scrollable output. Tab changes focus; arrows, Page Up/Down, Home and End navigate or scroll. End resumes following output. Native installer/UAC dialogs can still appear. Marketplace plugins and account linking require the displayed manual steps.
 
