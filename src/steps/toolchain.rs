@@ -53,7 +53,13 @@ pub fn ensure_rokit_init(project_dir: &Path) -> Result<()> {
         ui::ok("rokit.toml already exists");
         return Ok(());
     }
-    run_in("rokit", &["init"], Some(project_dir))
+    run_in("rokit", &["init"], Some(project_dir)).map_err(|error| {
+        if error.downcast_ref::<std::io::Error>().is_some_and(|io| io.kind() == std::io::ErrorKind::NotFound) {
+            error.context("Project tool pins require Rokit. Run `rproj setup`, select the needed CLI tool, and apply setup before retrying.")
+        } else {
+            error
+        }
+    })
 }
 
 /// Adds every rokit tool key in `selected` to the project via `rokit add`.
