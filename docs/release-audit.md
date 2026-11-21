@@ -1,5 +1,22 @@
 # Release-Hardening Audit
 
+## November 21 — fresh Windows Git and Rojo setup retry
+
+On Windows 11 Enterprise Evaluation build 26300, the copied x64 rproj 0.22.0
+executable initially exited with `0xC0000135`. Its imported
+`VCRUNTIME140.dll` was absent from System32. Once the executable launched,
+Machine Setup correctly reported missing Cargo and skipped the remaining tasks.
+After Rust setup, the same Git and Rojo selections completed with warnings.
+Fresh-shell checks verified Rokit 1.2.0 and Rojo 7.7.1. An earlier shell could
+not resolve Rojo by name; the reason for the difference was unverified.
+
+WinGet 1.6.10121 found Git.Git in its community source but failed the rproj
+install when the Microsoft Store source reported certificate error
+`0x8A15005E`. A direct `winget install --id Git.Git --exact --source winget`
+succeeded, and a fresh shell reported Git 2.56.1.windows.1. The installer fix
+selects that source for Git. Live acceptance of the corrected rproj binary on
+a guest without Git remains pending.
+
 ## November 21 — Windows guest preview closed normally
 
 One idle preview ran in an isolated Windows guest using the verified portable

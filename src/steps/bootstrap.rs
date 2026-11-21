@@ -61,20 +61,22 @@ fn exe_exists_in(base: &Path, subdir: &str, exe: &str) -> bool {
         .any(|e| e.path().join(exe).is_file())
 }
 
+fn winget_install_args(winget_id: &str) -> Vec<&str> {
+    let mut args = vec!["install", "--id", winget_id, "-e"];
+    if winget_id == "Git.Git" {
+        args.extend(["--source", "winget"]);
+    }
+    args.extend(["--accept-source-agreements", "--accept-package-agreements"]);
+    args
+}
+
 /// Runs `winget install` with output captured (not just inherited) so a
 /// hash-mismatch failure - a known, ongoing upstream winget-pkgs issue for
 /// installers like Roblox's that self-update behind a static download URL,
 /// leaving the pinned manifest hash stale - can be called out with an
 /// actionable message instead of a bare exit-code error.
 pub(crate) fn install_winget(winget_id: &str, reporter: Option<&Reporter>) -> Result<()> {
-    let args = [
-        "install",
-        "--id",
-        winget_id,
-        "-e",
-        "--accept-source-agreements",
-        "--accept-package-agreements",
-    ];
+    let args = winget_install_args(winget_id);
     let output = if let Some(reporter) = reporter {
         reporter.capture(std::process::Command::new("winget").args(args))
     } else {
@@ -154,6 +156,24 @@ fn cargo_bootstrap_result(result: Result<()>) -> Result<()> {
 mod tests {
     use super::*;
     use crate::catalog::tool_catalog::SYSTEM_APPS;
+
+    #[test]
+    fn git_install_selects_the_community_source() {
+        assert_eq!(
+            winget_install_args("Git.Git"),
+            [
+                "install",
+                "--id",
+                "Git.Git",
+                "-e",
+                "--source",
+                "winget",
+                "--accept-source-agreements",
+                "--accept-package-agreements",
+            ]
+        );
+        assert!(!winget_install_args("Roblox.RobloxStudio").contains(&"--source"));
+    }
 
     #[test]
     fn missing_winget_recovery_covers_plain_and_reported_spawn() {
