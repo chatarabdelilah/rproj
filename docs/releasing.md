@@ -19,7 +19,12 @@ changed only root version metadata and documentation; source, tests,
 dependencies and CI matched reviewed main `7a5d3cd`. Both required local
 reviews and all four final-head/merged-main CI jobs passed before publication.
 The release branches were verified and removed. Existing shipped tags remain
-unchanged; no active release candidate is pending.
+unchanged.
+
+The next candidate is **0.23.0**, scoped to the Cargo CLI and core library.
+The desktop workspace version tracks the CLI for matching worker builds.
+The portable desktop ZIP remains a CI artifact while native host acceptance
+is paused. See the [candidate notes](release-notes-0.23.0.md).
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 
