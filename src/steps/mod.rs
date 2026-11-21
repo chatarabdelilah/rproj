@@ -61,6 +61,7 @@ pub struct Captured {
     pub stdout: String,
     pub stderr: String,
     pub success: bool,
+    pub exit_code: Option<i32>,
 }
 
 impl Captured {
@@ -102,6 +103,7 @@ pub fn capture(program: &str, args: &[&str], dir: Option<&Path>) -> Result<Captu
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
         success: output.status.success(),
+        exit_code: output.status.code(),
     })
 }
 
