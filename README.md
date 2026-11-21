@@ -112,10 +112,20 @@ Use `rproj info` to browse the complete current catalog and `rproj info <key>` t
 ## Requirements
 
 - Windows with `winget`
-- Rust and Cargo for installation from crates.io or source
+- Rust and Cargo for installation from crates.io or source, and for Machine Setup to bootstrap Rokit when it is missing
 - Network access while installing tools and packages
 
 ## Install
+
+### Portable CLI for a fresh x64 Windows PC
+
+Use the development archive when copying the CLI to a machine without the Visual C++ Redistributable. Its `rproj.exe` includes the MSVC runtime through static linking.
+
+1. Sign in to GitHub and open a recent successful `main` run in [CI](https://github.com/chatarabdelilah/rproj/actions/workflows/ci.yml?query=branch%3Amain). Under **Artifacts**, download **rproj-desktop-windows-x86_64**.
+2. Extract the downloaded ZIP, then extract the portable ZIP inside it. Copy **`rproj.exe`** from the inner archive to the target PC. The separate `rproj-desktop.exe` is the GUI.
+3. Open PowerShell in the folder containing the copied CLI and run `.\rproj.exe --version`. To start Machine Setup, run `.\rproj.exe setup`.
+
+### Install with Cargo
 
 ```powershell
 cargo install rproj
