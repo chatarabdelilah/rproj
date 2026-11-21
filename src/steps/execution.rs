@@ -53,6 +53,7 @@ impl Reporter {
             stdout,
             stderr,
             success: status.success(),
+            exit_code: status.code(),
         })
     }
 

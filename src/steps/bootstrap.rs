@@ -5,7 +5,7 @@ use anyhow::{Result, bail};
 
 use crate::catalog::tool_catalog::{Detect, ToolEntry, ToolKind};
 use crate::steps::execution::{MessageKind, Reporter};
-use crate::steps::{capture, probe, run};
+use crate::steps::{Captured, capture, probe, run};
 use crate::ui;
 
 pub fn is_installed(entry: &ToolEntry) -> bool {
@@ -83,6 +83,22 @@ pub(crate) fn install_winget(winget_id: &str, reporter: Option<&Reporter>) -> Re
         capture("winget", &args, None)
     };
     let output = missing_tool_result(output, WINGET_MISSING_HELP)?;
+    finish_winget_install(output, reporter)
+}
+
+fn finish_winget_install(output: Captured, reporter: Option<&Reporter>) -> Result<()> {
+    // WinGet returns this HRESULT when an installed package has no applicable update.
+    const UPDATE_NOT_APPLICABLE: i32 = 0x8A15002Bu32 as i32;
+    if output.exit_code == Some(UPDATE_NOT_APPLICABLE) {
+        let message = "Application already installed";
+        if let Some(reporter) = reporter {
+            reporter.message(MessageKind::Already, message);
+        } else {
+            ui::ok(message);
+        }
+        return Ok(());
+    }
+
     if !output.success || ui::is_verbose() {
         ui::passthrough(&output.stdout, &output.stderr);
     }
@@ -158,6 +174,23 @@ mod tests {
     use crate::catalog::tool_catalog::SYSTEM_APPS;
 
     #[test]
+    fn winget_no_applicable_update_reports_already_installed() {
+        let messages = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded = messages.clone();
+        let reporter = Reporter(std::sync::Arc::new(move |kind, _| {
+            recorded.lock().unwrap().push(kind);
+        }));
+        let language_independent_output = Captured {
+            stdout: String::new(),
+            stderr: String::new(),
+            success: false,
+            exit_code: Some(0x8A15002Bu32 as i32),
+        };
+        finish_winget_install(language_independent_output, Some(&reporter)).unwrap();
+        assert_eq!(*messages.lock().unwrap(), [MessageKind::Already]);
+    }
+
+    #[test]
     fn git_install_selects_the_community_source() {
         assert_eq!(
             winget_install_args("Git.Git"),
@@ -218,6 +251,7 @@ mod tests {
                 stdout: "installer output".into(),
                 stderr: "Installer hash does not match".into(),
                 success,
+                exit_code: Some(i32::from(!success)),
             };
             let preserved = missing_tool_result(Ok(output), WINGET_MISSING_HELP).unwrap();
             assert_eq!(preserved.stdout, "installer output");
