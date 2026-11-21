@@ -266,7 +266,7 @@ impl Workbench {
         window.open_alert_dialog(cx, move |dialog, _, _| {
             let keep = owner.clone(); let apply = owner.clone(); let closed = owner.clone(); let review = review.clone();
             dialog.title("Apply Machine Setup?")
-                .child(format!("Run {} items on this machine, including Rokit bootstrap and the projects folder {}. This can download software, change global tools, show installer/UAC dialogs and require manual steps. Completed installations remain after failure or Stop. Selections save only after a completed run, including warnings. Watch stays unchanged.", review.items.len(), review.selection.root.display()))
+                .child(format!("Run {} items on this machine, including the projects folder {}. This can download software, change global tools, show installer/UAC dialogs and require manual steps. Completed installations remain after failure or Stop. Selections save only after a completed run, including warnings. Watch stays unchanged.", review.items.len(), review.selection.root.display()))
                 .footer(DialogFooter::new()
                     .child(Button::new("setup-keep-reviewing").primary().label("Keep reviewing").on_click(move |_, window, cx| { window.close_dialog(cx); let _ = keep.update(cx, |this,cx| this.finish_setup_dialog(window,cx)); }))
                     .child(Button::new("setup-confirm-apply").label("Apply setup").on_click(move |_,window,cx| {

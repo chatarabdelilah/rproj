@@ -9,7 +9,9 @@ fn fixture() -> (tempfile::TempDir, SetupReview) {
         &root.path().join("Projects 日本語"),
     )
     .unwrap();
-    let review = prepare(&context, &context.saved).unwrap();
+    let mut selected = context.saved.clone();
+    selected.tools.insert("rojo".into());
+    let review = prepare(&context, &selected).unwrap();
     (root, review)
 }
 
@@ -24,7 +26,10 @@ fn preparation_is_read_only_and_preserves_missing_paths() {
     assert!(!review.context.config_path.exists());
     assert!(!review.selection.root.exists());
     assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
-    assert_eq!(review.items, vec![Item::Rokit, Item::ProjectsFolder]);
+    assert_eq!(
+        review.items,
+        vec![Item::Rokit, Item::ProjectsFolder, Item::Tool("rojo".into())]
+    );
 }
 
 #[test]
@@ -161,7 +166,10 @@ fn stop_finishes_active_item_skips_remaining_and_does_not_save() {
     .unwrap();
     assert_eq!(ran.load(Ordering::SeqCst), 1);
     assert_eq!(result.outcome, Outcome::Cancelled);
-    assert_eq!(result.statuses, vec![Status::Installed, Status::Skipped]);
+    assert_eq!(
+        result.statuses,
+        vec![Status::Installed, Status::Skipped, Status::Skipped]
+    );
     assert_eq!(result.persistence, Persistence::NotSaved);
     assert!(!review.context.config_path.exists());
 }
@@ -180,15 +188,13 @@ fn stop_before_mutation_has_no_effects() {
     .unwrap();
     assert_eq!(result.outcome, Outcome::Cancelled);
     assert!(!result.changes_may_have_begun);
-    assert_eq!(result.statuses, vec![Status::Skipped; 2]);
+    assert_eq!(result.statuses, vec![Status::Skipped; 3]);
 }
 
 #[test]
 fn fatal_and_warning_results_have_different_persistence() {
     for fatal in [false, true] {
-        let (_root, mut review) = fixture();
-        review.selection.tools.insert("rojo".into());
-        review = prepare(&review.context, &review.selection).unwrap();
+        let (_root, review) = fixture();
         let result = execute_with(
             &review,
             &|| false,
@@ -281,7 +287,10 @@ fn warning_cannot_be_erased_by_later_already_message() {
     )
     .unwrap();
     assert_eq!(result.outcome, Outcome::Failed);
-    assert_eq!(result.statuses, vec![Status::Failed, Status::Skipped]);
+    assert_eq!(
+        result.statuses,
+        vec![Status::Failed, Status::Skipped, Status::Skipped]
+    );
     assert_eq!(result.persistence, Persistence::NotSaved);
 }
 
@@ -299,7 +308,7 @@ fn stop_at_the_persistence_boundary_keeps_completed_installations_unsaved() {
     )
     .unwrap();
     assert_eq!(result.outcome, Outcome::Cancelled);
-    assert_eq!(result.statuses, vec![Status::Installed; 2]);
+    assert_eq!(result.statuses, vec![Status::Installed; 3]);
     assert_eq!(result.persistence, Persistence::NotSaved);
     assert!(!review.context.config_path.exists());
     assert_eq!(fs::read_dir(parent).unwrap().count(), 0);
@@ -319,7 +328,7 @@ fn existing_unknown_and_inactive_choices_survive_a_completed_save() {
     fs::write(&path, toml::to_string(&config).unwrap()).unwrap();
     let context = capture_at(&path, &root.path().join("unused")).unwrap();
     let review = prepare(&context, &context.saved).unwrap();
-    assert_eq!(review.items, vec![Item::Rokit, Item::ProjectsFolder]);
+    assert_eq!(review.items, vec![Item::ProjectsFolder]);
     let result = execute_with(
         &review,
         &|| false,

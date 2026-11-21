@@ -374,7 +374,9 @@ fn command_present(name: &str, argument: &str) -> bool {
 
 fn prerequisites(selection: &Selection) -> Result<()> {
     ensure!(
-        command_present("rokit", "--version") || command_present("cargo", "--version"),
+        !selection.needs_rokit()
+            || command_present("rokit", "--version")
+            || command_present("cargo", "--version"),
         "Rokit bootstrap needs Cargo; install Rust or Rokit, then review again"
     );
     let missing_app = crate::catalog::tool_catalog::SYSTEM_APPS

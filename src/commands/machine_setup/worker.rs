@@ -291,7 +291,7 @@ mod tests {
         selection.tools.insert("studio".into());
         selection.extensions.insert("luau-lsp".into());
         selection.plugins.insert("blender-plugin".into());
-        assert_eq!(plan(&selection), vec![Item::Rokit, Item::ProjectsFolder]);
+        assert_eq!(plan(&selection), vec![Item::ProjectsFolder]);
     }
 
     #[test]
@@ -364,15 +364,10 @@ mod tests {
                 _ => {}
             }
         }
-        assert_eq!(
-            finished,
-            vec![
-                (0, Status::Installed),
-                (1, Status::Failed),
-                (2, Status::Installed)
-            ]
-        );
-        let worker = Worker::spawn(selection(), |_, _, _| anyhow::bail!("bootstrap failed"));
+        assert_eq!(finished, vec![(0, Status::Failed), (1, Status::Installed)]);
+        let mut selected = selection();
+        selected.tools.insert("rojo".into());
+        let worker = Worker::spawn(selected, |_, _, _| anyhow::bail!("bootstrap failed"));
         let mut starts = 0;
         loop {
             match worker.receiver.as_ref().unwrap().recv().unwrap() {
@@ -409,7 +404,9 @@ mod tests {
     fn cancellation_waits_for_active_item_and_skips_next() {
         let (entered, active) = mpsc::channel();
         let (release, wait) = mpsc::channel();
-        let worker = Worker::spawn(selection(), move |item, _, _| {
+        let mut selected = selection();
+        selected.tools.insert("rojo".into());
+        let worker = Worker::spawn(selected, move |item, _, _| {
             assert_eq!(*item, Item::Rokit);
             entered.send(()).unwrap();
             wait.recv().unwrap();

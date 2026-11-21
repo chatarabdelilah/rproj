@@ -109,8 +109,19 @@ impl Item {
     }
 }
 
+impl Selection {
+    pub fn needs_rokit(&self) -> bool {
+        tool_catalog::ROKIT_TOOLS
+            .iter()
+            .any(|entry| self.tools.contains(entry.key))
+    }
+}
+
 pub fn plan(selection: &Selection) -> Vec<Item> {
-    let mut items = vec![Item::Rokit];
+    let mut items = Vec::new();
+    if selection.needs_rokit() {
+        items.push(Item::Rokit);
+    }
     for entry in tool_catalog::SYSTEM_APPS
         .iter()
         .filter(|entry| selection.apps.contains(entry.key))

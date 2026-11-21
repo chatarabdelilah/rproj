@@ -227,7 +227,7 @@ impl Workbench {
             .child("Exact execution sequence")
             .children(review.items.iter().enumerate().map(|(i,item)|div().child(format!("{}. {}",i+1,item.label()))))
             .child(if folder_exists {"Projects folder already exists; it is retained."}else{"The projects folder is missing; setup creates it at its listed step."})
-            .child("Rokit bootstrap is required. Selected software can involve downloads, global tool changes, installer/UAC dialogs and manual actions. No software is uninstalled. Retry runs the full reviewed sequence, not only failed items.")
+            .child("Selected CLI tools require Rokit. Selected software can involve downloads, global tool changes, installer/UAC dialogs and manual actions. No software is uninstalled. Retry runs the full reviewed sequence, not only failed items.")
             .child("Completed runs, including warnings/manual steps, save selections. Fatal or stopped runs do not. Installation results and configuration-save failure are reported separately; there is no rollback.")
             .when(SetupSession::watch_conflict(self.watch.as_ref()),|view|view.child(div().id("setup-watch-conflict").role(Role::Alert).aria_label("Watch blocks Machine Setup").test_support().text_color(cx.theme().danger)
                 .child(format!("Apply is blocked by Watch for {}. Use the separate Stop control and wait for acknowledgement. Setup never stops or restarts Watch.",self.watch.as_ref().and_then(|w|w.project.as_ref()).map(|p|p.display().to_string()).unwrap_or_else(||"an unknown project".into())))))
