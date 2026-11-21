@@ -24,6 +24,12 @@ and marked Rokit bootstrap, Git and the projects folder installed. A fresh
 PowerShell session reported `git version 2.56.1.windows.1`. The copied
 candidate still exited with `0xC0000135` on the baseline without the VC runtime.
 
+A separate x64 release CLI built from `8e273a0` with the portable packager's
+`+crt-static` setting passed the startup check during Windows Setup on build
+26300.9457. The guest verified the executable's SHA-256, confirmed
+`VCRUNTIME140.dll` was absent from System32, and ran `rproj.exe --version`
+from the test DVD. It printed `rproj 0.22.0` and exited 0.
+
 ## November 21 — Windows guest preview closed normally
 
 One idle preview ran in an isolated Windows guest using the verified portable
