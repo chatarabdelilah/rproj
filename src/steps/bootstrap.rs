@@ -89,7 +89,11 @@ pub(crate) fn install_winget(winget_id: &str, reporter: Option<&Reporter>) -> Re
 fn finish_winget_install(output: Captured, reporter: Option<&Reporter>) -> Result<()> {
     // WinGet returns this HRESULT when an installed package has no applicable update.
     const UPDATE_NOT_APPLICABLE: i32 = 0x8A15002Bu32 as i32;
-    if output.exit_code == Some(UPDATE_NOT_APPLICABLE) {
+    let already_installed = output.exit_code == Some(UPDATE_NOT_APPLICABLE);
+    if ui::is_verbose() || (!output.success && !already_installed) {
+        ui::passthrough(&output.stdout, &output.stderr);
+    }
+    if already_installed {
         let message = "Application already installed";
         if let Some(reporter) = reporter {
             reporter.message(MessageKind::Already, message);
@@ -99,9 +103,6 @@ fn finish_winget_install(output: Captured, reporter: Option<&Reporter>) -> Resul
         return Ok(());
     }
 
-    if !output.success || ui::is_verbose() {
-        ui::passthrough(&output.stdout, &output.stderr);
-    }
     if output.success {
         return Ok(());
     }
