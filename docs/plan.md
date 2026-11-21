@@ -304,7 +304,7 @@ disposable tools and storage. The initial native feasibility pass does not make
 this a released desktop product or establish workflow parity. The
 [audit](release-audit.md) records completed checks and remaining gates.
 
-The published baseline is **v0.22.0, public alpha**. Interactive Upgrade
+The previous published baseline was **v0.22.0, public alpha**. Interactive Upgrade
 shows actual file diffs in Ratatui and uses default-No Apply-all confirmation;
 `--yes` remains plain. Both Selene merge passes refuse unsafe semantic changes
 before confirmation or writes, preserving unrelated multiline TOML values.
@@ -316,7 +316,7 @@ protection, UI Labs 2.4.2 and shared creation/configuration behavior.
 Owner publication, official archive checksum and clean Git identity,
 annotated tag and GitHub alpha release match
 `9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. The workspace manifests and
-lockfile track the [0.23.0 candidate](release-notes-0.23.0.md). That candidate
+lockfile track the published [0.23.0 alpha](release-notes-0.23.0.md). It
 covers the Cargo CLI and core library. The desktop ZIP remains a CI artifact
 while native host acceptance is paused. See [0.22.0 notes](release-notes-0.22.0.md),
 [release rules](releasing.md) and [audit evidence](release-audit.md).

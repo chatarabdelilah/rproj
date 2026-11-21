@@ -1,6 +1,6 @@
 # rproj 0.23.0 — Project update discovery and Windows setup fixes
 
-Public alpha candidate for the Cargo CLI and its shared core library.
+Public alpha for the Cargo CLI and its shared core library.
 
 ## CLI changes
 
