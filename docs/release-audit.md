@@ -1,5 +1,15 @@
 # Release-Hardening Audit
 
+## November 21 — conditional Rokit review on Windows
+
+After restoring the pre-install checkpoint on `rproj-Windows-Acceptance`, the
+owner opened Machine Setup from the statically linked x64 CLI built at
+`f05cbce`. The Git-only review listed Git followed by Projects folder with
+zero CLI tools selected. Adding Rojo produced this order: Rokit bootstrap,
+Git, Projects folder, Rojo. Both results were verified from the review
+screens before Apply. Installer execution for this build remains unverified.
+[PR #176](https://github.com/chatarabdelilah/rproj/pull/176)
+
 ## November 21 — fresh Windows Git and Rojo setup retry
 
 On Windows 11 Enterprise Evaluation build 26300, the copied x64 rproj 0.22.0
