@@ -113,13 +113,11 @@ fn template_generation_before_extraction_fixture() {
             crate::steps::jest::project_document(&production).unwrap(),
         );
     }
-    let actual = format!(
-        "{}\n",
-        serde_json::to_string_pretty(&json!({"builtin": builtin, "variants": variants})).unwrap()
-    );
+    let actual = json!({"builtin": builtin, "variants": variants});
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/project-template-generation.json");
-    assert_eq!(actual, fs::read_to_string(path).unwrap());
+    let expected: Value = serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(actual, expected);
 }
 
 pub fn project_document(
