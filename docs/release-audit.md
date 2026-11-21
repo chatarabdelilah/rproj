@@ -1,6 +1,6 @@
 # Release-Hardening Audit
 
-## November 21 — Git-only rerun with Git already installed
+## November 21 — Git-only rerun and reinstall on Windows
 
 On `rproj-Windows-Acceptance`, the Git-only run from `f05cbce` reached WinGet
 after its per-user WindowsApps directory was added to the launcher PATH.
@@ -11,8 +11,13 @@ successfully.
 The `RPROJ178` DVD contained a statically linked x64 CLI from reviewed head
 `fb5466f` and set the WindowsApps PATH for its launcher session. Git-only
 Apply completed in two seconds and reported Already for Git and Projects
-folder. Rokit was absent from the task list. This run verified the existing
-installation path. A fresh Git install with this build remains unverified.
+folder. Rokit was absent from the task list.
+
+After removing Git from the same guest, the owner ran Git-only Apply from
+`RPROJ178` again. Setup completed in 31 seconds and reported Installed for Git
+and Already for Projects folder. WinGet verified the installer hash, and a
+fresh PowerShell printed `git version 2.56.1.windows.1`. The task list contained
+only Git and Projects folder.
 [PR #178](https://github.com/chatarabdelilah/rproj/pull/178)
 
 ## November 21 — conditional Rokit review on Windows
