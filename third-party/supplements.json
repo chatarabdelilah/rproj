@@ -321,12 +321,12 @@
   },
   {
     "name": "clipboard-win",
-    "version": "5.4.1",
-    "commit": "3b27cf2bfd1adcfa6e0264eb51c1025ddaf0f342",
+    "version": "5.4.3",
+    "commit": "ed27008ae5d1f10cfbb266de039f0fb35fd05a56",
     "files": [
       {
-        "path": "third-party/licenses/clipboard-win-5.4.1/LICENSE",
-        "url": "https://raw.githubusercontent.com/DoumanAsh/clipboard-win/3b27cf2bfd1adcfa6e0264eb51c1025ddaf0f342/LICENSE",
+        "path": "third-party/licenses/clipboard-win-5.4.3/LICENSE",
+        "url": "https://raw.githubusercontent.com/DoumanAsh/clipboard-win/ed27008ae5d1f10cfbb266de039f0fb35fd05a56/LICENSE",
         "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566"
       }
     ]
