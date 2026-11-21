@@ -30,6 +30,14 @@ A separate x64 release CLI built from `8e273a0` with the portable packager's
 `VCRUNTIME140.dll` was absent from System32, and ran `rproj.exe --version`
 from the test DVD. It printed `rproj 0.22.0` and exited 0.
 
+The guest repeated the startup check with `rproj.exe` from the
+`rproj-desktop-windows-x86_64` CI artifact for commit `630549f`. Its SHA-256
+matched the package manifest
+(`36346f55a630d9b3aa7746770e14fa85cf76af5cd4a366b65963c3da118a91af`).
+During Windows Setup on build 26300.9457, with `VCRUNTIME140.dll` absent from
+System32, `rproj.exe --version` printed `rproj 0.22.0` and exited 0.
+[CI run 44900405475](https://github.com/chatarabdelilah/rproj/actions/runs/44900405475)
+
 ## November 21 — Windows guest preview closed normally
 
 One idle preview ran in an isolated Windows guest using the verified portable
