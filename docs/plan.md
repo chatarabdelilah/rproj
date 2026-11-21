@@ -315,9 +315,10 @@ protection, UI Labs 2.4.2 and shared creation/configuration behavior.
 
 Owner publication, official archive checksum and clean Git identity,
 annotated tag and GitHub alpha release match
-`9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. Cargo manifest and root lockfile
-identify 0.22.0; crates.io reports it as current. No active release candidate
-is pending. See [published notes](release-notes-0.22.0.md),
+`9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. The workspace manifests and
+lockfile track the [0.23.0 candidate](release-notes-0.23.0.md). That candidate
+covers the Cargo CLI and core library. The desktop ZIP remains a CI artifact
+while native host acceptance is paused. See [0.22.0 notes](release-notes-0.22.0.md),
 [release rules](releasing.md) and [audit evidence](release-audit.md).
 
 **Shipped in 0.22.0:** the shared semantic TOML guard and Ratatui Upgrade
