@@ -14,8 +14,15 @@ WinGet 1.6.10121 found Git.Git in its community source but failed the rproj
 install when the Microsoft Store source reported certificate error
 `0x8A15005E`. A direct `winget install --id Git.Git --exact --source winget`
 succeeded, and a fresh shell reported Git 2.56.1.windows.1. The installer fix
-selects that source for Git. Live acceptance of the corrected rproj binary on
-a guest without Git remains pending.
+selects that source for Git.
+
+Live Git installation passed with the corrected binary from `569a4bd`.
+After restoring the pre-setup guest checkpoint, Git was absent from PATH and
+its default install location. The guest verified the candidate's SHA-256.
+With Git as the only optional selection, Machine Setup completed in 338 seconds
+and marked Rokit bootstrap, Git and the projects folder installed. A fresh
+PowerShell session reported `git version 2.56.1.windows.1`. The copied
+candidate still exited with `0xC0000135` on the baseline without the VC runtime.
 
 ## November 21 — Windows guest preview closed normally
 
