@@ -1,5 +1,19 @@
 # Release-Hardening Audit
 
+## November 21 — Windows guest preview closed normally
+
+One idle preview ran in an isolated Windows guest using the verified portable
+desktop and worker from `9e6d6bd`. Following a normal close request, the
+monitor observed the window disappear and the desktop process exit successfully
+in the same sample. One minute later, guest committed memory was below its
+pre-launch range. The monitor detected no resource-exhaustion event or
+unresponsive preview window during the run.
+
+The guest used virtual graphics and none of the monitored capture processes was
+present at baseline. Physical display wake was untested. The cause of the
+original host symptoms remains unknown, and host preview acceptance stays
+paused. [Native memory investigation](desktop-memory-investigation.md)
+
 ## November 20 — native memory stability remains open
 
 The October report establishes a sequence from recollection. Event times,
