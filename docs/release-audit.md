@@ -1,5 +1,16 @@
 # Release-Hardening Audit
 
+## November 22 — Git and Rojo Apply on Windows
+
+On `rproj-Windows-Acceptance`, Machine Setup from the `RPROJ178` DVD
+(`fb5466f`) completed Git and Rojo Apply in three seconds. It reported
+Already for Rokit bootstrap, Git and the projects folder, then Installed
+for Rojo. The restored checkpoint already contained Rokit and Git.
+
+A fresh Windows PowerShell session ran `git --version`, `rokit --version`
+and `rojo --version`. They reported `git version 2.56.1.windows.1`,
+`rokit 1.2.0` and `Rojo 7.7.1`, respectively.
+
 ## November 21 — Git-only rerun and reinstall on Windows
 
 On `rproj-Windows-Acceptance`, the Git-only run from `f05cbce` reached WinGet
