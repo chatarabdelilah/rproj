@@ -6288,7 +6288,7 @@ dependencies = [
 
 [[package]]
 name = "rproj"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "anstream",
  "anstyle",
@@ -6323,7 +6323,7 @@ dependencies = [
 
 [[package]]
 name = "rproj-core"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "anyhow",
  "directories",
@@ -6344,7 +6344,7 @@ dependencies = [
 
 [[package]]
 name = "rproj-desktop"
-version = "0.23.0"
+version = "0.23.1"
 dependencies = [
  "anyhow",
  "chrono",
