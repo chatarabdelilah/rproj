@@ -125,12 +125,32 @@ pub const WINGET_HASH_HELP: &str = "A vendor updated their installer behind a st
      - Or, as admin, `winget settings --enable InstallerHashOverride` once, then retry";
 
 pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
-    if probe("rokit", &["--version"]) {
+    if installed_rokit().is_some() {
         if let Some(reporter) = reporter {
             reporter.message(MessageKind::Already, "rokit already installed");
         } else {
             ui::ok("rokit already installed");
         }
+        return Ok(());
+    }
+    if cfg!(all(windows, target_arch = "x86_64")) {
+        let staging = tempfile::tempdir()?;
+        let mut command = std::process::Command::new("powershell.exe");
+        command.current_dir(staging.path()).args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            include_str!("install_rokit.ps1"),
+        ]);
+        if let Some(reporter) = reporter {
+            reporter.run(&mut command)?;
+        } else if !command.status()?.success() {
+            bail!("Rokit binary installation failed");
+        }
+        anyhow::ensure!(
+            installed_rokit().is_some(),
+            "Rokit self-install finished but rokit --version failed"
+        );
         return Ok(());
     }
     if let Some(reporter) = reporter {
@@ -141,6 +161,31 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
     }
     cargo_bootstrap_result(run("cargo", &["install", "rokit", "--locked"]))?;
     run("rokit", &["self-install"])
+}
+
+pub(crate) fn installed_rokit() -> Option<std::path::PathBuf> {
+    installed_setup_tool("rokit")
+}
+
+pub(crate) fn installed_setup_tool(tool: &str) -> Option<std::path::PathBuf> {
+    if probe(tool, &["--version"]) {
+        return Some(tool.into());
+    }
+    if !cfg!(all(windows, target_arch = "x86_64")) {
+        return None;
+    }
+    // A child installer cannot update PATH in the running setup process.
+    let root = std::env::var_os("ROKIT_ROOT")
+        .map(std::path::PathBuf::from)
+        .or_else(|| Some(directories::BaseDirs::new()?.home_dir().join(".rokit")))?;
+    let exe = root.join("bin").join(format!("{tool}.exe"));
+    (exe.is_absolute()
+        && exe.is_file()
+        && std::process::Command::new(&exe)
+            .arg("--version")
+            .output()
+            .is_ok_and(|o| o.status.success()))
+    .then_some(exe)
 }
 
 const WINGET_MISSING_HELP: &str = "WinGet was not found on PATH; it is required to install applications. \

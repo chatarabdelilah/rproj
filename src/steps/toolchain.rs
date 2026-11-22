@@ -17,8 +17,9 @@ pub(crate) fn add_global_tool_with(
     use std::process::Command;
     // Setup has already confirmed the selected sources. `add --force` handles
     // first-use trust even for versioned specs, which `trust` does not accept.
+    let rokit = super::bootstrap::installed_rokit().context("Cannot locate installed Rokit")?;
     let output =
-        reporter.capture(Command::new("rokit").args(["add", "--global", "--force", source]))?;
+        reporter.capture(Command::new(rokit).args(["add", "--global", "--force", source]))?;
     if output.success {
         return Ok(());
     }
