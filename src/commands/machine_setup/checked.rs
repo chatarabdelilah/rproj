@@ -375,6 +375,7 @@ fn command_present(name: &str, argument: &str) -> bool {
 fn prerequisites(selection: &Selection) -> Result<()> {
     ensure!(
         !selection.needs_rokit()
+            || cfg!(all(windows, target_arch = "x86_64"))
             || command_present("rokit", "--version")
             || command_present("cargo", "--version"),
         "Rokit bootstrap needs Cargo; install Rust or Rokit, then review again"
