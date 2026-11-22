@@ -1,5 +1,14 @@
 # Release-Hardening Audit
 
+## November 22 — Windows x64 first installation
+
+In the first-install VM, the pinned Rokit binary from the bootstrap at
+`b211cd0` failed to launch with Windows status `0xC0000135`.
+`VCRUNTIME140.dll` was absent from System32. After the owner installed
+`Microsoft.VCRedist.2015+.x64` with WinGet, Machine Setup completed and a
+fresh PowerShell reported Git 2.56.1.windows.1, Rokit 1.2.0 and Rojo 7.7.1.
+The runtime diagnostic added after this run has separate fixture coverage.
+
 ## November 22 — Git and Rojo Apply on Windows
 
 On `rproj-Windows-Acceptance`, Machine Setup from the `RPROJ178` DVD

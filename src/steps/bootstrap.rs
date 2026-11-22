@@ -134,6 +134,11 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
         return Ok(());
     }
     if cfg!(all(windows, target_arch = "x86_64")) {
+        let system_root = std::env::var_os("SystemRoot")
+            .ok_or_else(|| anyhow::anyhow!("Cannot locate the Windows system directory"))?;
+        let system_dir = Path::new(&system_root).join("System32");
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        check_rokit_runtime(std::iter::once(system_dir).chain(std::env::split_paths(&path)))?;
         let staging = tempfile::tempdir()?;
         let mut command = std::process::Command::new("powershell.exe");
         command.current_dir(staging.path()).args([
@@ -161,6 +166,16 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
     }
     cargo_bootstrap_result(run("cargo", &["install", "rokit", "--locked"]))?;
     run("rokit", &["self-install"])
+}
+
+fn check_rokit_runtime(directories: impl Iterator<Item = std::path::PathBuf>) -> Result<()> {
+    anyhow::ensure!(
+        directories
+            .filter(|dir| dir.is_absolute())
+            .any(|dir| dir.join("VCRUNTIME140.dll").is_file()),
+        "The Windows x64 Rokit installer requires VCRUNTIME140.dll. Install the Microsoft Visual C++ x64 Redistributable with `winget install --id Microsoft.VCRedist.2015+.x64 --exact --source winget`, then rerun `rproj setup`"
+    );
+    Ok(())
 }
 
 pub(crate) fn installed_rokit() -> Option<std::path::PathBuf> {
@@ -217,6 +232,18 @@ fn cargo_bootstrap_result(result: Result<()>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn rokit_runtime_check_reports_recovery_then_accepts_present_dll() {
+        let dir = tempfile::tempdir().unwrap();
+        let check = || check_rokit_runtime(std::iter::once(dir.path().to_owned()));
+        assert!(
+            check().unwrap_err().to_string().contains(
+                "winget install --id Microsoft.VCRedist.2015+.x64 --exact --source winget"
+            )
+        );
+        fs::write(dir.path().join("VCRUNTIME140.dll"), []).unwrap();
+        check().unwrap();
+    }
     use crate::catalog::tool_catalog::SYSTEM_APPS;
 
     #[test]
