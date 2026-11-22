@@ -164,8 +164,12 @@ pub(crate) fn ensure_rokit_with(reporter: Option<&Reporter>) -> Result<()> {
 }
 
 pub(crate) fn installed_rokit() -> Option<std::path::PathBuf> {
-    if probe("rokit", &["--version"]) {
-        return Some("rokit".into());
+    installed_setup_tool("rokit")
+}
+
+pub(crate) fn installed_setup_tool(tool: &str) -> Option<std::path::PathBuf> {
+    if probe(tool, &["--version"]) {
+        return Some(tool.into());
     }
     if !cfg!(all(windows, target_arch = "x86_64")) {
         return None;
@@ -174,7 +178,7 @@ pub(crate) fn installed_rokit() -> Option<std::path::PathBuf> {
     let root = std::env::var_os("ROKIT_ROOT")
         .map(std::path::PathBuf::from)
         .or_else(|| Some(directories::BaseDirs::new()?.home_dir().join(".rokit")))?;
-    let exe = root.join("bin").join("rokit.exe");
+    let exe = root.join("bin").join(format!("{tool}.exe"));
     (exe.is_absolute()
         && exe.is_file()
         && std::process::Command::new(&exe)

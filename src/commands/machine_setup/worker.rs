@@ -256,7 +256,10 @@ pub(super) fn execute(
             }
             ToolKind::StudioPluginViaCli { .. } => {
                 if tool_catalog::find("studio").is_some_and(bootstrap::is_installed) {
-                    reporter.run(Command::new("rojo").args(["plugin", "install"]))
+                    let rojo = bootstrap::installed_setup_tool("rojo").ok_or_else(|| {
+                        anyhow::anyhow!("Could not locate the installed Rojo CLI")
+                    })?;
+                    reporter.run(Command::new(rojo).args(["plugin", "install"]))
                 } else {
                     anyhow::bail!("Rojo plugin needs Roblox Studio; install Studio and retry")
                 }
