@@ -1,5 +1,10 @@
 # Releasing rproj
 
+The next public alpha candidate is **0.23.1**. Its coordinated CLI, core and
+desktop versions include the Windows x64 Machine Setup fixes. See the
+[candidate release notes](release-notes-0.23.1.md) and follow the owner
+publication steps below after candidate verification.
+
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
 The previous published baseline was **v0.22.0, public alpha**, at
