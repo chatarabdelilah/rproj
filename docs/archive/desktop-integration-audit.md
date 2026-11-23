@@ -118,6 +118,15 @@ a desktop session launched with Rokit's bin directory on PATH.
 None of the three projects completed. The Windows worker regression covers
 missing Rojo during review and its disappearance between review and creation.
 
+The owner repeated the Guided Wally workflow with zero packages or tool pins
+using the [Windows build from `b1efa54`](https://github.com/chatarabdelilah/rproj/actions/runs/45165874527).
+Review listed both missing commands, `rojo` and `wally-package-types`, and
+disabled Create project. PowerShell's `Test-Path` returned `False` for the
+`FirstRunPreflight` destination. After setup, creation succeeded at that same
+destination. Activity reported writing `default.project.json`, generating
+`sourcemap.json`, and updating `.gitignore`. The owner clicked Open project
+and confirmed that Overview showed `FirstRunPreflight` as the active project.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
