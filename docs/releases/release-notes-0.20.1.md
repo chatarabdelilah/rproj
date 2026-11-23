@@ -25,7 +25,7 @@ The candidate passed 477 ordinary locked Windows tests, formatting, clippy
 and both explicit installed-tool background Watch acceptances. Its 24 ignored
 tests are not ordinary passes; only the two named acceptances were run explicitly
 for this patch candidate. Packaging and review/CI evidence are recorded in
-[the release audit](release-audit.md). Missing-tool regressions use disposable
+[the release audit](../archive/release-audit.md). Missing-tool regressions use disposable
 nonexistent executables; they do not install machine applications or mutate
 the user's PATH. A successful recovery after fresh Windows provisioning
 remains unverified. The owner deferred Hyper-V/VM setup.

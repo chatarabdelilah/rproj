@@ -1,6 +1,6 @@
 # Review one project update
 
-The [Soft proposal](prototypes/review-update.html) extends the [on-demand Updates report](desktop-update-discovery-design.md). Open it on Skyline, choose a Signals release and select **Prepare review**. The sample compares the captured declaration and lock entries before enabling **Apply update…**. All observations, file changes and operation outcomes are local fixtures.
+The [Soft proposal](../prototypes/review-update.html) extends the [on-demand Updates report](desktop-update-discovery-design.md). Open it on Skyline, choose a Signals release and select **Prepare review**. The sample compares the captured declaration and lock entries before enabling **Apply update…**. All observations, file changes and operation outcomes are local fixtures.
 
 ## Package and tool decisions
 

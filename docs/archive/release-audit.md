@@ -150,7 +150,7 @@ SeaHash repository supplied a license-only merge directly following the
 published 4.1.0 revision. The local Windows ZIP passed notice, version and
 inspection checks with 590 inventory records and two outstanding omissions,
 mac 0.1.1 and windows-permissions 0.2.4. The Windows portable CI job exercises
-the ZIP verifier and its negative fixtures. [Per-crate provenance](../third-party/README.md)
+the ZIP verifier and its negative fixtures. [Per-crate provenance](../../third-party/README.md)
 
 ## November 19: native custom test controls
 
@@ -1112,7 +1112,7 @@ are tracked in draft PR #106.
 
 The original-notice search was repeated for the three unresolved legacy
 dependencies. No exact-version original was recovered; the
-[provenance record](../third-party/README.md) records the additional evidence.
+[provenance record](../../third-party/README.md) records the additional evidence.
 
 ## October 10–11: shared core and Windows desktop implementation
 
@@ -1155,7 +1155,7 @@ Dependency notices and exact-source supplements are included. Real-window and
 final-package acceptance are recorded in [the framework record](desktop-feasibility.md).
 The current development ZIP passes the extracted-copy checks with 589 dependency
 entries and 26 verified notice supplements. Original notice text remains unavailable
-for three legacy dependencies; [the provenance record](../third-party/README.md)
+for three legacy dependencies; [the provenance record](../../third-party/README.md)
 states those limits. It is not a public release or proof of notice completeness.
 
 Eight desktop tests passed, including GPUI keyboard focus and dependency selection,
@@ -1267,7 +1267,7 @@ default-No interaction changes, also including the semantic Selene preservation
 fix. Only package-version metadata and current documentation change in this
 preparation; source, tests, dependency graph and CI remain identical to reviewed
 main. The published baseline and old tags remain unchanged. See
-[candidate notes](release-notes-0.22.0.md) for user-visible behavior.
+[candidate notes](../releases/release-notes-0.22.0.md) for user-visible behavior.
 
 The candidate binary reports `rproj 0.22.0`. `cargo fmt --all -- --check`,
 `cargo test --locked --offline` (**503 passed, 23 ignored**, nested child
@@ -3675,7 +3675,7 @@ adds, additive project composition, Catalog mouse scrolling, TestEZ companion
 configuration, explicit StarterPlayer classes, and reliable Test/Watch Wally
 synchronization. No dependency was added.
 
-[Release notes](release-notes-0.18.1.md) record user-visible behavior and limits.
+[Release notes](../releases/release-notes-0.18.1.md) record user-visible behavior and limits.
 The owner published from clean commit
 `9d136812d5d33d358b67a36e503db47466fc0760` on September 29, 2026. The
 non-yanked crates.io archive checksum is
@@ -3741,7 +3741,7 @@ and [PR #31](https://github.com/chatarabdelilah/rproj/pull/31), plus aligned man
 versions and release documentation. No dependency or runtime behavior changed
 during version preparation.
 
-[Release notes](release-notes-0.18.0.md) include the DevPackages import migration,
+[Release notes](../releases/release-notes-0.18.0.md) include the DevPackages import migration,
 Local Studio/Open Cloud selection, credentials, and verification limits. The owner
 published from clean commit `ba1319b5ec0a681ffac0d773ae0fb893b21c0692` on
 September 21, 2026. The non-yanked crates.io archive checksum is
@@ -3833,7 +3833,7 @@ Owner publication is verified: crates.io's archive SHA256 is `2dc75bbd10e4e11180
 - Existing Open Cloud and fresh-machine provisioning limitations remain. Ordinary tests do not modify the real clipboard or provision machine applications.
 - Reviewed head `2eb6b49` passed CI run `34426275526`; merged main `b1c1664` passed CI run `34426498712`. Both runs passed Windows stable, Rust 1.89, and package verification. The merged feature branch was deleted locally and remotely. Owner publication, annotated tag, and GitHub prerelease are complete; documentation-only alignment needs no further Cargo publication.
 
-Previous baseline (September 9, 2026): **0.14.0**, alpha, with persistent Home, template save continuity, and Catalog clarity. Its crates.io archive records `f86a7bd06d0f5b637a41a0e0ca05792be66c42e5`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0). SHA256: `b3469e9cf85ae5f1a88f6ec6aaf5065ce05301cd52172414b5adafc34974b95e`. Model import and embedded quality tools are permanently dropped. See [release notes](release-notes-0.14.0.md).
+Previous baseline (September 9, 2026): **0.14.0**, alpha, with persistent Home, template save continuity, and Catalog clarity. Its crates.io archive records `f86a7bd06d0f5b637a41a0e0ca05792be66c42e5`, matching the annotated tag and [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.14.0). SHA256: `b3469e9cf85ae5f1a88f6ec6aaf5065ce05301cd52172414b5adafc34974b95e`. Model import and embedded quality tools are permanently dropped. See [release notes](../releases/release-notes-0.14.0.md).
 
 The published package and annotated `v0.12.2` tag correspond to commit `f71bf4e`; the [GitHub release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.12.2) is a prerelease. The automated Jest regression was merged afterward in [PR #7](https://github.com/chatarabdelilah/rproj/pull/7), at `a855a2f`. It is present on main, not in the published 0.12.2 archive; no runtime code or version changed in that PR.
 

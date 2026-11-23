@@ -27,7 +27,7 @@ Watch acceptances passed serially using Rojo 7.7.0 and Wally 0.3.2: real
 detachment/update/stop and Wally/Jest recovery. Its 24 ignored tests remain a
 separate inventory; only those two named checks ran explicitly for this candidate.
 Package inspection, CodeRabbit review and exact-head/main CI evidence are
-recorded in [the release audit](release-audit.md) and the candidate PR.
+recorded in [the release audit](../archive/release-audit.md) and the candidate PR.
 
 Controlled regressions reproduce a delayed mutation acknowledgment exceeding
 the old deadline and an aborted reply escaping the supervisor. They do not

@@ -1,63 +1,52 @@
 # rproj
 
-[![crates.io](https://img.shields.io/crates/v/rproj.svg)](https://crates.io/crates/rproj)
-[![license](https://img.shields.io/crates/l/rproj.svg)](#license)
-[![Buy Me a Coffee](https://img.shields.io/badge/Support-Buy_Me_a_Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000)](https://buymeacoffee.com/mractr)
+rproj is a guided Windows CLI that sets up your Roblox development tools and creates Luau projects with the dependencies, checks, and assets you choose.
 
-`rproj` is a guided Windows CLI for setting up Roblox/Luau development and creating consistent projects.
+```powershell
+cargo install rproj
+```
 
-> **Status: pre-release alpha.** The main workflows work, but the command surface, generated files, and `rproj.toml` schema may change without migration support. Use it for real projects only when you are willing to review generated changes and update with the tool.
+## Quickstart
+
+Create a project and start watching it from PowerShell using the default projects folder:
+
+```powershell
+rproj new my-first-game
+cd "$env:USERPROFILE\Documents\RobloxProjects\my-first-game"
+rproj watch
+```
+
+New Project guides you through setup and shows the destination before creation. If you chose a different projects folder, use the path shown there. Watch restores dependencies and keeps the Rojo sourcemap current.
+
+## Requirements
+
+- Windows with WinGet.
+- Rust and Cargo to install from crates.io or source. The portable Windows x64 CLI can bootstrap Rokit without Cargo.
+- Network access to install tools and packages.
+
+**Public alpha.** Commands, configuration, and generated files can change between releases. [Changelog](CHANGELOG.md).
+
+## Other installation options
+
+### Portable CLI for a fresh x64 Windows PC
+
+Use the development archive when copying the CLI to a machine without the Visual C++ Redistributable. Its `rproj.exe` includes the MSVC runtime through static linking.
+
+1. Sign in to GitHub and open a recent successful `main` run in [CI](https://github.com/chatarabdelilah/rproj/actions/workflows/ci.yml?query=branch%3Amain). Under **Artifacts**, download **rproj-desktop-windows-x86_64**.
+2. Extract the downloaded ZIP, then extract the portable ZIP inside it. Copy **`rproj.exe`** from the inner archive to the target PC. The separate `rproj-desktop.exe` is the GUI.
+3. Open PowerShell in the folder containing the copied CLI and run `.\rproj.exe --version`. To start Machine Setup, run `.\rproj.exe setup`.
+
+### Install from source
+
+The repository version can be installed with:
+
+```powershell
+git clone https://github.com/chatarabdelilah/rproj.git
+cd rproj
+cargo install --path .
+```
 
 ## What rproj does
-
-The unreleased desktop transition introduces shared, read-only project inspection:
-`rproj inspect [path] --json` reports schema-versioned declarations, lockfile
-resolutions, package-file presence, tool pins, diagnostics, and configured actions.
-It does not install tools or change project files. Human output is the default.
-Watch now lists actual `wally.toml` aliases from every realm; `rproj.toml` retains
-your saved composition choices. Watch restores dependencies but does not
-automatically upgrade package requirements or tool pins.
-
-Use `rproj updates [path]` to check direct Wally packages and project Rokit pins
-on demand. The report shows local versions, the highest stable Wally release
-within each requirement, and the highest stable release overall. Public GitHub
-forks use their own releases. Custom registries and unavailable sources appear
-with explanations. Add `--json` for the versioned report and Unix check time.
-Partial reports exit successfully; failure to produce a report exits nonzero.
-
-In the matching Windows desktop workbench, open **Dependencies** or **Tools → View
-updates… → Check for updates**. Select one release and choose **Prepare review**
-to see the declaration, lockfile or tool-pin changes. **Apply update…** asks for
-confirmation. Local package edits and changes to another direct alias block
-Apply. Stop Watch separately if it owns the selected project.
-
-Assets 3D checks the installed Blender executable independently of old machine
-setup selections. In an existing project, `rproj setup blender` creates a missing
-`blender/scene.blend` and preserves an existing scene. Missing Blender is reported
-before project creation; ordinary Upgrade does not generate binary asset files.
-
-The [desktop transition](docs/desktop-transition.md) keeps the terminal interface
-and CLI. `rproj app [path]` locates a sibling or previously registered desktop
-executable; installing the CLI with Cargo does not download the GUI. Desktop
-distribution and acceptance evidence are tracked in the
-[feasibility record](docs/desktop-feasibility.md).
-
-Published [0.22.0](docs/release-notes-0.22.0.md) adds Ratatui Upgrade file-diff
-review with default-No Apply-all confirmation and refuses unsafe Selene TOML
-merges before writes. It remains public alpha.
-
-Published [0.21.2](docs/release-notes-0.21.2.md) makes recreated Selene
-configuration complete after one Upgrade, eliminating a spacing-only second
-review. A second run leaves every project file unchanged.
-
-Published [0.21.1](docs/release-notes-0.21.1.md) makes upgrade review cover every
-file write, including `.gitignore`, `.luaurc`, and TestEZ's `tests/.luaurc`.
-Housekeeping-only repairs require confirmation; cancellation writes nothing,
-and skipped files are reported clearly.
-
-Published [0.21.0](docs/release-notes-0.21.0.md) removes Git-submodule dependencies. New projects and saved compositions support Wally or None. Old `git-submodules` records are unsupported; there is no compatibility layer, automatic conversion or migration tooling. Existing repositories, templates and dependency folders are not deleted or converted.
-
-It retains [0.20.4's official Wally tool requirement](docs/release-notes-0.20.4.md): older projects must explicitly update their tool pin before upgrading managed Wally CI; upgrade explains the requirement and preserves files. Missing-Git guidance, background Watch improvements, missing-Cargo and missing-WinGet recovery, and UI Labs 2.4.2 remain. rproj remains alpha software.
 
 rproj connects two layers that are usually assembled by hand:
 
@@ -109,55 +98,6 @@ Detected external edits require leaving the editor and refreshing; there is no f
 
 Use `rproj info` to browse the complete current catalog and `rproj info <key>` to inspect one entry.
 
-## Requirements
-
-- Windows with `winget`
-- Rust and Cargo for installation from crates.io or source, and for Machine Setup to bootstrap Rokit when it is missing
-- Network access while installing tools and packages
-
-## Install
-
-### Portable CLI for a fresh x64 Windows PC
-
-Use the development archive when copying the CLI to a machine without the Visual C++ Redistributable. Its `rproj.exe` includes the MSVC runtime through static linking.
-
-1. Sign in to GitHub and open a recent successful `main` run in [CI](https://github.com/chatarabdelilah/rproj/actions/workflows/ci.yml?query=branch%3Amain). Under **Artifacts**, download **rproj-desktop-windows-x86_64**.
-2. Extract the downloaded ZIP, then extract the portable ZIP inside it. Copy **`rproj.exe`** from the inner archive to the target PC. The separate `rproj-desktop.exe` is the GUI.
-3. Open PowerShell in the folder containing the copied CLI and run `.\rproj.exe --version`. To start Machine Setup, run `.\rproj.exe setup`.
-
-### Install with Cargo
-
-```powershell
-cargo install rproj
-```
-
-The repository version can be installed with:
-
-```powershell
-git clone https://github.com/chatarabdelilah/rproj.git
-cd rproj
-cargo install --path .
-```
-
-## First project
-
-```powershell
-rproj new my-first-game
-```
-
-On a new machine, rproj first offers the missing machine-level tools. It then asks how the project should manage packages, which packages and capabilities it needs, and which generated files to keep. The final summary is reviewable before anything is created and lists the relevant `rproj configure` commands for the chosen project.
-
-After creation:
-
-```powershell
-cd my-first-game
-rproj watch
-```
-
-`rproj watch` restores missing project dependencies, regenerates the Rojo sourcemap, and starts the development watcher.
-
-On Windows, `rproj watch start` runs that sourcemap Watch in the background after rproj closes. Only one project can run in the background per user. Use `rproj watch status`, `rproj watch logs`, and `rproj watch stop` from any directory. Stop finishes the active recovery command before skipping later work. During watching it terminates the owned process tree. Startup is manual; Watch does not restart after logout/reboot or failure. It does not run Rojo Serve.
-
 ## Commands
 
 | Command | Purpose |
@@ -176,6 +116,41 @@ On Windows, `rproj watch start` runs that sourcemap Watch in the background afte
 | `rproj copy` | Copy source files with path headers |
 | `rproj info [key]` | Open the TUI Catalog or print one entry when a key is supplied |
 | `rproj --verbose ...` | Include commands and captured subprocess output |
+
+### Project inspection, updates, and Watch
+
+`rproj inspect [path] --json` reports schema-versioned declarations, lockfile
+resolutions, package-file presence, tool pins, diagnostics, and configured actions.
+It does not install tools or change project files. Human output is the default.
+Watch now lists actual `wally.toml` aliases from every realm; `rproj.toml` retains
+your saved composition choices. Watch restores dependencies but does not
+automatically upgrade package requirements or tool pins.
+
+Use `rproj updates [path]` to check direct Wally packages and project Rokit pins
+on demand. The report shows local versions, the highest stable Wally release
+within each requirement, and the highest stable release overall. Public GitHub
+forks use their own releases. Custom registries and unavailable sources appear
+with explanations. Add `--json` for the versioned report and Unix check time.
+Partial reports exit successfully; failure to produce a report exits nonzero.
+
+In the matching Windows desktop workbench, open **Dependencies** or **Tools → View
+updates… → Check for updates**. Select one release and choose **Prepare review**
+to see the declaration, lockfile or tool-pin changes. **Apply update…** asks for
+confirmation. Local package edits and changes to another direct alias block
+Apply. Stop Watch separately if it owns the selected project.
+
+Assets 3D checks the installed Blender executable independently of old machine
+setup selections. In an existing project, `rproj setup blender` creates a missing
+`blender/scene.blend` and preserves an existing scene. Missing Blender is reported
+before project creation; ordinary Upgrade does not generate binary asset files.
+
+The [desktop transition](docs/archive/desktop-transition.md) keeps the terminal interface
+and CLI. `rproj app [path]` locates a sibling or previously registered desktop
+executable; installing the CLI with Cargo does not download the GUI. Desktop
+distribution and acceptance evidence are tracked in the
+[feasibility record](docs/archive/desktop-feasibility.md).
+
+On Windows, `rproj watch start` runs that sourcemap Watch in the background after rproj closes. Only one project can run in the background per user. Use `rproj watch status`, `rproj watch logs`, and `rproj watch stop` from any directory. Stop finishes the active recovery command before skipping later work. During watching it terminates the owned process tree. Startup is manual; Watch does not restart after logout/reboot or failure. It does not run Rojo Serve.
 
 ### Projects
 
@@ -312,7 +287,7 @@ it for private paths or names. Logs include choices, steps, and errors, but omit
 credentials-related fields, raw keystrokes, source/clipboard contents, and raw
 external-tool output. Nothing is uploaded automatically.
 
-See [diagnostic logs](https://github.com/chatarabdelilah/rproj/blob/main/docs/diagnostic-logs.md)
+See [diagnostic logs](https://github.com/chatarabdelilah/rproj/blob/main/docs/archive/diagnostic-logs.md)
 for location, limits, and opt-out.
 
 ### Checks
@@ -338,11 +313,15 @@ pwsh -File scripts/package-desktop.ps1
 The portable script builds with a static MSVC runtime, bundles dependency
 notices, and verifies the extracted executables. Its archive is a development
 build until a coordinated release is prepared. Native acceptance and remaining
-distribution checks are recorded in [the framework record](docs/desktop-feasibility.md).
+distribution checks are recorded in [the framework record](docs/archive/desktop-feasibility.md).
 
-The codebase separates CLI dispatch, decision modeling, catalogs, command orchestration, and filesystem/process steps. See [Architecture](https://github.com/chatarabdelilah/rproj/blob/main/docs/architecture.md), [Development plan](https://github.com/chatarabdelilah/rproj/blob/main/docs/plan.md), [UX redesign](https://github.com/chatarabdelilah/rproj/blob/main/docs/ux-redesign.md), and [Release process](https://github.com/chatarabdelilah/rproj/blob/main/docs/releasing.md).
+The codebase separates CLI dispatch, decision modeling, catalogs, command orchestration, and filesystem/process steps. See [Architecture](https://github.com/chatarabdelilah/rproj/blob/main/docs/architecture.md), [Development plan](https://github.com/chatarabdelilah/rproj/blob/main/docs/plan.md), [UX redesign](https://github.com/chatarabdelilah/rproj/blob/main/docs/archive/ux-redesign.md), and [Release process](https://github.com/chatarabdelilah/rproj/blob/main/docs/releasing.md).
 
 ## Support
+
+[![crates.io](https://img.shields.io/crates/v/rproj.svg)](https://crates.io/crates/rproj)
+[![license](https://img.shields.io/crates/l/rproj.svg)](#license)
+[![Buy Me a Coffee](https://img.shields.io/badge/Support-Buy_Me_a_Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=000)](https://buymeacoffee.com/mractr)
 
 Support continued development through [Buy Me a Coffee](https://buymeacoffee.com/mractr).
 

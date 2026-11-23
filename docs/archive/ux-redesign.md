@@ -1,6 +1,6 @@
 # rproj - UX Direction
 
-This describes the current interaction contract and subsequent direction. Historical milestones are in [the roadmap](plan.md); implementation details belong in [architecture](architecture.md).
+This describes the current interaction contract and subsequent direction. Historical milestones are in [the roadmap](../plan.md); implementation details belong in [architecture](../architecture.md).
 
 ## Product Principle
 

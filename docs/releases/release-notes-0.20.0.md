@@ -44,7 +44,7 @@ The candidate passed 472 ordinary locked Windows tests, formatting and clippy.
 Its 24 ignored tests are not ordinary passes; explicit serial runs passed all
 14 live workflows, four real-Rojo template checks, both installed background
 Watch acceptances and the installed Jest missing-credential refusal check.
-The [release audit](release-audit.md) records commands, tool versions and limits.
+The [release audit](../archive/release-audit.md) records commands, tool versions and limits.
 The [release PR #75](https://github.com/chatarabdelilah/rproj/pull/75) passed
 clean locked packaging, zero-finding CodeRabbit review and exact-head/main
 Windows stable, Rust 1.89 and locked-package CI. The owner-published archive's

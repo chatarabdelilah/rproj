@@ -2,11 +2,11 @@
 
 The owner approved the [design scope](desktop-copy-source-design.md), not native
 implementation, on November 8 against main `64948d9`. The separate
-[prototype](prototypes/copy-source.html) contains only labeled sample data.
+[prototype](../prototypes/copy-source.html) contains only labeled sample data.
 
 ## Automated evidence
 
-All 23 [Node/DOM checks](prototypes/copy-source.test.cjs) pass with jsdom 26.1.0,
+All 23 [Node/DOM checks](../prototypes/copy-source.test.cjs) pass with jsdom 26.1.0,
 including 24 Light/Dark contrast comparisons above 4.5:1.
 Reproduce from the repository root:
 

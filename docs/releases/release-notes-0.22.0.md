@@ -51,7 +51,7 @@ raw-mode restoration. Source, tests, dependencies and CI are unchanged from
 the reviewed viewer implementation in this release preparation.
 
 Release verification and exact review/CI evidence are recorded in
-[the release audit](release-audit.md) and
+[the release audit](../archive/release-audit.md) and
 [release PR #104](https://github.com/chatarabdelilah/rproj/pull/104).
 The owner published from clean commit
 `9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. The official archive's checksum

@@ -1,6 +1,6 @@
 # rproj — Architecture
 
-Published baseline: **0.22.0**. The approved [desktop transition](desktop-transition.md) is in progress; no later release candidate is prepared. Release scope and verification are recorded in [the release audit](release-audit.md).
+Published baseline: **0.22.0**. The approved [desktop transition](archive/desktop-transition.md) is in progress; no later release candidate is prepared. Release scope and verification are recorded in [the release audit](archive/release-audit.md).
 
 ## 1. System Overview
 
@@ -48,7 +48,7 @@ closure. Stop-and-switch requires the old supervisor's acknowledged termination.
 The CLI remains the execution adapter during incremental extraction, reusing its
 existing file guards and external command implementations.
 
-The private [creation worker](desktop-creation-worker.md) adds bounded context and
+The private [creation worker](archive/desktop-creation-worker.md) adds bounded context and
 operation-owned request/report files. Preparation validates without creating a
 destination; confirmed execution revalidates captured sources and the full plan.
 Claim state and outcome come from atomic structured reports, not human output.
@@ -56,7 +56,7 @@ Existing CLI creation calls the same executor with a no-op observer. Native
 execution supplies explicit server-derived config/setup storage and an observer;
 no production profile override or configuration schema is introduced.
 
-**Scope decision (October 8, 2026):** The owner approved a native desktop workbench with an incremental shared core. Ratatui remains supported during migration; direct commands remain permanent. The [desktop transition](desktop-transition.md) defines the first alpha and its GPUI feasibility gate. Rojo, Selene, StyLua, and other external tools retain their responsibilities. Tauri and model-to-template import remain dropped.
+**Scope decision (October 8, 2026):** The owner approved a native desktop workbench with an incremental shared core. Ratatui remains supported during migration; direct commands remain permanent. The [desktop transition](archive/desktop-transition.md) defines the first alpha and its GPUI feasibility gate. Rojo, Selene, StyLua, and other external tools retain their responsibilities. Tauri and model-to-template import remain dropped.
 
 ## 2. Behavior / Rules Specification
 
@@ -100,7 +100,7 @@ Individual installer failures remain recoverable warnings; foundational Rokit an
 
 ### 2.3 Project scaffolding (`rproj new`, after provisioning)
 
-**The prompt order is the design.** Each answer narrows the next, and no prompt asks about a consequence of a decision made after it — see [the UX direction](ux-redesign.md) for the current decision and interaction contract.
+**The prompt order is the design.** Each answer narrows the next, and no prompt asks about a consequence of a decision made after it — see [the UX direction](archive/ux-redesign.md) for the current decision and interaction contract.
 
 1. Fails if the target project folder already exists (checked before provisioning even runs).
 2. **Dependency strategy** — `Wally` (recommended) / `none`. Keep this explicit choice before package selection. Wally owns package installation and dependency resolution; None creates a dependency-free project and skips the package picker.
@@ -853,7 +853,7 @@ Each of these was learned from an actual reproduced failure during this project'
 
 ### 7.1 Source comment policy
 
-Source comments should state local invariants, external-tool traps, generated-file contracts, or why a nearby branch exists. They should not carry the whole design history. Broader rationale belongs in this architecture document, `docs/plan.md`, or `docs/ux-redesign.md`.
+Source comments should state local invariants, external-tool traps, generated-file contracts, or why a nearby branch exists. They should not carry the whole design history. Broader rationale belongs in this architecture document, `docs/plan.md`, or `docs/archive/ux-redesign.md`.
 
 Keep comments that prevent a known bug from being reintroduced. Replace module-level essays with short pointers to the relevant docs section. Keep generated-file comments when the generated output is read by users, not just by rproj. Remove narrative comments once the same fact is covered by a test name and a docs section.
 
@@ -1050,7 +1050,7 @@ Each navigation-stack entry retains its group path, query, selection, list
 offset, detail focus, and detail scroll. Root search includes descendants and
 labels their breadcrumb. List rows are Unicode-width truncated; details wrap
 with code indentation retained and remain scrollable. Source checks and runtime
-limits are recorded in [Catalog example evidence](catalog-examples.md).
+limits are recorded in [Catalog example evidence](archive/catalog-examples.md).
 
 Home is a small explicit session loop, not a router/framework. One
 `TerminalSession` is borrowed by Projects, Catalog, creation questions,
@@ -1299,7 +1299,7 @@ tests and 94 integration tests. Twenty-three prerequisite-dependent tests
 are ignored in the ordinary suite, leaving 503 ordinary tests (nested child
 summaries excluded). Windows stable and Rust 1.89 CI run the locked suite;
 stable also runs strict Clippy and formatting, and packaging builds the crate
-archive. Current evidence and limitations are in [the audit](release-audit.md).
+archive. Current evidence and limitations are in [the audit](archive/release-audit.md).
 
 Catalog resize recovery has two unit regressions for filtered selection, list
 viewport visibility, detail scroll/render preservation and Back history. A
@@ -1345,7 +1345,7 @@ T3 covers shallow discovery, canonical deduplication, Unicode filtering, junctio
 
 T2 adds package-guide coverage and import-alias tests; grouped Catalog completeness, ordering, Back state, End/Up detail scrolling, and four-size renders; real PTY repeated save/reset and malformed-JSON repair; save-baseline/atomic-failure regressions; and Home template/command cancellation plus Windows foreground child-interruption tests. The editor PTY driver exists only in the unit-test executable and writes isolated temporary files. Its persistence callback exercises the real atomic writer; Rojo authority is covered separately by the real-Rojo suite. Existing live creation checks now acknowledge command completion and return Home before exiting.
 
-`src/diagnostics.rs` owns best-effort per-run text logging, with semantic events at command, prompt, shared UI, TUI, and subprocess boundaries. It writes outside the project, bounds file/event sizes, omits opaque input/output at call sites, and applies conservative redaction before writing. Logging cannot replace the command's exit status. See [coverage, privacy, and controls](diagnostic-logs.md); this is not a terminal transcript or a substitute for an external runner's detailed report.
+`src/diagnostics.rs` owns best-effort per-run text logging, with semantic events at command, prompt, shared UI, TUI, and subprocess boundaries. It writes outside the project, bounds file/event sizes, omits opaque input/output at call sites, and applies conservative redaction before writing. Logging cannot replace the command's exit status. See [coverage, privacy, and controls](archive/diagnostic-logs.md); this is not a terminal transcript or a substitute for an external runner's detailed report.
 
 Two dev-dependencies, both only for the integration tests. `portable-pty` because inquire reads the console input handle rather than stdin, so a piped `rproj configure stylua` renders its first prompt and then hangs forever — a real pseudo-terminal is the only way to answer a prompt without a human. `vt100` because the pty byte stream is not what the program printed: ConPTY re-renders the screen and may express a line break as `\n` or as a cursor-position escape, and which one it picks varies with machine load. Matching the raw bytes passed when the test ran alone and failed three runs in five under a parallel `cargo test`; rendering the bytes to a screen first made it deterministic. Synchronisation is by expecting output, never by sleeping — the whole suite finishes in under a second.
 

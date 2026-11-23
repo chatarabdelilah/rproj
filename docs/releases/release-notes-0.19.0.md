@@ -42,7 +42,7 @@ build passed with an inspected 101-file archive. Final CodeRabbit review reporte
 zero findings. [Release PR #48](https://github.com/chatarabdelilah/rproj/pull/48)
 passed reviewed-head and merged-main Windows stable, Rust 1.89, and package CI.
 The published archive matches release commit `68fa479`;
-[the release audit](release-audit.md) records local commands and evidence.
+[the release audit](../archive/release-audit.md) records local commands and evidence.
 
 This release adds the Windows-only `windows-permissions` 0.2.4 dependency for
 permission-preserving saves. Local validation runs on Windows; authenticated

@@ -46,7 +46,7 @@ ignored, and strict all-target Clippy pass. Clean locked packaging builds its
 and manifest/root-lockfile versions are aligned. Both local CodeRabbit reviews
 report zero findings, including all seven files in the final branch review.
 Release [PR #97](https://github.com/chatarabdelilah/rproj/pull/97) passed all four
-required jobs on its final reviewed head and merged main; [the release audit](release-audit.md)
+required jobs on its final reviewed head and merged main; [the release audit](../archive/release-audit.md)
 records the run identities and package inspection. Source, tests, dependencies and CI are
 unchanged from the reviewed implementation; only the package version and release
 documentation change.

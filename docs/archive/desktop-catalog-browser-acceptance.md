@@ -1,12 +1,12 @@
 # Catalog browser wireframe acceptance
 
 The owner approved the [proposal](desktop-catalog-browser-design.md) on November 7.
-The [source](prototypes/catalog-browser.html) is a standalone conversation
+The [source](../prototypes/catalog-browser.html) is a standalone conversation
 fragment. Native implementation and rendering acceptance are not implied.
 
 ## Automated evidence
 
-All 16 [Node tests](prototypes/catalog-browser.test.cjs) pass with jsdom 26.1.0.
+All 16 [Node tests](../prototypes/catalog-browser.test.cjs) pass with jsdom 26.1.0.
 Run from the repository root:
 
 ```powershell
