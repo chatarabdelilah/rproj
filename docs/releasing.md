@@ -1,9 +1,10 @@
 # Releasing rproj
 
-The next public alpha candidate is **0.23.1**. Its coordinated CLI, core and
-desktop versions include the Windows x64 Machine Setup fixes. See the
-[candidate release notes](release-notes-0.23.1.md) and follow the owner
-publication steps below after candidate verification.
+The published baseline is **0.23.1, public alpha**. Both crates.io archives
+matched their registry checksums and recorded clean commit
+`64a35162ddcac702629e82ef3226ab8f4f9fec80`. The annotated tag and
+[GitHub prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.23.1)
+point to that commit. See the [release notes](release-notes-0.23.1.md).
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
@@ -26,7 +27,7 @@ reviews and all four final-head/merged-main CI jobs passed before publication.
 The release branches were verified and removed. Existing shipped tags remain
 unchanged.
 
-The published baseline is **v0.23.0, public alpha**, at
+The preceding release was **v0.23.0, public alpha**, at
 `40b903dd446edeb52b4e565800135812beabdf45`. Both crates.io archives matched
 the registry checksums and recorded that clean Git commit. The annotated tag
 and [GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.23.0)
