@@ -127,6 +127,10 @@ destination. Activity reported writing `default.project.json`, generating
 `sourcemap.json`, and updating `.gitignore`. The owner clicked Open project
 and confirmed that Overview showed `FirstRunPreflight` as the active project.
 
+On the same Windows build, the owner clicked **Start Watch** and observed the
+status change from **Stopped** to **Running**. Clicking **Stop Watch** returned
+the status to **Stopped**. Overview still showed `FirstRunPreflight` as active.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
