@@ -1,7 +1,7 @@
 # Projects browser proposal
 
 Design scope approved November 1, 2026, against main `f5ada11`. The
-[interactive sample](prototypes/projects-browser.html) starts with Skyline
+[interactive sample](../prototypes/projects-browser.html) starts with Skyline
 open and watched. Lantern is selected for preview. Its Rojo file is readable
 and its rproj record is malformed. **Open project** is the only action in the
 preview that changes the active workspace.

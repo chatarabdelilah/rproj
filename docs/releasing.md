@@ -4,7 +4,7 @@ The published baseline is **0.23.1, public alpha**. Both crates.io archives
 matched their registry checksums and recorded clean commit
 `64a35162ddcac702629e82ef3226ab8f4f9fec80`. The annotated tag and
 [GitHub prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.23.1)
-point to that commit. See the [release notes](release-notes-0.23.1.md).
+point to that commit. See the [release notes](releases/release-notes-0.23.1.md).
 
 Every public version must use the same version number in `Cargo.toml`, `Cargo.lock`, the Git tag, the crates.io package, and the GitHub release.
 
@@ -13,7 +13,7 @@ The previous published baseline was **v0.22.0, public alpha**, at
 archive checksum and clean Git identity, annotated tag and
 [GitHub alpha release](https://github.com/chatarabdelilah/rproj/releases/tag/v0.22.0)
 are verified. Cargo manifest and root lockfile identify 0.22.0. See
-[published notes](release-notes-0.22.0.md), [audit evidence](release-audit.md),
+[published notes](releases/release-notes-0.22.0.md), [audit evidence](archive/release-audit.md),
 and [release PR #104](https://github.com/chatarabdelilah/rproj/pull/104).
 
 The release includes the semantic Selene preservation fix and Ratatui Upgrade
@@ -34,7 +34,7 @@ and [GitHub alpha prerelease](https://github.com/chatarabdelilah/rproj/releases/
 point to the same release. Public distribution covers the Cargo CLI and core library.
 The desktop workspace version tracks the CLI for matching worker builds.
 The portable desktop ZIP remains a CI artifact while native host acceptance
-is paused. See the [release notes](release-notes-0.23.0.md).
+is paused. See the [release notes](releases/release-notes-0.23.0.md).
 
 The agent owns preparation, CI and CodeRabbit follow-through, merging, post-merge verification, merged-branch cleanup, and tag/GitHub release alignment after publication. The repository owner alone runs `cargo publish --locked`.
 

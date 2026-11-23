@@ -12,7 +12,7 @@ No new packages, background Watch, projects browser, Ratatui Machine Setup, impo
 
 ## Verification and Limits
 
-See [the release audit](release-audit.md) and [Catalog example evidence](catalog-examples.md). Automated Windows PTYs cover shared terminal ownership, repeated saves/repair/reset, cancelled prompts, Watch interruption/failure, and stopping before the test runner after interrupted restoration. Real Rojo checks retain final format authority.
+See [the release audit](../archive/release-audit.md) and [Catalog example evidence](../archive/catalog-examples.md). Automated Windows PTYs cover shared terminal ownership, repeated saves/repair/reset, cancelled prompts, Watch interruption/failure, and stopping before the test runner after interrupted restoration. Real Rojo checks retain final format authority.
 
 Only already-installed tools are used for live checks. Full fresh-machine provisioning, Open Cloud credentials, and every UI package's complete runtime lifecycle are not validated by this release. Package examples are concise starting points, not complete persistence, replication, or security implementations. Submodule commits can differ from catalogued Wally versions.
 

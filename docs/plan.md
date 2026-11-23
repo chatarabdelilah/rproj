@@ -1,11 +1,11 @@
 # rproj - Release Roadmap
 
-Updated November 23, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated November 23, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](archive/ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
-The [project Updates view](desktop-update-discovery-design.md) and `rproj updates`
-share on-demand public release checks. The approved [single-update review](desktop-reviewed-update-design.md)
+The [project Updates view](archive/desktop-update-discovery-design.md) and `rproj updates`
+share on-demand public release checks. The approved [single-update review](archive/desktop-reviewed-update-design.md)
 adds desktop Apply for one observed package or project tool at a time. Released-tool and matching-worker fixtures passed for Wally and Rokit. The public command remains read-only.
 Windows desktop development and real-window acceptance may proceed.
 
@@ -13,7 +13,7 @@ Windows desktop development and real-window acceptance may proceed.
 
 rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
 
-- Desktop is the approved future primary human interface. Follow the [desktop transition](desktop-transition.md), beginning with correctness fixes and a GPUI feasibility gate. Retain Ratatui during migration and direct commands permanently; reuse existing graphs, catalogs, and execution.
+- Desktop is the approved future primary human interface. Follow the [desktop transition](archive/desktop-transition.md), beginning with correctness fixes and a GPUI feasibility gate. Retain Ratatui during migration and direct commands permanently; reuse existing graphs, catalogs, and execution.
 - Direct commands remain available for automation and normal subprocess output.
 - Rojo owns model loading, builds, synchronization, and sourcemaps.
 - Selene owns linting, StyLua owns formatting, and luau-lsp owns type analysis.
@@ -23,7 +23,7 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 ## Current State
 
 **November 23 — resume Windows desktop acceptance.** The owner closed the
-[memory/display investigation](desktop-memory-investigation.md) and asked to
+[memory/display investigation](archive/desktop-memory-investigation.md) and asked to
 reopen it only if the symptoms recur. This supersedes the pause in earlier
 entries. Real-window workflows still need ordinary acceptance checks.
 
@@ -31,7 +31,7 @@ entries. Real-window workflows still need ordinary acceptance checks.
 Machine Setup now installs a verified prebuilt Rokit and gives a recovery
 command when the Visual C++ runtime is missing. The first-install guest
 completed setup after the owner installed that runtime. A fixture covers
-the diagnostic. [Release notes](release-notes-0.23.1.md) and
+the diagnostic. [Release notes](releases/release-notes-0.23.1.md) and
 [publication record](releasing.md).
 
 **Desktop delivery.** Native custom Test merged in
@@ -46,26 +46,26 @@ Setup button, retains their draft across navigation and offers Recheck.
 A headless check follows a named draft through simulated setup success,
 then uses Overview → Resume project creation to continue to Dependencies.
 A separate Home summary is optional for this workflow. The
-[parity audit](desktop-integration-audit.md#first-run-readiness-follow-up)
+[parity audit](archive/desktop-integration-audit.md#first-run-readiness-follow-up)
 records the fixture boundary and the remaining real-window gate.
 
 **November 19: native custom test controls.** Shared invocation/context and worker
 delivery is verified through #160. Native exact-value rows, captured invocation
 review and default/custom Test close protection pass headless tests. The
-[implementation ledger](desktop-test-arguments-native.md) tracks PR 2 review,
+[implementation ledger](archive/desktop-test-arguments-native.md) tracks PR 2 review,
 packaging and CI separately from paused real-window acceptance. Default Test,
 Checks and Watch ownership retain their existing execution boundaries.
 
 **November 18: custom test arguments implementation approved.** The owner approved
 two reviewed PRs: shared invocation/context and private worker, then native Soft
 controls. Both default and custom Test will receive cancellation-and-close
-protection; Checks remains unchanged. The [implementation record](desktop-test-arguments-native.md)
+protection; Checks remains unchanged. The [implementation record](archive/desktop-test-arguments-native.md)
 tracks validation and delivery. Native previews remain paused.
 
 **November 18: custom test arguments design.** Audit F3's optional argument
-gap is selected for a separate [Soft proposal](desktop-test-arguments-design.md).
+gap is selected for a separate [Soft proposal](archive/desktop-test-arguments-design.md).
 Exact rows and invocation preview retain a captured session draft; default Test
-stays unchanged. Steady Watch remains compatible with testing. [Acceptance](desktop-test-arguments-acceptance.md)
+stays unchanged. Steady Watch remains compatible with testing. [Acceptance](archive/desktop-test-arguments-acceptance.md)
 separates deterministic sample checks from unverified rendering. Native
 implementation follows owner design approval; previews remain paused.
 
@@ -73,26 +73,26 @@ implementation follows owner design approval; previews remain paused.
 and private worker delivery are verified through #156 and #157. The Soft
 Tool → Review → Results flow passes headless checks for captured ownership,
 Watch protection, retained Activity and wait-for-completion closing. The
-[implementation record](desktop-project-tool-setup-native.md) tracks native
+[implementation record](archive/desktop-project-tool-setup-native.md) tracks native
 review/packaging/CI delivery separately from paused real-window acceptance.
 
 **November 17: native Project Tool Setup approved.** Implementation proceeds
 through shared checked execution, private worker, then Soft controls. The
-[implementation record](desktop-project-tool-setup-native.md) separates current
+[implementation record](archive/desktop-project-tool-setup-native.md) separates current
 evidence from pending delivery. Existing pins/files stay intact; required tool
 failures must fail the single-tool command. Native previews remain paused.
 
 **November 16: Project Tool Setup design.** The separate Soft
-[proposal](desktop-project-tool-setup-design.md) reviews one captured project's
+[proposal](archive/desktop-project-tool-setup-design.md) reviews one captured project's
 tool setup at a time, with preserved pins/files, explicit partial results and
-wait-for-completion closing. [Acceptance](desktop-project-tool-setup-acceptance.md)
+wait-for-completion closing. [Acceptance](archive/desktop-project-tool-setup-acceptance.md)
 records sample checks separately from unverified rendering. Owner design review
 precedes native planning. The CLI helper's warning-only failed-add handling must
 be addressed before native execution; no runtime behavior changes in this pass.
 Native previews remain paused; published version stays 0.22.0.
 
 **November 10: desktop parity and integration audit.** The
-[evidence matrix](desktop-integration-audit.md) reconciles all 18 inventory rows
+[evidence matrix](archive/desktop-integration-audit.md) reconciles all 18 inventory rows
 against `c5c4f87` and adds three headless cross-workflow checks. All six Home
 destinations are available; a separate Home status summary is not implemented.
 Project-specific `setup <tool>` remains a native feature gap, distinct from
@@ -107,13 +107,13 @@ is unchanged. Older entries below describe dated milestones, not open tasks.
 reporting merged through #151 at `ca0a783`. The retained Soft review now has
 headless evidence; [PR #152](https://github.com/chatarabdelilah/rproj/pull/152)
 tracks delivery verification. The
-[implementation record](desktop-copy-source-native.md) tracks both reviewed PRs.
+[implementation record](archive/desktop-copy-source-native.md) tracks both reviewed PRs.
 Native previews stay paused; published version remains 0.22.0.
 
 **November 8: Copy Source review design.** The separate Soft
-[Copy Source proposal](desktop-copy-source-design.md) reviews a captured `src`
+[Copy Source proposal](archive/desktop-copy-source-design.md) reviews a captured `src`
 snapshot before requesting a simulated copy. Partial copies explicitly list
-skips; Refresh is explicit and Watch stays independent. [Acceptance](desktop-copy-source-acceptance.md)
+skips; Refresh is explicit and Watch stays independent. [Acceptance](archive/desktop-copy-source-acceptance.md)
 separates sample checks from unverified rendering. Native implementation awaits
 owner design review; previews remain paused and version 0.22.0 is unchanged.
 
@@ -121,24 +121,24 @@ owner design review; previews remain paused and version 0.22.0 is unchanged.
 through #148 with reviewed-head/main CI passing. The Soft native browser now
 uses all six core inventories without a worker query; headless checks cover
 typed identity, search, related Back, dependency links and retained ownership.
-See the [implementation record](desktop-catalog-native.md). No native previews.
+See the [implementation record](archive/desktop-catalog-native.md). No native previews.
 
-**November 7: Catalog browser design.** The separate Soft [Catalog proposal](desktop-catalog-browser-design.md)
+**November 7: Catalog browser design.** The separate Soft [Catalog proposal](archive/desktop-catalog-browser-design.md)
 uses a searchable library with six sections, kind-specific guides, related-entry
-navigation and read-only examples/documentation. [Acceptance](desktop-catalog-browser-acceptance.md)
+navigation and read-only examples/documentation. [Acceptance](archive/desktop-catalog-browser-acceptance.md)
 records deterministic sample checks separately from unverified rendering.
 The owner approved this flow for native implementation; native previews stay paused.
 
 **Native Projects browser.** Ratatui and the Soft workbench share shallow
 discovery. Preview and explicit Open are separate. A missing or redirected
 previewed folder leaves the active workspace and Watch intact. See the
-[native implementation record](desktop-projects-browser-native.md) for
+[native implementation record](archive/desktop-projects-browser-native.md) for
 automated evidence and the limits of acceptance.
 
 **November 1: Projects browser design review.** The separate [Projects
-proposal](desktop-projects-browser-design.md) puts Browse projects… in the
+proposal](archive/desktop-projects-browser-design.md) puts Browse projects… in the
 switcher and empty view. Selecting a row previews it; opening changes the
-workspace and keeps Watch on its original project. [Acceptance](desktop-projects-browser-acceptance.md)
+workspace and keeps Watch on its original project. [Acceptance](archive/desktop-projects-browser-acceptance.md)
 records simulated checks and rendering limitations. Owner review precedes
 native implementation planning.
 
@@ -147,7 +147,7 @@ machine-wide draft. Changed saves validate all eight generation variants with
 global Rojo, then require review and confirmation. The shared editor merged
 in #140, the Machine Setup Stop correction in #141, and the private worker in
 #142. The native controls passed local headless and packaging checks.
-[Implementation and verification](desktop-project-template-native.md) records
+[Implementation and verification](archive/desktop-project-template-native.md) records
 the evidence. Real-window acceptance remains paused. Published version is 0.22.0.
 
 **Completed native Saved Setups delivery:**
@@ -155,7 +155,7 @@ The owner approved the review-first flow and three sequential reviewed PRs again
 clean main `58d08e0`: shared planning/execution, private worker, then native Soft
 controls. Extra metadata may remain in a saved document while New Project reuses
 its validated composition; unknown choices/exclusions still block reuse.
-[Implementation](desktop-saved-setups-native.md) records progress and evidence.
+[Implementation](archive/desktop-saved-setups-native.md) records progress and evidence.
 Native previews remain paused; version 0.22.0 is unchanged.
 
 Shared PR #136 merged at `5c3c72e`; reviewed head `592ffa8` and merged main
@@ -169,17 +169,17 @@ match and merged branches are removed. Headless validation remains separate from
 paused real-window and memory-stability acceptance.
 
 **Completed Saved Setups design:**
-The owner approved a separate Soft [Saved Setups proposal](desktop-saved-setups-design.md)
+The owner approved a separate Soft [Saved Setups proposal](archive/desktop-saved-setups-design.md)
 against clean main `d035610`: review-first composition editing, byte-preserving
 management, explicit reuse in New Project, and wait-for-completion closing.
-[Acceptance](desktop-saved-setups-acceptance.md) records 47 passing local checks
+[Acceptance](archive/desktop-saved-setups-acceptance.md) records 47 passing local checks
 and 34 contrast comparisons. Rendering remains unverified. Owner flow review
 precedes native implementation; previews remain paused and 0.22.0 is unchanged.
 
 **Completed native Machine Setup delivery:**
 The owner approved the design and three sequential reviewed PRs against clean
 main `a56533a`: shared planning/execution, cooperative-Stop worker, then native
-Soft controls. The [implementation record](desktop-machine-setup-native.md)
+Soft controls. The [implementation record](archive/desktop-machine-setup-native.md)
 tracks progress and evidence. Native previews and real installations stay paused.
 Shared PR #132 merged at `921f0ca`; reviewed-head and merged-main CI passed all
 seven executed jobs, and its branches are removed. Private cooperative-Stop worker
@@ -195,9 +195,9 @@ coverage is separate from paused native acceptance.
 Configure Tools delivery completed in PR #130 at `3519bab`; actual reviewed head
 `ad3b2cd` (CI `39509474778`) and main (CI `39710977499`) passed all seven executed
 jobs, and merged branches were removed. The next milestone is the separate Soft
-[Machine Setup proposal](desktop-machine-setup-design.md): Selections → Review →
+[Machine Setup proposal](archive/desktop-machine-setup-design.md): Selections → Review →
 Results, machine-owned choices, acknowledged Watch stopping and Stop-then-close.
-All actions are simulated; [acceptance](desktop-machine-setup-acceptance.md)
+All actions are simulated; [acceptance](archive/desktop-machine-setup-acceptance.md)
 records 41 local checks and 24 contrast comparisons. Owner design review precedes
 native implementation. Native previews remain paused; published 0.22.0 is unchanged.
 
@@ -212,16 +212,16 @@ merged branches are removed. The native controls implement Settings → Review
 for all four targets, retained drafts, wrapped diffs and wait-for-Save closing.
 Ineffective legacy edits are refused; catalog modernization is deferred. Native
 previews remain paused. Automated evidence and delivery are recorded in
-[the native implementation record](desktop-tool-configuration-native.md).
+[the native implementation record](archive/desktop-tool-configuration-native.md).
 
 **Completed Configure Tools design:**
 Native Upgrade PR #126 merged at `820dae7`; reviewed head `b7f35fb` (CI
 `39192608337`) and merged main (CI `39192967246`) passed all seven executed jobs
 on their first attempts, with merged branches removed. The owner selected a
-separate Soft [Configure Tools proposal](desktop-tool-configuration-design.md):
+separate Soft [Configure Tools proposal](archive/desktop-tool-configuration-design.md):
 four existing targets, one captured draft, Settings → Review, and wait-for-Save
 close behavior. All 38 local simulation/DOM checks and 28 numeric contrast
-comparisons pass. [Acceptance](desktop-tool-configuration-acceptance.md) keeps
+comparisons pass. [Acceptance](archive/desktop-tool-configuration-acceptance.md) keeps
 rendering unverified and native controls out of the design pass. PR #127 merged
 at `3ccade4`; reviewed-head and merged-main CI passed. Native previews remain paused.
 
@@ -230,16 +230,16 @@ Existing-project composition delivery is complete through PR #122 at `490e2ee`;
 all seven executed reviewed-head and merged-main CI jobs passed, and its merged
 branches are removed. The owner selected native Upgrade next, with a separate
 Soft wireframe and unified diffs before native implementation. The
-[Upgrade design](desktop-upgrade-design.md) retains Apply-all, captured review
+[Upgrade design](archive/desktop-upgrade-design.md) retains Apply-all, captured review
 ownership, explicit stale refresh and independent Watch controls. Thirty local
 simulation/DOM checks and 28 numeric contrast comparisons pass; the
-[acceptance record](desktop-upgrade-acceptance.md) keeps rendering unverified and
+[acceptance record](archive/desktop-upgrade-acceptance.md) keeps rendering unverified and
 native previews paused. The owner approved the design and three sequential PRs:
 shared review/execution, private worker, then native controls. The first PR adds
 captured review data and shared structured diffs, retaining the authoritative
 CLI planner/executor. Shared work merged in PR #124 (`7512771`), followed by the
 private worker in PR #125 (`2439696`); all seven executed head/main CI jobs passed
-for each, and their merged branches are removed. The [native controls](desktop-upgrade-native.md)
+for each, and their merged branches are removed. The [native controls](archive/desktop-upgrade-native.md)
 now pass 64 desktop tests and the actual bundled-CLI read-only preparation test.
 Automated native checks and local review pass; exact delivery evidence belongs
 to the implementation PR. Real-window acceptance remains unverified; the
@@ -254,7 +254,7 @@ terminal editor. PR #120 merged at `bf29098` after local CodeRabbit review and
 all seven executed reviewed-head CI jobs passed (the existing terminal-resize
 screen test needed one unchanged-head rerun). Shared planning/execution now
 preserves existing choices, metadata and exclusions, and commits the record last.
-The [private composition worker](desktop-composition-worker.md) merged in
+The [private composition worker](archive/desktop-composition-worker.md) merged in
 PR #121 at `661ffb3`; all seven executed reviewed-head jobs passed. PR #120
 merged-main CI passed all seven executed jobs at `bf29098`, and its merged branch
 is cleaned up. Final worker CodeRabbit review found only an evidence-count
@@ -263,12 +263,12 @@ correction, now fixed. Worker merged-main CI passed all seven executed jobs at
 Native controls are implemented in [PR #122](https://github.com/chatarabdelilah/rproj/pull/122),
 with 50 headless tests, strict Clippy, crate archives and portable smoke checks
 passing. Final local CodeRabbit review reports zero findings; the PR records
-exact reviewed-head and merged-main delivery evidence. [Composition acceptance](desktop-composition-acceptance.md)
+exact reviewed-head and merged-main delivery evidence. [Composition acceptance](archive/desktop-composition-acceptance.md)
 keeps all real-window and memory-stability checks deferred.
-The [composition design](desktop-composition-design.md)
+The [composition design](archive/desktop-composition-design.md)
 defines the Soft flow and preservation rules. Continue product development without
 Windows troubleshooting, VM setup or native preview launches. The
-[memory investigation](desktop-memory-investigation.md) remains unresolved and
+[memory investigation](archive/desktop-memory-investigation.md) remains unresolved and
 further native acceptance stays paused; earlier functional observations are not
 memory-stability evidence. Detailed host diagnostics remain local.
 
@@ -277,17 +277,17 @@ The native Soft workbench is merged. The owner confirmed Activity containment an
 retained height, themes/System changes, scaling, and real Watch Start/Switch/Stop.
 [PR #111](https://github.com/chatarabdelilah/rproj/pull/111), merged at `9910df1`,
 fixed inherited launcher pipes and transient Stop-status failures. All seven
-executed jobs passed on its reviewed head and merged main. [Soft acceptance](soft-workbench-acceptance.md)
+executed jobs passed on its reviewed head and merged main. [Soft acceptance](archive/soft-workbench-acceptance.md)
 keeps native Close-project/Watch persistence and confirmation Escape unverified.
 
 The owner chose guided New Project first, with explanation and handoff to existing
-`rproj setup` when machine setup is missing. The [workflow parity inventory](desktop-workflow-parity.md)
-records current terminal/desktop gaps; the [creation design](desktop-new-project-design.md)
+`rproj setup` when machine setup is missing. The [workflow parity inventory](archive/desktop-workflow-parity.md)
+records current terminal/desktop gaps; the [creation design](archive/desktop-new-project-design.md)
 defines the approved five-step flow. The owner approved it and a default-Keep
 close confirmation, then authorized three sequential reviewed PRs: shared
 composition, headless creation worker, then native controls. Shared composition
 merged in PR #113 with reviewed-head/main CI passing. The
-[headless worker](desktop-creation-worker.md) adds captured plans, source
+[headless worker](archive/desktop-creation-worker.md) adds captured plans, source
 revalidation, structured claim/outcome reports and owned cancellation, merged in
 PR #114 with reviewed-head/main CI passing. Native five-step controls merged in
 PR #115 with reviewed-head/main CI passing and use that worker, with session
@@ -298,7 +298,7 @@ Keep open / Cancel creation and close during fixture creation. Intentional
 tool-stub failure is reported clearly and leaves navigation responsive. On October
 17, the owner also confirmed Activity cancellation, retained panel height,
 Light/Dark readability after window resizing and dirty-draft preservation on Escape.
-[Creation acceptance](desktop-creation-acceptance.md) records the scoped observations;
+[Creation acceptance](archive/desktop-creation-acceptance.md) records the scoped observations;
 full keyboard traversal, new-flow System/scaling, actual draft discard, real
 Watch ownership and external-tool behavior remain unverified. Full workflow parity,
 installers and macOS/Linux desktop acceptance remain later gates. No version
@@ -322,14 +322,14 @@ changes, finishes, and supports filtering and restoring its output. The initial
 Windows GPUI feasibility gate is complete. Finish reviewed PR delivery, then
 prepare wireframes and visual mockups before expanding the native interface.
 
-The approved [desktop transition](desktop-transition.md) is under implementation:
+The approved [desktop transition](archive/desktop-transition.md) is under implementation:
 shared read-only inspection, manifest-based Watch summaries, Blender repair,
 and a native Windows workbench backed by the existing CLI. All seven executed
 CI jobs passed for [PR #106](https://github.com/chatarabdelilah/rproj/pull/106).
 Isolated worker tests now verify Check/Test dispatch and Watch-lock recovery using
 disposable tools and storage. The initial native feasibility pass does not make
 this a released desktop product or establish workflow parity. The
-[audit](release-audit.md) records completed checks and remaining gates.
+[audit](archive/release-audit.md) records completed checks and remaining gates.
 
 The previous published baseline was **v0.22.0, public alpha**. Interactive Upgrade
 shows actual file diffs in Ratatui and uses default-No Apply-all confirmation;
@@ -343,10 +343,10 @@ protection, UI Labs 2.4.2 and shared creation/configuration behavior.
 Owner publication, official archive checksum and clean Git identity,
 annotated tag and GitHub alpha release match
 `9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. The workspace manifests and
-lockfile now track the published [0.23.1 alpha](release-notes-0.23.1.md). It
+lockfile now track the published [0.23.1 alpha](releases/release-notes-0.23.1.md). It
 covers the Cargo CLI and core library. The desktop ZIP remains a CI artifact
-while native host acceptance is paused. See [0.22.0 notes](release-notes-0.22.0.md),
-[release rules](releasing.md) and [audit evidence](release-audit.md).
+while native host acceptance is paused. See [0.22.0 notes](releases/release-notes-0.22.0.md),
+[release rules](releasing.md) and [audit evidence](archive/release-audit.md).
 
 **Shipped in 0.22.0:** the shared semantic TOML guard and Ratatui Upgrade
 review from [PR #102](https://github.com/chatarabdelilah/rproj/pull/102) and
@@ -402,7 +402,7 @@ Rojo already accepts `.rbxm` and `.rbxmx` models and filesystem mounts. rproj wi
 
 ## Release Hardening Baseline
 
-The [duplication audit](duplication-audit.md) records shared creation execution,
+The [duplication audit](archive/duplication-audit.md) records shared creation execution,
 capability choices/validation, and configuration edit sessions for Inquire and
 Ratatui. Each interface retains its interaction and error recovery. Configuration
 saving preserves unknown values and no-op bytes, supports cancellation, and
@@ -556,11 +556,11 @@ Pass the [release checklist](releasing.md), review CodeRabbit, merge, verify mai
 
 Published **0.14.0 alpha** makes Home persistent, keeps Template Explorer open after successful saves, and groups the Catalog with offline package examples and scrollable details. Internal views borrow one terminal session; existing prompts and foreground processes run outside the alternate screen and return after acknowledgement. Direct commands and project formats remain unchanged.
 
-[PR #20](https://github.com/chatarabdelilah/rproj/pull/20) is merged at `f86a7bd`. CodeRabbit findings were addressed, reviewed-head and merged-main Windows stable/Rust 1.89/package CI passed, and the completed feature branch was deleted. Owner publication and archive/tag/alpha-release alignment are verified. [Release notes](release-notes-0.14.0.md) and [audit evidence](release-audit.md) record the scope and remaining limits.
+[PR #20](https://github.com/chatarabdelilah/rproj/pull/20) is merged at `f86a7bd`. CodeRabbit findings were addressed, reviewed-head and merged-main Windows stable/Rust 1.89/package CI passed, and the completed feature branch was deleted. Owner publication and archive/tag/alpha-release alignment are verified. [Release notes](releases/release-notes-0.14.0.md) and [audit evidence](archive/release-audit.md) record the scope and remaining limits.
 
-The bounded [project-creation implementation plan](ratatui-project-creation.md)
+The bounded [project-creation implementation plan](archive/ratatui-project-creation.md)
 defines the hub-driven first slice, shared execution boundary, and acceptance
-checks. The [local diagnostic logger](diagnostic-logs.md) is merged in PR #11,
+checks. The [local diagnostic logger](archive/diagnostic-logs.md) is merged in PR #11,
 and the shared confirmed-execution boundary is merged in PR #12. Both are
 included in published 0.13.0. Creation screens are implemented in
 [PR #14](https://github.com/chatarabdelilah/rproj/pull/14), which records review and CI evidence.
@@ -592,9 +592,9 @@ match `f9d300f`; there is no active candidate. Evidence is tracked in the PR and
 one project per user, manual startup, sourcemap Watch after rproj closes,
 status/logs/stop controls, owned process-tree cleanup, and cooperative recovery
 cancellation. It adds no Rojo Serve, sign-in task, automatic restart, or service.
-Implementation and acceptance are recorded in [the release audit](release-audit.md);
+Implementation and acceptance are recorded in [the release audit](archive/release-audit.md);
 owner publication, archive identity, annotated tag and GitHub alpha release
-are verified at `f3cdea8`. [Release notes](release-notes-0.20.0.md) record limits.
+are verified at `f3cdea8`. [Release notes](releases/release-notes-0.20.0.md) record limits.
 The current PC is already configured. The owner reported installing Hyper-V on
 October 12; its configuration and a clean Windows test VM have not been verified.
 Notify the owner when a fresh-Windows VM audit becomes the next useful step.
@@ -615,7 +615,7 @@ fresh-machine acceptance.
 **0.20.1 is published**, packaging these two diagnostic fixes and the Projects
 physical-row assertion repair. Archive identity, immutable annotated tag and
 GitHub alpha release match clean release commit `07634cc`.
-See [release notes](release-notes-0.20.1.md) and [release preparation](releasing.md).
+See [release notes](releases/release-notes-0.20.1.md) and [release preparation](releasing.md).
 Template Explorer's PTY driver now isolates libtest's parallel timer output
 from its active screen and waits for complete JSON text/cursor acknowledgments.
 A deliberately slow paste reproduced the child's 60-second warning inside a
@@ -676,7 +676,7 @@ this targeted check does not close fresh-Windows installation acceptance.
 The October 5 bounded New Project
 confirmation/execution audit found no actionable defect and passed the three
 existing live Home creation checks plus four ordinary boundary checks. That
-audit is complete; see [the release audit](release-audit.md). The recent resize
+audit is complete; see [the release audit](archive/release-audit.md). The recent resize
 coverage sequence is also complete for its selected scope. Additional matrices
 are not an automatic development queue.
 

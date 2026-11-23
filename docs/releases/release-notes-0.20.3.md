@@ -34,7 +34,7 @@ already configured PC. Its temporary fixtures were removed and machine
 configuration stayed unchanged. The 24 ignored tests remain separate; only
 that named live check was run explicitly for this candidate.
 
-[The release audit](release-audit.md) records package inspection and release
+[The release audit](../archive/release-audit.md) records package inspection and release
 gates. [Release PR #88](https://github.com/chatarabdelilah/rproj/pull/88) passed
 final CodeRabbit review with zero findings after correcting one minor notes
 state mismatch. Exact final-head and merged-main Windows stable, Rust 1.89 and

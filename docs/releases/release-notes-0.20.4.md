@@ -43,7 +43,7 @@ all 490 ordinary tests on both reviewed head and merged main. The 25 ignored
 checks remain separate; the named official 1.7.0
 Windows generic-default/`const` compatibility test passed explicitly and serially.
 
-The [release audit](release-audit.md) and [PR #91](https://github.com/chatarabdelilah/rproj/pull/91)
+The [release audit](../archive/release-audit.md) and [PR #91](https://github.com/chatarabdelilah/rproj/pull/91)
 record clean locked packaging, a final local CodeRabbit review with zero findings,
 and passing exact-head/main CI. The focused Ubuntu CI job passed the same
 official-binary compatibility check. The published archive contains 106 files and

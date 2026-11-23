@@ -44,8 +44,8 @@ At inspected revision `37352a9`, the workbench close handler can keep the
 window open while an owned operation finishes or teardown is uncertain. Detached
 Watch can continue independently. Once the last window closes, the application
 requests GPUI shutdown. The incident record does not identify an active operation,
-a surviving desktop process or a Watch session. [Close handling](../crates/rproj-desktop/src/workbench/creation/controller.rs)
-and [application shutdown](../crates/rproj-desktop/src/main.rs)
+a surviving desktop process or a Watch session. [Close handling](../../crates/rproj-desktop/src/workbench/creation/controller.rs)
+and [application shutdown](../../crates/rproj-desktop/src/main.rs)
 
 **November 20 decision (superseded November 23).** The record contains no measurement
 that attributes growth to rproj or to a capture/overlay process. The most useful

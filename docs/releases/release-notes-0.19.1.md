@@ -37,7 +37,7 @@ including its extracted-package build and inspected 101-file archive. The
 [release PR #53](https://github.com/chatarabdelilah/rproj/pull/53) passed final
 CodeRabbit review with zero findings and exact-head/main Windows stable,
 Rust 1.89 and package CI. The owner-published archive identifies reviewed
-release commit `957a0aa`; the [release audit](release-audit.md) records checksum
+release commit `957a0aa`; the [release audit](../archive/release-audit.md) records checksum
 and publication evidence.
 
 Authenticated Open Cloud execution, fresh Windows provisioning, fresh Linux

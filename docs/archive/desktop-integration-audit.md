@@ -27,24 +27,24 @@ and delivery ledgers were checked during this audit.
 
 | Inventory row | Class | Current implementation and automated evidence | Delivery / historical scope |
 | --- | --- | --- | --- |
-| Bare rproj / Home | A, G, D | [CLI Home](../src/commands/hub.rs), [hub tests](../tests/hub.rs), [desktop shell](../crates/rproj-desktop/src/workbench.rs); all six destinations reachable; aggregate readiness/update summary absent | Destination deliveries below; default CLI launch is intentional |
-| rproj app | A | [Explicit launcher and inline tests](../src/commands/app.rs); portable smoke checks | [Soft/Watch #111](https://github.com/chatarabdelilah/rproj/pull/111); version/self-check do not open a window |
-| inspect | A, H | [Core inspection](../crates/rproj-core/src/inspection.rs), [inspection tests](../tests/inspection.rs), [shell tests](../crates/rproj-desktop/src/workbench/ui_tests.rs) | #111; historical Overview/Dependencies navigation only |
-| Projects browser | A | [Browser](../crates/rproj-desktop/src/workbench/projects.rs), [preview/Open tests](../crates/rproj-desktop/src/workbench/projects/tests.rs), [discovery](../crates/rproj-core/src/project_discovery.rs) | [#146](https://github.com/chatarabdelilah/rproj/pull/146), [evidence](desktop-projects-browser-native.md) |
-| New Project | A, H | [Shared creation](../crates/rproj-core/src/creation/mod.rs), [native state](../crates/rproj-desktop/src/workbench/creation.rs), [controls/close tests](../crates/rproj-desktop/src/workbench/ui_tests.rs) | [#115](https://github.com/chatarabdelilah/rproj/pull/115); October 16–17 [acceptance](desktop-creation-acceptance.md) uses disposable storage/tool stubs |
-| Machine Setup | A | [Checked executor](../src/commands/machine_setup/checked.rs), [native tests](../crates/rproj-desktop/src/workbench/setup/ui_tests.rs) | [#134](https://github.com/chatarabdelilah/rproj/pull/134), [evidence](desktop-machine-setup-native.md); real installers unverified |
-| setup tool | G | [setup_tool](../src/commands/setup.rs), [terminal tests](../tests/setup.rs); no corresponding native entry/worker operation | CLI only; F2 below |
-| Configure Tools | A | [Checked settings](../src/commands/configure/checked.rs), [native tests](../crates/rproj-desktop/src/workbench/settings/ui_tests.rs) | [#130](https://github.com/chatarabdelilah/rproj/pull/130), [acceptance](desktop-tool-configuration-acceptance.md) |
-| Composition | A | [Shared draft](../crates/rproj-core/src/creation/composition.rs), [executor](../src/commands/project_composition.rs), [native tests](../crates/rproj-desktop/src/workbench/composition/ui_tests.rs) | [#122](https://github.com/chatarabdelilah/rproj/pull/122), [acceptance](desktop-composition-acceptance.md) |
-| Project Template | A | [Terminal editor](../src/commands/project_template.rs), [native controller](../crates/rproj-desktop/src/workbench/project_template/controller.rs), [tests](../crates/rproj-desktop/src/workbench/project_template/ui_tests.rs) | [#143](https://github.com/chatarabdelilah/rproj/pull/143), [evidence](desktop-project-template-native.md) |
-| Upgrade | A | [Terminal regressions](../src/commands/upgrade/regression_tests.rs), [native model](../crates/rproj-desktop/src/workbench/upgrade.rs), [tests](../crates/rproj-desktop/src/workbench/upgrade/ui_tests.rs) | [#126](https://github.com/chatarabdelilah/rproj/pull/126), [acceptance](desktop-upgrade-acceptance.md) |
-| Foreground Watch | D | [CLI Watch](../src/commands/watch.rs), [worker fixtures](../tests/workbench.rs); desktop deliberately uses detached Watch | [#111](https://github.com/chatarabdelilah/rproj/pull/111); no duplicate foreground native mode required |
-| Persistent Watch | A, H | [Operation bridge](../crates/rproj-core/src/operations.rs), [desktop tests](../crates/rproj-desktop/src/workbench/ui_tests.rs), [worker fixtures](../tests/workbench.rs) | #111; owner confirmed Start → Switch → Stop, not complete close/Escape matrix |
-| Checks | A, H | [Worker dispatch](../src/workbench.rs), [Activity/control tests](../crates/rproj-desktop/src/workbench/ui_tests.rs) | #111; historical responsive probe/filter observation; no public check command implied |
-| Test | A, G | [CLI arguments](../src/cli.rs), [terminal action](../src/commands/projects.rs), [worker](../src/workbench.rs), [fixtures](../tests/test_workflow.rs) | Existing default Test; no native custom arguments, matching Ratatui; real runner prerequisites unverified |
-| Copy Source | A | [Shared collector](../crates/rproj-core/src/source_copy.rs), [native tests](../crates/rproj-desktop/src/workbench/source_copy/tests.rs) | [#152](https://github.com/chatarabdelilah/rproj/pull/152), [evidence](desktop-copy-source-native.md); OS clipboard unverified |
-| Catalog | A | [Bundled guides](../crates/rproj-core/src/catalog/browser.rs), [native tests](../crates/rproj-desktop/src/workbench/library/tests.rs), [terminal compatibility](../tests/catalog_compatibility.rs) | [#149](https://github.com/chatarabdelilah/rproj/pull/149), [evidence](desktop-catalog-native.md); OS clipboard/browser unverified |
-| Saved Setups | A | [Terminal manager](../src/commands/saved_setups.rs), [native controller](../crates/rproj-desktop/src/workbench/saved_setups/controller.rs), [tests](../crates/rproj-desktop/src/workbench/saved_setups/ui_tests.rs) | [#138](https://github.com/chatarabdelilah/rproj/pull/138), [evidence](desktop-saved-setups-native.md) |
+| Bare rproj / Home | A, G, D | [CLI Home](../../src/commands/hub.rs), [hub tests](../../tests/hub.rs), [desktop shell](../../crates/rproj-desktop/src/workbench.rs); all six destinations reachable; aggregate readiness/update summary absent | Destination deliveries below; default CLI launch is intentional |
+| rproj app | A | [Explicit launcher and inline tests](../../src/commands/app.rs); portable smoke checks | [Soft/Watch #111](https://github.com/chatarabdelilah/rproj/pull/111); version/self-check do not open a window |
+| inspect | A, H | [Core inspection](../../crates/rproj-core/src/inspection.rs), [inspection tests](../../tests/inspection.rs), [shell tests](../../crates/rproj-desktop/src/workbench/ui_tests.rs) | #111; historical Overview/Dependencies navigation only |
+| Projects browser | A | [Browser](../../crates/rproj-desktop/src/workbench/projects.rs), [preview/Open tests](../../crates/rproj-desktop/src/workbench/projects/tests.rs), [discovery](../../crates/rproj-core/src/project_discovery.rs) | [#146](https://github.com/chatarabdelilah/rproj/pull/146), [evidence](desktop-projects-browser-native.md) |
+| New Project | A, H | [Shared creation](../../crates/rproj-core/src/creation/mod.rs), [native state](../../crates/rproj-desktop/src/workbench/creation.rs), [controls/close tests](../../crates/rproj-desktop/src/workbench/ui_tests.rs) | [#115](https://github.com/chatarabdelilah/rproj/pull/115); October 16–17 [acceptance](desktop-creation-acceptance.md) uses disposable storage/tool stubs |
+| Machine Setup | A | [Checked executor](../../src/commands/machine_setup/checked.rs), [native tests](../../crates/rproj-desktop/src/workbench/setup/ui_tests.rs) | [#134](https://github.com/chatarabdelilah/rproj/pull/134), [evidence](desktop-machine-setup-native.md); real installers unverified |
+| setup tool | G | [setup_tool](../../src/commands/setup.rs), [terminal tests](../../tests/setup.rs); no corresponding native entry/worker operation | CLI only; F2 below |
+| Configure Tools | A | [Checked settings](../../src/commands/configure/checked.rs), [native tests](../../crates/rproj-desktop/src/workbench/settings/ui_tests.rs) | [#130](https://github.com/chatarabdelilah/rproj/pull/130), [acceptance](desktop-tool-configuration-acceptance.md) |
+| Composition | A | [Shared draft](../../crates/rproj-core/src/creation/composition.rs), [executor](../../src/commands/project_composition.rs), [native tests](../../crates/rproj-desktop/src/workbench/composition/ui_tests.rs) | [#122](https://github.com/chatarabdelilah/rproj/pull/122), [acceptance](desktop-composition-acceptance.md) |
+| Project Template | A | [Terminal editor](../../src/commands/project_template.rs), [native controller](../../crates/rproj-desktop/src/workbench/project_template/controller.rs), [tests](../../crates/rproj-desktop/src/workbench/project_template/ui_tests.rs) | [#143](https://github.com/chatarabdelilah/rproj/pull/143), [evidence](desktop-project-template-native.md) |
+| Upgrade | A | [Terminal regressions](../../src/commands/upgrade/regression_tests.rs), [native model](../../crates/rproj-desktop/src/workbench/upgrade.rs), [tests](../../crates/rproj-desktop/src/workbench/upgrade/ui_tests.rs) | [#126](https://github.com/chatarabdelilah/rproj/pull/126), [acceptance](desktop-upgrade-acceptance.md) |
+| Foreground Watch | D | [CLI Watch](../../src/commands/watch.rs), [worker fixtures](../../tests/workbench.rs); desktop deliberately uses detached Watch | [#111](https://github.com/chatarabdelilah/rproj/pull/111); no duplicate foreground native mode required |
+| Persistent Watch | A, H | [Operation bridge](../../crates/rproj-core/src/operations.rs), [desktop tests](../../crates/rproj-desktop/src/workbench/ui_tests.rs), [worker fixtures](../../tests/workbench.rs) | #111; owner confirmed Start → Switch → Stop, not complete close/Escape matrix |
+| Checks | A, H | [Worker dispatch](../../src/workbench.rs), [Activity/control tests](../../crates/rproj-desktop/src/workbench/ui_tests.rs) | #111; historical responsive probe/filter observation; no public check command implied |
+| Test | A, G | [CLI arguments](../../src/cli.rs), [terminal action](../../src/commands/projects.rs), [worker](../../src/workbench.rs), [fixtures](../../tests/test_workflow.rs) | Existing default Test; no native custom arguments, matching Ratatui; real runner prerequisites unverified |
+| Copy Source | A | [Shared collector](../../crates/rproj-core/src/source_copy.rs), [native tests](../../crates/rproj-desktop/src/workbench/source_copy/tests.rs) | [#152](https://github.com/chatarabdelilah/rproj/pull/152), [evidence](desktop-copy-source-native.md); OS clipboard unverified |
+| Catalog | A | [Bundled guides](../../crates/rproj-core/src/catalog/browser.rs), [native tests](../../crates/rproj-desktop/src/workbench/library/tests.rs), [terminal compatibility](../../tests/catalog_compatibility.rs) | [#149](https://github.com/chatarabdelilah/rproj/pull/149), [evidence](desktop-catalog-native.md); OS clipboard/browser unverified |
+| Saved Setups | A | [Terminal manager](../../src/commands/saved_setups.rs), [native controller](../../crates/rproj-desktop/src/workbench/saved_setups/controller.rs), [tests](../../crates/rproj-desktop/src/workbench/saved_setups/ui_tests.rs) | [#138](https://github.com/chatarabdelilah/rproj/pull/138), [evidence](desktop-saved-setups-native.md) |
 
 Opening unrecorded folders for native settings, or collecting source without a
 worker/record, is intentional. Ratatui's Projects menu first checks project
@@ -63,7 +63,7 @@ events and isolated files, not an exhaustive cross-product of every state.
 | Close/focus | Creation/composition cancel/teardown tests; settings/template/saved completion-in-dialog tests; `setup_stop_and_close_wait_without_killing_and_honor_other_drafts`; uncertainty guards | `audit_six_dirty_drafts_require_individual_close_decisions`: one close decision cannot discard six drafts; Escape preserves remaining drafts; final default Enter keeps creation and Watch remains running. Pass. |
 | Activity/layout | `activity_tracks_origin_collapse_filter_cancel_and_late_events`, `minimum_activity_height_contains_long_failure_and_watch_text`, `activity_resize_height_survives_collapse_reopen`; bounded-log and per-workflow focus/diff/layout tests | New navigation test preserves manual collapse and 290-pixel session height; event test retains captured searchable output. Pass. Existing default/minimum/theme tests supply detailed geometry evidence. |
 
-New [audit tests](../crates/rproj-desktop/src/workbench/audit_tests.rs) reuse
+New [audit tests](../../crates/rproj-desktop/src/workbench/audit_tests.rs) reuse
 constructors through `cfg(test)` helpers. Navigation calls the real controller
 routes and renders headless frames; it does not claim every sidebar item was
 mouse-clicked or its scroll geometry accepted. No production API/state changed.
@@ -101,18 +101,18 @@ reproduction was hidden or merged as an ignored test.
 
 ### First-run readiness follow-up
 
-On November 23, inspection of the [New Project view](../crates/rproj-desktop/src/workbench/creation/view.rs)
+On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
 for terminal users. Opening Machine Setup hides the creation view. A successful
 setup result requests fresh creation context, and reopening New Project reuses
-the existing draft. See the [setup controller](../crates/rproj-desktop/src/workbench/setup/controller.rs)
-and [creation controller](../crates/rproj-desktop/src/workbench/creation/controller.rs).
+the existing draft. See the [setup controller](../../crates/rproj-desktop/src/workbench/setup/controller.rs)
+and [creation controller](../../crates/rproj-desktop/src/workbench/creation/controller.rs).
 
 The desktop session test covers blocking review with missing setup. The CLI
 worker fixture clears recorded readiness and checks that preparation gives
 recovery guidance and leaves the destination absent. A separate headless
-[interaction test](../crates/rproj-desktop/src/workbench/setup/ui_tests.rs)
+[interaction test](../../crates/rproj-desktop/src/workbench/setup/ui_tests.rs)
 types a project name, clicks Machine Setup, supplies a successful setup report
 and refreshed creation context, then clicks Overview → Resume project creation.
 It checks the original destination and advances to Dependencies. Installer

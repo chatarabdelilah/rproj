@@ -1,6 +1,6 @@
 # Project update discovery
 
-The [interactive Soft wireframe](prototypes/update-discovery.html) opens on a saved
+The [interactive Soft wireframe](../prototypes/update-discovery.html) opens on a saved
 Skyline check. All project data, versions, timestamps, and release responses are
 illustrative. The design adds a single project Updates view reached from Dependencies
 or Tools. Opening either entry selects its group. Only **Check for updates** starts
@@ -32,7 +32,7 @@ The shared report powers `rproj updates [path] [--json]` and a matching private
 worker. Live checks query the official public Wally index and public GitHub
 releases for each pinned repository. Desktop observations last for one session.
 Applying updates and rproj self-updates remain separate milestones.
-Current Watch and inspection behavior is documented in the [README](../README.md).
+Current Watch and inspection behavior is documented in the [README](../../README.md).
 
 ## Verification
 

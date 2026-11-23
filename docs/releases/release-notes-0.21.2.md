@@ -25,7 +25,7 @@ suite passed 486 tests with 23 prerequisite-dependent tests ignored, including
 all 29 Upgrade tests. Formatting, strict all-target Clippy, clean locked
 packaging and local CodeRabbit reviews completed; two minor documentation
 findings were corrected and inspected directly. Release-preparation
-evidence is recorded in [the release audit](release-audit.md).
+evidence is recorded in [the release audit](../archive/release-audit.md).
 
 The 0.21.2 release preparation also passed formatting, 486 ordinary tests with
 23 ignored, strict all-target Clippy and clean locked package verification.

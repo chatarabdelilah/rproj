@@ -26,10 +26,10 @@ not just context from an earlier chat.
 
 ## Scope And Continuity
 
-- Read `docs/plan.md` and `docs/release-audit.md` for current priorities and
+- Read `docs/plan.md` and `docs/archive/release-audit.md` for current priorities and
   evidence. Consult architecture/UX sections relevant to the change, not every
   document in full. Verify Git/PR state rather than trusting an old chat summary.
-- Follow the approved desktop transition in `docs/desktop-transition.md`.
+- Follow the approved desktop transition in `docs/archive/desktop-transition.md`.
   Desktop becomes the primary human interface after verified workflow parity;
   preserve Ratatui during migration and direct commands permanently. Extract
   reusable behavior incrementally into rproj-core in this repository. Keep

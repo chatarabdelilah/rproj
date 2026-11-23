@@ -23,7 +23,7 @@ On the Windows acceptance guest, Git-only Apply completed in two seconds
 with Git already installed. After Git was removed, the same build installed
 it in 31 seconds through WinGet. A fresh PowerShell reported
 `git version 2.56.1.windows.1`. Both runs omitted Rokit. See the
-[release audit](release-audit.md) for the launcher PATH and results.
+[release audit](../archive/release-audit.md) for the launcher PATH and results.
 
 Released Wally and Rokit tools were exercised in disposable projects for
 the reviewed-update work. Live Git-only verification used the Windows
@@ -32,4 +32,4 @@ outside this candidate's live checks.
 
 The Windows desktop workbench is developed and built separately. Its
 portable ZIP is held from this release while native host acceptance is
-paused. See the [desktop investigation](desktop-memory-investigation.md).
+paused. See the [desktop investigation](../archive/desktop-memory-investigation.md).

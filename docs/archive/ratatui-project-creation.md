@@ -13,7 +13,7 @@ confirmation before invoking this boundary, with the terminal restored.
 
 Versioning: the logger and creation UI shipped together as 0.13.0; the
 configuration-preservation correction shipped as 0.13.1. Existing release tags
-remain unchanged. Follow [the release workflow](releasing.md) and the matching
+remain unchanged. Follow [the release workflow](../releasing.md) and the matching
 release notes.
 
 ## First slice

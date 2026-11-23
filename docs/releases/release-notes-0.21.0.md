@@ -48,7 +48,7 @@ candidate. The 23 ignored checks remain separate; no ordinary checks were exclud
 Clean locked packaging passed with 105 files and matching Git identity. Local
 CodeRabbit iteration and final branch reviews both completed with zero findings
 across all seven release files. Release-preparation head/main CI and delivery evidence are
-recorded in the [release audit](release-audit.md) and
+recorded in the [release audit](../archive/release-audit.md) and
 [release-preparation PR #94](https://github.com/chatarabdelilah/rproj/pull/94).
 The official-Wally 1.7.0 Linux compatibility check remains intact. It verifies
 generic-default and `const` compatibility, separately from full project acceptance.

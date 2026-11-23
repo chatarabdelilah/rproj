@@ -2,7 +2,7 @@
 
 The owner approved the [design scope](desktop-test-arguments-design.md) on
 November 18, 2026 against main `f942937`. The separate
-[Soft proposal](prototypes/test-arguments.html) uses sample data and simulated
+[Soft proposal](../prototypes/test-arguments.html) uses sample data and simulated
 execution only. Native implementation requires subsequent design approval.
 
 ## Automated evidence

@@ -1,13 +1,13 @@
 # Projects browser wireframe acceptance
 
 The [design](desktop-projects-browser-design.md) is ready for owner review.
-The conversation fragment and [reviewable source](prototypes/projects-browser.html)
+The conversation fragment and [reviewable source](../prototypes/projects-browser.html)
 are byte-identical. The seven earlier conversation fragments retained their
 SHA-256 hashes.
 
 ## Automated evidence
 
-All 14 [Node tests](prototypes/projects-browser.test.cjs) passed with jsdom
+All 14 [Node tests](../prototypes/projects-browser.test.cjs) passed with jsdom
 26.1.0. To reproduce from the repository root, run:
 
 ```powershell

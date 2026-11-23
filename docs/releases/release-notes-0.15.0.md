@@ -18,4 +18,4 @@ Machine Setup still uses existing prompts; its Ratatui migration is T5. Saved Se
 
 ## Verification
 
-330 ordinary tests and three applicable live creation checks passed. Nineteen prerequisite-dependent tests remain ignored in the ordinary suite. Formatting, clippy, locked packaging, local CodeRabbit review, and reviewed-head/main Windows stable and Rust 1.89 CI passed. See the [release audit](https://github.com/chatarabdelilah/rproj/blob/main/docs/release-audit.md) for evidence and remaining Open Cloud/fresh-machine limitations. Owner publication and archive/tag/release alignment are verified.
+330 ordinary tests and three applicable live creation checks passed. Nineteen prerequisite-dependent tests remain ignored in the ordinary suite. Formatting, clippy, locked packaging, local CodeRabbit review, and reviewed-head/main Windows stable and Rust 1.89 CI passed. See the [release audit](https://github.com/chatarabdelilah/rproj/blob/main/docs/archive/release-audit.md) for evidence and remaining Open Cloud/fresh-machine limitations. Owner publication and archive/tag/release alignment are verified.

@@ -2,7 +2,7 @@
 
 The owner approved the [design scope](desktop-project-tool-setup-design.md)
 against `0d3f6a6` on November 16, 2026. This separate
-[Soft proposal](prototypes/project-tool-setup.html) uses labeled samples and
+[Soft proposal](../prototypes/project-tool-setup.html) uses labeled samples and
 simulated effects only. Native implementation requires subsequent design approval.
 
 ## Automated evidence

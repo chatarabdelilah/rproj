@@ -46,7 +46,7 @@ need the same credentials in the environment. Missing cloud credentials fail CI.
 The implementation passed 388 ordinary tests, formatting, clippy, CodeRabbit
 review, and Windows stable/Rust 1.89/package CI on both reviewed and merged heads.
 The real pinned Jest Roblox 0.3.24/Studio regression passed eight package examples.
-Release-candidate verification is recorded in `docs/release-audit.md` and its PR.
+Release-candidate verification is recorded in `docs/archive/release-audit.md` and its PR.
 
 Nineteen prerequisite-dependent tests remain ignored in ordinary runs. Live Open
 Cloud, fresh Linux generated-project execution, and fresh Windows provisioning

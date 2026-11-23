@@ -35,8 +35,8 @@ comparison or a promise to reduce rproj to that size.
 
 ### 1. Creation duplicates selection policy, not the scaffold executor
 
-[`new::pick_capabilities`](../src/commands/new.rs) and
-[`creation::Draft::open/accept`](../src/commands/creation/model.rs) independently
+[`new::pick_capabilities`](../../src/commands/new.rs) and
+[`creation::Draft::open/accept`](../../src/commands/creation/model.rs) independently
 filter capability implementations, hide the Open Cloud implementation from the
 runner picker, sort choices, and route Jest to its backend choice. They also
 handle missing requirements differently: direct prompts skip an unsupported
@@ -63,7 +63,7 @@ not reduce duplication.
 
 ### 2. Configure now shares its edit session and persistence
 
-**September 30 consolidation:** [`EditSession`](../src/commands/configure/session.rs)
+**September 30 consolidation:** [`EditSession`](../../src/commands/configure/session.rs)
 owns the tool, one loaded snapshot, current values, pending changes, checked
 merge, and save. Direct prompts and Ratatui delegate to it. The JSON parser and
 value merger are shared with VS Code scaffolding/upgrade, but configuration
@@ -78,10 +78,10 @@ The stronger Ratatui behavior now also protects direct CLI configuration.
 
 ### 3. Machine Setup is already one UI and worker
 
-[`provision::run`](../src/commands/provision.rs) delegates to Ratatui Machine
+[`provision::run`](../../src/commands/provision.rs) delegates to Ratatui Machine
 Setup; it is not a second Inquire installer. `setup <tool>` is a distinct
 project-local operation. The remaining overlap in
-[`toolchain`](../src/steps/toolchain.rs) is Rokit error classification between
+[`toolchain`](../../src/steps/toolchain.rs) is Rokit error classification between
 streamed Machine Setup reporting and project batch tallies.
 
 This change fixes Machine Setup's confirmed global add with `--force`.
