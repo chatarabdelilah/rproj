@@ -16,9 +16,10 @@ establish acceptance of later workflows.
 “Present” describes an implemented surface, not complete workflow acceptance.
 The evidence below keeps automated coverage separate from real-window observations.
 
-October 17: further native acceptance is paused for the
-[memory-exhaustion investigation](desktop-memory-investigation.md). Existing
-functional observations do not establish memory stability.
+On November 23 the owner lifted the October 17 pause. Windows real-window
+checks may proceed for every workflow below. References to the pause in the
+inventory describe the evidence available at the time of each audit.
+[Owner decision](desktop-memory-investigation.md).
 
 | Workflow / entry | CLI and Ratatui behavior | Desktop coverage / gap | Reusable boundary and next action |
 | --- | --- | --- | --- |

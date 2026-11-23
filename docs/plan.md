@@ -7,7 +7,7 @@ Updated November 23, 2026. This describes current priorities, not every idea con
 The [project Updates view](desktop-update-discovery-design.md) and `rproj updates`
 share on-demand public release checks. The approved [single-update review](desktop-reviewed-update-design.md)
 adds desktop Apply for one observed package or project tool at a time. Released-tool and matching-worker fixtures passed for Wally and Rokit. The public command remains read-only.
-Real-window acceptance remains paused.
+Windows desktop development and real-window acceptance may proceed.
 
 **Make it straightforward to set up and maintain an ordinary Roblox/Luau project on Windows.**
 
@@ -22,6 +22,11 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**November 23 — resume Windows desktop acceptance.** The owner closed the
+[memory/display investigation](desktop-memory-investigation.md) and asked to
+reopen it only if the symptoms recur. This supersedes the pause in earlier
+entries. Real-window workflows still need ordinary acceptance checks.
+
 **November 23 — 0.23.1 is the published CLI and core alpha.** Windows x64
 Machine Setup now installs a verified prebuilt Rokit and gives a recovery
 command when the Visual C++ runtime is missing. The first-install guest
@@ -33,8 +38,7 @@ the diagnostic. [Release notes](release-notes-0.23.1.md) and
 [PR #161](https://github.com/chatarabdelilah/rproj/pull/161). On-demand update
 discovery and reviewed Apply for one project package or tool merged through
 [PR #169](https://github.com/chatarabdelilah/rproj/pull/169). The desktop ZIP
-is a CI artifact. Real-window acceptance remains paused under the
-[memory investigation](desktop-memory-investigation.md).
+is a CI artifact.
 
 **First-run readiness.** All six Ratatui Home destinations are reachable on
 desktop. New Project already points users with missing setup to a Machine

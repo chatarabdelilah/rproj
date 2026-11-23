@@ -1,5 +1,10 @@
 # Desktop parity and integration audit
 
+**November 23 decision.** The owner closed F1 and lifted the pause on F4.
+Proceed with ordinary Windows real-window acceptance. Reopen F1 only on
+recurrence. The November 10 findings below retain their original wording.
+[Incident record](desktop-memory-investigation.md).
+
 Approved November 10, 2026, against clean main `c5c4f87`. Audit first: reconcile
 all workflow coverage, then focus on navigation/ownership, operations/events,
 Watch, and close/focus interactions. Runtime fixes and new features require a

@@ -1,6 +1,13 @@
 # Native preview memory-exhaustion investigation
 
-October 17, 2026. **Open blocker for further native preview acceptance.**
+**November 23, 2026 — closed by owner decision.** Proceed with Windows desktop
+development and ordinary real-window acceptance. Reopen this investigation only
+if the memory or display symptoms recur. Their cause remains undetermined.
+The [Windows guest observation](release-audit.md#november-21--windows-guest-preview-closed-normally)
+records the November 21 result. The earlier decisions below are historical.
+
+## October 17 incident report
+
 The owner reports that opening native rproj previews, leaving them open and
 closing them is followed by out-of-memory warnings in other applications or a
 display that fails to wake. The owner confirmed this concerns native desktop
@@ -8,7 +15,7 @@ windows, not the conversation wireframes.
 
 ## Scope and evidence boundary
 
-The report needs investigation before further native acceptance. Earlier
+The report prompted a pause in native acceptance at the time. Earlier
 functional checks do not establish memory stability. The allocating component,
 the role of other software and the display symptom's cause are unresolved;
 no rproj memory-leak fix or successful reproduction is claimed.
@@ -40,7 +47,7 @@ requests GPUI shutdown. The incident record does not identify an active operatio
 a surviving desktop process or a Watch session. [Close handling](../crates/rproj-desktop/src/workbench/creation/controller.rs)
 and [application shutdown](../crates/rproj-desktop/src/main.rs)
 
-**Decision. Keep native acceptance paused.** The record contains no measurement
+**November 20 decision (superseded November 23).** The record contains no measurement
 that attributes growth to rproj or to a capture/overlay process. The most useful
 comparison is whether system committed memory stays elevated after confirmed
 desktop process exit, and which process's private bytes grew over that same
@@ -49,7 +56,7 @@ it. Growth confined to the desktop while open would direct attention there.
 System growth without a corresponding process trend leaves attribution open.
 The display symptom needs its own observation.
 
-## Conditions for one later observation
+## Historical November 20 observation plan
 
 A single observation is justified to obtain that comparison if the owner
 explicitly approves a suitable isolated Windows environment with the relevant
