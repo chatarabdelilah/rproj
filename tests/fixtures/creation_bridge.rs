@@ -56,7 +56,8 @@ fn main() {
     command.args(["--exact", "workbench::creation::worker_tests::driver", "--nocapture", "--test-threads=1"])
         .env("RPROJ_TEST_CREATION_ROOT", root)
         .env("RPROJ_TEST_CREATION_ACTION", if context { "context" } else { "job" })
-        .env("PATH", root.join("tools"));
+        .env("ROKIT_ROOT", root.join("rokit"))
+        .env("PATH", if mode == "pins-on-path" { env::join_paths([root.join("tools"), root.join("rokit/bin")]).unwrap() } else { root.join("tools").into_os_string() });
     if context { command.stdout(Stdio::null()); }
     else { command.env("RPROJ_TEST_CREATION_IPC", &args[2]); }
     let status = command.status().unwrap();

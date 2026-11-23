@@ -178,6 +178,37 @@ fn guided_wally_refuses_missing_rojo_before_review_and_claim() {
 }
 
 #[test]
+fn project_pins_supply_missing_launchers_only_with_rokit_bin_on_path() {
+    let fixture = Fixture::new();
+    let tools = fixture.root.join("tools");
+    for name in ["rokit", "rojo"] {
+        fs::copy(tools.join("git.exe"), tools.join(format!("{name}.exe"))).unwrap();
+    }
+    let mut draft = CreationDraft::new("Pinned".into());
+    draft.toggle_package("react", true).unwrap();
+    let selection = PrepareCreation {
+        draft: draft.clone(),
+        sources: fixture
+            .client
+            .creation_context()
+            .unwrap()
+            .sources(None)
+            .unwrap(),
+    };
+    let error = fixture
+        .client
+        .prepare_creation(selection, &Cancellation::default(), |_| {})
+        .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("wally-package-types"),
+        "{error:#}"
+    );
+    fs::write(fixture.root.join("mode"), "pins-on-path").unwrap();
+    let prepared = fixture.prepare(draft);
+    assert!(!prepared.plan.destination.exists());
+}
+
+#[test]
 fn named_setup_saves_to_captured_storage_and_late_collisions_preserve_existing_bytes() {
     let fixture = Fixture::new();
     let mut draft = CreationDraft::new("Saved project".into());

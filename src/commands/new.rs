@@ -197,6 +197,21 @@ pub(crate) struct ConfirmedCreation<'a> {
     pub config_path: Option<&'a Path>,
 }
 
+fn directory_on_path(target: &Path) -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let canonical = target.canonicalize().ok();
+    std::env::split_paths(&path)
+        .filter(|dir| dir.is_absolute())
+        .any(|dir| {
+            dir == target
+                || canonical
+                    .as_ref()
+                    .is_some_and(|target| dir.canonicalize().as_ref().ok() == Some(target))
+        })
+}
+
 pub(crate) fn check_creation_tools(
     graph: &ProjectGraph,
     writes: impl Fn(&str) -> bool,
@@ -208,13 +223,15 @@ pub(crate) fn check_creation_tools(
     if pins {
         required.push("rokit");
     }
-    // Project pins install their launchers before the scaffold invokes them.
+    // A pin can supply a missing executable only if the new launcher will be visible.
+    let pins_on_path =
+        pins && crate::steps::bootstrap::rokit_bin_dir().is_some_and(|dir| directory_on_path(&dir));
     for (tool, needed) in [
         ("wally", sync),
         ("rojo", sync || writes("sourcemap.json")),
         ("wally-package-types", sync),
     ] {
-        if needed && !(pins && project_tools.iter().any(|key| key == tool)) {
+        if needed && !(pins_on_path && project_tools.iter().any(|key| key == tool)) {
             required.push(tool);
         }
     }
