@@ -110,6 +110,14 @@ From Overview, Resume project creation reopened the draft. Next reached
 Dependencies, and Back showed the original name. This run ended in the wizard
 before project generation.
 
+The subsequent Guided Wally creation attempts on that build exposed three
+prerequisites after the worker claimed a destination. The first attempt
+could not launch Git, the second Wally, and the third Rojo. Wally 0.3.2
+ran by full path after Machine Setup installed it. The third attempt used
+a desktop session launched with Rokit's bin directory on PATH.
+None of the three projects completed. The Windows worker regression covers
+missing Rojo during review and its disappearance between review and creation.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck

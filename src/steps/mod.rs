@@ -28,6 +28,26 @@ use anyhow::{Context, Result, bail};
 
 use crate::ui;
 
+pub(crate) fn executable(name: &str) -> Option<std::path::PathBuf> {
+    std::env::var_os("PATH").and_then(|paths| {
+        std::env::split_paths(&paths).find_map(|dir| {
+            let candidate = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+            let meta = std::fs::metadata(&candidate).ok()?;
+            if !meta.is_file() {
+                return None;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if meta.permissions().mode() & 0o111 == 0 {
+                    return None;
+                }
+            }
+            candidate.canonicalize().ok()
+        })
+    })
+}
+
 /// Runs a command, capturing its output rather than letting it print.
 ///
 /// Capturing is the point: these tools are chatty in ways that are noise
