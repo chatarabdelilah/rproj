@@ -16,7 +16,7 @@ use crate::{
     catalog::{tool_catalog, tool_usage},
     path_identity::identity,
     steps::{
-        asphalt, blender,
+        asphalt, blender, executable,
         execution::{MessageKind, Reporter},
         tungsten,
     },
@@ -96,26 +96,6 @@ fn manifest(project: &Path) -> Result<toml::Table> {
         );
     }
     Ok(parsed)
-}
-
-fn executable(name: &str) -> Option<PathBuf> {
-    std::env::var_os("PATH").and_then(|paths| {
-        std::env::split_paths(&paths).find_map(|dir| {
-            let candidate = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
-            let meta = fs::metadata(&candidate).ok()?;
-            if !meta.is_file() {
-                return None;
-            }
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                if meta.permissions().mode() & 0o111 == 0 {
-                    return None;
-                }
-            }
-            candidate.canonicalize().ok()
-        })
-    })
 }
 
 fn blender_executable() -> Option<PathBuf> {

@@ -228,7 +228,15 @@ fn perform(
     let validate = crate::steps::rojo::validate_template_with_rojo;
     match &request.action {
         CreationAction::Prepare(selection) => {
-            report.prepared = Some(prepare_at(storage, selection, validate)?);
+            let prepared = prepare_at(storage, selection, validate)?;
+            new::check_creation_tools(&prepared.plan.draft.graph, |key| {
+                prepared
+                    .plan
+                    .files
+                    .iter()
+                    .any(|file| file.included && file.key == key)
+            })?;
+            report.prepared = Some(prepared);
         }
         CreationAction::Execute(prepared) => {
             let selection = PrepareCreation {

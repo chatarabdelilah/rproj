@@ -182,6 +182,13 @@ pub(crate) fn installed_rokit() -> Option<std::path::PathBuf> {
     installed_setup_tool("rokit")
 }
 
+pub(crate) fn rokit_bin_dir() -> Option<std::path::PathBuf> {
+    let root = std::env::var_os("ROKIT_ROOT")
+        .map(std::path::PathBuf::from)
+        .or_else(|| Some(directories::BaseDirs::new()?.home_dir().join(".rokit")))?;
+    Some(root.join("bin"))
+}
+
 pub(crate) fn installed_setup_tool(tool: &str) -> Option<std::path::PathBuf> {
     if probe(tool, &["--version"]) {
         return Some(tool.into());
@@ -190,10 +197,7 @@ pub(crate) fn installed_setup_tool(tool: &str) -> Option<std::path::PathBuf> {
         return None;
     }
     // A child installer cannot update PATH in the running setup process.
-    let root = std::env::var_os("ROKIT_ROOT")
-        .map(std::path::PathBuf::from)
-        .or_else(|| Some(directories::BaseDirs::new()?.home_dir().join(".rokit")))?;
-    let exe = root.join("bin").join(format!("{tool}.exe"));
+    let exe = rokit_bin_dir()?.join(format!("{tool}.exe"));
     (exe.is_absolute()
         && exe.is_file()
         && std::process::Command::new(&exe)

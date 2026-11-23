@@ -197,6 +197,56 @@ pub(crate) struct ConfirmedCreation<'a> {
     pub config_path: Option<&'a Path>,
 }
 
+fn directory_on_path(target: &Path) -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let canonical = target.canonicalize().ok();
+    std::env::split_paths(&path)
+        .filter(|dir| dir.is_absolute())
+        .any(|dir| {
+            dir == target
+                || canonical
+                    .as_ref()
+                    .is_some_and(|target| dir.canonicalize().as_ref().ok() == Some(target))
+        })
+}
+
+pub(crate) fn check_creation_tools(
+    graph: &ProjectGraph,
+    writes: impl Fn(&str) -> bool,
+) -> Result<()> {
+    let pins = writes("rokit.toml");
+    let sync = graph.package_workflow == PackageWorkflow::Wally && writes("wally.toml");
+    let project_tools = graph.tools();
+    let mut required = vec!["git"];
+    if pins {
+        required.push("rokit");
+    }
+    // A pin can supply a missing executable only if the new launcher will be visible.
+    let pins_on_path =
+        pins && crate::steps::bootstrap::rokit_bin_dir().is_some_and(|dir| directory_on_path(&dir));
+    for (tool, needed) in [
+        ("wally", sync),
+        ("rojo", sync || writes("sourcemap.json")),
+        ("wally-package-types", sync),
+    ] {
+        if needed && !(pins_on_path && project_tools.iter().any(|key| key == tool)) {
+            required.push(tool);
+        }
+    }
+    let missing: Vec<_> = required
+        .into_iter()
+        .filter(|tool| crate::steps::executable(tool).is_none())
+        .collect();
+    anyhow::ensure!(
+        missing.is_empty(),
+        "Missing creation prerequisites on PATH: {}. Install the listed tools with Machine Setup or rproj setup, then reopen rproj from a terminal where they are available and retry the same destination.",
+        missing.join(", ")
+    );
+    Ok(())
+}
+
 pub(crate) fn execute_reviewed(
     request: ConfirmedCreation<'_>,
     config: &mut GlobalConfig,
@@ -216,6 +266,7 @@ pub(crate) fn execute_reviewed(
     if planned.iter().any(|artifact| artifact.key == "blender") {
         blender::preflight_starter_scene(project_dir)?;
     }
+    check_creation_tools(graph, |key| planned.iter().any(|item| item.key == key))?;
     observer(ClaimState::Claiming)?;
     create_project_dir(project_dir)?;
     let result = (|| {
@@ -1249,20 +1300,12 @@ mod tests {
         let message = format!("{error:#}");
         println!("GIT_CREATION_ERROR {message}");
         assert!(
-            message.contains("https://git-scm.com/install/"),
+            message.contains("Missing creation prerequisites on PATH: git"),
             "{message}"
         );
-        assert!(message.contains("PATH"), "{message}");
-        assert!(message.contains("new terminal"), "{message}");
-        assert!(message.contains("git --version"), "{message}");
-        assert!(message.contains("new destination"), "{message}");
-        assert!(message.contains("failed to spawn `git`"), "{message}");
-        assert_eq!(
-            error.downcast_ref::<std::io::Error>().unwrap().kind(),
-            std::io::ErrorKind::NotFound
-        );
+        assert!(message.contains("same destination"), "{message}");
         assert_eq!(serde_json::to_value(&config).unwrap(), before);
-        assert_eq!(std::fs::read_dir(&project_dir).unwrap().count(), 0);
+        assert!(!project_dir.exists());
         let existing = project_dir.with_file_name("existing-git");
         std::fs::create_dir(&existing).unwrap();
         std::fs::create_dir(existing.join(".git")).unwrap();
@@ -1298,13 +1341,13 @@ mod tests {
         );
         assert!(output.status.success(), "{text}");
         assert!(text.contains("GIT_CREATION_ERROR"), "{text}");
-        assert!(text.contains("rproj will not overwrite it"), "{text}");
+        assert!(!text.contains("Files remain"), "{text}");
         assert_eq!(
             std::fs::read_to_string(marker).unwrap(),
             "preserve existing work"
         );
         assert_eq!(std::env::var_os("PATH"), parent_path);
-        assert_eq!(std::fs::read_dir(project).unwrap().count(), 0);
+        assert!(!project.exists());
     }
 
     #[test]
