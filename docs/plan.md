@@ -49,7 +49,9 @@ A separate Home summary is optional for this workflow. The
 [parity audit](archive/desktop-integration-audit.md#first-run-readiness-follow-up)
 records the successful November 23 Windows first-run check. Machine Setup
 created the missing projects folder, and the resumed draft retained its name
-and reached Dependencies.
+and reached Dependencies. On the subsequent Guided Wally run, Review listed
+the missing tools before creating a folder. After setup, the owner created
+the project at the same destination and opened it in Overview.
 
 **November 19: native custom test controls.** Shared invocation/context and worker
 delivery is verified through #160. Native exact-value rows, captured invocation
