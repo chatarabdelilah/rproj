@@ -51,7 +51,11 @@ pub(super) fn fixture(
     (project, handle, view)
 }
 
-fn enable_creation(view: &Entity<Workbench>, root: &std::path::Path, cx: &mut TestAppContext) {
+pub(super) fn enable_creation(
+    view: &Entity<Workbench>,
+    root: &std::path::Path,
+    cx: &mut TestAppContext,
+) {
     use rproj_core::creation::{CreationEnvironment, protocol::*};
     cx.update(|cx| {
         view.update(cx, |this, cx| {

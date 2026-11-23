@@ -94,6 +94,27 @@ reproduction was hidden or merged as an ignored test.
 
 ## Validation ledger
 
+### First-run readiness follow-up
+
+On November 23, inspection of the [New Project view](../crates/rproj-desktop/src/workbench/creation/view.rs)
+at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
+the name-and-destination step. The same message offers `rproj setup` and Recheck
+for terminal users. Opening Machine Setup hides the creation view. A successful
+setup result requests fresh creation context, and reopening New Project reuses
+the existing draft. See the [setup controller](../crates/rproj-desktop/src/workbench/setup/controller.rs)
+and [creation controller](../crates/rproj-desktop/src/workbench/creation/controller.rs).
+
+The desktop session test covers blocking review with missing setup. The CLI
+worker fixture clears recorded readiness and checks that preparation gives
+recovery guidance and leaves the destination absent. A separate headless
+[interaction test](../crates/rproj-desktop/src/workbench/setup/ui_tests.rs)
+types a project name, clicks Machine Setup, supplies a successful setup report
+and refreshed creation context, then clicks Overview → Resume project creation.
+It checks the original destination and advances to Dependencies. Installer
+execution, worker transport and real-window usability are outside this fixture.
+
+### November 10 audit checks
+
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
 - `cargo +1.99.0 test --locked -p rproj-desktop`: **165 passed**, none ignored. Three new checks supplement 162 existing tests. No native preview launches.
 - Formatting and strict CLI/core all-target/all-feature Clippy and desktop all-target Clippy passed. One test-fixture `field_reassign_with_default` diagnostic was corrected without changing assertions/runtime code. Local documentation links and whitespace checks passed.

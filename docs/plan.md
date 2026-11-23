@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated November 19, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated November 23, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -21,6 +21,29 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**November 23 — 0.23.1 is the published CLI and core alpha.** Windows x64
+Machine Setup now installs a verified prebuilt Rokit and gives a recovery
+command when the Visual C++ runtime is missing. The first-install guest
+completed setup after the owner installed that runtime. A fixture covers
+the diagnostic. [Release notes](release-notes-0.23.1.md) and
+[publication record](releasing.md).
+
+**Desktop delivery.** Native custom Test merged in
+[PR #161](https://github.com/chatarabdelilah/rproj/pull/161). On-demand update
+discovery and reviewed Apply for one project package or tool merged through
+[PR #169](https://github.com/chatarabdelilah/rproj/pull/169). The desktop ZIP
+is a CI artifact. Real-window acceptance remains paused under the
+[memory investigation](desktop-memory-investigation.md).
+
+**First-run readiness.** All six Ratatui Home destinations are reachable on
+desktop. New Project already points users with missing setup to a Machine
+Setup button, retains their draft across navigation and offers Recheck.
+A headless check follows a named draft through simulated setup success,
+then uses Overview → Resume project creation to continue to Dependencies.
+A separate Home summary is optional for this workflow. The
+[parity audit](desktop-integration-audit.md#first-run-readiness-follow-up)
+records the fixture boundary and the remaining real-window gate.
 
 **November 19: native custom test controls.** Shared invocation/context and worker
 delivery is verified through #160. Native exact-value rows, captured invocation
@@ -316,7 +339,7 @@ protection, UI Labs 2.4.2 and shared creation/configuration behavior.
 Owner publication, official archive checksum and clean Git identity,
 annotated tag and GitHub alpha release match
 `9dfc1a4cc7f13ac94839b84d601adc72bf00c927`. The workspace manifests and
-lockfile track the published [0.23.0 alpha](release-notes-0.23.0.md). It
+lockfile now track the published [0.23.1 alpha](release-notes-0.23.1.md). It
 covers the Cargo CLI and core library. The desktop ZIP remains a CI artifact
 while native host acceptance is paused. See [0.22.0 notes](release-notes-0.22.0.md),
 [release rules](releasing.md) and [audit evidence](release-audit.md).

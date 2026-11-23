@@ -34,6 +34,58 @@ fn fixture(cx: &mut TestAppContext) -> (tempfile::TempDir, AnyWindowHandle, Enti
 }
 
 #[gpui_kit::test]
+fn missing_setup_returns_to_named_creation_draft(cx: &mut TestAppContext) {
+    let (root, handle, view) = fixture(cx);
+    crate::workbench::ui_tests::enable_creation(&view, root.path(), cx);
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| {
+            this.setup.visible = false;
+            this.creation.context.as_mut().unwrap().machine_ready = false;
+            cx.notify();
+        });
+        window.render_frame(cx);
+        window.click("new-project", cx);
+        window.input("First game", cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("creation-machine-setup", cx);
+        window.render_frame(cx);
+        assert!(window.find("setup-flow").visible());
+    })
+    .unwrap();
+
+    let id = running(&view, cx);
+    let success = result(&view, cx, SetupStatus::Succeeded);
+    cx.update_window(handle, |_, window, cx| {
+        view.update(cx, |this, cx| {
+            this.accept_setup_applied(id, Ok(success), cx);
+            let mut refreshed = this.creation.context.clone().unwrap();
+            refreshed.machine_ready = true;
+            this.accept_creation_context(this.creation.context_id, Ok(refreshed));
+        });
+        window.render_frame(cx);
+        window.click("Overview", cx);
+        window.render_frame(cx);
+        window.click("new-project", cx);
+        window.render_frame(cx);
+        assert!(window.try_find("creation-machine-setup").is_none());
+        assert_eq!(
+            view.read(cx).creation.destination(),
+            Some(root.path().join("First game"))
+        );
+        window.click("creation-next", cx);
+        assert_eq!(
+            view.read(cx).creation.step,
+            crate::workbench::creation::Step::Dependencies
+        );
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
 fn setup_selections_and_responsive_layouts(cx: &mut TestAppContext) {
     let (_root, handle, view) = fixture(cx);
     for dimensions in [size(px(1120.), px(780.)), size(px(800.), px(580.))] {
