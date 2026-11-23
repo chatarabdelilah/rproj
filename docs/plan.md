@@ -47,7 +47,9 @@ A headless check follows a named draft through simulated setup success,
 then uses Overview → Resume project creation to continue to Dependencies.
 A separate Home summary is optional for this workflow. The
 [parity audit](archive/desktop-integration-audit.md#first-run-readiness-follow-up)
-records the fixture boundary and the remaining real-window gate.
+records the successful November 23 Windows first-run check. Machine Setup
+created the missing projects folder, and the resumed draft retained its name
+and reached Dependencies.
 
 **November 19: native custom test controls.** Shared invocation/context and worker
 delivery is verified through #160. Native exact-value rows, captured invocation

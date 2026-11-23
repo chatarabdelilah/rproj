@@ -101,6 +101,15 @@ reproduction was hidden or merged as an ignored test.
 
 ### First-run readiness follow-up
 
+On November 23, the owner verified the real-window workflow in the Windows
+first-install VM using the [desktop build from `b742a89`](https://github.com/chatarabdelilah/rproj/actions/runs/45129687301).
+With the draft named `FirstRunAcceptance`, New Project reported missing setup
+and offered Machine Setup above Recheck. The review listed only the missing
+projects folder. Apply reported it installed and the selections saved.
+From Overview, Resume project creation reopened the draft. Next reached
+Dependencies, and Back showed the original name. This run ended in the wizard
+before project generation.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
