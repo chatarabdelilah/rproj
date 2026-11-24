@@ -669,7 +669,7 @@ fn execute_external(plan: &CompositionPlan) -> Result<()> {
             "default.project.json"
         };
         if !graph.dropped.iter().any(|key| key == "sourcemap.json") {
-            rojo::generate_sourcemap_from(project, project_file)?;
+            wally::refresh_sourcemap(project, project_file)?;
         }
         wally::wally_package_types(project)?;
     } else if wants("sourcemap.json") {
