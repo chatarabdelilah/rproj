@@ -136,6 +136,10 @@ a uniquely named Luau module under `FirstRunPreflight/src`. A PowerShell
 search found the new module name in `sourcemap.json` while Watch was running.
 The owner then clicked **Stop** and confirmed the status returned to **Stopped**.
 
+The owner restarted Watch and renamed the same test module. A PowerShell check
+confirmed that `sourcemap.json` contained the new name and no longer contained
+the original name. After the owner stopped Watch, the status returned to **Stopped**.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
