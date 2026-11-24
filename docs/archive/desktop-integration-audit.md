@@ -145,6 +145,11 @@ With Watch running again, the owner moved the renamed module from
 updated `sourcemap.json` and confirmed that the module name was absent.
 The owner then stopped Watch.
 
+The owner started Watch for `FirstRunPreflight` and closed Desktop.
+With Desktop closed, `rproj watch status` reported that Sourcemap Watch was
+running for that project. On reopening, Desktop showed **Watching — FirstRunPreflight**
+without another start. Clicking **Stop** returned the status to **Stopped**.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
