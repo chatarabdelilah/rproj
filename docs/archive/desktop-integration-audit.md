@@ -204,6 +204,12 @@ clipboard delivery. The paste contained the path header and Luau source for
 `src/shared/hello.luau` in preview order. The preview's `[LF]` annotations
 were absent from the paste. The byte count came from Desktop.
 
+### November 24 — Catalog documentation in the Windows browser
+
+In `rproj-Windows-FirstInstall`, the owner opened the Rojo entry in **Catalog**
+and clicked **Documentation**. The owner confirmed that `rojo.space` opened
+directly in the VM's browser.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
