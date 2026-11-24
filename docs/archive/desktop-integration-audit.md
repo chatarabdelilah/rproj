@@ -155,6 +155,12 @@ and ran `rproj watch stop` in PowerShell. The CLI identified the project
 and reported that Watch would stop after the active recovery command. Desktop
 changed to **Stopped** without a click or manual refresh.
 
+With Desktop still open, the owner ran `rproj watch start` from
+`FirstRunPreflight`. The CLI reported **Preparing** for that project, and
+Desktop changed to **Watching** without a manual refresh. After the owner
+clicked **Stop** in Desktop, `rproj watch status` reported **Stopped** for
+`FirstRunPreflight` and confirmed that Watch's owned processes had exited.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
