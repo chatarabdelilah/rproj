@@ -131,6 +131,11 @@ On the same Windows build, the owner clicked **Start Watch** and observed the
 status change from **Stopped** to **Running**. Clicking **Stop Watch** returned
 the status to **Stopped**. Overview still showed `FirstRunPreflight` as active.
 
+On November 24, the owner started Watch again on build `b1efa54` and added
+a uniquely named Luau module under `FirstRunPreflight/src`. A PowerShell
+search found the new module name in `sourcemap.json` while Watch was running.
+The owner then clicked **Stop** and confirmed the status returned to **Stopped**.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
