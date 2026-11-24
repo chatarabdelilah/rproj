@@ -210,6 +210,14 @@ In `rproj-Windows-FirstInstall`, the owner opened the Rojo entry in **Catalog**
 and clicked **Documentation**. The owner confirmed that `rojo.space` opened
 directly in the VM's browser.
 
+### November 25 — CharmSync Catalog example on the Windows clipboard
+
+In `rproj-Windows-FirstInstall`, the owner clicked **Copy example** on the
+**CharmSync** Catalog entry and pasted the multiline Luau example into chat.
+The paste included both `CharmSync.client.addSignals({ coins = coins })` and
+the teardown call `CharmSync.client.removeSignals("coins")`, confirming
+clipboard delivery for this entry.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
