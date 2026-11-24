@@ -150,6 +150,11 @@ With Desktop closed, `rproj watch status` reported that Sourcemap Watch was
 running for that project. On reopening, Desktop showed **Watching — FirstRunPreflight**
 without another start. Clicking **Stop** returned the status to **Stopped**.
 
+The owner started Watch again for `FirstRunPreflight`, left Desktop open,
+and ran `rproj watch stop` in PowerShell. The CLI identified the project
+and reported that Watch would stop after the active recovery command. Desktop
+changed to **Stopped** without a click or manual refresh.
+
 On November 23, inspection of the [New Project view](../../crates/rproj-desktop/src/workbench/creation/view.rs)
 at `24ddeb9` found that an unconfigured machine gets a Machine Setup button on
 the name-and-destination step. The same message offers `rproj setup` and Recheck
