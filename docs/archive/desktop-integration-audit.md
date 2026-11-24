@@ -178,6 +178,22 @@ and refreshed creation context, then clicks Overview → Resume project creation
 It checks the original destination and advances to Dependencies. Installer
 execution, worker transport and real-window usability are outside this fixture.
 
+### November 24 — Apply additions and Run checks on Windows
+
+On `rproj-Windows-FirstInstall`, the owner retried adding Selene and Lute to
+`FirstRunPreflight`, a Wally project with zero dependencies. The earlier Apply
+had written the check script and Selene configuration, then failed when Rojo
+could not resolve the missing `Packages` directory.
+
+With portable build `db3bd98`, **Apply additions** succeeded on the same project.
+Activity showed that Wally downloaded zero packages, Rojo generated
+`sourcemap.json`, and `wally-package-types` processed `Packages`. Desktop then
+reported that it had saved `rproj.toml`. [Fix and regression test in PR #203](https://github.com/chatarabdelilah/rproj/pull/203).
+
+After reopening the project, the owner selected **Checks → Run checks**.
+Activity reported **Succeeded** with 0 errors, 0 warnings, and 0 parse errors.
+**Run tests** was disabled because the project had no test runner configured.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
