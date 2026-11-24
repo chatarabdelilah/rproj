@@ -194,6 +194,16 @@ After reopening the project, the owner selected **Checks → Run checks**.
 Activity reported **Succeeded** with 0 errors, 0 warnings, and 0 parse errors.
 **Run tests** was disabled because the project had no test runner configured.
 
+### November 24 — Copy Source on the Windows clipboard
+
+In the same VM, the owner clicked **Copy source** for `FirstRunPreflight`.
+Desktop reported **Copy requested**, with 3 included files, 0 skipped paths
+and 505 UTF-8 bytes. The owner then pasted the source into chat, confirming
+clipboard delivery. The paste contained the path header and Luau source for
+`src/client/hello.client.luau`, `src/server/hello.server.luau` and
+`src/shared/hello.luau` in preview order. The preview's `[LF]` annotations
+were absent from the paste. The byte count came from Desktop.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
