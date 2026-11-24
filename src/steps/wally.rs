@@ -278,7 +278,7 @@ fn refresh(project_dir: &Path, project_file: &str) -> Result<()> {
     wally_package_types(project_dir)
 }
 
-fn refresh_sourcemap(project_dir: &Path, project_file: &str) -> Result<()> {
+pub(crate) fn refresh_sourcemap(project_dir: &Path, project_file: &str) -> Result<()> {
     ensure_sync_mounts(project_dir, project_file)?;
     rojo::generate_sourcemap_from(project_dir, project_file)
 }

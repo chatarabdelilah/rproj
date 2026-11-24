@@ -159,6 +159,48 @@ fn preparation_is_read_only_and_success_uses_structured_outcome() {
     assert_eq!(project_snapshot(&fixture.root.join("watch")), watch);
 }
 
+#[test]
+fn empty_wally_project_applies_lute_and_selene_after_install_removes_packages() {
+    let fixture = Fixture::new();
+    let project = &fixture.project;
+    let graph = rproj_core::creation::ProjectGraph {
+        mode: "expert".into(),
+        package_workflow: PackageWorkflow::Wally,
+        ..Default::default()
+    };
+    fs::write(project.join("rproj.toml"), toml::to_string(&graph).unwrap()).unwrap();
+    fs::write(project.join("wally.toml"), "[dependencies]\n").unwrap();
+    fs::create_dir(project.join("Packages")).unwrap();
+    for tool in ["wally.exe", "rojo.exe", "wally-package-types.exe"] {
+        fs::copy(
+            fixture.root.join("worker.exe"),
+            fixture.root.join("tools").join(tool),
+        )
+        .unwrap();
+    }
+    let context = fixture.client.composition_context(project).unwrap();
+    let mut draft = CompositionDraft::new(context.graph.clone().unwrap());
+    draft.set_capability("lint", Some("selene")).unwrap();
+    draft.set_capability("gate", Some("lute")).unwrap();
+    let cancel = Cancellation::default();
+    let prepared = fixture
+        .client
+        .prepare_composition(PrepareComposition { context, draft }, &cancel, |_| {})
+        .unwrap();
+    let CompositionPreparation::Prepared(plan) = prepared else {
+        panic!("Unexpected preparation result: {prepared:?}");
+    };
+    let result = fixture
+        .client
+        .apply_composition(*plan, &cancel, |_| {})
+        .unwrap();
+    assert_eq!(result.status, CompositionStatus::Succeeded, "{result:?}");
+    let saved: rproj_core::creation::ProjectGraph =
+        toml::from_str(&fs::read_to_string(project.join("rproj.toml")).unwrap()).unwrap();
+    assert_eq!(saved.capabilities["lint"], "selene");
+    assert_eq!(saved.capabilities["gate"], "lute");
+}
+
 fn record_only_plan(fixture: &Fixture) -> CompositionPlan {
     fs::create_dir_all(fixture.project.join("blender")).unwrap();
     fs::write(
