@@ -21,9 +21,15 @@ not just context from an earlier chat.
   opening the PR: use `cr review --agent --base main` for the final branch and
   `cr review --agent --uncommitted` while iterating. Do not spend a review on a
   documentation-only correction; inspect that small diff directly instead.
+- Fix shared problems at the source using existing configuration and tool
+  discovery. Report missing required values clearly and preserve intentional,
+  documented defaults. Remove temporary probes and abandoned edits after
+  debugging, then rerun the check that proved the fix.
 - Before merging, read the review summary and open threads. Answer questions
   in-thread, fix valid findings or explain disagreements, and resolve addressed
   threads. Answer late feedback on the merged PR and use a follow-up PR for fixes.
+- Review the aggregate diff against the PR base. Make the title and description
+  cover the whole change, and update them when scope or verification changes.
 - Capture the final reviewed PR head SHA whose checks passed. If the head moves,
   review the changes and verify checks again. Pass that SHA to
   `gh pr merge --match-head-commit <sha>`. After a successful guarded merge,
@@ -55,6 +61,13 @@ not just context from an earlier chat.
   9, 2026; its branch was deleted. Do not restore or plan it as future work.
 - Keep comments for non-obvious invariants. Put broader rationale in docs;
   do not add comments just to satisfy a docstring-percentage advisory.
+- Use placeholders for private machine details in fixtures, logs, screenshots,
+  docs, and PRs. If a sensitive value lands in a commit, stop and alert the
+  owner without repeating the value so they can decide how to contain it.
+- Test decisions directly when practical and isolate external I/O with fixtures
+  or mocks at the boundary. Add focused regression coverage for fragile
+  contracts and use real-window acceptance for native behavior such as focus,
+  clipboard delivery, and browser handoff.
 - Missing prerequisites and ignored tests are not passes. Do not provision
   machine-wide applications or replace user data merely to complete an audit.
 - When `.codegraph/` exists, use CodeGraph before searching unfamiliar code.
