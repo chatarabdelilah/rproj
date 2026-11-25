@@ -13,10 +13,25 @@ not just context from an earlier chat.
   post-merge CI verification, and deletion of fully merged local/remote branches.
 - Use `codex/` branches and reviewed PRs; do not push runtime changes directly
   to main. Verify checks on the actual reviewed head and then on merged main.
+- Start independent tasks from a freshly fetched `origin/main`. In a clean
+  checkout, use `git switch --no-track -c codex/<task> origin/main` so the
+  task branch does not track main. If another task is active or the checkout
+  has unrelated edits, use a separate worktree from the same base.
 - For meaningful runtime, CI, or release changes, run CodeRabbit locally before
   opening the PR: use `cr review --agent --base main` for the final branch and
   `cr review --agent --uncommitted` while iterating. Do not spend a review on a
   documentation-only correction; inspect that small diff directly instead.
+- Before merging, read the review summary and open threads. Answer questions
+  in-thread, fix valid findings or explain disagreements, and resolve addressed
+  threads. Answer late feedback on the merged PR and use a follow-up PR for fixes.
+- Capture the final reviewed PR head SHA whose checks passed. If the head moves,
+  review the changes and verify checks again. Pass that SHA to
+  `gh pr merge --match-head-commit <sha>`. After a successful guarded merge,
+  the merged PR's `headRefOid` is the durable cleanup reference. Retrieve it
+  with `gh pr view <pr> --json state,headRefOid`.
+- Before deleting task refs, confirm the PR is `MERGED`, the task checkout is
+  clean, and each remaining local or remote task branch still matches that SHA.
+  Investigate any mismatch. Remove only the task's worktree and branches.
 - Do not create or push a release tag before crates.io confirms publication.
   Verify the published archive's Git identity, create an annotated tag at that
   commit, and create a matching GitHub alpha prerelease. Never move a shipped tag.
