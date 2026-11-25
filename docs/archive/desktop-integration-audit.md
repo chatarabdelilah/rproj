@@ -224,6 +224,7 @@ In `rproj-Windows-FirstInstall`, the owner pressed **Tab** once with **Copy exam
 focused on the **CharmSync** entry. The focus indicator moved to **Charm · Package**
 under **Related guidance** while the detail heading still read **CharmSync**.
 Pressing **Enter** opened the related entry and changed the detail heading to **Charm**.
+The owner then clicked **Back** once with the mouse and the **CharmSync** entry reappeared.
 
 ### November 10 audit checks
 
