@@ -218,6 +218,13 @@ The paste included both `CharmSync.client.addSignals({ coins = coins })` and
 the teardown call `CharmSync.client.removeSignals("coins")`, confirming
 clipboard delivery for this entry.
 
+### November 25 — Catalog keyboard navigation on Windows
+
+In `rproj-Windows-FirstInstall`, the owner pressed **Tab** once with **Copy example**
+focused on the **CharmSync** entry. The focus indicator moved to **Charm · Package**
+under **Related guidance** while the detail heading still read **CharmSync**.
+Pressing **Enter** opened the related entry and changed the detail heading to **Charm**.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
