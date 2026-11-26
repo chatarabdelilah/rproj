@@ -226,6 +226,12 @@ under **Related guidance** while the detail heading still read **CharmSync**.
 Pressing **Enter** opened the related entry and changed the detail heading to **Charm**.
 The owner then clicked **Back** once with the mouse and the **CharmSync** entry reappeared.
 
+### November 26 — Catalog search on Windows
+
+With **Packages** selected in the Windows VM's Catalog, the owner typed
+`CharmSync` into **Search all catalog sections**. The results showed only
+**CharmSync**. Clearing the search restored the full **Packages** list.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
