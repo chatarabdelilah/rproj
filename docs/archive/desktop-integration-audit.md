@@ -249,6 +249,8 @@ guide into view.
 On November 27, at **150% Windows display scaling**, the owner pressed **Tab**
 with **Copy example** focused on the **CharmSync** entry. The focus indicator
 was visible on **Charm · Package**. Pressing **Enter** opened the **Charm** guide.
+In a separate check at the same scaling, pressing **Shift+Tab** from
+**Charm · Package** moved visible focus back to **Copy example**.
 
 ### November 10 audit checks
 
