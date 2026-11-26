@@ -236,6 +236,12 @@ Searching for `zzzz-no-match` showed **0 entries** and the message “No entries
 match these filters. The selected guide remains available.” The previously
 selected guide stayed visible in the detail pane.
 
+### November 26 — Catalog at the minimum window size on Windows
+
+After clearing the search, the owner resized Desktop to its minimum window
+size in the Windows VM. The selected Catalog guide stayed readable and
+scrollable in the detail pane.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
