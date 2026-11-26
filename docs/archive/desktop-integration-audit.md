@@ -242,6 +242,10 @@ After clearing the search, the owner resized Desktop to its minimum window
 size in the Windows VM. The selected Catalog guide stayed readable and
 scrollable in the detail pane.
 
+At **150% Windows display scaling**, the selected Catalog guide stayed
+readable at the minimum window size. Scrolling brought lower content in the
+guide into view.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
