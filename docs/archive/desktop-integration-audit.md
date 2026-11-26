@@ -246,6 +246,10 @@ At **150% Windows display scaling**, the selected Catalog guide stayed
 readable at the minimum window size. Scrolling brought lower content in the
 guide into view.
 
+On November 27, at **150% Windows display scaling**, the owner pressed **Tab**
+with **Copy example** focused on the **CharmSync** entry. The focus indicator
+was visible on **Charm · Package**. Pressing **Enter** opened the **Charm** guide.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
