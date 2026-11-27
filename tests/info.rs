@@ -6,6 +6,23 @@ use std::process::{Command, Stdio};
 
 use common::{ENTER, ESC, Session, TempProject, screen_rows};
 
+#[cfg(windows)]
+#[test]
+fn conpty_collects_the_exit_status_of_a_silent_child() {
+    let project = TempProject::new("silent-pty-child");
+    let shell = std::env::var_os("ComSpec").expect("Windows command interpreter");
+    let outcome = Session::start_program(
+        std::path::Path::new(&shell),
+        project.path(),
+        &["/D", "/C", "exit", "0"],
+        &[],
+    )
+    .finish();
+
+    assert_eq!(outcome.code, 0);
+    assert!(outcome.text.trim().is_empty(), "{}", outcome.text);
+}
+
 /// Section menu, entry list, detail page, and back out again.
 ///
 /// Navigates by *filtering* rather than counting arrow presses: the order of
