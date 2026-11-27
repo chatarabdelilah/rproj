@@ -1,6 +1,6 @@
 # rproj - Release Roadmap
 
-Updated November 23, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](archive/ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
+Updated November 28, 2026. This describes current priorities, not every idea considered during development. [Architecture](architecture.md) describes implementation; [UX](archive/ux-redesign.md) defines the interface; [Releasing](releasing.md) defines publication gates.
 
 ## Direction
 
@@ -21,6 +21,11 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**November 28 — 0.23.2 is the published CLI and core alpha.** New Project
+checks prerequisites before claiming the destination, and Wally composition
+restores empty mounts before generating the Rojo sourcemap. The release also
+includes the RustSec dependency updates. [Release notes](releases/release-notes-0.23.2.md).
 
 **November 23 — resume Windows desktop acceptance.** The owner closed the
 [memory/display investigation](archive/desktop-memory-investigation.md) and asked to
