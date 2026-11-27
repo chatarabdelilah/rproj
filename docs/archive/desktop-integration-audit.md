@@ -302,6 +302,9 @@ project. In PowerShell from that project folder, the owner verified that
 `rokit.toml` contained `stylua = "JohnnyMorganz/StyLua@2.6.0"` and that
 `stylua --version` printed `stylua 2.6.0`.
 
+**Refresh review** then succeeded for the same project. Its only planned
+effect was to preserve the existing `JohnnyMorganz/StyLua@2.6.0` pin.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
