@@ -305,6 +305,16 @@ project. In PowerShell from that project folder, the owner verified that
 **Refresh review** then succeeded for the same project. Its only planned
 effect was to preserve the existing `JohnnyMorganz/StyLua@2.6.0` pin.
 
+### November 27 — StyLua settings review and save on Windows
+
+In **Configure tool settings** on the disposable `UpdateReviewAcceptance`
+project, the owner reviewed changes for a missing `stylua.toml`. The diff showed
+two additions, `syntax = "Luau"` and `column_width = 100`.
+
+**Save settings** succeeded for the captured project, and the editor returned to
+**Settings** with both values shown as current. Reading `stylua.toml` in
+PowerShell confirmed both entries matched the reviewed diff.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
