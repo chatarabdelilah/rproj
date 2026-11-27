@@ -322,6 +322,11 @@ After editing the column width again, the owner clicked **Discard draft**.
 Desktop returned to **Tools**. Reopening **Configure tool settings → StyLua**
 showed the saved column width of **100**.
 
+In a separate **Review** of the existing `stylua.toml`, the diff showed
+`column_width = 100` replaced by `column_width = 120` and displayed
+`syntax = "Luau"` as context. Activity reported that review preparation
+succeeded.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
