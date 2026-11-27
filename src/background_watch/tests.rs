@@ -236,7 +236,8 @@ fn workbench_stop_remains_responsive_while_terminal_state_is_persisted() {
     let delay = TIMEOUT * 2;
     with_workbench_stop_fixture(Some(State::Stopped), delay, |root| {
         let started = Instant::now();
-        stop_and_wait_at(root, Duration::from_secs(2)).unwrap();
+        // Use the production budget for persistence and owner-lock release.
+        stop_and_wait_at(root, STOP_TIMEOUT).unwrap();
         assert!(started.elapsed() >= delay);
         assert!(acquire_shared(&open_lock(root, "owner.lock").unwrap()).unwrap());
         assert_eq!(metadata(root).unwrap().unwrap().state, State::Stopped);

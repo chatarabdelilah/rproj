@@ -24,6 +24,7 @@ const MAX_MESSAGE: u64 = 16 * 1024;
 const LOG_SIZE: usize = 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_millis(300);
 const ACK_TIMEOUT: Duration = Duration::from_secs(2);
+const STOP_TIMEOUT: Duration = Duration::from_secs(15);
 const INTERNAL: &str = "--rproj-watch-internal";
 const NONCE: &str = "RPROJ_WATCH_NONCE";
 const ENGINE_TOKEN: &str = "RPROJ_WATCH_ENGINE_TOKEN";
@@ -456,7 +457,7 @@ pub(crate) fn stop() -> Result<()> {
 }
 
 pub(crate) fn stop_and_wait() -> Result<()> {
-    stop_and_wait_at(&root()?, Duration::from_secs(15))
+    stop_and_wait_at(&root()?, STOP_TIMEOUT)
 }
 
 fn stop_and_wait_at(root: &Path, timeout: Duration) -> Result<()> {
