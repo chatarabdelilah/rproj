@@ -252,6 +252,24 @@ was visible on **Charm · Package**. Pressing **Enter** opened the **Charm** gui
 In a separate check at the same scaling, pressing **Shift+Tab** from
 **Charm · Package** moved visible focus back to **Copy example**.
 
+### November 27 — Reviewed Rokit tool update on Windows
+
+In the Windows VM, **Check for updates** reported **Current** for Lute and
+Selene in `FirstRunPreflight`. The owner copied the project to
+`UpdateReviewAcceptance` and set the copy's Selene pin in `rokit.toml` to
+`0.31.0`. Desktop found `0.32.0` as a newer stable release.
+
+**Prepare review** succeeded and showed the exact Selene pin change from
+`0.31.0` to `0.32.0`, the shared Rokit cache and shim effects, and the existing
+trust requirement. The confirmation named the copy's folder and target version.
+Pressing **Enter** activated **Keep reviewing** and returned to the review
+without starting Apply.
+
+The owner reopened the dialog and explicitly clicked **Apply update**.
+Activity reported success for `UpdateReviewAcceptance` and verification of the
+installed Selene executable. Desktop showed the new `0.32.0` pin and marked
+Selene **Unchecked**. A fresh **Check for updates** returned it to **Current**.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
