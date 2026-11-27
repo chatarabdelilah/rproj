@@ -199,7 +199,12 @@ impl Session {
         drop(pair.slave);
 
         let raw = Arc::new(Mutex::new(Vec::new()));
+        let writer = pair.master.take_writer().expect("take writer");
         let mut reader = pair.master.try_clone_reader().expect("clone reader");
+        #[cfg(windows)]
+        let (cursor_ready, cursor_reported) = std::sync::mpsc::sync_channel(1);
+        #[cfg(windows)]
+        let mut cursor_handshake = Some((writer, cursor_ready));
         {
             let raw = Arc::clone(&raw);
             std::thread::spawn(move || {
@@ -208,11 +213,32 @@ impl Session {
                     if n == 0 {
                         break;
                     }
-                    raw.lock().unwrap().extend_from_slice(&chunk[..n]);
+                    let mut output = raw.lock().unwrap();
+                    #[cfg(windows)]
+                    let query_start = output.len().saturating_sub(3);
+                    output.extend_from_slice(&chunk[..n]);
+                    #[cfg(windows)]
+                    if output[query_start..].windows(4).any(|b| b == b"\x1b[6n")
+                        && let Some((mut writer, ready)) = cursor_handshake.take()
+                    {
+                        drop(output);
+                        writer
+                            .write_all(b"\x1b[1;1R")
+                            .expect("report initial PTY cursor");
+                        writer.flush().expect("flush initial PTY cursor");
+                        let _ = ready.send(writer);
+                    }
                 }
             });
         }
-        let writer = pair.master.take_writer().expect("take writer");
+        // ConPTY waits for the inherited cursor position before drawing or reading keys.
+        #[cfg(windows)]
+        let writer = cursor_reported
+            .recv_timeout(timeout())
+            .unwrap_or_else(|err| {
+                let _ = child.clone_killer().kill();
+                panic!("could not complete initial PTY cursor handshake: {err}");
+            });
         Self {
             child,
             writer,
