@@ -325,7 +325,8 @@ showed the saved column width of **100**.
 In a separate **Review** of the existing `stylua.toml`, the diff showed
 `column_width = 100` replaced by `column_width = 120` and displayed
 `syntax = "Luau"` as context. Activity reported that review preparation
-succeeded.
+succeeded. From the **Save settings** confirmation, choosing **Keep reviewing**
+returned to the review with the unsaved `100 → 120` diff still visible.
 
 ### November 10 audit checks
 
