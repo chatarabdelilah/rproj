@@ -289,6 +289,19 @@ and Desktop reported **Verified Knit 1.7.0**. Another **Check for updates**
 showed **Current**, the exact `1.7.0` declaration, **Locked: 1.7.0**, and
 **Files: Present**.
 
+### November 27 — StyLua Project Tool Setup on Windows
+
+In the Windows VM, the owner selected **StyLua** in **Project Tool Setup** for
+the disposable `UpdateReviewAcceptance` project. With Watch stopped,
+**Review setup** succeeded and showed that Rokit would add
+`JohnnyMorganz/StyLua`, trust the source, and download the tool into the shared
+cache. The review indicated that installation would resolve the version.
+
+The **Results** view and Activity reported successful setup for the captured
+project. In PowerShell from that project folder, the owner verified that
+`rokit.toml` contained `stylua = "JohnnyMorganz/StyLua@2.6.0"` and that
+`stylua --version` printed `stylua 2.6.0`.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
