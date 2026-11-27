@@ -318,6 +318,10 @@ PowerShell confirmed both entries matched the reviewed diff.
 **Reload from file** read back both saved values. The editor still showed
 **Luau** for syntax and **100** for column width.
 
+After editing the column width again, the owner clicked **Discard draft**.
+Desktop returned to **Tools**. Reopening **Configure tool settings → StyLua**
+showed the saved column width of **100**.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
