@@ -270,6 +270,25 @@ Activity reported success for `UpdateReviewAcceptance` and verification of the
 installed Selene executable. Desktop showed the new `0.32.0` pin and marked
 Selene **Unchecked**. A fresh **Check for updates** returned it to **Current**.
 
+### November 27 — Reviewed Wally package update on Windows
+
+In the Windows VM, the owner added the exact Knit `1.5.3` declaration to the
+disposable `UpdateReviewAcceptance` copy. The first update check found
+`1.7.0` in the registry but showed **Unknown** because the lockfile was stale
+and package files were missing. The owner started and stopped Watch to
+restore the dependencies. A fresh check showed Knit locked at `1.5.3` with
+files present and offered `1.7.0` as a declaration change.
+
+**Prepare review** succeeded. The three review pages showed the exact
+`wally.toml` change to `=1.7.0`, the `wally.lock` changes for Knit and its
+transitive dependencies Comm and Signal, and the planned rebuild of package
+directories, typed links, and `sourcemap.json`.
+
+With Watch stopped, **Apply update** succeeded for `UpdateReviewAcceptance`
+and Desktop reported **Verified Knit 1.7.0**. Another **Check for updates**
+showed **Current**, the exact `1.7.0` declaration, **Locked: 1.7.0**, and
+**Files: Present**.
+
 ### November 10 audit checks
 
 - `cargo test --locked -p rproj -p rproj-core --all-features`: **813 passed**, **24 ignored**, no failures (638 CLI, 175 core; subprocess output not counted twice). Ignored cases require real tools/runners, provisioned machines, symlink privilege or badge-network access.
