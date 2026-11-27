@@ -155,7 +155,7 @@ impl Outcome {
 
 pub struct Session {
     child: Box<dyn portable_pty::Child + Send + Sync>,
-    writer: Box<dyn Write + Send>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
     raw: Arc<Mutex<Vec<u8>>>,
     // Held so the pty outlives the child; dropping it early terminates the
     // process with STATUS_CONTROL_C_EXIT instead of letting it finish.
@@ -199,20 +199,38 @@ impl Session {
         drop(pair.slave);
 
         let raw = Arc::new(Mutex::new(Vec::new()));
+        let writer = Arc::new(Mutex::new(pair.master.take_writer().expect("take writer")));
         let mut reader = pair.master.try_clone_reader().expect("clone reader");
         {
             let raw = Arc::clone(&raw);
+            #[cfg(windows)]
+            let writer = Arc::clone(&writer);
             std::thread::spawn(move || {
                 let mut chunk = [0u8; 4096];
+                #[cfg(windows)]
+                let mut cursor_reported = false;
                 while let Ok(n) = reader.read(&mut chunk) {
                     if n == 0 {
                         break;
                     }
-                    raw.lock().unwrap().extend_from_slice(&chunk[..n]);
+                    let mut output = raw.lock().unwrap();
+                    #[cfg(windows)]
+                    let query_start = output.len().saturating_sub(3);
+                    output.extend_from_slice(&chunk[..n]);
+                    // ConPTY waits for the inherited cursor position before drawing.
+                    #[cfg(windows)]
+                    if !cursor_reported && output[query_start..].windows(4).any(|b| b == b"\x1b[6n")
+                    {
+                        let mut input = writer.lock().unwrap();
+                        input
+                            .write_all(b"\x1b[1;1R")
+                            .expect("report initial PTY cursor");
+                        input.flush().expect("flush initial PTY cursor");
+                        cursor_reported = true;
+                    }
                 }
             });
         }
-        let writer = pair.master.take_writer().expect("take writer");
         Self {
             child,
             writer,
@@ -325,10 +343,9 @@ impl Session {
     }
 
     pub fn send(&mut self, keys: &str) {
-        self.writer
-            .write_all(keys.as_bytes())
-            .expect("write to pty");
-        self.writer.flush().expect("flush pty");
+        let mut writer = self.writer.lock().unwrap();
+        writer.write_all(keys.as_bytes()).expect("write to pty");
+        writer.flush().expect("flush pty");
     }
 
     /// Blocks until `needle` appears in the output.
