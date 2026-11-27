@@ -53,6 +53,10 @@ The owner published **0.19.1** on October 4, 2026, after [PR #53](https://github
 1. Establish scope from verified defects and approved changes. Test-only and documentation-only changes do not require a version bump or Cargo publication.
 2. Update the version and current-state documentation on a release branch when preparing an actual package release.
 3. Run `cargo fmt --all --check`, `cargo test --locked`, and `cargo clippy --locked --all-targets -- -D warnings`.
+   Run `cargo audit` from the workspace root to check the release candidate's
+   `Cargo.lock` against the RustSec advisory database. Resolve reported
+   vulnerabilities before requesting publication and record remaining warnings
+   with the candidate's residual risks.
 4. Run applicable ignored/live tests serially on a deliberately provisioned environment. Record commands, tool versions, outcomes, and missing prerequisites. Skipped tests are not passes; follow [the roadmap's workflow coverage](plan.md).
 5. Run `cargo package --locked -p rproj-core -p rproj` and inspect both packaged file lists. Cargo verifies the interdependent archives using its local registry overlay; no publication is needed for this check.
 6. Push a pull request, inspect CodeRabbit findings, and verify Windows stable, Rust 1.89, and package CI. Address findings or document why they do not apply.
