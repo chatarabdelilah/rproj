@@ -73,7 +73,7 @@ impl MachineTools {
         let executable = if let Some(spec) = spec {
             let spec = spec.strip_prefix("github:").unwrap_or(&spec);
             let (repository, version) = spec.split_once('@').context(
-                "Global Rojo needs an exact installed version; use `rokit add --global rojo`",
+                "Global Rojo needs an exact installed version; repair the Rojo pin in Rokit's global manifest",
             )?;
             let version = semver::Version::parse(version)
                 .context("Global Rojo version is not an exact version")?;
@@ -105,7 +105,7 @@ impl MachineTools {
         } else {
             self.standalone()?
         };
-        let fingerprint = fingerprint(&executable).context("Cannot use the installed global Rojo executable; use Machine Setup or `rokit add --global rojo`")?;
+        let fingerprint = fingerprint(&executable).context("Cannot use the global Rojo executable; repair the selected Rojo installation and prepare the review again")?;
         template_checked::verify_with_limit(&manifest, Some(IPC_LIMIT))?;
         Ok(GlobalRojo {
             executable,
@@ -140,7 +140,7 @@ impl MachineTools {
             }
         }
         anyhow::bail!(
-            "Global Rojo is unavailable. Use Machine Setup or `rokit add --global rojo`, then prepare the review again. Editing and Reset remain available."
+            "Global Rojo is unavailable. Use Machine Setup or `rokit add --global rojo-rbx/rojo`, then prepare the review again. Editing and Reset remain available."
         )
     }
 }

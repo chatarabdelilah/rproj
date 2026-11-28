@@ -128,8 +128,16 @@ mod tests {
         );
         assert!(rokit_target("luau-lsp").unwrap().is_none());
         for entry in tool_catalog::ROKIT_TOOLS {
-            assert!(rokit_target(entry.key).unwrap().is_some());
+            let (source, _) = rokit_target(entry.key).unwrap().unwrap();
+            assert!(
+                source.contains('/'),
+                "Rokit trust requires owner/repo: {source}"
+            );
         }
+        assert_eq!(
+            rokit_target("rojo").unwrap(),
+            Some(("rojo-rbx/rojo", "rojo"))
+        );
     }
     #[test]
     fn successful_file_creation_does_not_hide_tool_failure() {
