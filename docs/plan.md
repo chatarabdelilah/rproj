@@ -22,6 +22,10 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
+**0.24.0 alpha candidate.** This coordinated CLI/core/desktop version includes
+Ratatui retirement and the direct CLI replacements. Published alpha remains
+0.23.2 until owner publication. [Candidate notes](releases/release-notes-0.24.0.md)
+
 **Ratatui retirement.** The owner tested the Windows x64 portable build from
 `606c1a0`. Configure Tools preserved review edits and saved settings. New Project
 created a named setup, and Saved Setups passed edit, save, and reuse. Project
