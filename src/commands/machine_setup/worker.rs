@@ -1,9 +1,11 @@
 use std::process::Command;
+use std::sync::Arc;
+#[cfg(test)]
 use std::sync::{
-    Arc,
-    atomic::{AtomicBool, AtomicUsize, Ordering},
+    atomic::{AtomicBool, Ordering},
     mpsc::{self, Receiver},
 };
+#[cfg(test)]
 use std::thread::JoinHandle;
 
 use crate::catalog::tool_catalog::{self, ToolKind};
@@ -20,30 +22,21 @@ pub enum Event {
     Started(usize),
     Message(MessageKind, String),
     Finished(usize, Status),
+    #[cfg(test)]
     Done(Outcome),
+    #[cfg(test)]
     Completed(rproj_core::machine_setup::SetupResult),
 }
 
+#[cfg(test)]
 pub struct Worker {
     pub receiver: Option<Receiver<Event>>,
     pub stop: Arc<AtomicBool>,
-    pub dropped: Arc<AtomicUsize>,
     handle: Option<JoinHandle<()>>,
 }
 
+#[cfg(test)]
 impl Worker {
-    pub fn start(context: rproj_core::machine_setup::SetupContext, selection: Selection) -> Self {
-        Self::launch(move |stop, emit| {
-            let review = super::checked::prepare(&context, &selection)?;
-            super::checked::execute(
-                &review,
-                &|| stop.load(Ordering::SeqCst) || crate::interrupt::requested(),
-                emit,
-                &mut || Ok(()),
-            )
-        })
-    }
-
     #[cfg(test)]
     pub(super) fn spawn(
         selection: Selection,
@@ -69,16 +62,12 @@ impl Worker {
     ) -> Self {
         let (sender, receiver) = mpsc::sync_channel(128);
         let stop = Arc::new(AtomicBool::new(false));
-        let dropped = Arc::new(AtomicUsize::new(0));
         let cancellation = stop.clone();
-        let lost = dropped.clone();
         let handle = std::thread::spawn(move || {
             let events = sender.clone();
             let emit: Arc<dyn Fn(Event) + Send + Sync> = Arc::new(move |event| {
                 if matches!(event, Event::Message(MessageKind::Output, _)) {
-                    if events.try_send(event).is_err() {
-                        lost.fetch_add(1, Ordering::Relaxed);
-                    }
+                    let _ = events.try_send(event);
                 } else {
                     let _ = events.send(event);
                 }
@@ -102,7 +91,6 @@ impl Worker {
         Self {
             receiver: Some(receiver),
             stop,
-            dropped,
             handle: Some(handle),
         }
     }
@@ -112,6 +100,7 @@ impl Worker {
     }
 }
 
+#[cfg(test)]
 impl Drop for Worker {
     fn drop(&mut self) {
         self.request_stop();

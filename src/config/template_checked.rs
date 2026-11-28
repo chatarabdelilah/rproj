@@ -86,6 +86,7 @@ pub(crate) fn verify_with_limit(source: &TemplateSource, limit: Option<u64>) -> 
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) fn prepare(
     source: &TemplateSource,
     action: TemplateAction,
@@ -112,6 +113,7 @@ pub(crate) fn prepare_with_limit(
     Ok(review)
 }
 
+#[cfg(test)]
 pub(crate) fn execute(
     review: &TemplateReview,
     before_write: &mut impl FnMut() -> Result<()>,

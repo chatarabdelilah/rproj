@@ -1,5 +1,11 @@
 # rproj — Architecture
 
+The current interactive interface is the Windows desktop workbench. Bare
+`rproj` prints command usage, and `rproj app` starts the desktop. Machine Setup
+and Upgrade share their checked executors across the desktop worker and the
+direct CLI. `rproj configure project` opens the desktop template editor.
+References to Ratatui below describe the earlier terminal implementation.
+
 Published baseline: **0.22.0**. The approved [desktop transition](archive/desktop-transition.md) is in progress; no later release candidate is prepared. Release scope and verification are recorded in [the release audit](archive/release-audit.md).
 
 ## 1. System Overview
@@ -1404,10 +1410,9 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 |---|---|---|
 | `clap` (derive) | CLI argument/subcommand parsing (`cli.rs`) | Standard, derive-based, minimal boilerplate for a small fixed command set. |
 | `inquire` | Direct project-composition and settings prompts | Provides arrow-key prompts, filtering, and custom answer formatters for the existing short question flows. |
-| `ratatui` | Home, project/setup browsers, creation, Machine Setup, Catalog, and Template Explorer | Supplies deterministic retained-mode rendering and a test backend. rproj shares terminal/layout/widget primitives but keeps each application's state machine explicit. |
 | `rbx_reflection`, `rbx_reflection_database`, `rbx_types` | Roblox class, service, property, enum and value metadata | The bundled database makes searchable guided controls deterministic and avoids network or machine-local metadata overrides; Rojo validation remains authoritative. |
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
-| `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |
+| `crossterm` | Terminal sizing | Provides width information for direct CLI output. |
 | `ctrlc` 3.5.2 | Hub-session console interruption | Registered only for interactive bare rproj. The safe API records cancellation while active children receive the Windows console event; process boundaries await completion and refuse further work when cancelled. Direct CLI handler/exit behavior remains unchanged. |
 | `process-wrap` 10.0.2, Tokio, Windows APIs | Background Watch engine ownership | A dedicated supervisor runtime uses JobObject plus KillOnDrop and hidden process flags. The crate remains `forbid(unsafe_code)`. No async runtime is started for foreground commands or HTTP. |
 | `getrandom` | Local Watch control authentication | OS randomness supplies separate startup, public-control and engine-control tokens. Tokens stay in restricted storage or the owned engine's environment; logs omit them. |

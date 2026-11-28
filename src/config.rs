@@ -216,12 +216,6 @@ impl Setups {
         })?))
     }
 
-    pub fn save_new(setup: &SavedSetup, name: &str) -> Result<PathBuf> {
-        let path = Self::path_for(name)?;
-        save_new_setup_at(setup, &path)?;
-        Ok(path)
-    }
-
     /// Names of every saved setup, sorted. Missing directory is not an
     /// error - it just means none have been saved yet.
     ///
@@ -252,8 +246,10 @@ impl Setups {
 
 /// Persistence for the machine-wide Rojo project template.
 pub mod project_template {
+    #[cfg(test)]
     use super::template_checked;
     use super::*;
+    #[cfg(test)]
     use rproj_core::project_template::review::{TemplateAction, TemplateSource};
 
     pub fn path() -> Result<PathBuf> {
@@ -267,14 +263,13 @@ pub mod project_template {
         load_from(&path()?)
     }
 
+    #[cfg(test)]
     pub(crate) struct EditSession {
         source: TemplateSource,
     }
 
+    #[cfg(test)]
     impl EditSession {
-        pub fn open() -> Result<Self> {
-            Self::open_at(&path()?)
-        }
         pub fn open_at(path: &Path) -> Result<Self> {
             Ok(Self {
                 source: template_checked::capture(path, None)?,
@@ -308,6 +303,7 @@ pub mod project_template {
         }
     }
 
+    #[cfg(test)]
     fn terminal_recovery(error: anyhow::Error) -> anyhow::Error {
         let detail = format!("{error:#}");
         if detail.contains("Reload from file") {

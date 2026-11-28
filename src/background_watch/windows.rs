@@ -367,17 +367,6 @@ fn status_at_with(root: &Path, read_only: bool) -> Result<Option<Snapshot>> {
     }
 }
 
-pub(crate) fn summary() -> String {
-    root()
-        .and_then(|root| status_at(&root))
-        .map(|snapshot| {
-            snapshot
-                .map(|snapshot| snapshot.display())
-                .unwrap_or_else(|| "Stopped: no background Watch".into())
-        })
-        .unwrap_or_else(|error| format!("Watch status unavailable: {error:#}"))
-}
-
 pub(crate) fn show_status() -> Result<()> {
     let root = root()?;
     match status_at(&root)? {

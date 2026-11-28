@@ -1,5 +1,7 @@
 use crate::config::GlobalConfig;
-pub use rproj_core::machine_setup::{Category, Selection};
+#[cfg(test)]
+pub(super) use rproj_core::machine_setup::Category;
+pub use rproj_core::machine_setup::Selection;
 
 pub trait SelectionConfig {
     fn load(config: &GlobalConfig) -> anyhow::Result<Selection>;

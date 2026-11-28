@@ -5,6 +5,7 @@ use anyhow::{Context, Result, ensure};
 use rproj_core::saved_setups::*;
 use std::{fs, io::Read, path::Path};
 
+#[cfg(test)]
 pub(crate) fn capture(root: &Path, name: &str) -> Result<CapturedSetup> {
     capture_with_limit(root, name, None)
 }
@@ -68,6 +69,7 @@ fn destination(source: &CapturedSetup, name: &str) -> Result<std::path::PathBuf>
     Ok(path)
 }
 
+#[cfg(test)]
 pub(crate) fn prepare(source: &CapturedSetup, action: SetupAction) -> Result<ManagementReview> {
     prepare_with_limit(source, action, None)
 }
@@ -99,6 +101,7 @@ pub(crate) fn prepare_with_limit(
     Ok(review)
 }
 
+#[cfg(test)]
 pub(crate) fn execute(
     review: &ManagementReview,
     progress: &mut impl FnMut(MutationState) -> Result<()>,
@@ -235,6 +238,7 @@ fn execute_inner(
     Ok(())
 }
 
+#[cfg(test)]
 pub(super) fn completed(outcome: ManagementOutcome) -> Result<ManagementOutcome> {
     ensure!(
         outcome.status == ManagementStatus::Succeeded,

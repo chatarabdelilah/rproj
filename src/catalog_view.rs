@@ -24,13 +24,6 @@ fn detail_sections(sections: Vec<DetailSection>) -> String {
 }
 
 #[derive(Clone, Debug)]
-pub struct CatalogEntry {
-    pub key: String,
-    pub description: String,
-    pub badge: String,
-}
-
-#[derive(Clone, Debug)]
 pub struct CatalogDetail {
     pub title: String,
     pub body: String,
@@ -45,99 +38,6 @@ impl CatalogDetail {
             self.body
         )
     }
-}
-
-#[derive(Clone, Debug)]
-pub enum CatalogSection {
-    Entries {
-        label: String,
-        entries: Vec<CatalogEntry>,
-    },
-}
-
-#[cfg(test)]
-impl CatalogSection {
-    pub fn label(&self) -> &str {
-        match self {
-            Self::Entries { label, .. } => label,
-        }
-    }
-}
-
-pub fn sections() -> Vec<CatalogSection> {
-    let sections = vec![
-        CatalogSection::Entries {
-            label: "Packages - libraries a project depends on".into(),
-            entries: wally_packages::PACKAGES
-                .iter()
-                .map(|package| CatalogEntry {
-                    key: package.key.into(),
-                    description: package.description.into(),
-                    badge: package.category.label().into(),
-                })
-                .collect(),
-        },
-        CatalogSection::Entries {
-            label: "Tools, apps, plugins & extensions - what gets installed".into(),
-            entries: tool_catalog::FAMILY_ORDER
-                .iter()
-                .flat_map(|family| tool_catalog::in_family(family))
-                .map(|tool| CatalogEntry {
-                    key: tool.key.into(),
-                    description: tool.description.into(),
-                    badge: tool.kind.label().into(),
-                })
-                .collect(),
-        },
-        CatalogSection::Entries {
-            label: "Capabilities - what a project can be set up to do".into(),
-            entries: capabilities::CAPABILITIES
-                .iter()
-                .map(|capability| CatalogEntry {
-                    key: capability.key.into(),
-                    description: capability.outcome.into(),
-                    badge: capability.default_implementation().display.into(),
-                })
-                .collect(),
-        },
-        CatalogSection::Entries {
-            label: "Generated files - what `rproj new` can write, and why".into(),
-            entries: artifacts::ARTIFACTS
-                .iter()
-                .map(|artifact| CatalogEntry {
-                    key: artifact.key.into(),
-                    description: artifact.description.into(),
-                    badge: artifact.category.label().into(),
-                })
-                .collect(),
-        },
-        CatalogSection::Entries {
-            label: "Topics - how the pieces fit together".into(),
-            entries: tool_usage::TOPICS
-                .iter()
-                .map(|topic| CatalogEntry {
-                    key: topic.key.into(),
-                    description: first_sentence(topic.what).into(),
-                    badge: "topic".into(),
-                })
-                .collect(),
-        },
-        CatalogSection::Entries {
-            label: "Configurable - settings rproj can edit for you".into(),
-            entries: tool_settings::CONFIGURABLE_TOOLS
-                .iter()
-                .map(|tool| CatalogEntry {
-                    key: tool.key.into(),
-                    description: format!(
-                        "{} - edit with `rproj configure {}`",
-                        tool.display_name, tool.key
-                    ),
-                    badge: "configure".into(),
-                })
-                .collect(),
-        },
-    ];
-    sections
 }
 
 pub fn lookup(key: &str) -> Option<CatalogDetail> {
@@ -352,25 +252,6 @@ pub fn first_sentence(text: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn every_entry_resolves_to_the_same_detail_model() {
-        assert!(
-            !sections()
-                .iter()
-                .any(|section| section.label().starts_with("Place template")
-                    || section.label().starts_with("Saved setups"))
-        );
-        for section in sections() {
-            let CatalogSection::Entries { label, entries } = section;
-            {
-                assert!(!entries.is_empty(), "{label} has no entries");
-                for entry in entries {
-                    assert!(lookup(&entry.key).is_some(), "{} in {label}", entry.key);
-                }
-            }
-        }
-    }
 
     #[test]
     fn direct_detail_keeps_the_plain_contract() {

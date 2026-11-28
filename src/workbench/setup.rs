@@ -89,6 +89,7 @@ impl Progress {
                 let _ = writeln!(std::io::stdout(), "{message}");
                 Ok(())
             }
+            #[cfg(test)]
             Event::Done(_) | Event::Completed(_) => Ok(()),
         };
         if let Err(error) = result {

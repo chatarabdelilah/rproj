@@ -17,7 +17,6 @@ pub mod studio_plugin;
 pub mod testez;
 pub mod toolchain;
 pub mod tungsten;
-pub mod update_check;
 pub mod vscode;
 pub mod wally;
 

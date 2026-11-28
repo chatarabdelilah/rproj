@@ -25,7 +25,7 @@ fn redirected_machine_setup_refuses_without_terminal_controls() {
 fn standalone_setup_cancel_restores_terminal() {
     let root = common::TempProject::new("setup-cancel");
     let mut session = common::Session::start(root.path(), &["setup"]);
-    session.wait_for("Apply Setup");
+    session.wait_for("System Apps");
     session.send(common::ESC);
     let result = session.finish();
     assert_eq!(result.code, 1);

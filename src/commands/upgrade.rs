@@ -41,17 +41,8 @@ use crate::steps::{gitignore, jest, quality, testez, vscode};
 use crate::ui;
 use rproj_core::upgrade::{SkippedFile, UpgradeFile, UpgradeReview};
 
-mod diff;
-mod review;
-
 #[cfg(test)]
 mod regression_tests;
-
-pub(super) enum ReviewOutcome {
-    Apply(PreparedUpgrade),
-    Cancelled { home: bool },
-    UpToDate(PreparedUpgrade),
-}
 
 pub(crate) struct PreparedUpgrade {
     project_dir: PathBuf,
@@ -400,53 +391,42 @@ pub(super) fn run_in(project_dir: &Path, assume_yes: bool) -> Result<()> {
     }
     ensure!(
         io::stdin().is_terminal() && io::stdout().is_terminal(),
-        "Upgrade review requires an interactive terminal; use `rproj upgrade --yes` to apply without the viewer. Nothing written."
+        "Upgrade review requires an interactive terminal; use `rproj upgrade --yes` to apply without confirmation. Nothing written."
     );
-    let decision = {
-        let mut terminal = crate::tui::TerminalSession::enter()?;
-        review::run(&mut terminal, &prepared.project_dir, &prepared.plan)?
+    ui::section("Upgrade review");
+    for skip in &prepared.plan.skipped {
+        ui::skip(skip);
+    }
+    for rewrite in &prepared.plan.rewrites {
+        println!(
+            "{} — {}",
+            rproj_core::upgrade::diff::visible(&rewrite.relative),
+            rewrite.reason
+        );
+        let original = prepared
+            .plan
+            .originals
+            .get(&rewrite.relative)
+            .and_then(|text| text.as_deref());
+        for row in rproj_core::upgrade::diff::rows(original, &rewrite.contents, &rewrite.relative) {
+            println!("{}", row.text);
+        }
+    }
+    let apply = match inquire::Confirm::new("Apply these changes?")
+        .with_default(false)
+        .prompt_skippable()
+    {
+        Ok(answer) => answer.unwrap_or(false),
+        Err(inquire::InquireError::OperationInterrupted) => false,
+        Err(error) => return Err(error.into()),
     };
-    match decision {
-        review::Decision::Apply => {
-            record_choice(true, false);
-            prepared.execute()
-        }
-        review::Decision::Cancel { .. } => {
-            record_choice(false, false);
-            prepared.summary();
-            ui::skip("nothing written");
-            Ok(())
-        }
-    }
-}
-
-pub(super) fn open_in(
-    terminal: &mut crate::tui::TerminalSession,
-    project_dir: &Path,
-) -> Result<ReviewOutcome> {
-    crate::interrupt::check()?;
-    let context = super::projects::ProjectContext::load(project_dir.to_owned());
-    if let Err(reason) = context.availability(super::projects::ProjectAction::Upgrade) {
-        bail!("{}: {reason}", project_dir.display());
-    }
-    crate::diagnostics::event(
-        "project.action",
-        format!("Upgrade: {}", project_dir.display()),
-    );
-    let prepared = prepare(project_dir)?;
-    if prepared.plan.rewrites.is_empty() {
-        prepared.plan.verify(project_dir)?;
-        return Ok(ReviewOutcome::UpToDate(prepared));
-    }
-    match review::run(terminal, project_dir, &prepared.plan)? {
-        review::Decision::Apply => {
-            record_choice(true, false);
-            Ok(ReviewOutcome::Apply(prepared))
-        }
-        review::Decision::Cancel { home } => {
-            record_choice(false, false);
-            Ok(ReviewOutcome::Cancelled { home })
-        }
+    record_choice(apply, false);
+    if apply {
+        prepared.execute()
+    } else {
+        prepared.summary();
+        ui::skip("nothing written");
+        Ok(())
     }
 }
 

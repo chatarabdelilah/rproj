@@ -18,9 +18,7 @@ mod file_replace;
 mod graph;
 mod interrupt;
 mod path_identity;
-mod project_editor;
 mod steps;
-mod tui;
 mod ui;
 mod workbench;
 
@@ -28,7 +26,6 @@ mod workbench;
 #[path = "../tests/common/mod.rs"]
 mod test_common;
 
-use std::io::IsTerminal;
 use std::process::ExitCode;
 
 use clap::{CommandFactory, Parser};
@@ -108,7 +105,7 @@ fn internal_result_exit_code(result: anyhow::Result<()>) -> u8 {
 
 fn log_command(cli: &Cli) {
     let message = match &cli.command {
-        None => "hub/welcome".into(),
+        None => "welcome".into(),
         Some(Command::New {
             name,
             reconfigure,
@@ -137,12 +134,8 @@ fn log_command(cli: &Cli) {
 fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         None => {
-            if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
-                commands::hub::run()
-            } else {
-                commands::welcome::run();
-                Ok(())
-            }
+            commands::welcome::run();
+            Ok(())
         }
         Some(Command::Setup { tool }) => commands::setup::run(tool.as_deref()),
         Some(Command::New {
@@ -166,18 +159,5 @@ fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Inspect { path, json }) => commands::inspect::run(path.as_deref(), json),
         Some(Command::Updates { path, json }) => commands::updates::run(path.as_deref(), json),
         Some(Command::App { path }) => commands::app::run(path.as_deref()),
-    }
-}
-
-pub(crate) fn dispatch_hub(outcome: commands::hub::HubOutcome) -> anyhow::Result<()> {
-    use commands::hub::HubOutcome;
-
-    diagnostics::event("hub.dispatch", format!("{outcome:?}"));
-    match outcome {
-        HubOutcome::Quit => Ok(()),
-        HubOutcome::New { .. } => unreachable!("creation questions run inside the hub"),
-        HubOutcome::EditProjectTemplate => commands::project_template::run(),
-        HubOutcome::SetupMachine => commands::setup::run(None),
-        HubOutcome::Project { path, action } => action.run(&path),
     }
 }

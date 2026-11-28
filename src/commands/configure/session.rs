@@ -3,11 +3,15 @@ use crate::catalog::tool_settings::ConfigurableTool;
 use anyhow::Result;
 use rproj_core::tool_configuration::{SettingsContext, SettingsDraft};
 use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(test)]
+use std::path::PathBuf;
 
 pub(super) struct EditSession {
-    pub tool: &'static ConfigurableTool,
+    #[cfg(test)]
+    tool: &'static ConfigurableTool,
     draft: SettingsDraft,
+    #[cfg(test)]
     path: PathBuf,
     context: SettingsContext,
 }
@@ -27,18 +31,23 @@ impl EditSession {
         let context = checked::capture(project, tool.key)?;
         let draft = SettingsDraft::new(checked::values(&context)?);
         Ok(Self {
+            #[cfg(test)]
             tool,
+            #[cfg(test)]
             path: context.project.join(tool.target.relative()),
             draft,
             context,
         })
     }
+    #[cfg(test)]
     pub fn path(&self) -> &Path {
         &self.path
     }
+    #[cfg(test)]
     pub fn dirty(&self) -> bool {
         self.draft.dirty()
     }
+    #[cfg(test)]
     pub fn value(&self, index: usize) -> Option<&Value> {
         self.draft.value(index)
     }

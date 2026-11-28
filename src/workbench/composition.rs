@@ -1,4 +1,4 @@
-use crate::commands::{creation::ProjectEdit, project_composition};
+use crate::commands::project_composition::{self, ProjectEdit};
 use anyhow::{Context, Result, ensure};
 use rproj_core::creation::{CompositionDraft, composition_protocol::*};
 use std::path::Path;
@@ -126,7 +126,6 @@ fn perform(
                     source: current.source,
                     original: prepare.draft.original.clone(),
                     updated: prepare.draft.graph.clone(),
-                    reviewed: None,
                 },
             )?;
             project_composition::check_prerequisites(&plan)?;

@@ -27,6 +27,15 @@ impl Reporter {
     pub fn capture(&self, command: &mut Command) -> Result<super::Captured> {
         let program = command.get_program().to_string_lossy().into_owned();
         crate::diagnostics::event("setup.tool", &program);
+        #[cfg(windows)]
+        if crate::interrupt::finishing_active_item() {
+            use std::os::windows::process::CommandExt;
+            use windows::Win32::System::Threading::CREATE_NEW_PROCESS_GROUP;
+
+            // The CLI handles Ctrl+C between setup items. Keep the active
+            // installer out of the console group receiving that signal.
+            command.creation_flags(CREATE_NEW_PROCESS_GROUP.0);
+        }
         let mut child = command
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
