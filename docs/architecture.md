@@ -6,7 +6,7 @@ and Upgrade share their checked executors across the desktop worker and the
 direct CLI. `rproj configure project` opens the desktop template editor.
 References to Ratatui below describe the earlier terminal implementation.
 
-Published CLI and core baseline: **0.23.2**. The [desktop transition](archive/desktop-transition.md) records the migration. Release scope and verification are recorded in [the release audit](archive/release-audit.md).
+Published CLI and core baseline: **0.24.0**. The [desktop transition](archive/desktop-transition.md) records the migration. Release scope and verification are recorded in [the release audit](archive/release-audit.md).
 
 ## 1. System Overview
 

@@ -1,4 +1,4 @@
-# rproj 0.24.0 — alpha candidate
+# rproj 0.24.0 — public alpha
 
 The Windows desktop workbench replaces the interactive terminal hub.
 Run `rproj app` to open it. Running `rproj` by itself prints command usage.
