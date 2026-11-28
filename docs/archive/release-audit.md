@@ -1,5 +1,25 @@
 # Release-Hardening Audit
 
+## November 28 — 0.24.0 Windows desktop acceptance
+
+The owner ran Machine Setup in the Windows test VM with all six categories
+selected. Review listed 38 steps, with Rokit first. Apply completed with 32
+reported Installed, three Already present, three Manual action required, and
+zero Failed. Results confirmed the selections were saved. Rokit, Git, and the
+projects folder were already present, so this run did not exercise their
+first-time setup.
+
+Scribe Studio and Resurface required manual installation. The Roblox Blender
+add-on was installed and enabled. Its dependency setup and account sign-in
+remain manual. The VS Code installer output included Node deprecation warnings
+while the extension and theme installs completed.
+
+From a fresh PowerShell outside any project, the owner verified
+`rokit --version` (1.2.0), `rojo --version` (7.7.1), and
+`wally --version` (0.3.2). In a separate window check,
+`rproj configure project` opened directly to Project Template in the
+matching 0.24.0 Windows desktop build.
+
 ## November 22 — Windows x64 first installation
 
 In the first-install VM, the pinned Rokit binary from the bootstrap at
