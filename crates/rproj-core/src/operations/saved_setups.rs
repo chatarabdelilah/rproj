@@ -120,7 +120,7 @@ impl WorkbenchClient {
         };
         ensure!(
             serde_json::to_vec(&request)?.len() as u64 <= IPC_LIMIT,
-            "Saved Setups request exceeds the 2 MiB worker limit; use terminal management. Nothing written."
+            "Saved Setups request exceeds the 2 MiB worker limit; reduce the affected setup file in <rproj config>/setups and reload. Nothing written."
         );
         request.validate()?;
         write_atomic(&directory.path().join("request.json"), &request)?;
@@ -209,6 +209,6 @@ fn run_owned_saved(
     _: Arc<dyn Fn(OperationEvent) + Send + Sync>,
 ) -> Result<OperationOutcome> {
     bail!(
-        "Desktop Saved Setups workers are currently supported on Windows; terminal management remains available"
+        "Desktop Saved Setups workers are currently supported on Windows; saved setup files are stored in <rproj config>/setups"
     )
 }

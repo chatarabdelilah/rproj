@@ -32,7 +32,7 @@ pub(crate) fn capture(path: &Path, limit: Option<u64>) -> Result<TemplateSource>
             .read_to_end(&mut bytes)?;
         ensure!(
             limit.is_none_or(|n| bytes.len() as u64 <= n),
-            "Template exceeds the 2 MiB worker limit; use the terminal editor"
+            "Template exceeds the 2 MiB worker limit; reduce the template at <rproj config>/templates/default.project.json or shorten the draft, then retry"
         );
         Some(
             String::from_utf8(bytes)
@@ -140,7 +140,7 @@ fn check_output_size(review: &TemplateReview, limit: Option<u64>) -> Result<()> 
     if let (Some(bytes), Some(limit)) = (&review.replacement, limit) {
         ensure!(
             bytes.len() as u64 <= limit,
-            "Formatted template exceeds the worker size limit; use the terminal editor"
+            "Formatted template exceeds the worker size limit; reduce the template at <rproj config>/templates/default.project.json or shorten the draft, then retry"
         );
     }
     Ok(())

@@ -29,7 +29,7 @@ pub(crate) fn capture_with_limit(
         .read_to_end(&mut bytes)?;
     ensure!(
         limit.is_none_or(|n| bytes.len() as u64 <= n),
-        "Saved document exceeds the 2 MiB worker limit; use terminal Saved Setups"
+        "Saved document exceeds the 2 MiB worker limit; reduce the file in <rproj config>/setups below 2 MiB, then reload Saved Setups"
     );
     ensure!(
         identity(&root, true)?.as_ref() == Some(&storage_identity)
