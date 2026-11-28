@@ -1106,10 +1106,10 @@ Optional machine items and new-project capabilities start unchecked. Saved selec
 
 | key | rokit_source | family | maintenance |
 |---|---|---|---|
-| rojo | rojo | Rojo | Active |
-| wally | wally | Wally | Active |
-| wally-package-types | wally-package-types | Wally | Active |
-| selene | selene | Selene | Active |
+| rojo | rojo-rbx/rojo | Rojo | Active |
+| wally | UpliftGames/wally | Wally | Active |
+| wally-package-types | JohnnyMorganz/wally-package-types | Wally | Active |
+| selene | Kampfkarren/selene | Selene | Active |
 | stylua | JohnnyMorganz/StyLua | StyLua | Active |
 | lute | luau-lang/lute | Lute | Active |
 | asphalt | jacktabscode/asphalt | Asset pipeline | Active |

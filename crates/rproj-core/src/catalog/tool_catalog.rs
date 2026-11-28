@@ -212,7 +212,7 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         description: "Syncs your filesystem code into Roblox Studio",
         maintenance: Maintenance::Active,
         kind: ToolKind::RokitTool {
-            rokit_source: "rojo",
+            rokit_source: "rojo-rbx/rojo",
         },
         family: "Rojo",
         docs_url: "https://rojo.space/",
@@ -222,7 +222,7 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         description: "Package manager for Roblox/Luau, similar to npm or cargo",
         maintenance: Maintenance::Active,
         kind: ToolKind::RokitTool {
-            rokit_source: "wally",
+            rokit_source: "UpliftGames/wally",
         },
         family: "Wally",
         docs_url: "https://wally.run/",
@@ -232,7 +232,7 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         description: "Generates Luau type definitions for your installed Wally packages",
         maintenance: Maintenance::Active,
         kind: ToolKind::RokitTool {
-            rokit_source: "wally-package-types",
+            rokit_source: "JohnnyMorganz/wally-package-types",
         },
         family: "Wally",
         docs_url: "https://github.com/JohnnyMorganz/wally-package-types",
@@ -242,7 +242,7 @@ pub const ROKIT_TOOLS: &[ToolEntry] = &[
         description: "Static analysis linter for Luau",
         maintenance: Maintenance::Active,
         kind: ToolKind::RokitTool {
-            rokit_source: "selene",
+            rokit_source: "Kampfkarren/selene",
         },
         family: "Selene",
         docs_url: "https://kampfkarren.github.io/selene/",

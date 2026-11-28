@@ -286,7 +286,7 @@ fn validate_rojo_project(label: &str, project_file: &Path, dir: &Path) -> Result
             None,
         )
         .context(
-            "Rojo is required to validate templates; run `rokit add --global rojo` and try again",
+            "Rojo is required to validate templates; run `rokit add --global rojo-rbx/rojo` and try again",
         )?;
         if !output.success {
             bail!(
@@ -300,7 +300,7 @@ fn validate_rojo_project(label: &str, project_file: &Path, dir: &Path) -> Result
 
 fn ensure_rojo_available() -> Result<()> {
     let output = capture("rojo", &["--version"], None).context(
-        "Rojo is required to validate templates; run `rokit add --global rojo` and try again",
+        "Rojo is required to validate templates; run `rokit add --global rojo-rbx/rojo` and try again",
     )?;
     if output.success {
         return Ok(());
@@ -310,7 +310,7 @@ fn ensure_rojo_available() -> Result<()> {
 
 fn rojo_preflight_error(details: &str) -> String {
     if details.contains("Failed to find tool 'rojo'") {
-        return "Rojo is not configured in this project or Rokit's global manifest. Run `rokit add --global rojo`, then save the template again.".into();
+        return "Rojo is not configured in this project or Rokit's global manifest. Run `rokit add --global rojo-rbx/rojo`, then save the template again.".into();
     }
     format!("Rojo could not start, so the template was not checked:\n{details}")
 }
@@ -576,7 +576,10 @@ mod tests {
     fn missing_rokit_tool_is_not_reported_as_template_rejection() {
         let error =
             rojo_preflight_error("ERROR Failed to find tool 'rojo' in any project manifest file.");
-        assert!(error.contains("rokit add --global rojo"), "{error}");
+        assert!(
+            error.contains("rokit add --global rojo-rbx/rojo"),
+            "{error}"
+        );
         assert!(!error.contains("Rojo rejected"), "{error}");
     }
 

@@ -58,7 +58,7 @@
     "category": "Tools",
     "description": "Syncs your filesystem code into Roblox Studio",
     "docs": "https://rojo.space/",
-    "source": "rojo",
+    "source": "rojo-rbx/rojo",
     "manual": "",
     "kind": "RokitTool"
   },
@@ -67,7 +67,7 @@
     "category": "Tools",
     "description": "Package manager for Roblox/Luau, similar to npm or cargo",
     "docs": "https://wally.run/",
-    "source": "wally",
+    "source": "UpliftGames/wally",
     "manual": "",
     "kind": "RokitTool"
   },
@@ -76,7 +76,7 @@
     "category": "Tools",
     "description": "Generates Luau type definitions for your installed Wally packages",
     "docs": "https://github.com/JohnnyMorganz/wally-package-types",
-    "source": "wally-package-types",
+    "source": "JohnnyMorganz/wally-package-types",
     "manual": "",
     "kind": "RokitTool"
   },
@@ -85,7 +85,7 @@
     "category": "Tools",
     "description": "Static analysis linter for Luau",
     "docs": "https://kampfkarren.github.io/selene/",
-    "source": "selene",
+    "source": "Kampfkarren/selene",
     "manual": "",
     "kind": "RokitTool"
   },
