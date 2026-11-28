@@ -47,6 +47,7 @@ not just context from an earlier chat.
 
 ## Scope And Continuity
 
+- Use the computer-use skill only when the repository owner explicitly asks for it.
 - Read `docs/plan.md` and `docs/archive/release-audit.md` for current priorities and
   evidence. Consult architecture/UX sections relevant to the change, not every
   document in full. Verify Git/PR state rather than trusting an old chat summary.

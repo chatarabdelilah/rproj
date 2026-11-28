@@ -66,25 +66,42 @@
     ]
   },
   {
-    "name": "gpui-kit",
-    "version": "0.7.1",
-    "commit": "87d10ae5e1299d1be18670a37570c5402f952e34",
+    "name": "anes",
+    "version": "0.1.6",
+    "commit": "378ac7461ecac29fde9e10df7b08359d1315a9ad",
     "files": [
       {
-        "path": "third-party/licenses/gpui-kit-0.7.1/LICENSE-APACHE",
-        "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/87d10ae5e1299d1be18670a37570c5402f952e34/LICENSE-APACHE",
+        "path": "third-party/licenses/anes-0.1.6/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/zrzka/anes-rs/378ac7461ecac29fde9e10df7b08359d1315a9ad/LICENSE-APACHE",
+        "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+      },
+      {
+        "path": "third-party/licenses/anes-0.1.6/LICENSE-MIT",
+        "url": "https://raw.githubusercontent.com/zrzka/anes-rs/378ac7461ecac29fde9e10df7b08359d1315a9ad/LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+      }
+    ]
+  },
+  {
+    "name": "gpui-kit",
+    "version": "0.11.0",
+    "commit": "e97fe438129c5e4ccab504f2e6fafd9a4e396bba",
+    "files": [
+      {
+        "path": "third-party/licenses/gpui-kit-0.11.0/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/e97fe438129c5e4ccab504f2e6fafd9a4e396bba/LICENSE-APACHE",
         "sha256": "d1b0449e5478c574ba4f686c2656df7fe77d66821a61f8b6ed3378a58ed9a811"
       }
     ]
   },
   {
     "name": "gpui-kit-assets",
-    "version": "0.7.1",
-    "commit": "87d10ae5e1299d1be18670a37570c5402f952e34",
+    "version": "0.11.0",
+    "commit": "e97fe438129c5e4ccab504f2e6fafd9a4e396bba",
     "files": [
       {
-        "path": "third-party/licenses/gpui-kit-assets-0.7.1/LICENSE-APACHE",
-        "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/87d10ae5e1299d1be18670a37570c5402f952e34/LICENSE-APACHE",
+        "path": "third-party/licenses/gpui-kit-assets-0.11.0/LICENSE-APACHE",
+        "url": "https://raw.githubusercontent.com/longbridge/gpui-kit/e97fe438129c5e4ccab504f2e6fafd9a4e396bba/LICENSE-APACHE",
         "sha256": "d1b0449e5478c574ba4f686c2656df7fe77d66821a61f8b6ed3378a58ed9a811"
       }
     ]
@@ -258,12 +275,12 @@
   },
   {
     "name": "taffy",
-    "version": "0.13.0",
-    "commit": "45a56299d366ddb383e593a1f0372158d00e8530",
+    "version": "0.15.1",
+    "commit": "0064bd54cbe38bf1d8bcd6ec6ab0704d45fb048a",
     "files": [
       {
-        "path": "third-party/licenses/taffy-0.13.0/LICENSE",
-        "url": "https://raw.githubusercontent.com/DioxusLabs/taffy/45a56299d366ddb383e593a1f0372158d00e8530/LICENSE",
+        "path": "third-party/licenses/taffy-0.15.1/LICENSE",
+        "url": "https://raw.githubusercontent.com/DioxusLabs/taffy/0064bd54cbe38bf1d8bcd6ec6ab0704d45fb048a/LICENSE",
         "sha256": "f97daf1a0124413dccf399a4e6626b4b74acd05282f80b6d64ac82225650b77a"
       }
     ]

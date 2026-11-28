@@ -25,6 +25,6 @@ walkdir = "2.5.0"
 same-file = "1.0.6"
 
 [target."cfg(windows)".dependencies]
-process-wrap = { version = "=10.0.1", features = ["tokio1", "job-object", "kill-on-drop", "creation-flags"], default-features = false }
+process-wrap = { version = "=10.0.2", features = ["tokio1", "job-object", "kill-on-drop", "creation-flags"], default-features = false }
 tokio = { version = "1.48", features = ["rt", "process", "io-util", "time"] }
 windows = { version = "0.62.2", features = ["Win32_System_Threading"] }
