@@ -794,7 +794,8 @@ fn supervisor(root: &Path, project: &Path, nonce: String) -> Result<()> {
         let mut stderr = Some(tokio::spawn(drain(child.stderr().take().context("missing engine errors")?, log.clone())));
         let mut stopping = false;
         loop {
-            if let Some(exit) = child.try_wait().context("could not poll owned Watch engine")? {
+            // Engine exit triggers cleanup even when descendants are still running.
+            if let Some(exit) = child.inner_mut().try_wait().context("could not poll owned Watch engine")? {
                 // Closing the armed JobObject also terminates surviving grandchildren.
                 drop(child);
                 if let Some(task) = stdout.take() { task.await??; }

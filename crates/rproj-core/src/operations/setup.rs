@@ -220,8 +220,7 @@ fn run_setup(
                 }
             }
             let mut sequence = None;
-            // Preserve one future: recreating wait after root exit could skip the
-            // job's remaining descendants. try_wait proves only root exit.
+            // Wait for the whole job while continuing to forward progress and Stop.
             let mut wait = child.wait();
             let status = loop {
                 if stop.requested() && !sent_stop && matches!(request.action, SetupAction::Apply(_))
