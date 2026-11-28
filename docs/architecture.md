@@ -710,14 +710,15 @@ A versioned loopback protocol authenticates status/stop with OS-random tokens;
 the engine's phase channel has a separate token. Production never kills a cached
 PID. Held ownership with lost control is Unresponsive and blocks replacement.
 
-The supervisor's Tokio runtime owns an engine in a process-wrap 10.0.1 JobObject
+The supervisor's Tokio runtime owns an engine in a process-wrap 10.0.2 JobObject
 with KillOnDrop. The job assigns the suspended engine before it can spawn tools;
 its descendants remain owned. Closing/crashing the supervisor terminates them.
 The engine reuses foreground Watch recovery and validates an initial sourcemap,
 then starts Rojo and acknowledges Watching. Stop during recovery sets cooperative
 cancellation, waits for the active tool command, and skips later work. Stop during
-Watching terminates and reaps the owned job. Terminal state is persisted after
-the child exits and output drains. Unexpected exits are Failed; restart is manual.
+Watching terminates and reaps the owned job. Engine exit triggers teardown of
+any surviving descendants. The supervisor persists the terminal state after the
+job is empty and output drains. Unexpected exits are Failed; restart is manual.
 
 Both output streams are continuously drained into two rotating files of at most
 1 MiB each. Log replay strips control characters. Shared operation locks exclude
@@ -1408,7 +1409,7 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
 | `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |
 | `ctrlc` 3.5.2 | Hub-session console interruption | Registered only for interactive bare rproj. The safe API records cancellation while active children receive the Windows console event; process boundaries await completion and refuse further work when cancelled. Direct CLI handler/exit behavior remains unchanged. |
-| `process-wrap` 10.0.1, Tokio, Windows APIs | Background Watch engine ownership | A dedicated supervisor runtime uses JobObject plus KillOnDrop and hidden process flags. The crate remains `forbid(unsafe_code)`. No async runtime is started for foreground commands or HTTP. |
+| `process-wrap` 10.0.2, Tokio, Windows APIs | Background Watch engine ownership | A dedicated supervisor runtime uses JobObject plus KillOnDrop and hidden process flags. The crate remains `forbid(unsafe_code)`. No async runtime is started for foreground commands or HTTP. |
 | `getrandom` | Local Watch control authentication | OS randomness supplies separate startup, public-control and engine-control tokens. Tokens stay in restricted storage or the owned engine's environment; logs omit them. |
 | `unicode-width` | Display width of option lines and markers | Also already in the tree via `inquire`. Truncating by `char` count or byte length overshoots on any double-width character, and it is what settled the `⚠️` padding question empirically rather than by guess (§2.4). |
 | `anstream`, `anstyle` | Red, bold error output (`ui::error`) | Both already in the tree via `clap`. `anstream` is what makes colouring errors safe at all: it strips escape codes when stderr is redirected to a file or CI log rather than emitting them into it, and honours `NO_COLOR`/`CLICOLOR=0` for free. |
