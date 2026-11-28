@@ -8,7 +8,7 @@ a published CLI version does not make this desktop archive a published release.
 3. Keep rproj.exe beside the desktop. It runs the matching project operations.
 
 The direct CLI remains available: rproj.exe inspect "project folder" --json.
-rproj.exe app opens the desktop. Bare rproj.exe retains its terminal interface.
+rproj.exe app opens the desktop. Bare rproj.exe prints command usage.
 
 Watch is a persistent background sourcemap task. Closing the app does not stop
 Watch. Use the desktop Stop control, or rproj.exe watch stop. Only one project

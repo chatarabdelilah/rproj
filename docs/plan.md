@@ -13,7 +13,7 @@ Windows desktop development and real-window acceptance may proceed.
 
 rproj connects existing tools, explains choices, derives coherent configuration, and helps users recover when setup fails. Generated projects must remain usable without rproj.
 
-- Desktop is the approved future primary human interface. Follow the [desktop transition](archive/desktop-transition.md), beginning with correctness fixes and a GPUI feasibility gate. Retain Ratatui during migration and direct commands permanently; reuse existing graphs, catalogs, and execution.
+- Desktop is the primary interactive interface. Direct commands remain permanent. The [desktop transition](archive/desktop-transition.md) records the migration and its acceptance gate.
 - Direct commands remain available for automation and normal subprocess output.
 - Rojo owns model loading, builds, synchronization, and sourcemaps.
 - Selene owns linting, StyLua owns formatting, and luau-lsp owns type analysis.
@@ -21,6 +21,18 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 - A library dependency must serve an approved feature. Availability alone is not a reason to embed a tool.
 
 ## Current State
+
+**Ratatui retirement.** The owner tested the Windows x64 portable build from
+`606c1a0`. Configure Tools preserved review edits and saved settings. New Project
+created a named setup, and Saved Setups passed edit, save, and reuse. Project
+Template refused malformed JSON, recovered on reload, and persisted a reviewed
+change. Composition retained its draft when the owner declined reload, then
+applied Selene and saved the composition record. This complements the earlier
+Windows first-run Machine Setup and project-creation acceptance.
+
+Bare `rproj` prints usage. `rproj app` opens the desktop workbench. Direct
+Machine Setup and Upgrade use line-oriented prompts and the checked executors.
+`rproj configure project` opens the desktop template editor.
 
 **November 28 — 0.23.2 is the published CLI and core alpha.** New Project
 checks prerequisites before claiming the destination, and Wally composition
@@ -403,7 +415,7 @@ repairs the test harness without changing Projects behavior or the release.
 | Embedded Selene or StyLua | Removed. Working external tools do not need internal replacements. |
 | Full Moon | Removed. No approved standalone Lua/Luau parsing requirement exists. |
 | M6 / M7a + M6a: static model-to-template conversion | Permanently dropped. The owner requested deletion of the experiment and its branch; it will not be reintroduced. |
-| Tauri GUI | Dropped. The approved native GPUI feasibility gate and incremental shared core are tracked in the desktop transition; Ratatui stays supported during migration. |
+| Tauri GUI | Dropped. The approved native GPUI feasibility gate and incremental shared core are tracked in the desktop transition; The production terminal interface was retired after Windows acceptance. |
 | R4: additional project types | Uncommitted backlog, requiring a concrete use case and working build targets. |
 | M8: rproj Studio plugin | Uncommitted backlog. No new plugin is needed to release the existing product. |
 

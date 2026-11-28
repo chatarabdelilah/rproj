@@ -22,7 +22,6 @@ fn fixture() -> (tempfile::TempDir, ProjectEdit) {
         source,
         original: graph.clone(),
         updated: graph,
-        reviewed: None,
     };
     (root, edit)
 }

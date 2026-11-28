@@ -1,9 +1,8 @@
 //! Read-only planning and one checked executor for both composition frontends.
-use super::creation::ProjectEdit;
 use crate::{
     catalog::wally_packages,
     config::PackageWorkflow,
-    graph::TestRunner,
+    graph::{ProjectGraph, TestRunner},
     steps::{
         asphalt, blender, figma, gitattributes, jest, rojo, testez, toolchain, tungsten, wally,
     },
@@ -51,94 +50,13 @@ const INPUTS: &[&str] = &[
     "asphalt.toml",
     "tungsten.toml",
 ];
+pub(crate) struct ProjectEdit {
+    pub source: String,
+    pub original: ProjectGraph,
+    pub updated: ProjectGraph,
+}
+
 const LIMIT: u64 = 2 * 1024 * 1024;
-
-pub fn apply(project: &Path, edit: ProjectEdit) -> Result<()> {
-    let plan = match &edit.reviewed {
-        Some(plan) => plan.clone(),
-        None => prepare(project, &edit)?,
-    };
-    println!(
-        "\nComposition impact for {} (not an exact diff):",
-        plan.project.display()
-    );
-    for file in &plan.files {
-        println!(
-            "  {} {} — {}",
-            if file.creating { "create" } else { "refresh" },
-            file.relative,
-            file.reason
-        );
-    }
-    for operation in &plan.external_operations {
-        println!("  {operation}");
-    }
-    println!(
-        "Existing pins and exclusions are preserved. Records may be reformatted. Failures/cancellation may leave partial changes; no rollback is promised."
-    );
-    execute(&plan, &mut || Ok(()))
-}
-
-pub(super) fn review(
-    terminal: &mut crate::tui::TerminalSession,
-    plan: &CompositionPlan,
-) -> Result<bool> {
-    use crossterm::event::{Event, KeyCode, KeyEventKind};
-    use ratatui::{
-        layout::{Constraint, Layout},
-        widgets::{Block, Borders, Paragraph, Wrap},
-    };
-    let mut rows = vec![
-        format!("Project: {}", plan.project.display()),
-        "Impact review — estimated effects, not exact file diffs".into(),
-    ];
-    rows.extend(plan.files.iter().map(|file| {
-        format!(
-            "{} {} — {}",
-            if file.creating { "Create" } else { "Refresh" },
-            file.relative,
-            file.reason
-        )
-    }));
-    rows.extend(plan.external_operations.iter().cloned());
-    rows.push("Existing declarations/pins and exclusions stay intact. Generated records may be reformatted. Failure/cancellation can leave partial changes. No rollback is promised.".into());
-    let mut scroll = 0u16;
-    let mut confirm = false;
-    loop {
-        let mut small = false;
-        terminal.draw(|frame| {
-            let area = frame.area();
-            small = crate::tui::is_too_small(area);
-            let panes = Layout::vertical([Constraint::Min(1), Constraint::Length(2)]).split(area);
-            frame.render_widget(Paragraph::new(rows.join("\n\n")).wrap(Wrap { trim: false }).scroll((scroll, 0)).block(Block::default().borders(Borders::ALL).title(" Composition impact ")), panes[0]);
-            frame.render_widget(Paragraph::new("↑/↓/PgUp/PgDn scroll   A Apply…   Esc Keep editing"), panes[1]);
-            if confirm { crate::tui::render_confirm_default_no(frame, area, &crate::tui::ConfirmState::new(format!("Apply additions to {}? Partial file changes may remain if execution fails or is cancelled.", plan.project.display()))); }
-        })?;
-        if let Event::Key(key) = terminal.read_event()? {
-            if key.kind == KeyEventKind::Release {
-                continue;
-            }
-            if confirm {
-                match key.code {
-                    KeyCode::Char('y' | 'Y') if !small => return Ok(true),
-                    KeyCode::Enter | KeyCode::Esc | KeyCode::Char('n' | 'N') => confirm = false,
-                    _ => {}
-                }
-            } else {
-                match key.code {
-                    KeyCode::Esc => return Ok(false),
-                    KeyCode::Char('a' | 'A') if !small => confirm = true,
-                    KeyCode::Down => scroll = scroll.saturating_add(1),
-                    KeyCode::Up => scroll = scroll.saturating_sub(1),
-                    KeyCode::PageDown => scroll = scroll.saturating_add(8),
-                    KeyCode::PageUp => scroll = scroll.saturating_sub(8),
-                    _ => {}
-                }
-            }
-            crate::interrupt::check()?;
-        }
-    }
-}
 
 pub(crate) fn prepare(project: &Path, edit: &ProjectEdit) -> Result<CompositionPlan> {
     let project = project
@@ -497,7 +415,6 @@ pub(crate) fn execute(
             source,
             original: plan.draft.original.clone(),
             updated: plan.draft.graph.clone(),
-            reviewed: None,
         },
     )?;
     ensure!(

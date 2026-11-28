@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()> {
         let worker = workbench::worker_path()?;
         rproj_core::operations::WorkbenchClient::new(worker)?;
         println!(
-            "{{\"desktop_version\":\"{}\",\"matching_cli\":true}}",
+            "{{\"desktop_version\":\"{}\",\"matching_cli\":true,\"project_template\":true}}",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -35,9 +35,13 @@ fn main() -> anyhow::Result<()> {
     } else {
         None
     };
+    let project_template = arguments.as_slice() == ["--project-template"];
+    if project_template {
+        arguments.clear();
+    }
     anyhow::ensure!(
         arguments.len() <= 1,
-        "Usage: rproj-desktop [--preferences-path file] [project-folder]"
+        "Usage: rproj-desktop [--preferences-path file] [project-folder | --project-template]"
     );
     let initial_project = arguments.first().map(PathBuf::from);
     gpui_kit::application()
@@ -65,7 +69,12 @@ fn main() -> anyhow::Result<()> {
             };
             if let Err(error) = gpui_kit::open_window(options, cx, move |window, cx| {
                 cx.new(|cx| {
-                    workbench::Workbench::new(initial_project, preferences_path, window, cx)
+                    let mut workbench =
+                        workbench::Workbench::new(initial_project, preferences_path, window, cx);
+                    if project_template {
+                        workbench.show_template(window, cx);
+                    }
+                    workbench
                 })
             }) {
                 eprintln!("Could not open rproj: {error:#}");

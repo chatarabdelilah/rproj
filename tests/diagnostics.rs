@@ -94,35 +94,6 @@ fn sensitive_named_values_are_redacted_in_command_and_error_events() {
 }
 
 #[test]
-fn tui_navigation_is_logged_without_recording_filter_keystrokes() {
-    let root = TempProject::new("diagnostics-tui");
-    let log_dir = root.path().join("logs");
-    let mut session = Session::start_with_env(
-        root.path(),
-        &["info"],
-        &[
-            ("RPROJ_LOG_DIR", log_dir.to_str().unwrap()),
-            ("RPROJ_NO_LOG", "0"),
-        ],
-    );
-    session.wait_for("rproj catalog");
-    session.send("Packages");
-    session.send(common::ENTER);
-    session.wait_for("State management");
-    session.send("opaque-filter-do-not-record");
-    session.wait_for("Filter: opaque-filter-do-not-record");
-    session.send("\x03");
-    let result = session.finish();
-    assert_eq!(result.code, 0, "{}", result.text);
-    let text = log(root.path());
-    assert!(text.contains("[tui.enter]"), "{text}");
-    assert!(text.contains("[catalog.open]"), "{text}");
-    assert!(text.contains("[catalog.choice] Packages"), "{text}");
-    assert!(text.contains("[tui.leave]"), "{text}");
-    assert!(!text.contains("opaque-filter-do-not-record"));
-}
-
-#[test]
 fn unavailable_log_directory_does_not_fail_the_command() {
     let root = TempProject::new("diagnostics-unavailable");
     root.write("logs", "existing file, not a directory");

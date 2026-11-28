@@ -52,9 +52,8 @@ not just context from an earlier chat.
   evidence. Consult architecture/UX sections relevant to the change, not every
   document in full. Verify Git/PR state rather than trusting an old chat summary.
 - Follow the approved desktop transition in `docs/archive/desktop-transition.md`.
-  Desktop becomes the primary human interface after verified workflow parity;
-  preserve Ratatui during migration and direct commands permanently. Extract
-  reusable behavior incrementally into rproj-core in this repository. Keep
+  Desktop is the primary interactive interface. Preserve direct commands
+  permanently and put reusable behavior in rproj-core in this repository. Keep
   external Rojo, Selene, StyLua, luau-lsp, Rokit, Wally, Git, Lute, and test-runner
   boundaries. GPUI must pass its feasibility gate before broad GUI work.
 - Tauri, embedded lint/format/parser migrations, and model-to-template import remain

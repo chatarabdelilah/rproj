@@ -1,4 +1,4 @@
-//! Plain fallback shown when bare `rproj` is not attached to a terminal.
+//! Command overview for bare `rproj`.
 
 /// Command rows. Kept as data so the column stays aligned by construction -
 /// hand-padded columns in a string literal drift the moment one row

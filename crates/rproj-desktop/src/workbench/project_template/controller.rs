@@ -36,7 +36,7 @@ impl Workbench {
             ));
         });
     }
-    pub(super) fn show_template(&mut self, w: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn show_template(&mut self, w: &mut Window, cx: &mut Context<Self>) {
         self.creation.visible = false;
         self.composition.visible = false;
         self.settings.visible = false;

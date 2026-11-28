@@ -9,7 +9,7 @@ mod windows;
 #[cfg(windows)]
 pub(crate) use windows::{
     creation_guard, internal_entry, mutation_guard, show_logs, show_status, start_in, stop,
-    stop_and_wait, structured_status, summary,
+    stop_and_wait, structured_status,
 };
 #[cfg(all(windows, test))]
 pub(crate) use windows::{with_test_root, with_unresponsive_fixture};
@@ -28,10 +28,6 @@ pub(crate) fn creation_guard(_: &Path) -> Result<MutationGuard> {
 #[cfg(not(windows))]
 pub(crate) fn internal_entry() -> Option<Result<()>> {
     None
-}
-#[cfg(not(windows))]
-pub(crate) fn summary() -> String {
-    "Background Watch is available on Windows.".into()
 }
 #[cfg(not(windows))]
 pub(crate) fn start_in(_: &Path) -> Result<()> {

@@ -74,7 +74,7 @@ fn dispatch(operation: Operation) -> Result<()> {
             let text = serde_json::to_string(&creation::context()?)?;
             ensure!(
                 text.len() as u64 <= rproj_core::creation::protocol::IPC_LIMIT,
-                "Creation context exceeded its size limit; use the terminal workflow or reduce the template/setup data"
+                "Creation context exceeded its size limit; use rproj new or reduce the template/setup data"
             );
             println!("{text}");
             Ok(())

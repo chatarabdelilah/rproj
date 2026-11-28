@@ -218,7 +218,6 @@ fn record_only_plan(fixture: &Fixture) -> CompositionPlan {
             source: context.source,
             original,
             updated,
-            reviewed: None,
         },
     )
     .unwrap()

@@ -4,10 +4,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, ensure};
 
+#[cfg(test)]
 use crate::graph::ProjectGraph;
 
 pub use rproj_core::creation::validate_name;
-pub use rproj_core::saved_setups::unsupported;
+#[cfg(test)]
 use rproj_core::saved_setups::{CapturedSetup, SetupAction};
 pub(crate) mod checked;
 
@@ -46,11 +47,13 @@ pub fn setup_path(root: &Path, name: &str) -> Result<PathBuf> {
 }
 
 #[derive(Debug)]
+#[cfg(test)]
 pub struct Entry {
     pub name: String,
     pub warning: Option<String>,
 }
 
+#[cfg(test)]
 pub fn list(root: &Path) -> Result<Vec<Entry>> {
     unlinked(root)?;
     let entries = match fs::read_dir(root) {
@@ -89,8 +92,8 @@ pub fn list(root: &Path) -> Result<Vec<Entry>> {
     Ok(result)
 }
 
+#[cfg(test)]
 pub struct Document {
-    pub name: String,
     #[cfg(test)]
     path: PathBuf,
     captured: CapturedSetup,
@@ -101,6 +104,7 @@ pub struct Document {
     pub problem: Option<String>,
 }
 
+#[cfg(test)]
 impl Document {
     pub fn load(root: &Path, name: &str) -> Result<Self> {
         let captured = checked::capture(root, name)?;
@@ -110,7 +114,6 @@ impl Document {
     fn from_captured(captured: CapturedSetup) -> Self {
         let decoded = rproj_core::saved_setups::decode(&captured.bytes);
         Self {
-            name: captured.name.clone(),
             #[cfg(test)]
             path: captured.root.join(format!("{}.toml", captured.name)),
             bytes: captured.bytes.clone(),
@@ -244,7 +247,7 @@ mod tests {
         let source = SOURCE.replace("packages = []", "packages = ['future-package']");
         let (_root, mut document) = fixture(source.as_bytes());
         let mut graph = document.graph.clone().unwrap();
-        assert!(unsupported(&graph));
+        assert!(rproj_core::saved_setups::unsupported(&graph));
         assert!(!document.save(&graph).unwrap());
         graph.packages.clear();
         assert!(document.save(&graph).is_err());

@@ -17,9 +17,7 @@ use crate::catalog::tool_settings::{
 use crate::ui;
 
 pub(crate) mod checked;
-mod editor;
 mod session;
-pub(super) use editor::open_in;
 use session::EditSession;
 
 pub fn run(key: Option<&str>) -> Result<()> {
@@ -47,13 +45,6 @@ pub fn run(key: Option<&str>) -> Result<()> {
     };
 
     configure_tool(&project_dir, tool)
-}
-
-pub(super) fn run_tools_in(project_dir: &Path) -> Result<()> {
-    let options: Vec<&str> = CONFIGURABLE_TOOLS.iter().map(|tool| tool.key).collect();
-    let key = Select::new("Configure which tool?", options).prompt()?;
-    let tool = tool_settings::find(key).context("selected tool is not configurable")?;
-    configure_tool(project_dir, tool)
 }
 
 fn configure_tool(project_dir: &Path, tool: &'static ConfigurableTool) -> Result<()> {

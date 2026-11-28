@@ -18,6 +18,11 @@ pub(crate) fn finish_active_item<T>(run: impl FnOnce() -> T) -> T {
     run()
 }
 
+#[cfg(windows)]
+pub(crate) fn finishing_active_item() -> bool {
+    FINISH_ACTIVE_ITEM.get()
+}
+
 fn should_cancel(requested: bool) -> bool {
     requested && !FINISH_ACTIVE_ITEM.get()
 }
@@ -36,10 +41,6 @@ impl std::error::Error for Cancelled {}
 pub fn install() -> anyhow::Result<()> {
     ctrlc::try_set_handler(|| CANCELLED.store(true, Ordering::SeqCst))?;
     Ok(())
-}
-
-pub fn reset() {
-    CANCELLED.store(false, Ordering::SeqCst);
 }
 
 pub fn request() {

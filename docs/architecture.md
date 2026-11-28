@@ -1,10 +1,16 @@
 # rproj — Architecture
 
-Published baseline: **0.22.0**. The approved [desktop transition](archive/desktop-transition.md) is in progress; no later release candidate is prepared. Release scope and verification are recorded in [the release audit](archive/release-audit.md).
+The current interactive interface is the Windows desktop workbench. Bare
+`rproj` prints command usage, and `rproj app` starts the desktop. Machine Setup
+and Upgrade share their checked executors across the desktop worker and the
+direct CLI. `rproj configure project` opens the desktop template editor.
+References to Ratatui below describe the earlier terminal implementation.
+
+Published CLI and core baseline: **0.23.2**. The [desktop transition](archive/desktop-transition.md) records the migration. Release scope and verification are recorded in [the release audit](archive/release-audit.md).
 
 ## 1. System Overview
 
-### T4 Saved Setup Manager (0.16.0)
+### Historical T4 Saved Setup Manager (0.16.0)
 
 `commands::saved_setups` borrows Home's terminal and owns browser/action state, saved-document snapshots, and the save baseline. `creation::model::Draft::edit_setup` reuses composition controls but does not call preparation, replay normalization, or the confirmed project executor. Opening and returning to review do not derive packages or rewrite provenance. Dependency changes invalidate known package choices; existing exclusions remain until explicitly changed. Optional files use read-only machine selections where available.
 
@@ -18,7 +24,10 @@ Tests use injected storage and the shared PTY harness; manager behavior must not
 
 Every choice `rproj` presents — which system app, which CLI tool, which Studio plugin, which VS Code extension, which Roblox package — is shown with a plain-language description and a maintenance-status badge, so a newcomer is guided toward a working, professional setup without needing to already know the ecosystem, while an experienced developer can move through the same prompts quickly by picking exactly what they want.
 
-Interactive bare `rproj` is a workspace hub over the existing commands. It reports machine, template, saved-setup, and update state on Home, with project context in Projects, but it does not absorb command execution: selecting a task restores the terminal and dispatches the same command implementation used by direct CLI invocation. `rproj new <name>` remains the self-sufficient project entry point. `rproj setup` handles machine provisioning, `rproj setup <tool>` adds one tool to a project, `rproj configure project` edits the global Rojo template, `rproj upgrade` re-applies generated config, `rproj watch` runs the development loop, `rproj test` runs the selected test implementation, `rproj copy` copies `src`, and `rproj info` opens the shared Catalog or prints one named entry.
+The desktop workbench opens projects and provides interactive setup, creation,
+saved setup management, project template editing, and catalog browsing. The CLI
+dispatches project commands directly and hosts the desktop's checked workers.
+`rproj info` prints the categorized catalog, and `rproj info <key>` prints one entry.
 
 **Every generated file is a catalog entry, not a step in a script** (§8.9). A project is composed from answers the same way its package list is, so the minimum `rproj new` can produce is `src/` plus `default.project.json` — no CI workflow, no editor settings, no quality script. What keeps that from becoming *incoherent* freedom is the other half of the same model: an artifact an earlier answer has already decided is reported rather than offered, because a checkbox whose only sane answer is yes is not a question, and answering it the other way used to make the packages the user had just picked silently evaporate.
 
@@ -33,7 +42,7 @@ per-user `desktop.json`; machine setup and project files retain their schemas.
 
 Shared composition now lives in `rproj_core::creation` and the core package,
 capability and artifact catalogs. CLI modules re-export those authoritative types
-and helpers; Ratatui retains its input, picker and navigation state. Graph TOML
+and helpers. The desktop owns its input and navigation state. Graph TOML
 and derivation order remain unchanged. The new pure CreationDraft/CreationPlan
 validate native choices and describe required/optional files without filesystem
 or tool execution. Strict native validation is separate from the terminal's
@@ -64,22 +73,21 @@ no production profile override or configuration schema is introduced.
 
 | Command | Behavior |
 |---|---|
-| `rproj` (no args, terminal) | Opens machine-level Home. Projects discovers the configured root and recognized launch directory; selected-project actions carry explicit paths. External commands run after terminal suspension and return to their caller. |
-| `rproj` (redirected) | Prints the plain welcome and command list without terminal escape sequences. |
+| `rproj` | Prints the overview and command list. |
+| `rproj app [path]` | Opens a matching Windows desktop workbench at an optional project directory. |
 | `rproj setup` | Runs machine provisioning only (see 2.2): system apps, global CLI tools, Studio plugins, editor extensions. Does not create a project. Safe to re-run any time to add or remove tools. |
 | `rproj setup <tool>` | Sets one tool up **in the project you are standing in** (found by walking ancestors for `default.project.json`). Runs `rokit init` if needed, pins the tool, writes its config where rproj knows the format (§8.4), then prints the tool's usage notes and the first command to run. Replaces the previous workflow of reading `rproj info <tool>` and performing four steps by hand. Errors with the valid keys on an unknown name, and with a reason when not inside a project. |
 | `rproj new <name>` | Project scaffolding (see 2.3). Runs machine provisioning inline **only** on a machine that has never been provisioned, or with `--reconfigure`; otherwise prints a one-line machine summary and goes straight to the project questions. Fails immediately if `<RobloxProjects>/<name>` already exists, or if `--like` names a setup that doesn't exist (checked before any work). Asks three things: dependency strategy, package composition, and capabilities (§8.10). |
 | `rproj new --like <setup>` | Reuses a saved package selection and workflow instead of asking. Unknown names fail listing what is available. |
 | `rproj new --save-setup <name>` | Saves this project's package selection and workflow to `<config>/setups/<name>.toml` for later `--like` reuse. |
 | `rproj configure [key]` | Walks through one tool's settings, printing what each does before prompting, then writes them to that tool's config file relative to the current directory (see §8.4). With no key, prompts to pick a tool or the project template; with an unknown key, errors and lists the valid ones. |
-| `rproj configure project` | Opens a built-in, keyboard-driven Explorer for the machine-wide Rojo project template. It supports structural instance operations, typed common properties/attributes/settings, undo/redo, and an internal Advanced JSON mode. Invalid JSON, protected mounts, unsupported `$path` targets, and any tree Rojo rejects are never saved. Existing projects are not modified. |
+| `rproj configure project` | Opens the Project Template editor in the matching desktop workbench. Saved changes apply to future projects. |
 | `rproj watch` | Must be run from inside an existing project directory (one containing `default.project.json`); otherwise errors. Syncs the project's own tools/packages, then starts and blocks on Rojo's sourcemap watcher until interrupted (Ctrl+C). |
 | `rproj watch start / status / logs / stop` | Windows background sourcemap Watch: manual startup from a project, one per user, persistent after the caller exits. Inspection and stopping work from any directory. |
 | `rproj test [runner arguments...]` | Runs from the exact current project directory, restores pinned tools, reuses a complete selected Wally package tree or recovers missing aliases, then dispatches TestEZ to `lute test` or Jest Roblox to `jest-roblox-cli --passWithNoTests`. Remaining arguments and runner output are preserved. Jest requires Wally, Studio, and `JestRobloxRunner.rbxm`. |
 | `rproj copy` | Recursively walks `./src`, concatenates every file's contents (each prefixed with a `// --- relative/path ---` header) and copies the result to the system clipboard. Prints a message and exits cleanly (not an error) if `src/` doesn't exist or contains no readable files. |
 | `rproj upgrade` | Re-applies rproj's generated config to an existing project so it picks up fixes made since it was scaffolded (see 6.3b). `--yes` skips the confirmation. |
-| `rproj info` (in a terminal) | Opens the full-screen Catalog using the same pure section/detail model as direct lookup. Type to filter; Enter descends; Esc returns through detail, entries, and sections with exit 0. The hub embeds the same screen and returns to the task list at its root. |
-| `rproj info` (redirected) | Prints the flat, categorized listing without terminal control sequences, so `rproj info > notes.txt` and CI steps keep working. |
+| `rproj info` | Prints the categorized catalog. |
 | `rproj info <key>` | Prints full detail for one catalog entry: description, maintenance status, source/provider, docs link, then — where one exists — its usage notes (§8.6). Resolves wally packages first, then tools, then **artifacts** (`rproj info wally.toml` answers "why does my project have this?", §8.9), then topics (`ci`, `check`), so `rproj info ci` works even though CI isn't an installable thing. |
 | `--verbose` / `-v` | Global flag on every command. Prints each sub-process command and all of its output. Without it, sub-process output is shown only when a step fails (§2.4). |
 | `--version` / `-V` | clap's own, from `Cargo.toml`. Capital `V`, because lowercase `-v` is `--verbose` above. |
@@ -1404,11 +1412,10 @@ Alongside those: `cargo build` and `cargo clippy --all-targets -- -D warnings` a
 |---|---|---|
 | `clap` (derive) | CLI argument/subcommand parsing (`cli.rs`) | Standard, derive-based, minimal boilerplate for a small fixed command set. |
 | `inquire` | Direct project-composition and settings prompts | Provides arrow-key prompts, filtering, and custom answer formatters for the existing short question flows. |
-| `ratatui` | Home, project/setup browsers, creation, Machine Setup, Catalog, and Template Explorer | Supplies deterministic retained-mode rendering and a test backend. rproj shares terminal/layout/widget primitives but keeps each application's state machine explicit. |
 | `rbx_reflection`, `rbx_reflection_database`, `rbx_types` | Roblox class, service, property, enum and value metadata | The bundled database makes searchable guided controls deterministic and avoids network or machine-local metadata overrides; Rojo validation remains authoritative. |
 | `tempfile` | Atomic project-template replacement | The validated candidate is staged beside the saved template, synced, then atomically persisted so a failed write cannot truncate the last valid configuration. |
-| `crossterm` | Terminal input, sizing, raw mode and alternate-screen lifecycle | Shared by inquire and Ratatui. One `TerminalSession` enables bracketed paste and restores the terminal through RAII; timeout polling lets the hub receive background update results without an async runtime. |
-| `ctrlc` 3.5.2 | Hub-session console interruption | Registered only for interactive bare rproj. The safe API records cancellation while active children receive the Windows console event; process boundaries await completion and refuse further work when cancelled. Direct CLI handler/exit behavior remains unchanged. |
+| `crossterm` | Terminal sizing | Provides width information for direct CLI output. |
+| `ctrlc` | Direct command cancellation | Machine Setup observes Ctrl+C between setup items. On Windows the active installer has its own console process group. |
 | `process-wrap` 10.0.2, Tokio, Windows APIs | Background Watch engine ownership | A dedicated supervisor runtime uses JobObject plus KillOnDrop and hidden process flags. The crate remains `forbid(unsafe_code)`. No async runtime is started for foreground commands or HTTP. |
 | `getrandom` | Local Watch control authentication | OS randomness supplies separate startup, public-control and engine-control tokens. Tokens stay in restricted storage or the owned engine's environment; logs omit them. |
 | `unicode-width` | Display width of option lines and markers | Also already in the tree via `inquire`. Truncating by `char` count or byte length overshoots on any double-width character, and it is what settled the `⚠️` padding question empirically rather than by guess (§2.4). |

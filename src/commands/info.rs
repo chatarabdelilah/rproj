@@ -1,21 +1,3 @@
-//! `rproj info` - the catalog, browsable.
-//!
-//! Three entry points, one body of detail pages:
-//!
-//! - `rproj info <key>` prints one entry and exits. Scriptable, and what
-//!   every "try next" hint in the rest of rproj points at.
-//! - `rproj info` in a terminal opens the full-screen Catalog: pick a section,
-//!   then an entry (or type to filter). Replaces printing ~130 catalog rows
-//!   and leaving the user to scroll back, find an exact name, and retype it
-//!   as an argument - which is a lookup the tool was making the user perform
-//!   on its behalf. It also means a detail page gets the whole screen rather
-//!   than having to stay terse enough to survive in a list.
-//! - `rproj info` with either stream redirected prints the flat listing.
-//!   `rproj info > notes.txt`
-//!   and CI logs keep working.
-
-use std::io::IsTerminal;
-
 use crate::catalog::artifacts;
 use crate::catalog::capabilities;
 use crate::catalog::tool_catalog;
@@ -28,9 +10,6 @@ use anyhow::Result;
 pub fn run(key: Option<&str>) -> Result<()> {
     match key {
         Some(key) => show_one(key),
-        None if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() => {
-            super::catalog_browser::run()
-        }
         None => list_all(),
     }
 }
@@ -133,15 +112,5 @@ mod tests {
         let artifact = artifacts::find("selene.toml").unwrap();
         let detail = catalog_view::lookup("selene.toml").unwrap();
         assert!(detail.body.contains(&catalog_view::cause_line(artifact)));
-    }
-
-    #[test]
-    fn catalog_section_labels_are_unique() {
-        let sections = catalog_view::sections();
-        let mut labels: Vec<&str> = sections.iter().map(|section| section.label()).collect();
-        let before = labels.len();
-        labels.sort_unstable();
-        labels.dedup();
-        assert_eq!(before, labels.len(), "duplicate section label");
     }
 }

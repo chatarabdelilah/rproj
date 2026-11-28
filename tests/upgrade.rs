@@ -28,18 +28,14 @@ fn housekeeping_testez_fixture(label: &str) -> TempProject {
 }
 
 fn open_confirmation(session: &mut Session) {
-    session.wait_for("Upgrade review");
-    session.send("a");
     session.wait_for("Apply these changes?");
 }
 
 fn dismiss_confirmation(session: &mut Session, answer: &str) {
     session.send(answer);
-    session.wait_for_screen("confirmation dismissed", |screen| {
-        let text = screen.contents();
-        text.contains("Upgrade review") && !text.contains("Apply these changes?")
-    });
-    session.send(common::ESC);
+    if answer == "n" {
+        session.send(ENTER);
+    }
 }
 
 #[test]
@@ -50,93 +46,10 @@ fn upgrade_confirmation_defaults_to_no_and_preserves_the_project() {
     let mut session = Session::start(project.path(), &["upgrade"]);
     open_confirmation(&mut session);
     session.send(ENTER);
-    session.wait_for_screen("default-No returned to review", |screen| {
-        let text = screen.contents();
-        text.contains("Upgrade review") && !text.contains("Apply these changes?")
-    });
-    assert_eq!(snapshot(project.path()), before);
-    session.send(common::ESC);
     let outcome = session.finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     assert_eq!(snapshot(project.path()), before);
     outcome.assert_lacks("wrote ");
-}
-
-#[test]
-fn upgrade_review_resize_recovers_scrolled_diff_and_blocks_small_screen_apply() {
-    let project = fixture("upgrade-viewer-resize", "\"vide\"");
-    project.write(
-        ".vscode/settings.json",
-        &serde_json::json!({
-            "custom": {"rows": (0..70).map(|n| format!("row{n:02} 東京")).collect::<Vec<_>>()}
-        })
-        .to_string(),
-    );
-    let before = snapshot(project.path());
-    let mut session = Session::start(project.path(), &["upgrade"]);
-    session.wait_for("Upgrade review");
-    let checkpoint = session.output_checkpoint();
-    session.resize(30, 120);
-    session.wait_for_output_since(checkpoint, "Upgrade review");
-    session.send(common::DOWN);
-    session.wait_for_screen("settings diff selected", |screen| {
-        screen.contents().contains(".vscode/settings.json — diff")
-    });
-    session.send("\t");
-    session.send("\x1b[F");
-    session.wait_for("row69 東京");
-    let scrolled = common::screen_rows(&session.screen());
-    for (rows, cols) in [(24, 80), (16, 60), (10, 40)] {
-        let checkpoint = session.output_checkpoint();
-        session.resize(rows, cols);
-        session.wait_for_output_since(
-            checkpoint,
-            if cols < 60 {
-                "Resize to at least 60 x 16"
-            } else {
-                "Upgrade review"
-            },
-        );
-        session.send("?");
-        session.wait_for("Help");
-        session.send(common::ESC);
-        session.wait_for_screen("Help dismissed", |screen| {
-            !screen.contents().contains("Help")
-        });
-        if cols < 60 {
-            session.send("ay?");
-            session.wait_for("Help");
-            assert_eq!(snapshot(project.path()), before);
-            session.send(common::ESC);
-            session.wait_for_screen("small-screen Apply probe acknowledged", |screen| {
-                !screen.contents().contains("Help")
-            });
-        }
-    }
-    let checkpoint = session.output_checkpoint();
-    session.resize(30, 120);
-    session.wait_for_output_since(checkpoint, "row69 東京");
-    session.wait_screen(&scrolled);
-    session.send("\x1b[H");
-    session.wait_for("LF unless marked");
-    session.send("a");
-    session.wait_for("Apply these changes?");
-    let checkpoint = session.output_checkpoint();
-    session.resize(10, 40);
-    session.wait_for_output_since(checkpoint, "[No]");
-    session.send("y?");
-    session.wait_for("Help");
-    assert_eq!(snapshot(project.path()), before);
-    session.send(common::ESC);
-    session.wait_for_screen("confirmation retained below minimum", |screen| {
-        screen.contents().contains("[No]") && !screen.contents().contains("Help")
-    });
-    session.send(ENTER);
-    session.wait_for("Resize to at least 60 x 16");
-    session.send(common::ESC);
-    let result = session.finish();
-    assert_eq!(result.code, 0, "{}", result.text);
-    assert_eq!(snapshot(project.path()), before);
 }
 
 #[test]
@@ -213,6 +126,7 @@ fn housekeeping_upgrade_preserves_custom_values_and_second_run_is_a_noop() {
             open_confirmation(&mut session);
             assert_eq!(snapshot(project.path()), before);
             session.send("y");
+            session.send(ENTER);
         }
         let outcome = session.finish();
         assert_eq!(outcome.code, 0, "{}", outcome.text);
@@ -288,6 +202,7 @@ fn housekeeping_conflicts_refuse_every_write() {
             }
             let before = snapshot(project.path());
             session.send("y");
+            session.send(ENTER);
             let outcome = session.finish();
             assert_eq!(outcome.code, 1, "{}", outcome.text);
             outcome.assert_contains("changed while upgrade was being reviewed");
@@ -347,6 +262,7 @@ fn later_housekeeping_staging_failure_preserves_earlier_targets() {
     open_confirmation(&mut session);
     fs::set_permissions(&path, readonly).unwrap();
     session.send("y");
+    session.send(ENTER);
     let outcome = session.finish();
     fs::set_permissions(&path, original).unwrap();
     assert_eq!(outcome.code, 1, "{}", outcome.text);
@@ -454,6 +370,7 @@ fn released_wpt_upgrade_cancel_and_changed_pin_preserve_every_file() {
             dismiss_confirmation(&mut session, "n");
         } else {
             session.send("y");
+            session.send(ENTER);
         }
         let outcome = session.finish();
         assert_eq!(
@@ -497,6 +414,7 @@ fn edits_during_upgrade_confirmation_are_refused_before_any_write() {
         }
         let before = snapshot(project.path());
         session.send("y");
+        session.send(ENTER);
         let outcome = session.finish();
         assert_eq!(outcome.code, 1, "{}", outcome.text);
         outcome.assert_contains("changed while upgrade was being reviewed");
@@ -516,6 +434,7 @@ fn changed_upgrade_inputs_are_refused_even_when_they_are_not_rewritten() {
         project.write(relative, &format!("{}\n", project.read(relative)));
         let before = snapshot(project.path());
         session.send("y");
+        session.send(ENTER);
         let outcome = session.finish();
         assert_eq!(outcome.code, 1, "{}", outcome.text);
         outcome.assert_contains("changed while upgrade was being reviewed");
@@ -566,6 +485,7 @@ fn confirmed_upgrade_preserves_custom_settings_and_user_owned_files() {
     let mut session = Session::start(project.path(), &["upgrade"]);
     open_confirmation(&mut session);
     session.send("y");
+    session.send(ENTER);
     let outcome = session.finish();
     assert_eq!(outcome.code, 0, "{}", outcome.text);
     let selene: toml::Value = toml::from_str(&project.read("selene.toml")).unwrap();
@@ -612,6 +532,7 @@ fn a_later_read_only_target_does_not_leave_earlier_files_upgraded() {
     open_confirmation(&mut session);
     fs::set_permissions(&path, readonly).unwrap();
     session.send("y");
+    session.send(ENTER);
     let outcome = session.finish();
     fs::set_permissions(&path, original).unwrap();
     assert_eq!(outcome.code, 1, "{}", outcome.text);
@@ -763,6 +684,7 @@ fn safe_multiline_selene_merges_preserve_values_and_settle_after_one_run() {
                 open_confirmation(&mut session);
                 assert_eq!(snapshot(project.path()), before);
                 session.send("y");
+                session.send(ENTER);
             }
             let first = session.finish();
             assert_eq!(first.code, 0, "{}", first.text);
@@ -954,6 +876,7 @@ fn recreating_selene_is_complete_after_one_upgrade() {
                 open_confirmation(&mut session);
                 assert_eq!(snapshot(project.path()), before);
                 session.send("y");
+                session.send(ENTER);
             }
             let first = session.finish();
             assert_eq!(first.code, 0, "{}", first.text);

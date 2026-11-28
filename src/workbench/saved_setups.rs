@@ -94,7 +94,7 @@ fn listing(root: &Path, config: &Path) -> Result<SetupListing> {
         size += serde_json::to_vec(&entry)?.len();
         ensure!(
             size <= IPC_LIMIT as usize,
-            "Saved setup listing exceeds the 2 MiB worker limit; use terminal Saved Setups"
+            "Saved setup listing exceeds the 2 MiB worker limit; move unused files out of <rproj config>/setups, then refresh Saved Setups"
         );
         listing.entries.push(entry);
     }
@@ -216,7 +216,7 @@ fn perform(
     }
     ensure!(
         serde_json::to_vec(report)?.len() as u64 <= IPC_LIMIT,
-        "Saved Setups response exceeds the 2 MiB worker limit; use terminal management. Reload if a mutation was started."
+        "Saved Setups response exceeds the 2 MiB worker limit; reduce the affected setup file in <rproj config>/setups and reload. Check the files first if a mutation was started."
     );
     Ok(())
 }

@@ -39,7 +39,7 @@ fn job_at(
         report.check(&request)?;
         ensure!(
             serde_json::to_vec(&report)?.len() as u64 <= IPC_LIMIT,
-            "Project Template report exceeds the 2 MiB worker limit; use the terminal editor"
+            "Project Template report exceeds the 2 MiB worker limit; reduce the template at <rproj config>/templates/default.project.json or shorten the draft, then retry"
         );
         Ok(())
     });
@@ -97,7 +97,7 @@ fn perform(
             };
             ensure!(
                 serde_json::to_vec(&submission)?.len() as u64 <= IPC_LIMIT,
-                "Template Save request exceeds the 2 MiB worker limit; use the terminal editor"
+                "Template Save request exceeds the 2 MiB worker limit; reduce the template at <rproj config>/templates/default.project.json or shorten the draft, then retry"
             );
             report.prepared = Some(prepared);
         }

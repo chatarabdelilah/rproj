@@ -55,35 +55,21 @@ rproj connects two layers that are usually assembled by hand:
 
 It explains the available choices before applying them. It does not hide the underlying ecosystem: generated projects remain ordinary Rojo, Rokit, Wally, Luau, and Git projects that can be maintained without rproj.
 
-Run `rproj` with no arguments in a terminal to open Home: Projects, New Project, Saved Setups, Edit Project Template, Machine Setup, and Catalog. Internal screens share one terminal session. Project commands use normal terminal output and return to their caller after acknowledgement. Machine Setup keeps its own progress and results inside Ratatui. Direct commands remain the interface for scripts.
+Run `rproj app` to open the Windows desktop workbench. Bare `rproj` prints the command overview. Direct commands remain available from a terminal.
 
 ## Machine Setup
 
-Open **Machine Setup** from Home, or run `rproj setup` in a terminal. Start at the review screen and edit System Apps, CLI Tools, Studio Plugins, Blender Add-ons, or VS Code Extensions and Themes & Icons. Type to filter; Space toggles; Enter accepts the category; Esc abandons its edits. Optional items start unchecked; saved choices, including empty selections, are preserved. Unrecognized saved entries remain visible and preserved, but are not installed.
+Open **Machine Setup** in the desktop app, or run `rproj setup` in an interactive terminal. Pick tools and applications by category, review the plan, then confirm before installation. Optional items start unchecked and saved choices carry forward. Unrecognized selections are retained without being installed.
 
-**Apply Setup** asks for explicit confirmation; Enter defaults to No, and Y confirms. The review displays the projects folder (read-only). Rokit runs first only when a catalog CLI tool is selected. Selections describe intent, not verified installation state. Deselecting an application never uninstalls it. Blender and VS Code dependent choices remain remembered but inactive when their parent application is deselected.
+Installations run sequentially. **Stop** in the desktop app or Ctrl+C in the CLI lets the active item finish before stopping. Cancelled or fatal attempts do not save machine selections. Completed attempts that encountered recoverable issues report warnings and save selections. Native installer dialogs and manual plugin or account steps may still appear.
 
-Installations run sequentially with per-item outcomes and scrollable output. Tab changes focus; arrows, Page Up/Down, Home and End navigate or scroll. End resumes following output. Native installer/UAC dialogs can still appear. Marketplace plugins and account linking require the displayed manual steps.
-
-Confirmed CLI-tool selections use `rokit add --global --force` to handle first-use trust without an interactive child prompt. This reinstalls the selected tool and replaces its global pin with the catalog source; project-local pins are unchanged. Scribe Studio is an optional Studio Plugins entry with a Creator Store install link and usage guidance. rproj reports it as a manual step and does not claim to detect its installation.
-
-New Project also starts with no optional packages or capabilities selected. Choosing a capability may add its required tools or packages; saved setups retain their recorded choices. Mandatory Rojo files and the reviewed housekeeping files remain part of the generated project.
-
-Esc/Ctrl+C during installation asks to **stop after the current item**. rproj waits for that item; it does not force-kill installers or roll back completed work. Cancelled or fatal runs do not save machine selections. A completed attempt saves selections even when individual installations need repair, and clearly reports warnings instead of claiming everything is ready. Back returns to review for a confirmed rerun.
-
-Output is bounded: 500 lines of up to 2,048 characters, with truncation notices; parsing output is limited to 8 MiB per stream. Raw installer output is not copied into diagnostic logs. A stuck installer must finish or be resolved externally before rproj can safely return. Machine Setup does not accept redirected input; `rproj setup <tool>` retains its existing project-tool behavior.
+Selecting catalog CLI tools runs Rokit first. Confirmed setup may replace a selected tool's global pin with its catalog pin. Project pins stay intact.
 
 ## Saved Setups
 
-Open **Saved Setups** from Home. Type to filter names, use Enter to open actions, F5 to refresh, Tab to focus composition details, and arrows/Page Up/Page Down to scroll. Esc returns locally; Ctrl+C returns Home. Machine Setup is not required. New setups are still saved during New Project.
+Open **Saved Setups** in the desktop app to inspect, edit, rename, duplicate, or reuse a named setup. **Use in New Project** loads the saved composition into a draft. Save a new named setup from **New Project → Review** during project creation, or use `rproj new <name> --save-setup <setup>`. The CLI also accepts `--like <setup>`.
 
-**Edit** opens composition review with the existing dependency, package, capability, implementation, and optional-file controls. Ctrl+S at Review saves without closing. Back protects unsaved changes since the last successful save. Nothing is provisioned or scaffolded. Dependencies may invalidate package choices; incompatible Jest requires choosing TestEZ or disabling Testing.
-
-Storage remains `<rproj config>/setups/<name>.toml`. Opening, cancelling, and unchanged saves do not write. Changed composition saves preserve unknown TOML fields and untouched provenance/exclusions, but may reformat TOML and remove comments. Documents with malformed or unsupported composition data remain inspectable; guided editing is disabled when its consequences cannot be resolved safely.
-
-Rename and Duplicate preserve original bytes. Names must be safe single names; linked paths, reserved Windows names, and collisions are refused. Case-only renames require an intermediate distinct name. Delete names the setup and defaults to No. Existing projects are never affected.
-
-Detected external edits require leaving the editor and refreshing; there is no force-overwrite option. Failed saves retain the draft. Rename copies safely before removing the original: a removal failure can leave both files, which rproj reports. These operations do not promise a multi-file transaction or protection against every external-writer race.
+Setups are stored in `<rproj config>/setups/<name>.toml`. Changed saves preserve unrelated fields and may reformat TOML. Rename and Duplicate preserve file bytes. Concurrent file changes require a reload before applying an edit.
 
 ## Ecosystems
 
@@ -102,7 +88,7 @@ Use `rproj info` to browse the complete current catalog and `rproj info <key>` t
 
 | Command | Purpose |
 | --- | --- |
-| `rproj` | Open the interactive workspace hub; print a plain overview when redirected |
+| `rproj` | Print the command overview |
 | `rproj new <name>` | Set up the machine when needed and create a project |
 | `rproj setup` | Review or change machine-level tools |
 | `rproj setup <tool>` | Set up one supported tool for the current project |
@@ -144,8 +130,7 @@ setup selections. In an existing project, `rproj setup blender` creates a missin
 `blender/scene.blend` and preserves an existing scene. Missing Blender is reported
 before project creation; ordinary Upgrade does not generate binary asset files.
 
-The [desktop transition](docs/archive/desktop-transition.md) keeps the terminal interface
-and CLI. `rproj app [path]` locates a sibling or previously registered desktop
+`rproj app [path]` locates a sibling or previously registered desktop
 executable; installing the CLI with Cargo does not download the GUI. Desktop
 distribution and acceptance evidence are tracked in the
 [feasibility record](docs/archive/desktop-feasibility.md).
@@ -156,48 +141,27 @@ On Windows, `rproj watch start` runs that sourcemap Watch in the background afte
 
 Projects lists recognized folders directly beneath the configured projects root, plus the launch directory when it contains `rproj.toml` or `default.project.json`. It does not recurse or follow linked child directories. Malformed projects stay visible with warnings; missing or unreadable roots are reported without creating folders.
 
-Type to filter by name or path; use arrows and Enter to open a project, F5 to refresh, Tab to focus details, and `?` for help. Esc returns to the list with its filter, selection, and scroll intact; Ctrl+C returns Home. Selection lasts only for this session.
-
-The project screen offers Configure Tools, Upgrade Project, Start background Watch, Test Project, Copy Source, Watch Status, Watch Logs, Stop Watch, and Watch in Foreground. Home shows background Watch's project and state; quitting leaves it running. Actions target the selected directory. Stop Watch before changing the watched project's composition, tools, or configuration, and before Machine Setup. Tests can coexist with Watching but are blocked during Preparing/Stopping. Configure Tools stays inside Ratatui with setting details, pending changes, default-No save/discard confirmation, and preservation of unrelated values. Upgrade review also borrows this terminal; execution restores ordinary output and waits for acknowledgement before returning to the project. Other commands retain their output acknowledgement. Foreground Watch retains Ctrl+C stopping and failure reporting. Successful creation opens the new project's screen; Back selects it in the refreshed Projects list.
+Use the desktop project picker to open a project or resume a recent one. Project views provide configuration, upgrades, tests, source copying and background Watch controls. Stop Watch before changing the watched project's composition or configuration, and before Machine Setup. Use `rproj watch` for foreground Watch in a terminal.
 
 Background states are Preparing, Watching, Stopping, Stopped, Failed, and Unresponsive. Start acknowledges Preparing; Watching requires successful recovery, initial sourcemap generation, and a spawned watcher. If the launcher prohibits process detachment, start from a normal Windows terminal. Unresponsive ownership blocks a replacement; rproj never kills a process using a cached PID. Watch logs retain two files of at most 1 MiB each under the user's local rproj data directory. Review tool output and local paths before sharing logs.
 
 ### Catalog
 
-Packages are grouped by category. Tools are grouped into System Apps, CLI Tools, Studio Plugins, Blender Add-ons, and VS Code; VS Code separates Extensions from Themes & Icons. Type to search the current group and descendants. Project-template editing and Saved Setups belong to their own Home destinations, not Catalog.
+Use **Catalog** in the desktop app to browse packages, tools, and examples. Run `rproj info` for the plain catalog listing or `rproj info <key>` for one entry.
 
-Rows show names only; explanations appear in Overview or Details. Enter opens groups and does nothing on read-only entries. Arrows/Home/End select entries; Page Up/Down and Ctrl+Home/End scroll details without changing focus. Esc backs out while preserving your selection, filter, and scroll position. Ctrl+C returns to Home, or exits a standalone `rproj info` session. Details include purpose, requirements, caveats, official documentation, and one short version-checked example per package, bundled for offline use. Examples label execution context and Wally imports and package realms; they are starting points, not complete production systems.
+### New Project
 
-### New Project in the hub
-
-After Machine Setup, select **New Project** to enter a folder name and choose Guided, Expert, or a saved setup. The built-in screens cover dependencies, packages, capabilities, and a review of generated files. Saved setups go straight to review. Direct `rproj new <name>` retains its existing prompts and flags.
-
-Type to filter choices; Space toggles multiple selections without losing choices hidden by the filter. Enter advances, Tab changes focus, and Page Up/Down scrolls details. Review lets you revise decisions, omit optional files, rename the project, or save a new named setup. Existing setups are never replaced by the hub.
-
-Changing dependencies reopens package selection and clears stale file exclusions. If Jest becomes incompatible, choose TestEZ or disable Testing explicitly; unrelated capabilities remain selected. Esc cancels a revision or asks to discard the draft. Ctrl+C cancels creation and returns Home without creating anything. Preparation displays template validation before the questions; Esc cancels preparation after its active validation process finishes.
-
-Only confirmed **Create** writes the project and saves the optional setup. The terminal is restored before installed tools run. If another process creates the destination meanwhile, rproj refuses to overwrite it. The hub does not install machine applications from a draft; use **Machine Setup** first.
+Choose **New Project** in the desktop app. Guided and Expert modes let you choose dependencies, packages and capabilities before reviewing the generated files. You can also reuse a saved setup. Confirm **Create** to write the project and any optional named setup. If another process claims the destination before Create, rproj refuses to overwrite it. Direct `rproj new <name>` uses terminal prompts.
 
 ### Tool configuration
 
 Run `rproj configure selene`, `stylua`, `luau-lsp`, or `stylua-vscode` in the project directory. Existing settings are the prompt defaults; missing settings use catalog defaults. An unlisted or unsupported existing value is kept unless you explicitly agree to replace it. Keeping all existing settings unchanged avoids rewriting the file. TOML layouts the writer cannot safely modify are refused without saving; edit those files manually.
 
-### Upgrade review (0.22.0)
+### Upgrade review
 
-Run `rproj upgrade` in an interactive terminal, or select **Upgrade Project**
-in Home. Select a changed file to inspect its reason and scrollable diff;
-skipped-file warnings remain visible. New files appear as additions. `+` and
-`-` mark changed lines; CRLF and missing final newlines are marked explicitly.
+Run `rproj upgrade` in an interactive terminal to see proposed file diffs and confirm with a default-No prompt. The desktop **Upgrade Project** view also supports review. If a source file changes during review, Upgrade refuses the stale plan before writing.
 
-Tab switches focus, arrows navigate, Page Up/Down scroll, and Left/Right pan
-long lines. **A** opens Apply all; **Enter means No**, and **Y** approves all
-reviewed changes. Esc closes a dialog, then cancels Upgrade; Ctrl+C exits to
-Home. Below 60 x 16, resize before applying; Help and cancellation still work.
-No writes occur during review. External changes refuse the reviewed plan.
-
-`rproj upgrade --yes` keeps plain output and applies without the viewer, using
-the same preservation and conflict checks. Redirected interactive upgrades
-with changes require `--yes`; an empty plan reports its result without a viewer.
+Use `rproj upgrade --yes` to apply without an interactive prompt, with the same preservation and conflict checks.
 
 ## Generated project
 
@@ -253,19 +217,11 @@ The execution choice is saved in project records and saved setups: `[capabilitie
 
 ## Project template
 
-Run `rproj configure project` to customize the `default.project.json` used by projects created afterward. It opens a built-in, keyboard-driven Explorer; it never launches another editor. Existing projects are never changed.
+Open **Project Template** in the desktop workbench or launch it with `rproj configure project`. Edits apply to future projects and are stored at `<rproj config>/templates/default.project.json`.
 
-Use the arrow keys to navigate, Enter to edit, Tab to switch panes, and type in searchable class and property pickers. `A` adds an instance, `F2` renames, `D` duplicates, `M` reparents, Delete removes, and Ctrl+Z/Ctrl+Y undo and redo. The Inspector provides typed controls for common Roblox properties and attributes plus common project settings. Ctrl+E opens the complete JSON in rproj's internal text editor for uncommon Rojo values and advanced settings. Press `?` in the editor for the full key list.
+Use the Explorer and Inspector for tree and property edits, or **Advanced JSON** for the whole document. **Review changes…** shows the proposed changes before Save. Invalid JSON stays available for repair, and external changes require **Reload from file**. Confirming **Restore built-in** removes the custom override.
 
-Ctrl+S checks the JSON, rproj-owned paths, and every reachable plain and Wally mount combination with Rojo before atomically saving it under the rproj configuration directory. Rojo must resolve from the current project or Rokit's global manifest; `rokit add --global rojo` installs the global fallback. Validation failures leave the draft open and the last valid saved template untouched. A malformed saved file opens directly in JSON repair mode. Ctrl+R restores the built-in template after confirmation.
-
-Saving does **not** close the editor, including standalone `rproj configure project`. Selection, editing mode, and undo history remain intact. Undoing a saved change makes the draft unsaved again. Esc keeps local Back behavior; leaving Explorer or pressing Ctrl+C confirms discarding changes since the last successful save. Confirmed reset removes only the custom template and returns to Home (or ends the standalone command). Failed validation/writes keep the draft and show a scrollable error.
-
-Version 0.19.1 detects external template changes at its save/reset checks and refuses the operation, retaining the draft. Checks are optimistic: a change after the final check can still be overwritten or removed. Reopen Template Explorer to load the current file after a refusal.
-
-Compound values use comma-separated components in the Inspector; rproj writes their required Rojo representation. UDim offsets must be signed 32-bit whole numbers, and numeric inputs must be finite. If an older draft contains a malformed UDim, UDim2, Rect, or CFrame attribute, re-enter that value in the Inspector before saving; existing templates are not silently rewritten.
-
-The project name, DataModel root, `src/shared`, `src/server`, and `src/client` mounts are visible but locked because rproj owns them. Package, module, server-package, development-package, and test mount names and paths are reserved because those directories depend on each new project's choices. Custom `$path` entries may target only the always-created source directories; use static instances and properties for other additions. The saved template is `<rproj config>/templates/default.project.json`.
+Required source mounts and the DataModel root are protected. Rojo validates the reviewed template. Install the global fallback with `rokit add --global rojo` if needed.
 
 ## Behavior and scope
 

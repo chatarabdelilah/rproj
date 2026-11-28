@@ -1,5 +1,7 @@
 # Desktop transition
 
+The Windows retirement acceptance is recorded in the [current roadmap](../plan.md#current-state). The remainder of this document describes the transition as originally planned.
+
 Approved October 8, 2026. This supersedes the Ratatui-only direction, not the
 retirement of Tauri, model import, or embedded replacements for external tools.
 The published baseline is 0.22.0; implementation starts from `17b7ef4`.

@@ -87,7 +87,7 @@ impl WorkbenchClient {
         };
         ensure!(
             serde_json::to_vec(&request)?.len() as u64 <= IPC_LIMIT,
-            "Template request exceeds the 2 MiB worker limit; use the terminal editor. Nothing written."
+            "Template request exceeds the 2 MiB worker limit; reduce the template at <rproj config>/templates/default.project.json or shorten the draft, then retry. Nothing written."
         );
         request.validate()?;
         write_atomic(&directory.path().join("request.json"), &request)?;

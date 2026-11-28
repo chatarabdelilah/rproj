@@ -154,7 +154,6 @@ pub(super) fn prepare_project(
 
 pub(crate) enum SetupSave<'a> {
     Replace(&'a str),
-    New(&'a str),
     NewAt { name: &'a str, path: &'a Path },
 }
 
@@ -314,10 +313,6 @@ pub(crate) fn execute_reviewed(
             let setup_name = match save {
                 SetupSave::Replace(name) => {
                     Setups::save(graph, name)?;
-                    name
-                }
-                SetupSave::New(name) => {
-                    Setups::save_new(graph, name)?;
                     name
                 }
                 SetupSave::NewAt { name, path } => {

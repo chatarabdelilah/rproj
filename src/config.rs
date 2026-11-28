@@ -216,12 +216,6 @@ impl Setups {
         })?))
     }
 
-    pub fn save_new(setup: &SavedSetup, name: &str) -> Result<PathBuf> {
-        let path = Self::path_for(name)?;
-        save_new_setup_at(setup, &path)?;
-        Ok(path)
-    }
-
     /// Names of every saved setup, sorted. Missing directory is not an
     /// error - it just means none have been saved yet.
     ///
@@ -252,8 +246,10 @@ impl Setups {
 
 /// Persistence for the machine-wide Rojo project template.
 pub mod project_template {
+    #[cfg(test)]
     use super::template_checked;
     use super::*;
+    #[cfg(test)]
     use rproj_core::project_template::review::{TemplateAction, TemplateSource};
 
     pub fn path() -> Result<PathBuf> {
@@ -267,14 +263,13 @@ pub mod project_template {
         load_from(&path()?)
     }
 
+    #[cfg(test)]
     pub(crate) struct EditSession {
         source: TemplateSource,
     }
 
+    #[cfg(test)]
     impl EditSession {
-        pub fn open() -> Result<Self> {
-            Self::open_at(&path()?)
-        }
         pub fn open_at(path: &Path) -> Result<Self> {
             Ok(Self {
                 source: template_checked::capture(path, None)?,
@@ -292,30 +287,16 @@ pub mod project_template {
                 &self.source,
                 TemplateAction::Save(template.clone()),
                 validate,
-            )
-            .map_err(terminal_recovery)?;
-            self.source =
-                template_checked::execute(&review, &mut || Ok(())).map_err(terminal_recovery)?;
+            )?;
+            self.source = template_checked::execute(&review, &mut || Ok(()))?;
             Ok(self.source.path.clone())
         }
         pub fn reset(&mut self) -> Result<bool> {
-            let review = template_checked::prepare(&self.source, TemplateAction::Reset, |_| Ok(()))
-                .map_err(terminal_recovery)?;
+            let review =
+                template_checked::prepare(&self.source, TemplateAction::Reset, |_| Ok(()))?;
             let changed = review.changes();
-            self.source =
-                template_checked::execute(&review, &mut || Ok(())).map_err(terminal_recovery)?;
+            self.source = template_checked::execute(&review, &mut || Ok(()))?;
             Ok(changed)
-        }
-    }
-
-    fn terminal_recovery(error: anyhow::Error) -> anyhow::Error {
-        let detail = format!("{error:#}");
-        if detail.contains("Reload from file") {
-            anyhow::anyhow!(
-                "{detail}\nTerminal recovery: preserve any desired draft changes separately, then exit and reopen `rproj configure project` to recapture the file. This terminal editor has no Reload action."
-            )
-        } else {
-            error
         }
     }
 
