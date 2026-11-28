@@ -796,7 +796,8 @@ fn supervisor(root: &Path, project: &Path, nonce: String) -> Result<()> {
         loop {
             // Engine exit triggers cleanup even when descendants are still running.
             if let Some(exit) = child.inner_mut().try_wait().context("could not poll owned Watch engine")? {
-                // Closing the armed JobObject also terminates surviving grandchildren.
+                child.start_kill().context("could not terminate owned Watch processes")?;
+                child.wait().await.context("could not confirm owned Watch processes exited")?;
                 drop(child);
                 if let Some(task) = stdout.take() { task.await??; }
                 if let Some(task) = stderr.take() { task.await??; }

@@ -426,7 +426,9 @@ fn execute_owned_os(
                 }
                 tokio::time::sleep(Duration::from_millis(30)).await;
             };
-            // Closing the job also terminates grandchildren and releases inherited pipes.
+            // Confirm the job is empty even when descendants have already closed their pipes.
+            child.start_kill()?;
+            child.wait().await?;
             drop(child);
             stdout.await??;
             stderr.await??;

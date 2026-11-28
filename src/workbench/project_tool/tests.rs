@@ -317,7 +317,7 @@ fn same_project_watch_blocks_execution_and_other_watch_remains_untouched() {
 }
 
 #[test]
-fn confirmed_exit_drains_pipes_and_reaps_descendants() {
+fn confirmed_exit_reaps_descendants_without_inherited_pipes() {
     let f = Fixture::new();
     let plan = f.plan();
     f.mode("descendant");

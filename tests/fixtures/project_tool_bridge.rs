@@ -1,5 +1,10 @@
 // Disposable owned-worker fixture; never installs real tools or opens a window.
-use std::{env, fs, process::Command, thread, time::Duration};
+use std::{
+    env, fs,
+    process::{Command, Stdio},
+    thread,
+    time::Duration,
+};
 fn main() {
     let args: Vec<_> = env::args_os().skip(1).collect();
     if args == ["--sleeper"] { thread::sleep(Duration::from_secs(60)); return; }
@@ -23,7 +28,13 @@ fn main() {
         .status().unwrap();
     if mode == "mismatch-report" { fs::write(&report, fs::read_to_string(&report).unwrap().replace("\"id\":\"", "\"id\":\"wrong-")).unwrap(); }
     if mode == "descendant" {
-        let child = Command::new(&exe).arg("--sleeper").spawn().unwrap();
+        let child = Command::new(&exe)
+            .arg("--sleeper")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
         fs::write(root.join("descendant.pid"), child.id().to_string()).unwrap();
     }
     if mode == "exit-disagrees" { std::process::exit(7); }
