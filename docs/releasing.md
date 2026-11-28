@@ -1,6 +1,13 @@
 # Releasing rproj
 
-The published baseline is **0.23.2, public alpha**. Both crates.io archives
+The published baseline is **0.24.0, public alpha**. Both crates.io archives
+matched their registry checksums and recorded clean commit
+`4fc281041165a41ca625abdb31cbe8450c4277f3`. The annotated tag and
+[GitHub prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.24.0)
+point to that commit. See the [release notes](releases/release-notes-0.24.0.md)
+and [release CI](https://github.com/chatarabdelilah/rproj/actions/runs/46139082674).
+
+The previous published baseline was **0.23.2, public alpha**. Both crates.io archives
 matched their registry checksums and recorded clean commit
 `1a757558b9d8c21bb6c0c0d9414c36960bf12eae`. The annotated tag and
 [GitHub prerelease](https://github.com/chatarabdelilah/rproj/releases/tag/v0.23.2)

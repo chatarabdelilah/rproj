@@ -22,9 +22,9 @@ rproj connects existing tools, explains choices, derives coherent configuration,
 
 ## Current State
 
-**0.24.0 alpha candidate.** This coordinated CLI/core/desktop version includes
-Ratatui retirement and the direct CLI replacements. Published alpha remains
-0.23.2 until owner publication. [Candidate notes](releases/release-notes-0.24.0.md)
+**November 28 — 0.24.0 is the published CLI and core alpha.** The Windows
+desktop workbench replaces Ratatui, and direct CLI commands remain available.
+[Release notes](releases/release-notes-0.24.0.md).
 
 **Ratatui retirement.** The owner tested the Windows x64 portable build from
 `606c1a0`. Configure Tools preserved review edits and saved settings. New Project
@@ -38,7 +38,7 @@ Bare `rproj` prints usage. `rproj app` opens the desktop workbench. Direct
 Machine Setup and Upgrade use line-oriented prompts and the checked executors.
 `rproj configure project` opens the desktop template editor.
 
-**November 28 — 0.23.2 is the published CLI and core alpha.** New Project
+**November 28 — 0.23.2 was published for CLI and core.** New Project
 checks prerequisites before claiming the destination, and Wally composition
 restores empty mounts before generating the Rojo sourcemap. The release also
 includes the RustSec dependency updates. [Release notes](releases/release-notes-0.23.2.md).
